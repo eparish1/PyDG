@@ -98,9 +98,9 @@ def getRHS(main,eqns,schemes):
   eqns.evalFluxY(main.a.u,main.iFlux.fy)
   for i in range(0,main.order):
     for j in range(0,main.order):
-      main.a.a[:,i,j] = volIntegrate(main.weights,main.wp[i][:,None]*main.w[j][None,:],main.iFlux.fx - main.nu*main.vFlux2.fx)*2./main.dx + volIntegrate(main.weights,main.w[i][:,None]*main.wp[j][None,:],main.iFlux.fy - main.nu*main.vFlux2.fy )*2./main.dy + (-main.iFlux.fRI[:,j] + main.iFlux.fLI[:,j]*main.altarray[i])*2./main.dx + (-main.iFlux.fUI[:,i] + main.iFlux.fDI[:,i]*main.altarray[j])*2./main.dy \
+      main.RHS[:,i,j] = volIntegrate(main.weights,main.wp[i][:,None]*main.w[j][None,:],main.iFlux.fx - main.nu*main.vFlux2.fx)*2./main.dx + volIntegrate(main.weights,main.w[i][:,None]*main.wp[j][None,:],main.iFlux.fy - main.nu*main.vFlux2.fy )*2./main.dy + (-main.iFlux.fRI[:,j] + main.iFlux.fLI[:,j]*main.altarray[i])*2./main.dx + (-main.iFlux.fUI[:,i] + main.iFlux.fDI[:,i]*main.altarray[j])*2./main.dy \
                   + main.nu*(main.vFlux2.fRI[:,j] - main.vFlux2.fLI[:,j]*main.altarray[i])*2./main.dx + main.nu*(main.vFlux2.fUI[:,i] - main.vFlux2.fDI[:,i]*main.altarray[j])*2./main.dy
-      main.a.a[:,i,j] = main.a.a[:,i,j]*(2.*i + 1.)*(2.*j + 1.)/4.
+      main.RHS[:,i,j] = main.RHS[:,i,j]*(2.*i + 1.)*(2.*j + 1.)/4.
 
 
 def getViscousFluxes(main,eqns,schemes):
