@@ -85,7 +85,7 @@ class variables:
     self.vFlux2 = fluxvariable(eqns.nvars,self.order,self.order,self.Npx,self.Npy)
     self.getRHS = getRHS
     self.getFlux = getFlux
-
+    self.RHS = np.zeros((eqns.nvars,self.order,self.order,self.Npx,self.Npy))
 class fschemes:
   def __init__(self,iflux_str,vflux_str):
     if (iflux_str == 'central'):
