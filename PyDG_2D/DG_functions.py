@@ -78,7 +78,7 @@ def getFlux(main,eqns,schemes):
   #eigsRL,eigsUD = eqns.getEigs(uRLS,uUDS)
   #fRS,fLS,fUS,fDS = centralFlux(fR,fL,fU,fD,fU_edge,fD_edge)
   #fRS,fLS,fUS,fDS = rusanovFlux(fR,fL,fU,fD,fU_edge,fD_edge,eigsRL,eigsUD,uR,uL,uU,uD,uU_edge,uD_edge)
-  schemes.inviscidFlux(main.iFlux)
+  schemes.inviscidFlux(main,eqns,schemes,main.iFlux,main.a)
   # now we need to integrate along the boundary 
   for i in range(0,main.order):
     main.iFlux.fRI[:,i] = faceIntegrate(main.weights,main.w[i],main.iFlux.fRS)
@@ -114,7 +114,7 @@ def getViscousFluxes(main,eqns,schemes):
   eqns.evalViscousFluxY(main.a.uU_edge,main.vFlux.fU_edge)
   eqns.evalViscousFluxY(main.a.uD_edge,main.vFlux.fD_edge)
   # now construct star state
-  schemes.viscousFlux(main.vFlux)
+  schemes.viscousFlux(main,eqns,schemes,main.vFlux,main.b)
   # now we need to integrate along the boundary 
   for i in range(0,main.order):
     main.vFlux.fRI[:,i] = faceIntegrate(main.weights,main.w[i],main.vFlux.fRS)
@@ -142,7 +142,7 @@ def solveb(main,eqns,schemes):
   eqns.evalTauFluxY(main.b.uD_edge,main.a.uD_edge,main.vFlux2.fD_edge)
   eqns.evalTauFluxX(main.b.u,main.a.u,main.vFlux2.fx)  
   eqns.evalTauFluxY(main.b.u,main.a.u,main.vFlux2.fy)  
-  schemes.viscousFlux(main.vFlux2)
+  schemes.viscousFlux(main,eqns,schemes,main.vFlux2,main.b)
   for i in range(0,main.order):
      main.vFlux2.fRI[:,i] = faceIntegrate(main.weights,main.w[i],main.vFlux2.fRS)
      main.vFlux2.fLI[:,i] = faceIntegrate(main.weights,main.w[i],main.vFlux2.fLS)

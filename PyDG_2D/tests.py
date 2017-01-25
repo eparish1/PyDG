@@ -64,7 +64,7 @@ iteration = 0
 save_freq = 25
 eqns = equations('Navier-Stokes')
 main = variables(Nel,order,eqns,nu,x,y,t,et,dt,iteration,save_freq)
-schemes = fschemes('central','central')
+schemes = fschemes('rusanov','central')
 
 for qnum in range(0,eqns.nvars):
   getIC(main,vortexICS,qnum)

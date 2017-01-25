@@ -21,6 +21,14 @@ def getGlobGrid(x,y,zeta):
   return xG,yG
 
 
+def getGlobU(u):
+  nvars,order,order,Nelx,Nely = np.shape(u)
+  uG = np.zeros((nvars,order*Nelx,order*Nely))
+  for i in range(0,Nelx):
+    for j in range(0,Nely):
+      for m in range(0,nvars):
+        uG[m,i*order:(i+1)*order,j*order:(j+1)*order] = u[m,:,:,i,j]
+  return uG
 
 ### INTERPOLATING
 gridfile = np.load('grid.npz')
@@ -88,7 +96,7 @@ def hitICS(x,y,qnum):
   p[:,:] = np.reshape(pInterp,(nx,ny))
   p += p0
   T = p/(rho*R)
-#  print(np.amin(np.sqrt(gamma*R*T)),np.amax(abs(u)))
+  #print(np.amax(abs(u)/(np.sqrt(gamma*R*T))))
   E = Cv*T + 0.5*(u**2 + v**2)
   q = np.zeros((4,nx,ny))
   q[0] = rho[:]
@@ -112,20 +120,20 @@ def getIC(main,f,qnum):
 
 L = 2.*np.pi
 L = 2.*np.pi
-Nel = np.array([2**7,2**7])
-order = 5
+Nel = np.array([2**6,2**6])
+order = 3
 nu = 0.1
 x = np.linspace(0,L,Nel[0]+1)
 y = np.linspace(0,L,Nel[1]+1)
 t = 0
-dt = 5.e-5
+dt = 2.e-4
 et = 10.
 iteration = 0
 save_freq = 10
 eqns = equations('Navier-Stokes')
 main = variables(Nel,order,eqns,nu,x,y,t,et,dt,iteration,save_freq)
-schemes = fschemes('central','central')
-#xG,yG = getGlobGrid(x,y)
+schemes = fschemes('rusanov','central')
+xG,yG = getGlobGrid(x,y,main.zeta)
 for qnum in range(0,eqns.nvars):
   getIC(main,hitICS,qnum)
   print(qnum)
@@ -139,11 +147,10 @@ while (main.t <= main.et - main.dt/2):
     reconstructU(main,main.a)
     uG = gatherSol(main,eqns,main.a)
     if (main.mpi_rank == 0):
-      string = 'Solution/' + str(main.iteration) 
-      np.savez(string,uG=uG)
-      print('t = ' + str(main.t),'rho norm = ' + str(np.linalg.norm(uG[0])) )
+      uGF = getGlobU(uG)
+      print('t = ' + str(main.t),'rho sum = ' + str(np.sum(uG[0])) )
       plt.clf()
-      plt.contourf(uG[1,0,0,:,:],100)
+      plt.contourf(uGF[1,:,:],100)
       plt.pause(0.0001)
   advanceSol(main,eqns,schemes)
 print('Final Time = ' + str(time.time() - t0))

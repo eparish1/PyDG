@@ -66,6 +66,7 @@ def evalFluxYEuler(u,f):
 
 
 def getEigsEuler(ustarLR,ustarUD):
+  gamma = 1.4
   eigsLR = np.zeros(np.shape(ustarLR))
   eigsUD = np.zeros(np.shape(ustarUD))
   pLR = (gamma - 1.)*ustarLR[0]*(ustarLR[3]/ustarLR[0] - 0.5*ustarLR[1]**2/ustarLR[0]**2 - 0.5*ustarLR[2]**2/ustarLR[0]**2)
