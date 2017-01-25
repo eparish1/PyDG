@@ -67,17 +67,18 @@ def evalFluxYEuler(u,f):
 
 def getEigsEuler(ustarLR,ustarUD):
   gamma = 1.4
+  es = 1.e-30
   eigsLR = np.zeros(np.shape(ustarLR))
   eigsUD = np.zeros(np.shape(ustarUD))
-  pLR = (gamma - 1.)*ustarLR[0]*(ustarLR[3]/ustarLR[0] - 0.5*ustarLR[1]**2/ustarLR[0]**2 - 0.5*ustarLR[2]**2/ustarLR[0]**2)
-  aLR = np.sqrt(gamma*pLR/ustarLR[0])
-  pUD = (gamma - 1.)*ustarUD[0]*(ustarUD[3]/ustarUD[0] - 0.5*ustarUD[1]**2/ustarUD[0]**2 - 0.5*ustarUD[2]**2/ustarUD[0]**2)
-  aUD = np.sqrt(gamma*pUD/ustarUD[0])
-  eigsLR[0] = np.maximum(abs(ustarLR[1]/ustarLR[0] + aLR),abs(ustarLR[1]/ustarLR[0] - aLR))
+  pLR = (gamma - 1.)*ustarLR[0]*(ustarLR[3]/(ustarLR[0]+es) - 0.5*ustarLR[1]**2/(ustarLR[0]**2+es) - 0.5*ustarLR[2]**2/(ustarLR[0]**2+es))
+  aLR = np.sqrt(gamma*pLR/(ustarLR[0]+es))
+  pUD = (gamma - 1.)*ustarUD[0]*(ustarUD[3]/(ustarUD[0]+es) - 0.5*ustarUD[1]**2/(ustarUD[0]**2+es) - 0.5*ustarUD[2]**2/(ustarUD[0]**2+es))
+  aUD = np.sqrt(gamma*pUD/(ustarUD[0]+es))
+  eigsLR[0] = np.maximum(abs(ustarLR[1]/(ustarLR[0]+es) + aLR),abs(ustarLR[1]/(ustarLR[0]+es) - aLR))
   eigsLR[1] = eigsLR[0]
   eigsLR[2] = eigsLR[0]
   eigsLR[3] = eigsLR[0]
-  eigsUD[0] = np.maximum(abs(ustarUD[2]/ustarUD[0] + aUD),abs(ustarUD[2]/ustarUD[0] - aUD))
+  eigsUD[0] = np.maximum(abs(ustarUD[2]/(ustarUD[0]+es) + aUD),abs(ustarUD[2]/(ustarUD[0]+es) - aUD))
   eigsUD[1] = eigsUD[0]
   eigsUD[2] = eigsUD[0]
   eigsUD[3] = eigsUD[0]
