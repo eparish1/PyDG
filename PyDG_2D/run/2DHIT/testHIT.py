@@ -132,16 +132,17 @@ t = 0
 dt = 2.e-4
 et = 10.
 iteration = 0
-save_freq = 10
+save_freq = 20
 eqns = equations('Navier-Stokes')
 main = variables(Nel,order,eqns,nu,x,y,t,et,dt,iteration,save_freq)
 schemes = fschemes('rusanov','central')
 xG,yG = getGlobGrid(x,y,main.zeta)
 for qnum in range(0,eqns.nvars):
   getIC(main,hitICS,qnum)
-  print(qnum)
-reconstructU(main,main.a)
+  if (main.mpi_rank == 0):
+    print(qnum)
 
+reconstructU(main,main.a)
 
 #print(np.linalg.norm(main.u[0]))
 t0 = time.time()
@@ -150,11 +151,13 @@ while (main.t <= main.et - main.dt/2):
     reconstructU(main,main.a)
     uG = gatherSol(main,eqns,main.a)
     if (main.mpi_rank == 0):
-      uGF = getGlobU(uG)
-      sys.stdout.write('t = ' + str(main.t),'rho sum = ' + str(np.sum(uG[0])) + '\n')
+      #uGF = getGlobU(uG)
+      sys.stdout.write('======================================' + '\n')
+      sys.stdout.write('wall time = ' + str(time.time() - t0) + '\n' )
+      sys.stdout.write('t = ' + str(main.t) +  '   rho sum = ' + str(np.sum(uG[0])) + '\n')
       sys.stdout.flush()
-      plt.clf()
-      plt.contourf(uGF[1,:,:],100)
-      plt.pause(0.0001)
+      #plt.clf()
+      #plt.contourf(uGF[1,:,:],100)
+      #plt.pause(0.0001)
   advanceSol(main,eqns,schemes)
 print('Final Time = ' + str(time.time() - t0))
