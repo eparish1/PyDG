@@ -151,7 +151,8 @@ while (main.t <= main.et - main.dt/2):
     uG = gatherSol(main,eqns,main.a)
     if (main.mpi_rank == 0):
       uGF = getGlobU(uG)
-      print('t = ' + str(main.t),'rho sum = ' + str(np.sum(uG[0])) )
+      sys.stdout.write('t = ' + str(main.t),'rho sum = ' + str(np.sum(uG[0])) + '\n')
+      sys.stdout.flush()
       plt.clf()
       plt.contourf(uGF[1,:,:],100)
       plt.pause(0.0001)
