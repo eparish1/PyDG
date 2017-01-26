@@ -7,6 +7,12 @@ def reconstructU(main,var):
       for k in range(0,var.nvars):
         var.u[k,:,:,:,:] += main.w[l][:,None,None,None]*main.w[m][None,:,None,None]*var.a[k,l,m,:,:]
 
+def reconstructUF(main,var):
+  var.u[:] = 0.
+  for l in range(0,var.filt_order):
+    for m in range(0,var.filt_order):
+      for k in range(0,var.nvars):
+        var.u[k,:,:,:,:] += main.w[l][:,None,None,None]*main.w[m][None,:,None,None]*var.a[k,l,m,:,:]
 
 #def reconstructU(w,u,a):
 #  nvars,order,order,Nelx,Nely = np.shape(a)
