@@ -7,5 +7,6 @@ def advanceSol(main,MZ,eqns,schemes):
     main.getRHS(main,eqns,schemes)  ## put RHS in a array since we don't need it
     w = tauModel(main,MZ,eqns,schemes)
     main.a.a[:] = main.a0 + main.dt*rk4const[i]*(main.RHS[:]+w)
+    main.a.a[:,main.rorder::,main.rorder::,0,0] = 0.
   main.t += main.dt
   main.iteration += 1
