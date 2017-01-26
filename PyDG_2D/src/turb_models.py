@@ -43,5 +43,5 @@ def tauModel(main,MZ,eqns,schemes):
     PLQLU = (RHS2 - RHS3)/eps
     return MZ.tau*PLQLU
 
-def DNS:
-  return 0.
+#def DNS:
+#  return 0.
