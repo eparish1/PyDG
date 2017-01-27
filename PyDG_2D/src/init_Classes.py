@@ -7,55 +7,57 @@ from equationFluxes import *
 from DG_functions import getRHS,getFlux
 
 class variable:
-  def __init__(self,nvars,orderx,ordery,Npx,Npy):
+  def __init__(self,nvars,order,quadpoints,Npx,Npy):
       self.nvars = nvars
-      self.order = orderx
-      self.a =np.zeros((nvars,orderx,ordery,Npx,Npy))
-      self.u =np.zeros((nvars,orderx,ordery,Npx,Npy))
-      self.uU = np.zeros((nvars,orderx,Npx,Npy))
-      self.uD = np.zeros((nvars,orderx,Npx,Npy))
-      self.uU_edge = np.zeros((nvars,ordery,Npx))
-      self.uD_edge = np.zeros((nvars,ordery,Npx))
-      self.uR = np.zeros((nvars,ordery,Npx,Npy))
-      self.uL = np.zeros((nvars,ordery,Npx,Npy))
-      self.aU = np.zeros((nvars,orderx,Npx,Npy))
-      self.aD = np.zeros((nvars,orderx,Npx,Npy))
-      self.aR = np.zeros((nvars,orderx,Npx,Npy))
-      self.aL = np.zeros((nvars,orderx,Npx,Npy))
-      self.uUS = np.zeros((nvars,orderx,Npx,Npy))
-      self.uDS = np.zeros((nvars,orderx,Npx,Npy))
-      self.uLS = np.zeros((nvars,ordery,Npx,Npy))
-      self.uRS = np.zeros((nvars,ordery,Npx,Npy))
-
-      self.edge_tmp = np.zeros((nvars,orderx,Npx)).flatten()
+      self.order = order
+      self.quadpoints = quadpoints
+      self.a =np.zeros((nvars,order,order,Npx,Npy))
+      self.u =np.zeros((nvars,quadpoints,quadpoints,Npx,Npy))
+      self.uU = np.zeros((nvars,quadpoints,Npx,Npy))
+      self.uD = np.zeros((nvars,quadpoints,Npx,Npy))
+      self.uU_edge = np.zeros((nvars,quadpoints,Npx))
+      self.uD_edge = np.zeros((nvars,quadpoints,Npx))
+      self.uR = np.zeros((nvars,quadpoints,Npx,Npy))
+      self.uL = np.zeros((nvars,quadpoints,Npx,Npy))
+      self.aU = np.zeros((nvars,order,Npx,Npy))
+      self.aD = np.zeros((nvars,order,Npx,Npy))
+      self.aR = np.zeros((nvars,order,Npx,Npy))
+      self.aL = np.zeros((nvars,order,Npx,Npy))
+      self.uUS = np.zeros((nvars,quadpoints,Npx,Npy))
+      self.uDS = np.zeros((nvars,quadpoints,Npx,Npy))
+      self.uLS = np.zeros((nvars,quadpoints,Npx,Npy))
+      self.uRS = np.zeros((nvars,quadpoints,Npx,Npy))
+      self.edge_tmp = np.zeros((nvars,quadpoints,Npx)).flatten()
 
 class fluxvariable:
-  def __init__(self,nvars,orderx,ordery,Npx,Npy):
+  def __init__(self,nvars,order,quadpoints,Npx,Npy):
     self.nvars = nvars
-    self.order = orderx
-    self.fx = np.zeros((nvars,orderx,ordery,Npx,Npy))
-    self.fy = np.zeros((nvars,orderx,ordery,Npx,Npy))
-    self.fU = np.zeros((nvars,orderx,Npx,Npy))
-    self.fD = np.zeros((nvars,orderx,Npx,Npy))
-    self.fL = np.zeros((nvars,ordery,Npx,Npy))
-    self.fR = np.zeros((nvars,ordery,Npx,Npy))
-    self.fUS = np.zeros((nvars,orderx,Npx,Npy))
-    self.fDS = np.zeros((nvars,orderx,Npx,Npy))
-    self.fLS = np.zeros((nvars,ordery,Npx,Npy))
-    self.fRS = np.zeros((nvars,ordery,Npx,Npy))
-    self.fUI = np.zeros((nvars,orderx,Npx,Npy))
-    self.fDI = np.zeros((nvars,orderx,Npx,Npy))
-    self.fLI = np.zeros((nvars,ordery,Npx,Npy))
-    self.fRI = np.zeros((nvars,ordery,Npx,Npy))
-    self.fU_edge = np.zeros((nvars,orderx,Npx))
-    self.fD_edge = np.zeros((nvars,orderx,Npx))
+    self.order = order
+    self.quadpoints = quadpoints
+    self.fx = np.zeros((nvars,quadpoints,quadpoints,Npx,Npy))
+    self.fy = np.zeros((nvars,quadpoints,quadpoints,Npx,Npy))
+    self.fU = np.zeros((nvars,quadpoints,Npx,Npy))
+    self.fD = np.zeros((nvars,quadpoints,Npx,Npy))
+    self.fL = np.zeros((nvars,quadpoints,Npx,Npy))
+    self.fR = np.zeros((nvars,quadpoints,Npx,Npy))
+    self.fUS = np.zeros((nvars,quadpoints,Npx,Npy))
+    self.fDS = np.zeros((nvars,quadpoints,Npx,Npy))
+    self.fLS = np.zeros((nvars,quadpoints,Npx,Npy))
+    self.fRS = np.zeros((nvars,quadpoints,Npx,Npy))
+    self.fUI = np.zeros((nvars,quadpoints,Npx,Npy))
+    self.fDI = np.zeros((nvars,quadpoints,Npx,Npy))
+    self.fLI = np.zeros((nvars,quadpoints,Npx,Npy))
+    self.fRI = np.zeros((nvars,quadpoints,Npx,Npy))
+    self.fU_edge = np.zeros((nvars,quadpoints,Npx))
+    self.fD_edge = np.zeros((nvars,quadpoints,Npx))
    
 
 class variables:
-  def __init__(self,Nel,order,eqns,nu,xG,yG,t,et,dt,iteration,save_freq):
+  def __init__(self,Nel,order,quadpoints,eqns,nu,xG,yG,t,et,dt,iteration,save_freq):
     ## DG scheme information
     self.Nel = Nel
-    self.order = order 
+    self.order = order
+    self.quadpoints = quadpoints 
     self.t = t
     self.et = et
     self.dt = dt
@@ -70,7 +72,7 @@ class variables:
     self.Npx = Nel[0]
     self.sy = slice(self.mpi_rank*self.Npy,(self.mpi_rank+1)*self.Npy)  ##slicing in y direction
     self.rank_connect = getRankConnections(self.mpi_rank,self.num_processes)
-    self.w,self.wp,self.weights,self.zeta = gaussPoints(self.order)
+    self.w,self.wp,self.weights,self.zeta = gaussPoints(self.order,self.quadpoints)
     self.altarray = (-np.ones(self.order))**(np.linspace(0,self.order-1,self.order))
     ## Initialize arrays
     self.x = xG
@@ -78,11 +80,11 @@ class variables:
     self.y = yG[self.sy] 
     self.dy = yG[1] - yG[0]
     self.a0 = np.zeros((eqns.nvars,self.order,order,self.Npx,self.Npy))
-    self.a = variable(eqns.nvars,self.order,self.order,self.Npx,self.Npy)
-    self.b = variable(eqns.nvisc_vars,self.order,self.order,self.Npx,self.Npy)
-    self.iFlux = fluxvariable(eqns.nvars,self.order,self.order,self.Npx,self.Npy)
-    self.vFlux = fluxvariable(eqns.nvisc_vars,self.order,self.order,self.Npx,self.Npy)
-    self.vFlux2 = fluxvariable(eqns.nvars,self.order,self.order,self.Npx,self.Npy)
+    self.a = variable(eqns.nvars,self.order,self.quadpoints,self.Npx,self.Npy)
+    self.b = variable(eqns.nvisc_vars,self.order,self.quadpoints,self.Npx,self.Npy)
+    self.iFlux = fluxvariable(eqns.nvars,self.order,self.quadpoints,self.Npx,self.Npy)
+    self.vFlux = fluxvariable(eqns.nvisc_vars,self.order,self.quadpoints,self.Npx,self.Npy)
+    self.vFlux2 = fluxvariable(eqns.nvars,self.order,self.quadpoints,self.Npx,self.Npy)
     self.getRHS = getRHS
     self.getFlux = getFlux
     self.RHS = np.zeros((eqns.nvars,self.order,self.order,self.Npx,self.Npy))

@@ -48,12 +48,13 @@ def evalTauFluxYLA(tau,u,fvY):
 ###### ====== Euler Fluxes and Eigen Values ==== ############
 def evalFluxXEuler(u,f):
   #f = np.zeros(np.shape(u))
+  es = 1.e-30
   gamma = 1.4
-  p = (gamma - 1.)*(u[3] - 0.5*u[1]**2/u[0] - 0.5*u[2]**2/u[0])
+  p = (gamma - 1.)*(u[3] - 0.5*u[1]**2/(u[0]+es) - 0.5*u[2]**2/(u[0]+es))
   f[0] = u[1]
-  f[1] = u[1]**2/u[0] + p
-  f[2] = u[1]*u[2]/u[0]
-  f[3] = (u[3] + p)*u[1]/u[0]
+  f[1] = u[1]**2/(u[0]+es) + p
+  f[2] = u[1]*u[2]/(u[0]+es)
+  f[3] = (u[3] + p)*u[1]/(u[0]+es)
 
 def evalFluxYEuler(u,f):
   #f = np.zeros(np.shape(u))

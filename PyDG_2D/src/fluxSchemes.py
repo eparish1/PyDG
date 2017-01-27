@@ -1,8 +1,8 @@
 import numpy as np
 
 def starState(var,main):
-  uRLS = np.zeros((var.nvars,main.order,main.Npx+1,main.Npy))
-  uUDS = np.zeros((var.nvars,main.order,main.Npx,main.Npy+1))
+  uRLS = np.zeros((var.nvars,var.quadpoints,main.Npx+1,main.Npy))
+  uUDS = np.zeros((var.nvars,var.quadpoints,main.Npx,main.Npy+1))
   uRLS[:,:,1:-1,:] = 0.5*(var.uR[:,:,0:-1,:] + var.uL[:,:,1::,:])
   uRLS[:,:,  -1,:] = 0.5*(var.uR[:,:,  -1,:] + var.uL[:,:,0  ,:])
   uRLS[:,:,   0,:] = 0.5*(var.uR[:,:,  -1,:] + var.uL[:,:,0  ,:])

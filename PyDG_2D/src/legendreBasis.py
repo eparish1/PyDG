@@ -10,9 +10,9 @@ def legendreInit(zeta,order):
     Lp[i,:] = numpy.polynomial.legendre.legval(zeta,numpy.polynomial.legendre.legder(c))
   return L[0:order,:],Lp[0:order]
 
-def gaussPoints(order):
-  w = np.zeros((order,order))
-  wp = np.zeros((order,order))
-  zeta,weights = numpy.polynomial.legendre.leggauss(order)
+def gaussPoints(order,quadpoints):
+  w = np.zeros((order,quadpoints))
+  wp = np.zeros((order,quadpoints))
+  zeta,weights = numpy.polynomial.legendre.leggauss(quadpoints)
   w[:],wp[:] = legendreInit(zeta,order)
   return w,wp,weights,zeta

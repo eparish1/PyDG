@@ -8,21 +8,21 @@ def sendEdges(main,var):
   else:
     main.comm.Send(var.uD[:,:,:,0].flatten(),dest=main.rank_connect[0],tag=main.mpi_rank)
     main.comm.Recv(var.edge_tmp[:],source=main.rank_connect[1],tag=main.rank_connect[1])
-    var.uU_edge[:] = np.reshape(var.edge_tmp,(var.nvars,var.order,main.Npx))
+    var.uU_edge[:] = np.reshape(var.edge_tmp,(var.nvars,var.quadpoints,main.Npx))
     var.edge_tmp[:] = 0. 
     main.comm.Send(var.uU[:,:,:,-1].flatten(),dest=main.rank_connect[1],tag=main.mpi_rank*10)
     main.comm.Recv(var.edge_tmp,source=main.rank_connect[0],tag=main.rank_connect[0]*10)
-    var.uD_edge[:] = np.reshape(var.edge_tmp,(var.nvars,var.order,main.Npx))
+    var.uD_edge[:] = np.reshape(var.edge_tmp,(var.nvars,var.quadpoints,main.Npx))
 
 def gatherSol(main,eqns,var):
   if (main.mpi_rank == 0):
-    uG = np.zeros((var.nvars,var.order,var.order,main.Nel[0],main.Nel[1]))
+    uG = np.zeros((var.nvars,var.quadpoints,var.quadpoints,main.Nel[0],main.Nel[1]))
     uG[:,:,:,:,0:(main.mpi_rank+1)*main.Npy] = var.u[:]
     for i in range(1,main.num_processes):
       loc_rank = i
       data = np.zeros(np.shape(var.u)).flatten()
       main.comm.Recv(data,source=loc_rank,tag = loc_rank)
-      uG[:,:,:,:,loc_rank*main.Npy:(loc_rank+1)*main.Npy] = np.reshape(data,(var.nvars,var.order,var.order,main.Npx,main.Npy))
+      uG[:,:,:,:,loc_rank*main.Npy:(loc_rank+1)*main.Npy] = np.reshape(data,(var.nvars,var.quadpoints,var.quadpoints,main.Npx,main.Npy))
     return uG
   else:
     main.comm.Send(var.u.flatten(),dest=0,tag=main.mpi_rank)
