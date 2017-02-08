@@ -22,6 +22,21 @@ def starState(var,main):
 #  var.u.uDS[:,:,:,1:: ] = var.fUS[:,:,:,0:-1]
 #  var.u.uDS[:,:,:,0   ] = 0.5*(var.uD[:,:,:,   0] + var.uD_edge)
 
+def centralFluxGeneral(fR,fL,fU,fD,fU_edge,fD_edge):
+  fRS = np.zeros(np.shape(fR))
+  fLS = np.zeros(np.shape(fL))
+  fUS = np.zeros(np.shape(fU))
+  fDS = np.zeros(np.shape(fD))
+  fRS[:,:,0:-1,:] = 0.5*(fR[:,:,0:-1,:] + fL[:,:,1::,:])
+  fRS[:,:,  -1,:] = 0.5*(fR[:,:,  -1,:] + fL[:,:,0  ,:])
+  fLS[:,:,1:: ,:] = fRS[:,:,0:-1,:]
+  fLS[:,:,0   ,:] = fRS[:,:,  -1,:]
+  fUS[:,:,:,0:-1] = 0.5*(fU[:,:,:,0:-1] + fD[:,:,:,1::])
+  fUS[:,:,:,  -1] = 0.5*(fU[:,:,:,  -1] + fU_edge)
+  fDS[:,:,:,1:: ] = fUS[:,:,:,0:-1]
+  fDS[:,:,:,0   ] = 0.5*(fD[:,:,:,   0] + fD_edge)
+  return fRS,fLS,fUS,fDS
+
 
 def centralFlux(main,eqns,schemes,fluxVar,var):
   fluxVar.fRS[:,:,0:-1,:] = 0.5*(fluxVar.fR[:,:,0:-1,:] + fluxVar.fL[:,:,1::,:])
