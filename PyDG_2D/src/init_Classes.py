@@ -44,16 +44,16 @@ class fluxvariable:
     self.fDS = np.zeros((nvars,quadpoints,Npx,Npy))
     self.fLS = np.zeros((nvars,quadpoints,Npx,Npy))
     self.fRS = np.zeros((nvars,quadpoints,Npx,Npy))
-    self.fUI = np.zeros((nvars,quadpoints,Npx,Npy))
-    self.fDI = np.zeros((nvars,quadpoints,Npx,Npy))
-    self.fLI = np.zeros((nvars,quadpoints,Npx,Npy))
-    self.fRI = np.zeros((nvars,quadpoints,Npx,Npy))
+    self.fUI = np.zeros((nvars,order,Npx,Npy))
+    self.fDI = np.zeros((nvars,order,Npx,Npy))
+    self.fLI = np.zeros((nvars,order,Npx,Npy))
+    self.fRI = np.zeros((nvars,order,Npx,Npy))
     self.fU_edge = np.zeros((nvars,quadpoints,Npx))
     self.fD_edge = np.zeros((nvars,quadpoints,Npx))
    
 
 class variables:
-  def __init__(self,Nel,order,quadpoints,eqns,nu,xG,yG,t,et,dt,iteration,save_freq):
+  def __init__(self,Nel,order,quadpoints,eqns,mu,xG,yG,t,et,dt,iteration,save_freq):
     ## DG scheme information
     self.Nel = Nel
     self.order = order
@@ -63,7 +63,7 @@ class variables:
     self.dt = dt
     self.iteration = iteration
     self.save_freq = save_freq
-    self.nu = nu
+    self.mu = mu
     ##============== MPI INFORMATION ===================
     self.comm = MPI.COMM_WORLD
     self.num_processes = self.comm.Get_size()
@@ -79,6 +79,7 @@ class variables:
     self.dx = self.x[1] - self.x[0]
     self.y = yG[self.sy] 
     self.dy = yG[1] - yG[0]
+    self.nvars = eqns.nvars
     self.a0 = np.zeros((eqns.nvars,self.order,order,self.Npx,self.Npy))
     self.a = variable(eqns.nvars,self.order,self.quadpoints,self.Npx,self.Npy)
     self.b = variable(eqns.nvisc_vars,self.order,self.quadpoints,self.Npx,self.Npy)
