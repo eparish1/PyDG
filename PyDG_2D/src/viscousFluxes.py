@@ -1,6 +1,7 @@
 import numpy as np
-
-def getGs(u):
+from fluxSchemes import *
+from MPI_functions import *
+def getGs(u,main):
   nvars = np.shape(u)[0]
   gamma = 1.4
   Pr = 0.72
@@ -49,10 +50,10 @@ def getGs(u):
   G22[3,1] = (1. - gamma/Pr)*v1
   G22[3,2] = (4./3. - gamma/Pr)*v2
   G22[3,3] = gamma/Pr
-  G11 = G11*mu/u[0]
-  G12 = G12*mu/u[0]
-  G21 = G21*mu/u[0]
-  G22 = G22*mu/u[0]
+  G11 = G11*main.mu/u[0]
+  G12 = G12*main.mu/u[0]
+  G21 = G21*main.mu/u[0]
+  G22 = G22*main.mu/u[0]
   return G11,G12,G21,G22
 
 
@@ -129,34 +130,30 @@ def computeJump(uR,uL,uU,uD,uU_edge,uD_edge):
 
 
 
-def getViscousFlux(a):
+def getViscousFlux(main):
+  a = main.a.a
   nvars,order,order,Npx,Npy = np.shape(a)
-  fvRG11 = np.zeros((nvars,order,Npx,Npy))
-  fvLG11 = np.zeros((nvars,order,Npx,Npy))
+  fvRG11 = np.zeros((main.nvars,main.quadpoints,main.Npx,main.Npy))
+  fvLG11 = np.zeros((main.nvars,main.quadpoints,main.Npx,main.Npy))
 
-  fvRG21 = np.zeros((nvars,order,Npx,Npy))
-  fvLG21 = np.zeros((nvars,order,Npx,Npy))
+  fvRG21 = np.zeros((main.nvars,main.quadpoints,main.Npx,main.Npy))
+  fvLG21 = np.zeros((main.nvars,main.quadpoints,main.Npx,main.Npy))
 
-  fvUG12 = np.zeros((nvars,order,Npx,Npy))
-  fvDG12 = np.zeros((nvars,order,Npx,Npy))
+  fvUG12 = np.zeros((main.nvars,main.quadpoints,main.Npx,main.Npy))
+  fvDG12 = np.zeros((main.nvars,main.quadpoints,main.Npx,main.Npy))
 
-  fvUG22 = np.zeros((nvars,order,Npx,Npy))
-  fvDG22 = np.zeros((nvars,order,Npx,Npy))
+  fvUG22 = np.zeros((main.nvars,main.quadpoints,main.Npx,main.Npy))
+  fvDG22 = np.zeros((main.nvars,main.quadpoints,main.Npx,main.Npy))
 
-  fvR2 = np.zeros((nvars,order,Npx,Npy))
-  fvL2 = np.zeros((nvars,order,Npx,Npy))
-  fvU2 = np.zeros((nvars,order,Npx,Npy))
-  fvD2 = np.zeros((nvars,order,Npx,Npy))
-
-  # now construct star state
-  #uR,uL,uU,uD = reconstructEdges(a)
-  #uU_edge,uD_edge = sendEdges(uD,uU)
-  ## Here is where you would get the viscous fluxes...
-  uhatR,uhatL,uhatU,uhatD = centralFlux(uR,uL,uU,uD,uU_edge,uD_edge)
-  G11R,G12R,G21R,G22R = getGs(main.a.uR)
-  G11L,G12L,G21L,G22L = getGs(main.a.uL)
-  G11U,G12U,G21U,G22U = getGs(main.a.uU)
-  G11D,G12D,G21D,G22D = getGs(main.a.uD)
+  fvR2 = np.zeros((main.nvars,main.quadpoints,main.Npx,main.Npy))
+  fvL2 = np.zeros((main.nvars,main.quadpoints,main.Npx,main.Npy))
+  fvU2 = np.zeros((main.nvars,main.quadpoints,main.Npx,main.Npy))
+  fvD2 = np.zeros((main.nvars,main.quadpoints,main.Npx,main.Npy))
+  uhatR,uhatL,uhatU,uhatD = centralFluxGeneral(main.a.uR,main.a.uL,main.a.uU,main.a.uD,main.a.uU_edge,main.a.uD_edge)
+  G11R,G12R,G21R,G22R = getGs(main.a.uR,main)
+  G11L,G12L,G21L,G22L = getGs(main.a.uL,main)
+  G11U,G12U,G21U,G22U = getGs(main.a.uU,main)
+  G11D,G12D,G21D,G22D = getGs(main.a.uD,main)
 
   for i in range(0,nvars):
     for j in range(0,nvars):
@@ -174,119 +171,119 @@ def getViscousFlux(a):
 
 
   apx,apy = diffCoeffs(main.a.a)
-  apx = apx*2./dx
-  apy = apy*2./dy
-  UxR,UxL,UxU,UxD = reconstructEdges(apx)
-  UyR,UyL,UyU,UyD = reconstructEdges(apy)
-  UxU_edge,UxD_edge = sendEdges(UxD,UxU)
-  UyU_edge,UyD_edge = sendEdges(UyD,UyU)
+  apx = apx*2./main.dx
+  apy = apy*2./main.dy
+  UxR,UxL,UxU,UxD = reconstructEdgesGeneral(apx)
+  UyR,UyL,UyU,UyD = reconstructEdgesGeneral(apy)
+  UxU_edge,UxD_edge = sendEdgesGeneral(UxD,UxU)
+  UyU_edge,UyD_edge = sendEdgesGeneral(UyD,UyU)
   ### now we need to do modifications to individual derivs of u,v,etc.
   ##ex : d/dx(rho u ) = rho u_x + u rho_x
   ## ->  u_x = 1/rho d/dx(rho u) - rho u /rho^2 rho_x
-  uxR = 1./uR[0]*UxR[1] - uR[1]/uR[0]**2*UxR[0]
-  uxL = 1./uL[0]*UxL[1] - uL[1]/uL[0]**2*UxL[0]
-  uxU = 1./uU[0]*UxU[1] - uU[1]/uU[0]**2*UxU[0]
-  uxD = 1./uD[0]*UxD[1] - uD[1]/uD[0]**2*UxD[0]
-  uxU_edge = 1./uU_edge[0]*UxU_edge[1] - uU_edge[1]/uU_edge[0]**2*UxU_edge[0]
-  uxD_edge = 1./uD_edge[0]*UxD_edge[1] - uD_edge[1]/uD_edge[0]**2*UxD_edge[0]
+  uxR = 1./main.a.uR[0]*UxR[1] - main.a.uR[1]/main.a.uR[0]**2*UxR[0]
+  uxL = 1./main.a.uL[0]*UxL[1] - main.a.uL[1]/main.a.uL[0]**2*UxL[0]
+  uxU = 1./main.a.uU[0]*UxU[1] - main.a.uU[1]/main.a.uU[0]**2*UxU[0]
+  uxD = 1./main.a.uD[0]*UxD[1] - main.a.uD[1]/main.a.uD[0]**2*UxD[0]
+  uxU_edge = 1./main.a.uU_edge[0]*UxU_edge[1] - main.a.uU_edge[1]/main.a.uU_edge[0]**2*UxU_edge[0]
+  uxD_edge = 1./main.a.uD_edge[0]*UxD_edge[1] - main.a.uD_edge[1]/main.a.uD_edge[0]**2*UxD_edge[0]
 
   ## ->  v_x = 1/rho d/dx(rho v) - rho v /rho^2 rho_x
-  vxR = 1./uR[0]*UxR[2] - uR[2]/uR[0]**2*UxR[0]
-  vxL = 1./uL[0]*UxL[2] - uL[2]/uL[0]**2*UxL[0]
-  vxU = 1./uU[0]*UxU[2] - uU[2]/uU[0]**2*UxU[0]
-  vxD = 1./uD[0]*UxD[2] - uD[2]/uD[0]**2*UxD[0]
-  vxU_edge = 1./uU_edge[0]*UxU_edge[2] - uU_edge[2]/uU_edge[0]**2*UxU_edge[0]
-  vxD_edge = 1./uD_edge[0]*UxD_edge[2] - uD_edge[2]/uD_edge[0]**2*UxD_edge[0]
+  vxR = 1./main.a.uR[0]*UxR[2] - main.a.uR[2]/main.a.uR[0]**2*UxR[0]
+  vxL = 1./main.a.uL[0]*UxL[2] - main.a.uL[2]/main.a.uL[0]**2*UxL[0]
+  vxU = 1./main.a.uU[0]*UxU[2] - main.a.uU[2]/main.a.uU[0]**2*UxU[0]
+  vxD = 1./main.a.uD[0]*UxD[2] - main.a.uD[2]/main.a.uD[0]**2*UxD[0]
+  vxU_edge = 1./main.a.uU_edge[0]*UxU_edge[2] - main.a.uU_edge[2]/main.a.uU_edge[0]**2*UxU_edge[0]
+  vxD_edge = 1./main.a.uD_edge[0]*UxD_edge[2] - main.a.uD_edge[2]/main.a.uD_edge[0]**2*UxD_edge[0]
 
   ## ->  u_y = 1/rho d/dy(rho u) - rho u /rho^2 rho_y
-  uyR = 1./uR[0]*UyR[1] - uR[1]/uR[0]**2*UyR[0]
-  uyL = 1./uL[0]*UyL[1] - uL[1]/uL[0]**2*UyL[0]
-  uyU = 1./uU[0]*UyU[1] - uU[1]/uU[0]**2*UyU[0]
-  uyD = 1./uD[0]*UyD[1] - uD[1]/uD[0]**2*UyD[0]
-  uyU_edge = 1./uU_edge[0]*UyU_edge[1] - uU_edge[1]/uU_edge[0]**2*UyU_edge[0]
-  uyD_edge = 1./uD_edge[0]*UyD_edge[1] - uD_edge[1]/uD_edge[0]**2*UyD_edge[0]
+  uyR = 1./main.a.uR[0]*UyR[1] - main.a.uR[1]/main.a.uR[0]**2*UyR[0]
+  uyL = 1./main.a.uL[0]*UyL[1] - main.a.uL[1]/main.a.uL[0]**2*UyL[0]
+  uyU = 1./main.a.uU[0]*UyU[1] - main.a.uU[1]/main.a.uU[0]**2*UyU[0]
+  uyD = 1./main.a.uD[0]*UyD[1] - main.a.uD[1]/main.a.uD[0]**2*UyD[0]
+  uyU_edge = 1./main.a.uU_edge[0]*UyU_edge[1] - main.a.uU_edge[1]/main.a.uU_edge[0]**2*UyU_edge[0]
+  uyD_edge = 1./main.a.uD_edge[0]*UyD_edge[1] - main.a.uD_edge[1]/main.a.uD_edge[0]**2*UyD_edge[0]
 
   ## ->  v_y = 1/rho d/dy(rho v) - rho v /rho^2 rho_y
-  vyR = 1./uR[0]*UyR[2] - uR[2]/uR[0]**2*UyR[0]
-  vyL = 1./uL[0]*UyL[2] - uL[2]/uL[0]**2*UyL[0]
-  vyU = 1./uU[0]*UyU[2] - uU[2]/uU[0]**2*UyU[0]
-  vyD = 1./uD[0]*UyD[2] - uD[2]/uD[0]**2*UyD[0]
-  vyU_edge = 1./uU_edge[0]*UyU_edge[2] - uU_edge[2]/uU_edge[0]**2*UyU_edge[0]
-  vyD_edge = 1./uD_edge[0]*UyD_edge[2] - uD_edge[2]/uD_edge[0]**2*UyD_edge[0]
+  vyR = 1./main.a.uR[0]*UyR[2] - main.a.uR[2]/main.a.uR[0]**2*UyR[0]
+  vyL = 1./main.a.uL[0]*UyL[2] - main.a.uL[2]/main.a.uL[0]**2*UyL[0]
+  vyU = 1./main.a.uU[0]*UyU[2] - main.a.uU[2]/main.a.uU[0]**2*UyU[0]
+  vyD = 1./main.a.uD[0]*UyD[2] - main.a.uD[2]/main.a.uD[0]**2*UyD[0]
+  vyU_edge = 1./main.a.uU_edge[0]*UyU_edge[2] - main.a.uU_edge[2]/main.a.uU_edge[0]**2*UyU_edge[0]
+  vyD_edge = 1./main.a.uD_edge[0]*UyD_edge[2] - main.a.uD_edge[2]/main.a.uD_edge[0]**2*UyD_edge[0]
 
   ## -> (kT)_x =d/dx[ (mu gamma)/Pr*(E - 1/2 v^2 ) ]
   ## ->        =mu gamma/Pr *[ dE/dx - 0.5 d/dx(v1^2 + v2^2) ]
   ## ->        =mu gamma/Pr *[ dE/dx - (v1 v1_x + v2 v2_x) ]
   ## ->  E_x = 1/rho d/x(rho E) - rho E /rho^2 rho_x
-  kTxR =( 1./uR[0]*UxR[3] - uR[3]/uR[0]**2*UxR[0] - 1./uR[0]*(uR[1]*uxR + uR[2]*vxR)  )*mu*gamma/Pr
-  kTxL =( 1./uL[0]*UxL[3] - uL[3]/uL[0]**2*UxL[0] - 1./uL[0]*(uL[1]*uxL + uL[2]*vxL)  )*mu*gamma/Pr
-  kTxU =( 1./uU[0]*UxU[3] - uU[3]/uU[0]**2*UxU[0] - 1./uU[0]*(uU[1]*uxU + uU[2]*vxU)  )*mu*gamma/Pr
-  kTxD =( 1./uD[0]*UxD[3] - uD[3]/uD[0]**2*UxD[0] - 1./uD[0]*(uD[1]*uxD + uD[2]*vxD)  )*mu*gamma/Pr
-  kTxU_edge =( 1./uU_edge[0]*UxU_edge[3] - uU_edge[3]/uU_edge[0]**2*UxU_edge[0] - 1./uU_edge[0]*(uU_edge[1]*uxU_edge + uU_edge[2]*vxU_edge) )*mu*gamma/Pr
-  kTxD_edge =( 1./uD_edge[0]*UxD_edge[3] - uD_edge[3]/uD_edge[0]**2*UxD_edge[0] - 1./uD_edge[0]*(uD_edge[1]*uxD_edge + uD_edge[2]*vxD_edge) )*mu*gamma/Pr
+  kTxR =( 1./main.a.uR[0]*UxR[3] - main.a.uR[3]/main.a.uR[0]**2*UxR[0] - 1./main.a.uR[0]*(main.a.uR[1]*uxR + main.a.uR[2]*vxR)  )*mu*gamma/Pr
+  kTxL =( 1./main.a.uL[0]*UxL[3] - main.a.uL[3]/main.a.uL[0]**2*UxL[0] - 1./main.a.uL[0]*(main.a.uL[1]*uxL + main.a.uL[2]*vxL)  )*mu*gamma/Pr
+  kTxU =( 1./main.a.uU[0]*UxU[3] - main.a.uU[3]/main.a.uU[0]**2*UxU[0] - 1./main.a.uU[0]*(main.a.uU[1]*uxU + main.a.uU[2]*vxU)  )*mu*gamma/Pr
+  kTxD =( 1./main.a.uD[0]*UxD[3] - main.a.uD[3]/main.a.uD[0]**2*UxD[0] - 1./main.a.uD[0]*(main.a.uD[1]*uxD + main.a.uD[2]*vxD)  )*mu*gamma/Pr
+  kTxU_edge =( 1./main.a.uU_edge[0]*UxU_edge[3] - main.a.uU_edge[3]/main.a.uU_edge[0]**2*UxU_edge[0] - 1./main.a.uU_edge[0]*(main.a.uU_edge[1]*uxU_edge + main.a.uU_edge[2]*vxU_edge) )*mu*gamma/Pr
+  kTxD_edge =( 1./main.a.uD_edge[0]*UxD_edge[3] - main.a.uD_edge[3]/main.a.uD_edge[0]**2*UxD_edge[0] - 1./main.a.uD_edge[0]*(main.a.uD_edge[1]*uxD_edge + main.a.uD_edge[2]*vxD_edge) )*mu*gamma/Pr
 
   ## -> (kT)_y =d/dy[ (mu gamma)/Pr*(E - 1/2 v^2 ) ]
   ## ->        =mu gamma/Pr *[ dE/dy - 0.5 d/dy(v1^2 + v2^2) ]
   ## ->        =mu gamma/Pr *[ dE/dy - (v1 v1_y + v2 v2_y) ]
   ## ->  E_x = 1/rho d/y(rho E) - rho E /rho^2 rho_y
-  kTyR =( 1./uR[0]*UyR[3] - uR[3]/uR[0]**2*UyR[0] - 1./uR[0]*(uR[1]*uyR + uR[2]*vyR)  )*mu*gamma/Pr
-  kTyL =( 1./uL[0]*UyL[3] - uL[3]/uL[0]**2*UyL[0] - 1./uL[0]*(uL[1]*uyL + uL[2]*vyL)  )*mu*gamma/Pr
-  kTyU =( 1./uU[0]*UyU[3] - uU[3]/uU[0]**2*UyU[0] - 1./uU[0]*(uU[1]*uyU + uU[2]*vyU)  )*mu*gamma/Pr
-  kTyD =( 1./uD[0]*UyD[3] - uD[3]/uD[0]**2*UyD[0] - 1./uD[0]*(uD[1]*uyD + uD[2]*vyD)  )*mu*gamma/Pr
-  kTyU_edge =( 1./uU_edge[0]*UyU_edge[3] - uU_edge[3]/uU_edge[0]**2*UyU_edge[0] - 1./uU_edge[0]*(uU_edge[1]*uyU_edge + uU_edge[2]*vyU_edge) )*mu*gamma/Pr
-  kTyD_edge =( 1./uD_edge[0]*UyD_edge[3] - uD_edge[3]/uD_edge[0]**2*UyD_edge[0] - 1./uD_edge[0]*(uD_edge[1]*uyD_edge + uD_edge[2]*vyD_edge) )*mu*gamma/Pr
+  kTyR =( 1./main.a.uR[0]*UyR[3] - main.a.uR[3]/main.a.uR[0]**2*UyR[0] - 1./main.a.uR[0]*(main.a.uR[1]*uyR + main.a.uR[2]*vyR)  )*mu*gamma/Pr
+  kTyL =( 1./main.a.uL[0]*UyL[3] - main.a.uL[3]/main.a.uL[0]**2*UyL[0] - 1./main.a.uL[0]*(main.a.uL[1]*uyL + main.a.uL[2]*vyL)  )*mu*gamma/Pr
+  kTyU =( 1./main.a.uU[0]*UyU[3] - main.a.uU[3]/main.a.uU[0]**2*UyU[0] - 1./main.a.uU[0]*(main.a.uU[1]*uyU + main.a.uU[2]*vyU)  )*mu*gamma/Pr
+  kTyD =( 1./main.a.uD[0]*UyD[3] - main.a.uD[3]/main.a.uD[0]**2*UyD[0] - 1./main.a.uD[0]*(main.a.uD[1]*uyD + main.a.uD[2]*vyD)  )*mu*gamma/Pr
+  kTyU_edge =( 1./main.a.uU_edge[0]*UyU_edge[3] - main.a.uU_edge[3]/main.a.uU_edge[0]**2*UyU_edge[0] - 1./main.a.uU_edge[0]*(main.a.uU_edge[1]*uyU_edge + main.a.uU_edge[2]*vyU_edge) )*mu*gamma/Pr
+  kTyD_edge =( 1./main.a.uD_edge[0]*UyD_edge[3] - main.a.uD_edge[3]/main.a.uD_edge[0]**2*UyD_edge[0] - 1./main.a.uD_edge[0]*(main.a.uD_edge[1]*uyD_edge + main.a.uD_edge[2]*vyD_edge) )*mu*gamma/Pr
 
-  fvxR = evalViscousFluxX(uR,uxR,uyR,vxR,vyR,kTxR,kTyR)
-  fvxL = evalViscousFluxX(uL,uxL,uyL,vxL,vyL,kTxL,kTyL)
-  fvyU = evalViscousFluxY(uU,uxU,uyU,vxU,vyU,kTxU,kTyU)
-  fvyD = evalViscousFluxY(uD,uxD,uyD,vxD,vyD,kTxD,kTyD)
-  fvyU_edge = evalViscousFluxY(uU_edge,uxU_edge,uyU_edge,vxU_edge,vyU_edge,kTxU_edge,kTyU_edge)
-  fvyD_edge = evalViscousFluxY(uD_edge,uxD_edge,uyD_edge,vxD_edge,vyD_edge,kTxD_edge,kTyD_edge)
+  fvxR = evalViscousFluxX(main.a.uR,uxR,uyR,vxR,vyR,kTxR,kTyR)
+  fvxL = evalViscousFluxX(main.a.uL,uxL,uyL,vxL,vyL,kTxL,kTyL)
+  fvyU = evalViscousFluxY(main.a.uU,uxU,uyU,vxU,vyU,kTxU,kTyU)
+  fvyD = evalViscousFluxY(main.a.uD,uxD,uyD,vxD,vyD,kTxD,kTyD)
+  fvyU_edge = evalViscousFluxY(main.a.uU_edge,uxU_edge,uyU_edge,vxU_edge,vyU_edge,kTxU_edge,kTyU_edge)
+  fvyD_edge = evalViscousFluxY(main.a.uD_edge,uxD_edge,uyD_edge,vxD_edge,vyD_edge,kTxD_edge,kTyD_edge)
 
-  shatR,shatL,shatU,shatD = centralFlux(fvxR,fvxL,fvyU,fvyD,fvyU_edge,fvyD_edge)
+  shatR,shatL,shatU,shatD = centralFluxGeneral(fvxR,fvxL,fvyU,fvyD,fvyU_edge,fvyD_edge)
   jumpR,jumpL,jumpU,jumpD = computeJump(uR,uL,uU,uD,uU_edge,uD_edge)
-  fvR2[:] = shatR[:] - 2.*mu*jumpR[:]*order**2/dx
-  fvL2[:] = shatL[:] - 2.*mu*jumpL[:]*order**2/dx
-  fvU2[:] = shatU[:] - 2.*mu*jumpU[:]*order**2/dx
-  fvD2[:] = shatD[:] - 2.*mu*jumpD[:]*order**2/dx
+  fvR2[:] = shatR[:] - 2.*main.mu*jumpR[:]*main.order**2/main.dx
+  fvL2[:] = shatL[:] - 2.*main.mu*jumpL[:]*main.order**2/main.dx
+  fvU2[:] = shatU[:] - 2.*main.mu*jumpU[:]*main.order**2/main.dx
+  fvD2[:] = shatD[:] - 2.*main.mu*jumpD[:]*main.order**2/main.dx
 
  # now we need to integrate along the boundary 
-  fvRIG11 = np.zeros((nvars,order,Npx,Npy))
-  fvLIG11 = np.zeros((nvars,order,Npx,Npy))
+  fvRIG11 = np.zeros((main.nvars,main.quadpoints,main.Npx,main.Npy))
+  fvLIG11 = np.zeros((main.nvars,main.quadpoints,main.Npx,main.Npy))
 
-  fvRIG21 = np.zeros((nvars,order,Npx,Npy))
-  fvLIG21 = np.zeros((nvars,order,Npx,Npy))
+  fvRIG21 = np.zeros((main.nvars,main.quadpoints,main.Npx,main.Npy))
+  fvLIG21 = np.zeros((main.nvars,main.quadpoints,main.Npx,main.Npy))
 
-  fvUIG12 = np.zeros((nvars,order,Npx,Npy))
-  fvDIG12 = np.zeros((nvars,order,Npx,Npy))
+  fvUIG12 = np.zeros((main.nvars,main.quadpoints,main.Npx,main.Npy))
+  fvDIG12 = np.zeros((main.nvars,main.quadpoints,main.Npx,main.Npy))
 
-  fvUIG22 = np.zeros((nvars,order,Npx,Npy))
-  fvDIG22 = np.zeros((nvars,order,Npx,Npy))
-
-
-  fvR2I = np.zeros((nvars,order,Npx,Npy))
-  fvL2I = np.zeros((nvars,order,Npx,Npy))
-  fvU2I = np.zeros((nvars,order,Npx,Npy))
-  fvD2I = np.zeros((nvars,order,Npx,Npy))
+  fvUIG22 = np.zeros((main.nvars,main.quadpoints,main.Npx,main.Npy))
+  fvDIG22 = np.zeros((main.nvars,main.quadpoints,main.Npx,main.Npy))
 
 
-  for i in range(0,order):
-    fvRIG11[:,i] = faceIntegrate(w[i],fvRG11)
-    fvLIG11[:,i] = faceIntegrate(w[i],fvLG11)
+  fvR2I = np.zeros((main.nvars,main.quadpoints,main.Npx,main.Npy))
+  fvL2I = np.zeros((main.nvars,main.quadpoints,main.Npx,main.Npy))
+  fvU2I = np.zeros((main.nvars,main.quadpoints,main.Npx,main.Npy))
+  fvD2I = np.zeros((main.nvars,main.quadpoints,main.Npx,main.Npy))
 
-    fvRIG21[:,i] = faceIntegrate(wp[i],fvRG21)
-    fvLIG21[:,i] = faceIntegrate(wp[i],fvLG21)
 
-    fvUIG12[:,i] = faceIntegrate(wp[i],fvUG12)
-    fvDIG12[:,i] = faceIntegrate(wp[i],fvDG12)
+  for i in range(0,main.order):
+    fvRIG11[:,i] = faceIntegrate(main.weights,main.w[i],fvRG11)
+    fvLIG11[:,i] = faceIntegrate(main.weights,main.w[i],fvLG11)
 
-    fvUIG22[:,i] = faceIntegrate(w[i],fvUG22)
-    fvDIG22[:,i] = faceIntegrate(w[i],fvDG22)
+    fvRIG21[:,i] = faceIntegrate(main.weights,main.wp[i],fvRG21)
+    fvLIG21[:,i] = faceIntegrate(main.weights,main.wp[i],fvLG21)
 
-    fvR2I[:,i] = faceIntegrate(w[i],fvR2)
-    fvL2I[:,i] = faceIntegrate(w[i],fvL2)
-    fvU2I[:,i] = faceIntegrate(w[i],fvU2)
-    fvD2I[:,i] = faceIntegrate(w[i],fvD2)
+    fvUIG12[:,i] = faceIntegrate(main.weights,main.wp[i],fvUG12)
+    fvDIG12[:,i] = faceIntegrate(main.weights,main.wp[i],fvDG12)
+
+    fvUIG22[:,i] = faceIntegrate(main.weights,main.w[i],fvUG22)
+    fvDIG22[:,i] = faceIntegrate(main.weights,main.w[i],fvDG22)
+
+    fvR2I[:,i] = faceIntegrate(main.weights,main.w[i],fvR2)
+    fvL2I[:,i] = faceIntegrate(main.weights,main.w[i],fvL2)
+    fvU2I[:,i] = faceIntegrate(main.weights,main.w[i],fvU2)
+    fvD2I[:,i] = faceIntegrate(main.weights,main.w[i],fvD2)
 
   return fvRIG11,fvLIG11,fvRIG21,fvLIG21,fvUIG12,fvDIG12,fvUIG22,fvDIG22,fvR2I,fvL2I,fvU2I,fvD2I
 

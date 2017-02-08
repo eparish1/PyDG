@@ -23,6 +23,24 @@ def reconstructUF(main,var):
 #        u[k,:,:,:,:] += w[l][:,None,None,None]*w[m][None,:,None,None]*a[k,l,m,:,:]
 
 
+def reconstructEdgesGeneral(a):
+  nvars = np.shape(a)[0]
+  aU =  np.sum(a,axis=(2))
+  aD =  np.sum(a*altarray[None,None,:,None,None],axis=(2))
+  aR =  np.sum(a,axis=(1))
+  aL =  np.sum(a*altarray[None,:,None,None,None],axis=(1))
+  uU = np.zeros((nvars,order,Npx,Npy))
+  uD = np.zeros((nvars,order,Npx,Npy))
+  uL = np.zeros((nvars,order,Npx,Npy))
+  uR = np.zeros((nvars,order,Npx,Npy))
+  for m in range(0,order):
+    for k in range(0,nvars):
+       uU[k,:,:,:] += w[m,:,None,None]*aU[k,m,:,:]
+       uD[k,:,:,:] += w[m,:,None,None]*aD[k,m,:,:]
+       uR[k,:,:,:] += w[m,:,None,None]*aR[k,m,:,:]
+       uL[k,:,:,:] += w[m,:,None,None]*aL[k,m,:,:]
+  return uR,uL,uU,uD
+
 def reconstructEdges(main,var):
   var.aU[:] =  np.sum(var.a,axis=(2))
   var.aD[:] =  np.sum(var.a*main.altarray[None,None,:,None,None],axis=(2))
@@ -104,8 +122,8 @@ def getRHS(main,eqns,schemes):
   eqns.evalFluxY(main.a.u,main.iFlux.fy)
   for i in range(0,main.order):
     for j in range(0,main.order):
-      main.RHS[:,i,j] = volIntegrate(main.weights,main.wp[i][:,None]*main.w[j][None,:],main.iFlux.fx - main.nu*main.vFlux2.fx)*2./main.dx + volIntegrate(main.weights,main.w[i][:,None]*main.wp[j][None,:],main.iFlux.fy - main.nu*main.vFlux2.fy )*2./main.dy + (-main.iFlux.fRI[:,j] + main.iFlux.fLI[:,j]*main.altarray[i])*2./main.dx + (-main.iFlux.fUI[:,i] + main.iFlux.fDI[:,i]*main.altarray[j])*2./main.dy \
-                  + main.nu*(main.vFlux2.fRI[:,j] - main.vFlux2.fLI[:,j]*main.altarray[i])*2./main.dx + main.nu*(main.vFlux2.fUI[:,i] - main.vFlux2.fDI[:,i]*main.altarray[j])*2./main.dy
+      main.RHS[:,i,j] = volIntegrate(main.weights,main.wp[i][:,None]*main.w[j][None,:],main.iFlux.fx - main.mu*main.vFlux2.fx)*2./main.dx + volIntegrate(main.weights,main.w[i][:,None]*main.wp[j][None,:],main.iFlux.fy - main.mu*main.vFlux2.fy )*2./main.dy + (-main.iFlux.fRI[:,j] + main.iFlux.fLI[:,j]*main.altarray[i])*2./main.dx + (-main.iFlux.fUI[:,i] + main.iFlux.fDI[:,i]*main.altarray[j])*2./main.dy \
+                  + main.mu*(main.vFlux2.fRI[:,j] - main.vFlux2.fLI[:,j]*main.altarray[i])*2./main.dx + main.mu*(main.vFlux2.fUI[:,i] - main.vFlux2.fDI[:,i]*main.altarray[j])*2./main.dy
       main.RHS[:,i,j] = main.RHS[:,i,j]*(2.*i + 1.)*(2.*j + 1.)/4.
 
 
@@ -132,8 +150,8 @@ def getViscousFluxes(main,eqns,schemes):
 def solveb(main,eqns,schemes):
   ##first do quadrature
   getViscousFluxes(main,eqns,schemes)
-  for i in range(0,main.order):
-    for j in range(0,main.order):
+  for i in range(0,main.b.order):
+    for j in range(0,main.b.order):
       main.b.a[:,i,j] = -volIntegrate(main.weights,main.wp[i][:,None]*main.w[j][None,:],main.vFlux.fx)*2./main.dx - volIntegrate(main.weights,main.w[i][:,None]*main.wp[j][None,:],main.vFlux.fy)*2./main.dy + (main.vFlux.fRI[:,j] - main.vFlux.fLI[:,j]*main.altarray[i])*2./main.dx + (main.vFlux.fUI[:,i] - main.vFlux.fDI[:,i]*main.altarray[j])*2./main.dy
       main.b.a[:,i,j] = main.b.a[:,i,j]*(2.*i + 1.)*(2.*j + 1.)/4.
   ## Now reconstruct tau and get edge states for later flux computations

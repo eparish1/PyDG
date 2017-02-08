@@ -1,6 +1,23 @@
 import numpy as np
 import mpi4py as MPI
 
+
+def sendEdgesGeneral(fL,fR):
+  if (num_processes == 1):
+    uR = fL[:,:,:,0 ]
+    uL = fR[:,:,:,-1]
+  else:
+    tmp = np.zeros((nvars,order,Npx)).flatten()
+    comm.Send(fL[:,:,:,0].flatten(),dest=rank_connect[0],tag=mpi_rank)
+    comm.Recv(tmp,source=rank_connect[1],tag=rank_connect[1])
+    uR = np.reshape(tmp,(nvars,order,Npx))
+    tmp = np.zeros((nvars,order,Npx)).flatten()
+    comm.Send(fR[:,:,:,-1].flatten(),dest=rank_connect[1],tag=mpi_rank*10)
+    comm.Recv(tmp,source=rank_connect[0],tag=rank_connect[0]*10)
+    uL = np.reshape(tmp,(nvars,order,Npx))
+  return uR,uL
+
+
 def sendEdges(main,var):
   if (main.num_processes == 1):
     var.uU_edge[:] = var.uD[:,:,:,0 ]
