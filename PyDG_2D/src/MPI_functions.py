@@ -2,19 +2,19 @@ import numpy as np
 import mpi4py as MPI
 
 
-def sendEdgesGeneral(fL,fR):
-  if (num_processes == 1):
+def sendEdgesGeneral(fL,fR,main):
+  if (main.num_processes == 1):
     uR = fL[:,:,:,0 ]
     uL = fR[:,:,:,-1]
   else:
-    tmp = np.zeros((nvars,order,Npx)).flatten()
-    comm.Send(fL[:,:,:,0].flatten(),dest=rank_connect[0],tag=mpi_rank)
-    comm.Recv(tmp,source=rank_connect[1],tag=rank_connect[1])
-    uR = np.reshape(tmp,(nvars,order,Npx))
-    tmp = np.zeros((nvars,order,Npx)).flatten()
-    comm.Send(fR[:,:,:,-1].flatten(),dest=rank_connect[1],tag=mpi_rank*10)
-    comm.Recv(tmp,source=rank_connect[0],tag=rank_connect[0]*10)
-    uL = np.reshape(tmp,(nvars,order,Npx))
+    tmp = np.zeros((main.nvars,main.quadpoints,main.Npx)).flatten()
+    main.comm.Send(fL[:,:,:,0].flatten(),dest=main.rank_connect[0],tag=main.mpi_rank)
+    main.comm.Recv(tmp,source=main.rank_connect[1],tag=main.rank_connect[1])
+    uR = np.reshape(tmp,(main.nvars,main.quadpoints,main.Npx))
+    tmp = np.zeros((main.nvars,main.quadpoints,main.Npx)).flatten()
+    main.comm.Send(fR[:,:,:,-1].flatten(),dest=main.rank_connect[1],tag=main.mpi_rank*10)
+    main.comm.Recv(tmp,source=main.rank_connect[0],tag=main.rank_connect[0]*10)
+    uL = np.reshape(tmp,(main.nvars,main.quadpoints,main.Npx))
   return uR,uL
 
 

@@ -7,21 +7,6 @@ def evalFluxXD(u,f):
 def evalFluxYD(u,f):
   f[0] = u[0]*0.
 
-### viscous fluxes
-def evalViscousFluxXD(u,fv):
-  fv[0] = u[0]
-  fv[1] = 0.
-#
-def evalViscousFluxYD(u,fv):
-  fv[0] = 0.
-  fv[1] = u[0] 
-
-def evalTauFluxXD(tau,u,fvX):
-  fvX[0] = tau[0]
-
-def evalTauFluxYD(tau,u,fvY):
-  fvY[0] = tau[1]
-
 
 ######  ====== Linear advection fluxes and eigen values ==== ###########
 def evalFluxXLA(u,f):
@@ -30,20 +15,6 @@ def evalFluxXLA(u,f):
 def evalFluxYLA(u,f):
   f[0] = u[0]
 
-### viscous fluxes
-def evalViscousFluxXLA(u,fv):
-  fv[0] = u[0]
-  fv[1] = 0.
-#
-def evalViscousFluxYLA(u,fv):
-  fv[0] = 0.
-  fv[1] = u[0] 
-
-def evalTauFluxXLA(tau,u,fvX):
-  fvX[0] = tau[0]
-
-def evalTauFluxYLA(tau,u,fvY):
-  fvY[0] = tau[1]
 #######################################################################
 ###### ====== Euler Fluxes and Eigen Values ==== ############
 def evalFluxXEuler(u,f):
@@ -84,29 +55,3 @@ def getEigsEuler(ustarLR,ustarUD):
   eigsUD[2] = eigsUD[0]
   eigsUD[3] = eigsUD[0]
   return eigsLR,eigsUD
-
-### viscous fluxes
-def evalViscousFluxXNS(u,fv):
-  fv[0] = 4./3.*u[1]
-  fv[1] = u[2]
-  fv[2] = u[2]#u[2]
-  fv[3] = -2./3.*u[1]
-#
-def evalViscousFluxYNS(u,fv):
-  fv[0] = -2./3.*u[2]
-  fv[1] = u[1]
-  fv[2] = u[1]
-  fv[3] = 4./3.*u[2]
-
-
-def evalTauFluxXNS(tau,u,fvX):
-  fvX[0] = 0.
-  fvX[1] = tau[0]
-  fvX[2] = tau[2]
-  fvX[3] = tau[0]*u[1]/u[0] + tau[1]*u[2]/u[0]
-
-def evalTauFluxYNS(tau,u,fvY):
-  fvY[0] = 0.
-  fvY[1] = tau[1]
-  fvY[2] = tau[3]
-  fvY[3] = tau[2]*u[1]/u[0] + tau[3]*u[2]/u[0]
