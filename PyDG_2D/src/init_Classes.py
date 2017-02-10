@@ -7,7 +7,7 @@ from equationFluxes import *
 from viscousFluxesBR1 import *
 from viscousFluxesIP import *
 from DG_functions import getRHS_IP,getRHS_BR1,getFlux
-from turb_models import tauModel,DNS
+from turb_models import tauModel,DNS,DtauModel
 class variable:
   def __init__(self,nvars,order,quadpoints,Npx,Npy):
       self.nvars = nvars
@@ -97,6 +97,9 @@ class variables:
     self.turb_str = turb_str
     if (turb_str == 'tau-model'):
       self.turb_model = tauModel
+    if (turb_str == 'dynamic-tau model'):
+      self.turb_model = DtauModel
+
     if (turb_str == 'DNS'):
       self.turb_model = DNS
 
