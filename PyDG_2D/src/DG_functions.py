@@ -1,12 +1,26 @@
 import numpy as np
 from MPI_functions import sendEdges,sendEdgesGeneral
 from fluxSchemes import *
-def reconstructU(main,var):
+from scipy import weave
+from scipy.weave import converters
+def reconstructU2(main,var):
   var.u[:] = 0.
   for l in range(0,var.order):
     for m in range(0,var.order):
       for k in range(0,var.nvars):
         var.u[k,:,:,:,:] += main.w[l][:,None,None,None]*main.w[m][None,:,None,None]*var.a[k,l,m,:,:]
+
+
+def reconstructU(main,var):
+  var.u[:] = 0.
+  #var.u = np.einsum('lmpq,klmij->kpqij',main.w[:,None,:,None]*main.w[None,:,None,:],var.a) ## this is actually much slower than the two line code
+  tmp =  np.einsum('mq,klmij->klqij',main.w,var.a)
+  var.u = np.einsum('lp,klqij->kpqij',main.w,tmp)
+  #for l in range(0,var.order):
+  #  for m in range(0,var.order):
+  #    var.u[:,:,:,:,:] += main.w[l][None,:,None,None,None]*main.w[m][None,None,:,None,None]*var.a[:,l,m,:,:]
+  #print('hi',np.linalg.norm(u - var.u))
+
 
 def reconstructUF(main,var):
   var.u[:] = 0.
@@ -25,10 +39,18 @@ def reconstructUF(main,var):
 
 
 def diffU(a,main):
+  tmp =  np.einsum('mq,klmij->klqij',main.w,a)
+  ux = np.einsum('lp,klqij->kpqij',main.wp,tmp)
+  tmp =  np.einsum('mq,klmij->klqij',main.wp,a)
+  uy = np.einsum('lp,klqij->kpqij',main.w,tmp)
+  return ux,uy
+
+def diffU2(a,main):
   nvars = np.shape(a)[0]
   order = np.shape(a)[1]
   ux = np.zeros((main.nvars,main.quadpoints,main.quadpoints,main.Npx,main.Npy))
   uy = np.zeros((main.nvars,main.quadpoints,main.quadpoints,main.Npx,main.Npy))
+
   for l in range(0,order):
     for m in range(0,order):
       for k in range(0,nvars):
@@ -39,38 +61,75 @@ def diffU(a,main):
 
 def reconstructEdgesGeneral(a,main):
   nvars = np.shape(a)[0]
-  aU =  np.sum(a,axis=(2))
-  aD =  np.sum(a*main.altarray[None,None,:,None,None],axis=(2))
-  aR =  np.sum(a,axis=(1))
-  aL =  np.sum(a*main.altarray[None,:,None,None,None],axis=(1))
+  aU = np.einsum('klmij->klij',a)
+  aD= np.einsum('klmij->klij',a*main.altarray[None,None,:,None,None])
+  aR = np.einsum('klmij->kmij',a)
+  aL = np.einsum('klmij->kmij',a*main.altarray[None,:,None,None,None])
+  #aU =  np.sum(a,axis=(2))
+  #aD =  np.sum(a*main.altarray[None,None,:,None,None],axis=(2))
+  #aR =  np.sum(a,axis=(1))
+  #aL =  np.sum(a*main.altarray[None,:,None,None,None],axis=(1))
   uU = np.zeros((main.nvars,main.quadpoints,main.Npx,main.Npy))
   uD = np.zeros((main.nvars,main.quadpoints,main.Npx,main.Npy))
   uL = np.zeros((main.nvars,main.quadpoints,main.Npx,main.Npy))
   uR = np.zeros((main.nvars,main.quadpoints,main.Npx,main.Npy))
-  for m in range(0,main.order):
-    for k in range(0,main.nvars):
-       uU[k,:,:,:] += main.w[m,:,None,None]*aU[k,m,:,:]
-       uD[k,:,:,:] += main.w[m,:,None,None]*aD[k,m,:,:]
-       uR[k,:,:,:] += main.w[m,:,None,None]*aR[k,m,:,:]
-       uL[k,:,:,:] += main.w[m,:,None,None]*aL[k,m,:,:]
+
+  uU[:] = np.einsum('lp,klij->kpij',main.w,aU)
+  uD[:] = np.einsum('lp,klij->kpij',main.w,aD)
+  uR[:] = np.einsum('lp,klij->kpij',main.w,aR)
+  uL[:] = np.einsum('lp,klij->kpij',main.w,aL)
+
+  #for m in range(0,main.order):
+  #  for k in range(0,main.nvars):
+  #     uU[k,:,:,:] += main.w[m,:,None,None]*aU[k,m,:,:]
+  #     uD[k,:,:,:] += main.w[m,:,None,None]*aD[k,m,:,:]
+  #     uR[k,:,:,:] += main.w[m,:,None,None]*aR[k,m,:,:]
+  #     uL[k,:,:,:] += main.w[m,:,None,None]*aL[k,m,:,:]
   return uR,uL,uU,uD
 
-def reconstructEdges(main,var):
+
+def reconstructEdges2(main,var):
   var.aU[:] =  np.sum(var.a,axis=(2))
   var.aD[:] =  np.sum(var.a*main.altarray[None,None,:,None,None],axis=(2))
   var.aR[:] =  np.sum(var.a,axis=(1))
   var.aL[:] =  np.sum(var.a*main.altarray[None,:,None,None,None],axis=(1))
+
   var.uU[:] = 0. 
   var.uD[:] = 0.
   var.uL[:] = 0. 
   var.uR[:] = 0.
   for m in range(0,var.order):
-    for k in range(0,var.nvars):
-       var.uU[k,:,:,:] += main.w[m,:,None,None]*var.aU[k,m,:,:]
-       var.uD[k,:,:,:] += main.w[m,:,None,None]*var.aD[k,m,:,:]
-       var.uR[k,:,:,:] += main.w[m,:,None,None]*var.aR[k,m,:,:]
-       var.uL[k,:,:,:] += main.w[m,:,None,None]*var.aL[k,m,:,:]
+    #for k in range(0,var.nvars):
+       var.uU[:,:,:,:] += main.w[None,m,:,None,None]*var.aU[:,m,:,:]
+       var.uD[:,:,:,:] += main.w[None,m,:,None,None]*var.aD[:,m,:,:]
+       var.uR[:,:,:,:] += main.w[None,m,:,None,None]*var.aR[:,m,:,:]
+       var.uL[:,:,:,:] += main.w[None,m,:,None,None]*var.aL[:,m,:,:]
 
+
+def reconstructEdges(main,var):
+  var.aU[:] = np.einsum('klmij->klij',main.a.a)
+  var.aD[:] = np.einsum('klmij->klij',main.a.a*main.altarray[None,None,:,None,None])
+  var.aR[:] = np.einsum('klmij->kmij',main.a.a)
+  var.aL[:] = np.einsum('klmij->kmij',main.a.a*main.altarray[None,:,None,None,None])
+  #var.aU[:] =  np.sum(var.a,axis=(2))
+  #var.aD[:] =  np.sum(var.a*main.altarray[None,None,:,None,None],axis=(2))
+  #var.aR[:] =  np.sum(var.a,axis=(1))
+  #var.aL[:] =  np.sum(var.a*main.altarray[None,:,None,None,None],axis=(1))
+  var.uU[:] = 0. 
+  var.uD[:] = 0.
+  var.uL[:] = 0. 
+  var.uR[:] = 0.
+  var.uU[:] = np.einsum('lp,klij->kpij',main.w,var.aU)
+  var.uD[:] = np.einsum('lp,klij->kpij',main.w,var.aD)
+  var.uR[:] = np.einsum('lp,klij->kpij',main.w,var.aR)
+  var.uL[:] = np.einsum('lp,klij->kpij',main.w,var.aL)
+
+#  for m in range(0,var.order):
+#    #for k in range(0,var.nvars):
+#       var.uU[:,:,:,:] += main.w[None,m,:,None,None]*var.aU[:,m,:,:]
+#       var.uD[:,:,:,:] += main.w[None,m,:,None,None]*var.aD[:,m,:,:]
+#       var.uR[:,:,:,:] += main.w[None,m,:,None,None]*var.aR[:,m,:,:]
+#       var.uL[:,:,:,:] += main.w[None,m,:,None,None]*var.aL[:,m,:,:]
 #def reconstructEdges(w,a,aR,aL,aU,aD,altarray,uR,uL,uU,uD):
 #  nvars,order,order,Nelx,Nely = np.shape(a)
 #  aU[:] =  np.sum(a,axis=(2))
@@ -89,15 +148,24 @@ def reconstructEdges(main,var):
 #       uL[k,:,:,:] += w[m,:,None,None]*aL[k,m,:,:]
 #  #return uR,uL,uU,uD
 
-def volIntegrate(weights,w,u):
+
+
+def volIntegrate2(weights,w,u):
   nvars,order,order,Nelx,Nely = np.shape(u)
   integ = np.zeros((nvars,Nelx,Nely))
   integ[:,:,:] =  np.sum(weights[None,:,None,None,None]*weights[None,None,:,None,None]*\
                        w[None,:,:,None,None]*u[:,:,:,:,:],axis=(1,2))
   return integ
 
+def volIntegrate(weights,w,u):
+  return  np.einsum('kpqij->kij',weights[None,:,None,None,None]*weights[None,None,:,None,None]*\
+                       w[None,:,:,None,None]*u[:,:,:,:,:])
 
 def faceIntegrate(weights,w,f):
+  return np.einsum('kpij->kij',weights[None,:,None,None]*w[None,:,None,None]*f)
+
+
+def faceIntegrate2(weights,w,f):
   return np.sum(weights[None,:,None,None]*w[None,:,None,None]*f,axis=1)
 
 
