@@ -94,51 +94,53 @@ def DtauModel(main,MZ,eqns,schemes):
   RHS3[:] = MZ.RHS[:]
   PLQLU = (RHS2[:,0:main.order,0:main.order] - RHS3[:,0:main.order,0:main.order])/eps
 
-  ### Now do dynamic procedure to get tau
-  filtarray2 = np.zeros(np.shape(MZ.a.a))
-  filtarray2[:,0:MZ.forder,0:MZ.forder,:,:] = 1.
-  eps = 1.e-5
-  ## Get RHS
-  MZ.a.a[:] = 0.
-  MZ.a.a[:,0:MZ.forder,0:MZ.forder] = main.a.a[:,0:MZ.forder,0:MZ.forder]
-  MZ.getRHS(MZ,eqns,schemes)
-  RHS4 = np.zeros(np.shape(MZ.RHS))
-  RHS4[:] = MZ.RHS[:]
-  ## Now get RHS(a + eps*RHS)
-  MZ.a.a[:] = 0.
-  MZ.a.a[:,0:MZ.forder,0:MZ.forder] = main.a.a[:,0:MZ.forder,0:MZ.forder]
-  MZ.a.a[:] = MZ.a.a[:]*filtarray2 + eps*RHS4[:]
-  MZ.getRHS(MZ,eqns,schemes)
-  RHS5 = np.zeros(np.shape(MZ.RHS))
-  RHS5[:] = MZ.RHS[:]
-  ## Now get RHS(a + eps*RHSf)
-  MZ.a.a[:] = 0.
-  MZ.a.a[:,0:MZ.forder,0:MZ.forder] = main.a.a[:,0:MZ.forder,0:MZ.forder]
-  MZ.a.a[:] = MZ.a.a[:]*filtarray2 + eps*RHS4[:]*filtarray2
-  MZ.getRHS(MZ,eqns,schemes)
-  RHS6 = np.zeros(np.shape(MZ.RHS))
-  RHS6[:] = MZ.RHS[:]
+  if (main.rkstage == 0):
+    ### Now do dynamic procedure to get tau
+    filtarray2 = np.zeros(np.shape(MZ.a.a))
+    filtarray2[:,0:MZ.forder,0:MZ.forder,:,:] = 1.
+    eps = 1.e-5
+    ## Get RHS
+    MZ.a.a[:] = 0.
+    MZ.a.a[:,0:MZ.forder,0:MZ.forder] = main.a.a[:,0:MZ.forder,0:MZ.forder]
+    MZ.getRHS(MZ,eqns,schemes)
+    RHS4 = np.zeros(np.shape(MZ.RHS))
+    RHS4[:] = MZ.RHS[:]
+    ## Now get RHS(a + eps*RHS)
+    MZ.a.a[:] = 0.
+    MZ.a.a[:,0:MZ.forder,0:MZ.forder] = main.a.a[:,0:MZ.forder,0:MZ.forder]
+    MZ.a.a[:] = MZ.a.a[:]*filtarray2 + eps*RHS4[:]
+    MZ.getRHS(MZ,eqns,schemes)
+    RHS5 = np.zeros(np.shape(MZ.RHS))
+    RHS5[:] = MZ.RHS[:]
+    ## Now get RHS(a + eps*RHSf)
+    MZ.a.a[:] = 0.
+    MZ.a.a[:,0:MZ.forder,0:MZ.forder] = main.a.a[:,0:MZ.forder,0:MZ.forder]
+    MZ.a.a[:] = MZ.a.a[:]*filtarray2 + eps*RHS4[:]*filtarray2
+    MZ.getRHS(MZ,eqns,schemes)
+    RHS6 = np.zeros(np.shape(MZ.RHS))
+    RHS6[:] = MZ.RHS[:]
+  
+    ## Now compute PLQLUf
+    PLQLUf = (RHS5[:,0:main.order,0:main.order] - RHS6[:,0:main.order,0:main.order])/eps
+  
+    PLQLUG = gatherSolSpectral(PLQLU,main)
+    MZ.PLQLUG = PLQLUG
+    PLQLUfG = gatherSolSpectral(PLQLUf[:,0:main.order,0:main.order],main)
+    RHS1G = gatherSolSpectral(RHS1[:,0:main.order,0:main.order],main)
+    RHS4G = gatherSolSpectral(RHS4[:,0:main.order,0:main.order],main)
 
-  ## Now compute PLQLUf
-  PLQLUf = (RHS5[:,0:main.order,0:main.order] - RHS6[:,0:main.order,0:main.order])/eps
+    afG = gatherSolSpectral(main.a.a[:,0:main.order,0:main.order],main)
 
-  PLQLUG = gatherSolSpectral(PLQLU,main)
-  MZ.PLQLUG = PLQLUG
-  PLQLUfG = gatherSolSpectral(PLQLUf[:,0:main.order,0:main.order],main)
-  RHS1G = gatherSolSpectral(RHS1[:,0:main.order,0:main.order],main)
-  RHS4G = gatherSolSpectral(RHS4[:,0:main.order,0:main.order],main)
-
-  afG = gatherSolSpectral(main.a.a[:,0:main.order,0:main.order],main)
-
-  if (main.mpi_rank == 0):
-    num = 2.*np.mean(np.sum(afG[1:3,0:MZ.forder,0:MZ.forder]*(RHS4G[1:3,0:MZ.forder,0:MZ.forder] - RHS1G[1:3,0:MZ.forder,0:MZ.forder]),axis=(0,1,2)) ,axis=(0,1))
-    den =  np.mean ( np.sum(afG[1:3,0:MZ.forder,0:MZ.forder]*(PLQLUG[1:3,0:MZ.forder,0:MZ.forder] - \
-                                       (main.order/MZ.forder)*PLQLUfG[1:3,0:MZ.forder,0:MZ.forder]),axis=(0,1,2)) ,axis=(0,1))
-    tau = num/(den + 1.e-1)
-    print(tau)
-  else:
-    tau = 0.
-  MZ.tau = sendScalar(tau,main)
+    if (main.mpi_rank == 0):
+      num = 2.*np.mean(np.sum(afG[1:3,0:MZ.forder,0:MZ.forder]*(RHS4G[1:3,0:MZ.forder,0:MZ.forder] - RHS1G[1:3,0:MZ.forder,0:MZ.forder]),axis=(0,1,2)) ,axis=(0,1))
+      den =  np.mean ( np.sum(afG[1:3,0:MZ.forder,0:MZ.forder]*(PLQLUG[1:3,0:MZ.forder,0:MZ.forder] - \
+                                         (main.order/MZ.forder)*PLQLUfG[1:3,0:MZ.forder,0:MZ.forder]),axis=(0,1,2)) ,axis=(0,1))
+      tau = num/(den + 1.e-1)
+      print(tau)
+    else:
+      tau = 0.
+    MZ.tau = np.maximum(0.,sendScalar(tau,main))
+    #MZ.tau = sendScalar(tau,main)
   return 0.5*MZ.tau*PLQLU
 
 
