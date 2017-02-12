@@ -120,6 +120,23 @@ def gatherSolSlab(main,eqns,var):
   else:
     main.comm.Send(var.u.flatten(),dest=0,tag=main.mpi_rank)
 
+def gatherSolSpectral(a,main):
+  if (main.mpi_rank == 0):
+    aG = np.zeros((main.nvars,main.order,main.order,main.Nel[0],main.Nel[1]))
+    aG[:,:,:,0:main.Npx,0:main.Npy] = a[:]
+    for i in range(1,main.num_processes):
+      loc_rank = i
+      data = np.zeros(np.shape(a)).flatten()
+      main.comm.Recv(data,source=loc_rank,tag = loc_rank)
+      xL = int( (loc_rank%main.procx)*main.Npx)
+      xR = int(((loc_rank%main.procx) +1)*main.Npx)
+      yD = int(loc_rank)/int(main.procx)*main.Npy
+      yU = (int(loc_rank)/int(main.procx) + 1)*main.Npy
+      aG[:,:,:,xL:xR,yD:yU] = np.reshape(data,(main.nvars,main.order,main.order,main.Npx,main.Npy))
+    return aG
+  else:
+    main.comm.Send(a.flatten(),dest=0,tag=main.mpi_rank)
+
 def getRankConnections(mpi_rank,num_processes):
   rank_connect = np.zeros((2))
   rank_connect[0] = mpi_rank - 1

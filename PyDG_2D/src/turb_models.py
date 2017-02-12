@@ -1,4 +1,5 @@
 import numpy as np
+from MPI_functions import gatherSolSpectral
 #def tauModel(main,MZ,eqns,schemes):
 #    eps = 1.e-5
 #    MZ.a.a[:] = 0.
@@ -47,18 +48,6 @@ def tauModel(main,MZ,eqns,schemes):
 
 
 def DtauModel(main,MZ,eqns,schemes):
-  def gatherSolSpectral(a,main):
-    if (main.mpi_rank == 0):
-      aG = np.zeros((main.nvars,main.order,main.order,main.Nel[0],main.Nel[1]))
-      aG[:,:,:,:,0:(main.mpi_rank+1)*main.Npy] = a[:]
-      for i in range(1,main.num_processes):
-        loc_rank = i
-        data = np.zeros(np.shape(a)).flatten()
-        main.comm.Recv(data,source=loc_rank,tag = loc_rank)
-        aG[:,:,:,:,loc_rank*main.Npy:(loc_rank+1)*main.Npy] = np.reshape(data,(main.nvars,main.order,main.order,main.Npx,main.Npy))
-      return aG
-    else:
-      main.comm.Send(a.flatten(),dest=0,tag=main.mpi_rank)
 
   def sendScalar(scalar,main):
     if (main.mpi_rank == 0):
