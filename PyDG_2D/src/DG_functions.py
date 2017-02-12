@@ -1,5 +1,5 @@
 import numpy as np
-from MPI_functions import sendEdges,sendEdgesGeneral
+from MPI_functions import sendEdges,sendEdgesGeneral,sendEdgesSlab,sendEdgesGeneralSlab
 from fluxSchemes import *
 from scipy import weave
 from scipy.weave import converters
@@ -172,9 +172,11 @@ def faceIntegrate2(weights,w,f):
 def getFlux(main,eqns,schemes):
   # first reconstruct states
   reconstructEdges(main,main.a)
-  sendEdges(main,main.a)
+  sendEdgesSlab(main,main.a)
   eqns.evalFluxX(main.a.uR,main.iFlux.fR)
   eqns.evalFluxX(main.a.uL,main.iFlux.fL)
+  eqns.evalFluxX(main.a.uR_edge,main.iFlux.fR_edge)
+  eqns.evalFluxX(main.a.uL_edge,main.iFlux.fL_edge)
   eqns.evalFluxY(main.a.uU,main.iFlux.fU)
   eqns.evalFluxY(main.a.uD,main.iFlux.fD)
   eqns.evalFluxY(main.a.uU_edge,main.iFlux.fU_edge)
@@ -225,7 +227,6 @@ def getRHS_IP(main,eqns,schemes):
   ### Quadratures
   eqns.evalFluxX(main.a.u,main.iFlux.fx)
   eqns.evalFluxY(main.a.u,main.iFlux.fy)
-
   fvGX = np.zeros(np.shape(main.a.u))
   fvGY = np.zeros(np.shape(main.a.u))
   G11,G12,G21,G22 = eqns.getGs(main.a.u,main)
@@ -278,7 +279,7 @@ def solveb(main,eqns,schemes):
   ## Now reconstruct tau and get edge states for later flux computations
   reconstructU(main,main.b)
   reconstructEdges(main,main.b)
-  sendEdges(main,main.b)
+  sendEdgesSlab(main,main.b)
   eqns.evalTauFluxX(main.b.uR,main.a.uR,main.vFlux2.fR)
   eqns.evalTauFluxX(main.b.uL,main.a.uL,main.vFlux2.fL)
   eqns.evalTauFluxY(main.b.uU,main.a.uU,main.vFlux2.fU)
@@ -322,7 +323,7 @@ def getViscousFlux(main,eqns,schemes):
   fvL2 = np.zeros((main.nvars,main.quadpoints,main.Npx,main.Npy))
   fvU2 = np.zeros((main.nvars,main.quadpoints,main.Npx,main.Npy))
   fvD2 = np.zeros((main.nvars,main.quadpoints,main.Npx,main.Npy))
-  uhatR,uhatL,uhatU,uhatD = centralFluxGeneral(main.a.uR,main.a.uL,main.a.uU,main.a.uD,main.a.uU_edge,main.a.uD_edge)
+  uhatR,uhatL,uhatU,uhatD = centralFluxGeneral(main.a.uR,main.a.uL,main.a.uU,main.a.uD,main.a.uR_edge,main.a.uL_edge,main.a.uU_edge,main.a.uD_edge)
   G11R,G12R,G21R,G22R = eqns.getGs(main.a.uR,main)
   G11L,G12L,G21L,G22L = eqns.getGs(main.a.uL,main)
   G11U,G12U,G21U,G22U = eqns.getGs(main.a.uU,main)
@@ -348,11 +349,13 @@ def getViscousFlux(main,eqns,schemes):
   apy = apy*2./main.dy
   UxR,UxL,UxU,UxD = reconstructEdgesGeneral(apx,main)
   UyR,UyL,UyU,UyD = reconstructEdgesGeneral(apy,main)
-  UxU_edge,UxD_edge = sendEdgesGeneral(UxD,UxU,main)
-  UyU_edge,UyD_edge = sendEdgesGeneral(UyD,UyU,main)
+  UxR_edge,UxL_edge,UxU_edge,UxD_edge = sendEdgesGeneralSlab(UxL,UxR,UxD,UxU,main)
+  UyR_edge,UyL_edge,UyU_edge,UyD_edge = sendEdgesGeneralSlab(UyL,UyR,UyD,UyU,main)
 
   fvxR = eqns.evalViscousFluxX(main,main.a.uR,UxR,UyR)
   fvxL = eqns.evalViscousFluxX(main,main.a.uL,UxL,UyL)
+  fvxR_edge = eqns.evalViscousFluxX(main,main.a.uR_edge,UxR_edge,UyR_edge)
+  fvxL_edge = eqns.evalViscousFluxX(main,main.a.uL_edge,UxL_edge,UyL_edge)
 
   fvyU = eqns.evalViscousFluxY(main,main.a.uU,UxU,UyU)
   fvyD = eqns.evalViscousFluxY(main,main.a.uD,UxD,UyD)
@@ -360,8 +363,8 @@ def getViscousFlux(main,eqns,schemes):
   fvyD_edge = eqns.evalViscousFluxY(main,main.a.uD_edge,UxD_edge,UyD_edge)
 
 
-  shatR,shatL,shatU,shatD = centralFluxGeneral(fvxR,fvxL,fvyU,fvyD,fvyU_edge,fvyD_edge)
-  jumpR,jumpL,jumpU,jumpD = computeJump(main.a.uR,main.a.uL,main.a.uU,main.a.uD,main.a.uU_edge,main.a.uD_edge)
+  shatR,shatL,shatU,shatD = centralFluxGeneral(fvxR,fvxL,fvyU,fvyD,fvxR_edge,fvxL_edge,fvyU_edge,fvyD_edge)
+  jumpR,jumpL,jumpU,jumpD = computeJump(main.a.uR,main.a.uL,main.a.uU,main.a.uD,main.a.uR_edge,main.a.uL_edge,main.a.uU_edge,main.a.uD_edge)
   fvR2[:] = shatR[:] - 2.*main.mu*jumpR[:]*3**2/main.dx
   fvL2[:] = shatL[:] - 2.*main.mu*jumpL[:]*3**2/main.dx
   fvU2[:] = shatU[:] - 2.*main.mu*jumpU[:]*3**2/main.dx
@@ -444,7 +447,7 @@ def diffCoeffs(a):
 
 
 
-def computeJump(uR,uL,uU,uD,uU_edge,uD_edge):
+def computeJump(uR,uL,uU,uD,uR_edge,uL_edge,uU_edge,uD_edge):
   nvars,order,Npx,Npy = np.shape(uR)
   jumpR = np.zeros((nvars,order,Npx,Npy))
   jumpL = np.zeros((nvars,order,Npx,Npy))
@@ -452,9 +455,9 @@ def computeJump(uR,uL,uU,uD,uU_edge,uD_edge):
   jumpD = np.zeros((nvars,order,Npx,Npy))
 
   jumpR[:,:,0:-1,:] = uR[:,:,0:-1,:] - uL[:,:,1::,:]
-  jumpR[:,:,-1   ,:] = uR[:,:,  -1,:] - uL[:,:,0  ,:]
+  jumpR[:,:,-1   ,:] = uR[:,:,  -1,:] - uR_edge
   jumpL[:,:,1:: ,:] = jumpR[:,:,0:-1,:]
-  jumpL[:,:,0   ,:] = jumpR[:,:,  -1,:]
+  jumpL[:,:,0   ,:] = uL_edge - uL[:,:,  0,:]
   jumpU[:,:,:,0:-1] = uU[:,:,:,0:-1] - uD[:,:,:,1::]
   jumpU[:,:,:,  -1] = uU[:,:,:,  -1] - uU_edge
   jumpD[:,:,:,1:: ] = jumpU[:,:,:,0:-1]

@@ -1,6 +1,7 @@
 import numpy as np
+import sys
 from mpi4py import MPI
-from MPI_functions import getRankConnections,sendEdges
+from MPI_functions import getRankConnections,sendEdges,getRankConnectionsSlab
 from legendreBasis import *
 from fluxSchemes import *
 from equationFluxes import *
@@ -17,6 +18,8 @@ class variable:
       self.u =np.zeros((nvars,quadpoints,quadpoints,Npx,Npy))
       self.uU = np.zeros((nvars,quadpoints,Npx,Npy))
       self.uD = np.zeros((nvars,quadpoints,Npx,Npy))
+      self.uR_edge = np.zeros((nvars,quadpoints,Npy))
+      self.uL_edge = np.zeros((nvars,quadpoints,Npy))
       self.uU_edge = np.zeros((nvars,quadpoints,Npx))
       self.uD_edge = np.zeros((nvars,quadpoints,Npx))
       self.uR = np.zeros((nvars,quadpoints,Npx,Npy))
@@ -29,7 +32,8 @@ class variable:
       self.uDS = np.zeros((nvars,quadpoints,Npx,Npy))
       self.uLS = np.zeros((nvars,quadpoints,Npx,Npy))
       self.uRS = np.zeros((nvars,quadpoints,Npx,Npy))
-      self.edge_tmp = np.zeros((nvars,quadpoints,Npx)).flatten()
+      self.edge_tmpy = np.zeros((nvars,quadpoints,Npx)).flatten()
+      self.edge_tmpx = np.zeros((nvars,quadpoints,Npy)).flatten()
 
 class fluxvariable:
   def __init__(self,nvars,order,quadpoints,Npx,Npy):
@@ -50,12 +54,14 @@ class fluxvariable:
     self.fDI = np.zeros((nvars,order,Npx,Npy))
     self.fLI = np.zeros((nvars,order,Npx,Npy))
     self.fRI = np.zeros((nvars,order,Npx,Npy))
+    self.fR_edge = np.zeros((nvars,quadpoints,Npy))
+    self.fL_edge = np.zeros((nvars,quadpoints,Npy))
     self.fU_edge = np.zeros((nvars,quadpoints,Npx))
     self.fD_edge = np.zeros((nvars,quadpoints,Npx))
    
 
 class variables:
-  def __init__(self,Nel,order,quadpoints,eqns,mu,xG,yG,t,et,dt,iteration,save_freq,schemes,turb_str):
+  def __init__(self,Nel,order,quadpoints,eqns,mu,xG,yG,t,et,dt,iteration,save_freq,schemes,turb_str,procx,procy):
     ## DG scheme information
     self.Nel = Nel
     self.order = order
@@ -67,20 +73,27 @@ class variables:
     self.save_freq = save_freq
     self.mu = mu
     ##============== MPI INFORMATION ===================
+    self.procx = procx
+    self.procy = procy
     self.comm = MPI.COMM_WORLD
     self.num_processes = self.comm.Get_size()
     self.mpi_rank = self.comm.Get_rank()
-    self.Npy = int(float(Nel[1] / self.num_processes)) #number of points on each x plane. MUST BE UNIFORM BETWEEN PROCS
-    self.Npx = Nel[0]
-    self.sy = slice(self.mpi_rank*self.Npy,(self.mpi_rank+1)*self.Npy)  ##slicing in y direction
-    self.rank_connect = getRankConnections(self.mpi_rank,self.num_processes)
+    if (procx*procy != self.num_processes):
+      if (self.mpi_rank == 0):
+        print('Error, correct x/y proc decomposition, now quitting!')
+      sys.exit()
+    self.Npy = int(float(Nel[1] / procy)) #number of points on each x plane. MUST BE UNIFORM BETWEEN PROCS
+    self.Npx = int(float(Nel[0] / procx))
+    self.sy = slice(int(self.mpi_rank)/int(self.procx)*self.Npy,(int(self.mpi_rank)/int(self.procx) + 1)*self.Npy)  ##slicing in y direction
+    self.sx = slice(int(self.mpi_rank%self.procx)*self.Npx,int(self.mpi_rank%self.procx + 1)*self.Npx)
+    self.rank_connect = getRankConnectionsSlab(self.mpi_rank,self.num_processes,self.procx,self.procy)
     self.w,self.wp,self.wpedge,self.weights,self.zeta = gaussPoints(self.order,self.quadpoints)
     self.altarray = (-np.ones(self.order))**(np.linspace(0,self.order-1,self.order))
     ## Initialize arrays
-    self.x = xG
-    self.dx = self.x[1] - self.x[0]
-    self.y = yG[self.sy] 
+    self.dx = xG[1] - xG[0]
     self.dy = yG[1] - yG[0]
+    self.x = xG[self.sx]
+    self.y = yG[self.sy] 
     self.nvars = eqns.nvars
     self.a0 = np.zeros((eqns.nvars,self.order,order,self.Npx,self.Npy))
     self.a = variable(eqns.nvars,self.order,self.quadpoints,self.Npx,self.Npy)
@@ -99,7 +112,6 @@ class variables:
       self.turb_model = tauModel
     if (turb_str == 'dynamic-tau model'):
       self.turb_model = DtauModel
-
     if (turb_str == 'DNS'):
       self.turb_model = DNS
 
