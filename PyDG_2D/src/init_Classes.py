@@ -7,7 +7,7 @@ from fluxSchemes import *
 from equationFluxes import *
 from viscousFluxesBR1 import *
 from viscousFluxesIP import *
-from DG_functions import getRHS_IP,getRHS_BR1,getFlux
+from DG_functions import getRHS_IP,getRHS_BR1,getFlux,getRHS_INVISCID
 from turb_models import tauModel,DNS,DtauModel
 class variable:
   def __init__(self,nvars,order,quadpoints,Npx,Npy):
@@ -105,6 +105,9 @@ class variables:
       self.getRHS = getRHS_BR1
     if (schemes.vflux_type == 'IP'): 
       self.getRHS = getRHS_IP
+    if (schemes.vflux_type == 'Inviscid'): 
+      self.getRHS = getRHS_INVISCID
+
     self.getFlux = getFlux
     self.RHS = np.zeros((eqns.nvars,self.order,self.order,self.Npx,self.Npy))
     self.turb_str = turb_str
@@ -126,6 +129,8 @@ class fschemes:
       self.viscousFlux = centralFlux
     if (vflux_str == 'IP'):
       self.vflux_type = 'IP'
+    if (vflux_str == 'Inviscid'):
+      self.vflux_type = 'Inviscid'
 
 class equations:
   def __init__(self,eq_str,schemes):
@@ -139,6 +144,9 @@ class equations:
         self.evalViscousFluxX = evalViscousFluxXNS_IP
         self.evalViscousFluxY = evalViscousFluxYNS_IP
         self.getGs = getGsNS 
+        self.getGsX = getGsNSX
+        self.getGsY = getGsNSY 
+
       if (schemes.vflux_type == 'BR1'):
         self.evalViscousFluxX = evalViscousFluxXNS_BR1
         self.evalViscousFluxY = evalViscousFluxYNS_BR1

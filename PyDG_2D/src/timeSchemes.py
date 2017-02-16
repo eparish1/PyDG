@@ -10,6 +10,7 @@ def advanceSol(main,MZ,eqns,schemes):
       main.a.a[:] = main.a0 + main.dt*rk4const[i]*(main.RHS[:])
     else:
       w = main.turb_model(main,MZ,eqns,schemes)
+      #print(np.linalg.norm(main.w))
       main.a.a[:] = main.a0 + main.dt*rk4const[i]*(main.RHS[:] + w)
   main.t += main.dt
   main.iteration += 1

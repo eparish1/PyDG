@@ -223,7 +223,7 @@ def getRHS_BR1(main,eqns,schemes):
 
 
 
-def getRHS_IP(main,eqns,schemes):
+def getRHS_INVISCID(main,eqns,schemes):
   reconstructU(main,main.a)
   # evaluate inviscid flux
   getFlux(main,eqns,schemes)
@@ -243,7 +243,7 @@ def getRHS_IP(main,eqns,schemes):
 
 
 
-def getRHS_IP2(main,eqns,schemes):
+def getRHS_IP(main,eqns,schemes):
   reconstructU(main,main.a)
   # evaluate inviscid flux
   getFlux(main,eqns,schemes)
@@ -352,10 +352,17 @@ def getViscousFlux(main,eqns,schemes):
   fvU2 = np.zeros((main.nvars,main.quadpoints,main.Npx,main.Npy))
   fvD2 = np.zeros((main.nvars,main.quadpoints,main.Npx,main.Npy))
   uhatR,uhatL,uhatU,uhatD = centralFluxGeneral(main.a.uR,main.a.uL,main.a.uU,main.a.uD,main.a.uR_edge,main.a.uL_edge,main.a.uU_edge,main.a.uD_edge)
-  G11R,G12R,G21R,G22R = eqns.getGs(main.a.uR,main)
-  G11L,G12L,G21L,G22L = eqns.getGs(main.a.uL,main)
-  G11U,G12U,G21U,G22U = eqns.getGs(main.a.uU,main)
-  G11D,G12D,G21D,G22D = eqns.getGs(main.a.uD,main)
+
+  G11R,G21R = eqns.getGsX(main.a.uR,main)
+  G11L,G21L = eqns.getGsX(main.a.uL,main)
+  G12U,G22U = eqns.getGsY(main.a.uU,main)
+  G12D,G22D = eqns.getGsY(main.a.uD,main)
+
+
+#  G11R,G12R,G21R,G22R = eqns.getGs(main.a.uR,main)
+#  G11L,G12L,G21L,G22L = eqns.getGs(main.a.uL,main)
+#  G11U,G12U,G21U,G22U = eqns.getGs(main.a.uU,main)
+#  G11D,G12D,G21D,G22D = eqns.getGs(main.a.uD,main)
 
   for i in range(0,nvars):
     for j in range(0,nvars):

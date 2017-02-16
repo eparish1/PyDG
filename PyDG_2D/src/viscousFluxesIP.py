@@ -1,5 +1,72 @@
 import numpy as np
 #from DG_functions import reconstructEdgesGeneral,faceIntegrate
+
+
+def getGsNSX(u,main):
+  nvars = np.shape(u)[0]
+  gamma = 1.4
+  Pr = 0.72
+  ashape = np.array(np.shape(u[0]))
+  ashape = np.insert(ashape,0,nvars)
+  ashape = np.insert(ashape,0,nvars)
+  G11 = np.zeros(ashape)
+  G21 = np.zeros(ashape)
+  v1 = u[1]/u[0]
+  v2 = u[2]/u[0]
+  E = u[3]/u[0]
+  vsqr = v1**2 + v2**2
+  G11[1,0] = -4./3.*v1
+  G11[1,1] = 4./3.
+  G11[2,0] = -v2
+  G11[2,2] = 1.
+  G11[3,0] = -(4./3.*v1**2 + v2**2 + gamma/Pr*(E - vsqr) )
+  G11[3,1] = (4./3. - gamma/Pr)*v1
+  G11[3,2] = (1. - gamma/Pr)*v2
+  G11[3,3] = gamma/Pr
+  G21[1,0] = -v2
+  G21[1,2] = 1.
+  G21[2,0] = 2./3.*v1
+  G21[2,1] = -2./3.
+  G21[3,0] = -1./3.*v1*v2
+  G21[3,1] = -2./3.*v2
+  G21[3,2] = v1
+  G11 = G11*main.mu/u[0]
+  G21 = G21*main.mu/u[0]
+  return G11,G21
+
+def getGsNSY(u,main):
+  nvars = np.shape(u)[0]
+  gamma = 1.4
+  Pr = 0.72
+  ashape = np.array(np.shape(u[0]))
+  ashape = np.insert(ashape,0,nvars)
+  ashape = np.insert(ashape,0,nvars)
+  G12 = np.zeros(ashape)
+  G22 = np.zeros(ashape)
+  v1 = u[1]/u[0]
+  v2 = u[2]/u[0]
+  E = u[3]/u[0]
+  vsqr = v1**2 + v2**2
+  G12[1,2] = -2./3.
+  G12[2,0] = -v1
+  G12[2,1] = 1.
+  G12[3,0] = -1./3.*v1*v2
+  G12[3,1] = v2
+  G12[3,2] = -2./3.*v1
+  G22[1,0] = -v1
+  G22[1,1] = 1.
+  G22[2,0] = -4./3.*v2
+  G22[2,2] = 4./3.
+  G22[3,0] = -(v1**2 + 4./3.*v2**2 + gamma/Pr*(E - vsqr) )
+  G22[3,1] = (1. - gamma/Pr)*v1
+  G22[3,2] = (4./3. - gamma/Pr)*v2
+  G22[3,3] = gamma/Pr
+  G12 = G12*main.mu/u[0]
+  G22 = G22*main.mu/u[0]
+  return G12,G22
+
+
+
 def getGsNS(u,main):
   nvars = np.shape(u)[0]
   gamma = 1.4

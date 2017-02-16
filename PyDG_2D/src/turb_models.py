@@ -26,18 +26,21 @@ from MPI_functions import gatherSolSpectral
 
 def tauModel(main,MZ,eqns,schemes):
     ### EVAL RESIDUAL AND DO MZ STUFF
-    filtarray = np.ones(np.shape(MZ.a.a))
-    filtarray[:,main.order::,main.order::,:,:] = 0.
+    filtarray = np.zeros(np.shape(MZ.a.a))
+    filtarray[:,0:main.order,0:main.order,:,:] = 1.
     eps = 1.e-5
+    MZ.a.a[:] = 0.
     MZ.a.a[:,0:main.order,0:main.order] = main.a.a[:]
     MZ.getRHS(MZ,eqns,schemes)
     RHS1 = np.zeros(np.shape(MZ.RHS))
     RHS1[:] = MZ.RHS[:]
+    MZ.a.a[:] = 0.
     MZ.a.a[:,0:main.order,0:main.order] = main.a.a[:]
     MZ.a.a[:] = MZ.a.a[:] + eps*RHS1[:]
     MZ.getRHS(MZ,eqns,schemes)
     RHS2 = np.zeros(np.shape(MZ.RHS))
     RHS2[:] = MZ.RHS[:]
+    MZ.a.a[:] = 0.
     MZ.a.a[:,0:main.order,0:main.order] = main.a.a[:]
     MZ.a.a[:] = MZ.a.a[:] + eps*RHS1[:]*filtarray
     MZ.getRHS(MZ,eqns,schemes)
@@ -130,7 +133,7 @@ def DtauModel(main,MZ,eqns,schemes):
       tau = 0.
     MZ.tau = np.maximum(0.,sendScalar(tau,main))
     #MZ.tau = sendScalar(tau,main)
-  return 0.5*MZ.tau*PLQLU
+  return 0.0002*PLQLU
 
 
 
