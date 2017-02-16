@@ -59,6 +59,7 @@ def diffU2(a,main):
   return ux,uy
 
 
+
 def reconstructEdgesGeneral(a,main):
   nvars = np.shape(a)[0]
   aU = np.einsum('klmij->klij',a)
@@ -161,6 +162,10 @@ def volIntegrate(weights,w,u):
   return  np.einsum('kpqij->kij',weights[None,:,None,None,None]*weights[None,None,:,None,None]*\
                        w[None,:,:,None,None]*u[:,:,:,:,:])
 
+def volIntegrateGen(weights,f):
+  return  np.einsum('kpqij->kij',weights[None,:,None,None,None]*weights[None,None,:,None,None]*f[:,:,:,:,:])
+
+
 def faceIntegrate(weights,w,f):
   return np.einsum('kpij->kij',weights[None,:,None,None]*w[None,:,None,None]*f)
 
@@ -169,24 +174,27 @@ def faceIntegrate2(weights,w,f):
   return np.sum(weights[None,:,None,None]*w[None,:,None,None]*f,axis=1)
 
 
+
+
 def getFlux(main,eqns,schemes):
   # first reconstruct states
   reconstructEdges(main,main.a)
   sendEdgesSlab(main,main.a)
-  eqns.evalFluxX(main.a.uR,main.iFlux.fR)
-  eqns.evalFluxX(main.a.uL,main.iFlux.fL)
-  eqns.evalFluxX(main.a.uR_edge,main.iFlux.fR_edge)
-  eqns.evalFluxX(main.a.uL_edge,main.iFlux.fL_edge)
-  eqns.evalFluxY(main.a.uU,main.iFlux.fU)
-  eqns.evalFluxY(main.a.uD,main.iFlux.fD)
-  eqns.evalFluxY(main.a.uU_edge,main.iFlux.fU_edge)
-  eqns.evalFluxY(main.a.uD_edge,main.iFlux.fD_edge)
+  #eqns.evalFluxX(main.a.uR,main.iFlux.fR)
+  #eqns.evalFluxX(main.a.uL,main.iFlux.fL)
+  #eqns.evalFluxX(main.a.uR_edge,main.iFlux.fR_edge)
+  #eqns.evalFluxX(main.a.uL_edge,main.iFlux.fL_edge)
+  #eqns.evalFluxY(main.a.uU,main.iFlux.fU)
+  #eqns.evalFluxY(main.a.uD,main.iFlux.fD)
+  #eqns.evalFluxY(main.a.uU_edge,main.iFlux.fU_edge)
+  #eqns.evalFluxY(main.a.uD_edge,main.iFlux.fD_edge)
   # now construct star state
   #starState(main.uR,main.uL,main.uU,main.uD,main.uU_edge,main.uD_edge,main.uRLS,main.uUDS)
   #eigsRL,eigsUD = eqns.getEigs(uRLS,uUDS)
   #fRS,fLS,fUS,fDS = centralFlux(fR,fL,fU,fD,fU_edge,fD_edge)
   #fRS,fLS,fUS,fDS = rusanovFlux(fR,fL,fU,fD,fU_edge,fD_edge,eigsRL,eigsUD,uR,uL,uU,uD,uU_edge,uD_edge)
-  schemes.inviscidFlux(main,eqns,schemes,main.iFlux,main.a)
+  #schemes.inviscidFlux(main,eqns,schemes,main.iFlux,main.a)
+  roeFlux(main,eqns,schemes,main.iFlux,main.a)
   # now we need to integrate along the boundary 
   for i in range(0,main.order):
     main.iFlux.fRI[:,i] = faceIntegrate(main.weights,main.w[i],main.iFlux.fRS)
@@ -216,6 +224,26 @@ def getRHS_BR1(main,eqns,schemes):
 
 
 def getRHS_IP(main,eqns,schemes):
+  reconstructU(main,main.a)
+  # evaluate inviscid flux
+  getFlux(main,eqns,schemes)
+  # now get viscous flux
+  upx,upy = diffU(main.a.a,main)
+  upx = upx*2./main.dx
+  upy = upy*2./main.dy
+  ### Quadratures
+  eqns.evalFluxX(main.a.u,main.iFlux.fx)
+  eqns.evalFluxY(main.a.u,main.iFlux.fy)
+  for i in range(0,main.order):
+    for j in range(0,main.order):
+      main.RHS[:,i,j] = volIntegrate(main.weights,main.wp[i][:,None]*main.w[j][None,:],main.iFlux.fx)*2./main.dx + volIntegrate(main.weights,main.w[i][:,None]*main.wp[j][None,:],main.iFlux.fy)*2./main.dy + \
+                        (-main.iFlux.fRI[:,j] + main.iFlux.fLI[:,j]*main.altarray[i])*2./main.dx + (-main.iFlux.fUI[:,i] + main.iFlux.fDI[:,i]*main.altarray[j])*2./main.dy 
+
+      main.RHS[:,i,j] = main.RHS[:,i,j]*(2.*i + 1.)*(2.*j + 1.)/4.
+
+
+
+def getRHS_IP2(main,eqns,schemes):
   reconstructU(main,main.a)
   # evaluate inviscid flux
   getFlux(main,eqns,schemes)
