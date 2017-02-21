@@ -121,7 +121,10 @@ class variables:
 class fschemes:
   def __init__(self,iflux_str,vflux_str):
     if (iflux_str == 'central'):
-      self.inviscidFlux = centralFlux
+      self.inviscidFlux = eulercentralflux
+    if (iflux_str == 'roe'):
+      self.inviscidFlux = kfid_roeflux
+
     if (iflux_str == 'rusanov'):
       self.inviscidFlux = rusanovFlux
     if (vflux_str == 'BR1'):

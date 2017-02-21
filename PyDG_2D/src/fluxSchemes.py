@@ -61,17 +61,58 @@ def rusanovFlux(main,eqns,schemes,fluxVar,var):
   fluxVar.fDS[:,:,:,0   ] = 0.5*(fluxVar.fD_edge + fluxVar.fD[:,:,:,0])          - 0.5*eigsUD[:,:,:,   0]*(var.uD[:,:,:,0  ] - var.uD_edge)
 
 
-def roeFlux(main,eqns,schemes,fluxVar,var):
+def inviscidFlux(main,eqns,schemes,fluxVar,var):
   nx = np.array([1,0])
   ny = np.array([0,1])
-  fluxVar.fRS[:,:,0:-1,:] = kfid_roeflux(var.uR[:,:,0:-1,:],var.uL[:,:,1::,:],nx)
-  fluxVar.fRS[:,:,  -1,:] = kfid_roeflux(var.uR[:,:,  -1,:],var.uR_edge,nx)
+  fluxVar.fRS[:,:,0:-1,:] = schemes.inviscidFlux(var.uR[:,:,0:-1,:],var.uL[:,:,1::,:],nx)
+  fluxVar.fRS[:,:,  -1,:] = schemes.inviscidFlux(var.uR[:,:,  -1,:],var.uR_edge,nx)
   fluxVar.fLS[:,:,1:: ,:] = fluxVar.fRS[:,:,0:-1,:]
-  fluxVar.fLS[:,:,0   ,:] = kfid_roeflux(var.uL_edge,var.uL[:,:,0],nx)
-  fluxVar.fUS[:,:,:,0:-1] = kfid_roeflux(var.uU[:,:,:,0:-1],var.uD[:,:,:,1::],ny )
-  fluxVar.fUS[:,:,:,  -1] = kfid_roeflux(var.uU[:,:,:,  -1],var.uU_edge,ny)
+  fluxVar.fLS[:,:,0   ,:] = schemes.inviscidFlux(var.uL_edge,var.uL[:,:,0],nx)
+  fluxVar.fUS[:,:,:,0:-1] = schemes.inviscidFlux(var.uU[:,:,:,0:-1],var.uD[:,:,:,1::],ny )
+  fluxVar.fUS[:,:,:,  -1] = schemes.inviscidFlux(var.uU[:,:,:,  -1],var.uU_edge,ny)
   fluxVar.fDS[:,:,:,1:: ] = fluxVar.fUS[:,:,:,0:-1] 
-  fluxVar.fDS[:,:,:,0   ] = kfid_roeflux(var.uD_edge,var.uD[:,:,:,0],ny)
+  fluxVar.fDS[:,:,:,0   ] = schemes.inviscidFlux(var.uD_edge,var.uD[:,:,:,0],ny)
+
+
+def eulercentralflux(UL,UR,n):
+  gamma = 1.4
+  gmi = gamma-1.0
+  #process left state
+  rL = UL[0]
+  uL = UL[1]/rL
+  vL = UL[2]/rL
+  unL = uL*n[0] + vL*n[1]
+  qL = np.sqrt(UL[1]*UL[1] + UL[2]*UL[2])/rL
+  pL = (gamma-1)*(UL[3] - 0.5*rL*qL**2.)
+  rHL = UL[3] + pL
+  # left flux
+  FL = np.zeros(np.shape(UL))
+  FL[0] = rL*unL
+  FL[1] = UL[1]*unL + pL*n[0]
+  FL[2] = UL[2]*unL + pL*n[1]
+  FL[3] = rHL*unL
+
+  # process right state
+  rR = UR[0]
+  uR = UR[1]/rR
+  vR = UR[2]/rR
+  unR = uR*n[0] + vR*n[1]
+  qR = np.sqrt(UR[1]**2. + UR[2]**2.)/rR
+  pR = (gamma-1)*(UR[3] - 0.5*rR*qR**2.)
+  rHR = UR[3] + pR
+  # right flux
+  FR = np.zeros(np.shape(UR))
+  FR[0] = rR*unR
+  FR[1] = UR[1]*unR + pR*n[0]
+  FR[2] = UR[2]*unR + pR*n[1]
+  FR[3] = rHR*unR
+
+  F = np.zeros(np.shape(FL))  # for allocation
+  F[0]    = 0.5*(FL[0]+FR[0])
+  F[1]    = 0.5*(FL[1]+FR[1])
+  F[2]    = 0.5*(FL[2]+FR[2])
+  F[3]    = 0.5*(FL[3]+FR[3])
+  return F
 
 
 #def roeFlux(main,eqns,schemes,fluxVar,var):

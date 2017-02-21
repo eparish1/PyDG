@@ -193,8 +193,8 @@ def getFlux(main,eqns,schemes):
   #eigsRL,eigsUD = eqns.getEigs(uRLS,uUDS)
   #fRS,fLS,fUS,fDS = centralFlux(fR,fL,fU,fD,fU_edge,fD_edge)
   #fRS,fLS,fUS,fDS = rusanovFlux(fR,fL,fU,fD,fU_edge,fD_edge,eigsRL,eigsUD,uR,uL,uU,uD,uU_edge,uD_edge)
-  #schemes.inviscidFlux(main,eqns,schemes,main.iFlux,main.a)
-  roeFlux(main,eqns,schemes,main.iFlux,main.a)
+  inviscidFlux(main,eqns,schemes,main.iFlux,main.a)
+  #roeFlux(main,eqns,schemes,main.iFlux,main.a)
   # now we need to integrate along the boundary 
   for i in range(0,main.order):
     main.iFlux.fRI[:,i] = faceIntegrate(main.weights,main.w[i],main.iFlux.fRS)
