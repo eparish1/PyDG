@@ -2,113 +2,47 @@ import numpy as np
 import mpi4py as MPI
 
 
-def sendEdgesGeneral(fL,fR,main):
-  if (main.num_processes == 1):
-    uR = fL[:,:,:,0 ]
-    uL = fR[:,:,:,-1]
-  else:
-    tmp = np.zeros((main.nvars,main.quadpoints,main.Npx)).flatten()
-    main.comm.Send(fL[:,:,:,0].flatten(),dest=main.rank_connect[0],tag=main.mpi_rank)
-    main.comm.Recv(tmp,source=main.rank_connect[1],tag=main.rank_connect[1])
-    uR = np.reshape(tmp,(main.nvars,main.quadpoints,main.Npx))
-    tmp = np.zeros((main.nvars,main.quadpoints,main.Npx)).flatten()
-    main.comm.Send(fR[:,:,:,-1].flatten(),dest=main.rank_connect[1],tag=main.mpi_rank*10)
-    main.comm.Recv(tmp,source=main.rank_connect[0],tag=main.rank_connect[0]*10)
-    uL = np.reshape(tmp,(main.nvars,main.quadpoints,main.Npx))
-  return uR,uL
 
-
-
-def sendEdgesGeneralSlab(fL,fR,fD,fU,main):
+def sendEdgesGeneralSlab(fL,fR,fD,fU,fF,fB,main):
   if (main.rank_connect[0] == main.mpi_rank and main.rank_connect[1] == main.mpi_rank):
-    uR = fL[:,:,0, :]
-    uL = fR[:,:,-1,:]
+    uR = fL[:,:,:,0, :,:]
+    uL = fR[:,:,:,-1,:,:]
   else:
     ## Send right and left fluxes
-    tmp = np.zeros((main.nvars,main.quadpoints,main.Npy)).flatten()
-    main.comm.Sendrecv(fL[:,:,0,:].flatten(),dest=main.rank_connect[0],sendtag=main.mpi_rank,\
+    tmp = np.zeros((main.nvars,main.quadpoints,main.quadpoints,main.Npy,main.Npz)).flatten()
+    main.comm.Sendrecv(fL[:,:,:,0,:,:].flatten(),dest=main.rank_connect[0],sendtag=main.mpi_rank,\
                        recvbuf=tmp,source=main.rank_connect[1],recvtag=main.rank_connect[1])
-    uR = np.reshape(tmp,(main.nvars,main.quadpoints,main.Npy))
-    tmp = np.zeros((main.nvars,main.quadpoints,main.Npy)).flatten()
-    main.comm.Sendrecv(fR[:,:,-1,:].flatten(),dest=main.rank_connect[1],sendtag=main.mpi_rank*10,\
+
+    uR = np.reshape(tmp,(main.nvars,main.quadpoints,main.quadpoints,main.Npy,main.Npz))
+    tmp[:] = 0. 
+    main.comm.Sendrecv(fR[:,:,:,-1,:,:].flatten(),dest=main.rank_connect[1],sendtag=main.mpi_rank*10,\
                        recvbuf=tmp,source=main.rank_connect[0],recvtag=main.rank_connect[0]*10)
-    uL = np.reshape(tmp,(main.nvars,main.quadpoints,main.Npy))
+    uL = np.reshape(tmp,(main.nvars,main.quadpoints,main.quadpoints,main.Npy,main.Npz))
 
   if (main.rank_connect[2] == main.mpi_rank and main.rank_connect[3] == main.mpi_rank):
-    uU = fD[:,:,:,0 ]
-    uD = fU[:,:,:,-1]
+    uU = fD[:,:,:,:,0 ,:]
+    uD = fU[:,:,:,:,-1,:]
   else:
     ## Send up and down fluxes
-    tmp = np.zeros((main.nvars,main.quadpoints,main.Npx)).flatten()
-    main.comm.Sendrecv(fD[:,:,:,0].flatten(),dest=main.rank_connect[2],sendtag=main.mpi_rank,\
+    tmp = np.zeros((main.nvars,main.quadpoints,main.quadpoints,main.Npx,main.Npz)).flatten()
+    main.comm.Sendrecv(fD[:,:,:,:,0,:].flatten(),dest=main.rank_connect[2],sendtag=main.mpi_rank,\
                        recvbuf=tmp,source=main.rank_connect[3],recvtag=main.rank_connect[3])
-    uU = np.reshape(tmp,(main.nvars,main.quadpoints,main.Npx))
-    tmp = np.zeros((main.nvars,main.quadpoints,main.Npx)).flatten()
-    main.comm.Sendrecv(fU[:,:,:,-1].flatten(),dest=main.rank_connect[3],sendtag=main.mpi_rank*100,\
+    uU = np.reshape(tmp,(main.nvars,main.quadpoints,main.quadpoints,main.Npx,main.Npz))
+    tmp[:] = 0. 
+    main.comm.Sendrecv(fU[:,:,:,:,-1,:].flatten(),dest=main.rank_connect[3],sendtag=main.mpi_rank*100,\
                        recvbuf=tmp,source=main.rank_connect[2],recvtag=main.rank_connect[2]*100)
-    uD = np.reshape(tmp,(main.nvars,main.quadpoints,main.Npx))
+    uD = np.reshape(tmp,(main.nvars,main.quadpoints,main.quadpoints,main.Npx,main.Npz))
 
-  return uR,uL,uU,uD
+    uF = fB[:,:,:,:,:,0]
+    uB = fF[:,:,:,:,:,-1]
 
+  return uR,uL,uU,uD,uF,uB
 
-
-def sendEdgesSlab(main,var):
-  if (main.rank_connect[0] == main.mpi_rank and main.rank_connect[1] == main.mpi_rank):
-    var.uR_edge[:] = var.uL[:,:,0, :]
-    var.uL_edge[:] = var.uR[:,:,-1,:]
-  else:
-    main.comm.Sendrecv(var.uL[:,:,0].flatten(),dest=main.rank_connect[0],sendtag=main.mpi_rank,\
-                       recvbuf=var.edge_tmpx,source=main.rank_connect[1],recvtag=main.rank_connect[1])
-    var.uR_edge[:] = np.reshape(var.edge_tmpx,(main.nvars,main.quadpoints,main.Npy))
-    main.comm.Sendrecv(var.uR[:,:,-1,:].flatten(),dest=main.rank_connect[1],sendtag=main.mpi_rank*10,\
-                           recvbuf=var.edge_tmpx,source=main.rank_connect[0],recvtag=main.rank_connect[0]*10)
-    var.uL_edge[:] = np.reshape(var.edge_tmpx,(main.nvars,main.quadpoints,main.Npy))
-    ## Send up and down fluxes
-  if (main.rank_connect[2] == main.mpi_rank and main.rank_connect[3] == main.mpi_rank):
-    var.uU_edge[:] = var.uD[:,:,:,0 ]
-    var.uD_edge[:] = var.uU[:,:,:,-1]
-  else:
-    main.comm.Sendrecv(var.uD[:,:,:,0].flatten(),dest=main.rank_connect[2],sendtag=main.mpi_rank,\
-                       recvbuf=var.edge_tmpy,source=main.rank_connect[3],recvtag=main.rank_connect[3])
-    var.uU_edge[:] = np.reshape(var.edge_tmpy,(main.nvars,main.quadpoints,main.Npx))
-    main.comm.Sendrecv(var.uU[:,:,:,-1].flatten(),dest=main.rank_connect[3],sendtag=main.mpi_rank*100,\
-                       recvbuf=var.edge_tmpy,source=main.rank_connect[2],recvtag=main.rank_connect[2]*100)
-    var.uD_edge[:] = np.reshape(var.edge_tmpy,(main.nvars,main.quadpoints,main.Npx))
-
-
-
-def sendEdges(main,var):
-  if (main.num_processes == 1):
-    var.uU_edge[:] = var.uD[:,:,:,0 ]
-    var.uD_edge[:] = var.uU[:,:,:,-1]
-  else:
-    main.comm.Send(var.uD[:,:,:,0].flatten(),dest=main.rank_connect[0],tag=main.mpi_rank)
-    main.comm.Recv(var.edge_tmp[:],source=main.rank_connect[1],tag=main.rank_connect[1])
-    var.uU_edge[:] = np.reshape(var.edge_tmp,(var.nvars,var.quadpoints,main.Npx))
-    var.edge_tmp[:] = 0. 
-    main.comm.Send(var.uU[:,:,:,-1].flatten(),dest=main.rank_connect[1],tag=main.mpi_rank*10)
-    main.comm.Recv(var.edge_tmp,source=main.rank_connect[0],tag=main.rank_connect[0]*10)
-    var.uD_edge[:] = np.reshape(var.edge_tmp,(var.nvars,var.quadpoints,main.Npx))
-
-
-
-def gatherSol(main,eqns,var):
-  if (main.mpi_rank == 0):
-    uG = np.zeros((var.nvars,var.quadpoints,var.quadpoints,main.Nel[0],main.Nel[1]))
-    uG[:,:,:,:,0:(main.mpi_rank+1)*main.Npy] = var.u[:]
-    for i in range(1,main.num_processes):
-      loc_rank = i
-      data = np.zeros(np.shape(var.u)).flatten()
-      main.comm.Recv(data,source=loc_rank,tag = loc_rank)
-      uG[:,:,:,:,loc_rank*main.Npy:(loc_rank+1)*main.Npy] = np.reshape(data,(var.nvars,var.quadpoints,var.quadpoints,main.Npx,main.Npy))
-    return uG
-  else:
-    main.comm.Send(var.u.flatten(),dest=0,tag=main.mpi_rank)
 
 def gatherSolSlab(main,eqns,var):
   if (main.mpi_rank == 0):
-    uG = np.zeros((var.nvars,var.quadpoints,var.quadpoints,main.Nel[0],main.Nel[1]))
-    uG[:,:,:,0:main.Npx,0:main.Npy] = var.u[:]
+    uG = np.zeros((var.nvars,var.quadpoints,var.quadpoints,var.quadpoints,main.Nel[0],main.Nel[1],main.Nel[2]))
+    uG[:,:,:,:,0:main.Npx,0:main.Npy,:] = var.u[:]
     for i in range(1,main.num_processes):
       loc_rank = i
       data = np.zeros(np.shape(var.u)).flatten()
@@ -117,15 +51,15 @@ def gatherSolSlab(main,eqns,var):
       xR = int(((loc_rank%main.procx) +1)*main.Npx)
       yD = int(loc_rank)/int(main.procx)*main.Npy
       yU = (int(loc_rank)/int(main.procx) + 1)*main.Npy
-      uG[:,:,:,xL:xR,yD:yU] = np.reshape(data,(var.nvars,var.quadpoints,var.quadpoints,main.Npx,main.Npy))
+      uG[:,:,:,xL:xR,yD:yU,:] = np.reshape(data,(var.nvars,var.quadpoints,var.quadpoints,var.quadpoints,main.Npx,main.Npy,main.Npz))
     return uG
   else:
     main.comm.Send(var.u.flatten(),dest=0,tag=main.mpi_rank)
 
 def gatherSolSpectral(a,main):
   if (main.mpi_rank == 0):
-    aG = np.zeros((main.nvars,main.order,main.order,main.Nel[0],main.Nel[1]))
-    aG[:,:,:,0:main.Npx,0:main.Npy] = a[:]
+    aG = np.zeros((main.nvars,main.order,main.order,main.order,main.Nel[0],main.Nel[1],main.Nel[2]))
+    aG[:,:,:,0:main.Npx,0:main.Npy,:] = a[:]
     for i in range(1,main.num_processes):
       loc_rank = i
       data = np.zeros(np.shape(a)).flatten()
@@ -134,22 +68,10 @@ def gatherSolSpectral(a,main):
       xR = int(((loc_rank%main.procx) +1)*main.Npx)
       yD = int(loc_rank)/int(main.procx)*main.Npy
       yU = (int(loc_rank)/int(main.procx) + 1)*main.Npy
-      aG[:,:,:,xL:xR,yD:yU] = np.reshape(data,(main.nvars,main.order,main.order,main.Npx,main.Npy))
+      aG[:,:,:,xL:xR,yD:yU,:] = np.reshape(data,(main.nvars,main.order,main.order,main.order,main.Npx,main.Npy,main.Npz))
     return aG
   else:
     main.comm.Send(a.flatten(),dest=0,tag=main.mpi_rank)
-
-def getRankConnections(mpi_rank,num_processes):
-  rank_connect = np.zeros((2))
-  rank_connect[0] = mpi_rank - 1
-  rank_connect[1] = mpi_rank+1
-  if (mpi_rank == 0):
-    rank_connect[0] = num_processes - 1
-  
-  if (mpi_rank == num_processes - 1):
-    rank_connect[1] = 0
-  return rank_connect
-
 
 def getRankConnectionsSlab(mpi_rank,num_processes,procx,procy):
   ##============== MPI INFORMATION ===================

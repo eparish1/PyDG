@@ -10,58 +10,83 @@ from viscousFluxesIP import *
 from DG_functions import getRHS_IP,getRHS_BR1,getFlux,getRHS_INVISCID
 from turb_models import tauModel,DNS,DtauModel
 class variable:
-  def __init__(self,nvars,order,quadpoints,Npx,Npy):
+  def __init__(self,nvars,order,quadpoints,Npx,Npy,Npz):
       self.nvars = nvars
       self.order = order
       self.quadpoints = quadpoints
       self.a =np.zeros((nvars,order,order,Npx,Npy))
-      self.u =np.zeros((nvars,quadpoints,quadpoints,Npx,Npy))
-      self.uU = np.zeros((nvars,quadpoints,Npx,Npy))
-      self.uD = np.zeros((nvars,quadpoints,Npx,Npy))
-      self.uR_edge = np.zeros((nvars,quadpoints,Npy))
-      self.uL_edge = np.zeros((nvars,quadpoints,Npy))
-      self.uU_edge = np.zeros((nvars,quadpoints,Npx))
-      self.uD_edge = np.zeros((nvars,quadpoints,Npx))
-      self.uR = np.zeros((nvars,quadpoints,Npx,Npy))
-      self.uL = np.zeros((nvars,quadpoints,Npx,Npy))
-      self.aU = np.zeros((nvars,order,Npx,Npy))
-      self.aD = np.zeros((nvars,order,Npx,Npy))
-      self.aR = np.zeros((nvars,order,Npx,Npy))
-      self.aL = np.zeros((nvars,order,Npx,Npy))
-      self.uUS = np.zeros((nvars,quadpoints,Npx,Npy))
-      self.uDS = np.zeros((nvars,quadpoints,Npx,Npy))
-      self.uLS = np.zeros((nvars,quadpoints,Npx,Npy))
-      self.uRS = np.zeros((nvars,quadpoints,Npx,Npy))
-      self.edge_tmpy = np.zeros((nvars,quadpoints,Npx)).flatten()
-      self.edge_tmpx = np.zeros((nvars,quadpoints,Npy)).flatten()
+      self.u =np.zeros((nvars,quadpoints,quadpoints,quadpoints,Npx,Npy,Npz))
+      self.uR_edge = np.zeros((nvars,quadpoints,quadpoints,Npy,Npz))
+      self.uL_edge = np.zeros((nvars,quadpoints,quadpoints,Npy,Npz))
+      self.uU_edge = np.zeros((nvars,quadpoints,quadpoints,Npx,Npz))
+      self.uD_edge = np.zeros((nvars,quadpoints,quadpoints,Npx,Npz))
+      self.uF_edge = np.zeros((nvars,quadpoints,quadpoints,Npx,Npy))
+      self.uB_edge = np.zeros((nvars,quadpoints,quadpoints,Npx,Npy))
+
+      self.uR = np.zeros((nvars,quadpoints,quadpoints,Npx,Npy,Npz))
+      self.uL = np.zeros((nvars,quadpoints,quadpoints,Npx,Npy,Npz))
+      self.uU = np.zeros((nvars,quadpoints,quadpoints,Npx,Npy,Npz))
+      self.uD = np.zeros((nvars,quadpoints,quadpoints,Npx,Npy,Npz))
+      self.uF = np.zeros((nvars,quadpoints,quadpoints,Npx,Npy,Npz))
+      self.uB = np.zeros((nvars,quadpoints,quadpoints,Npx,Npy,Npz))
+
+      self.aU = np.zeros((nvars,order,order,Npx,Npy,Npz))
+      self.aD = np.zeros((nvars,order,order,Npx,Npy,Npz))
+      self.aR = np.zeros((nvars,order,order,Npx,Npy,Npz))
+      self.aL = np.zeros((nvars,order,order,Npx,Npy,Npz))
+      self.aF = np.zeros((nvars,order,order,Npx,Npy,Npz))
+      self.aB = np.zeros((nvars,order,order,Npx,Npy,Npz))
+
+      self.uUS = np.zeros((nvars,quadpoints,quadpoints,Npx,Npy,Npz))
+      self.uDS = np.zeros((nvars,quadpoints,quadpoints,Npx,Npy,Npz))
+      self.uLS = np.zeros((nvars,quadpoints,quadpoints,Npx,Npy,Npz))
+      self.uRS = np.zeros((nvars,quadpoints,quadpoints,Npx,Npy,Npz))
+      self.uBS = np.zeros((nvars,quadpoints,quadpoints,Npx,Npy,Npz))
+      self.uFS = np.zeros((nvars,quadpoints,quadpoints,Npx,Npy,Npz))
+
+#      self.edge_tmpy = np.zeros((nvars,quadpoints,Npx)).flatten()
+#      self.edge_tmpx = np.zeros((nvars,quadpoints,Npy)).flatten()
 
 class fluxvariable:
-  def __init__(self,nvars,order,quadpoints,Npx,Npy):
+  def __init__(self,nvars,order,quadpoints,Npx,Npy,Npz):
     self.nvars = nvars
     self.order = order
     self.quadpoints = quadpoints
-    self.fx = np.zeros((nvars,quadpoints,quadpoints,Npx,Npy))
-    self.fy = np.zeros((nvars,quadpoints,quadpoints,Npx,Npy))
-    self.fU = np.zeros((nvars,quadpoints,Npx,Npy))
-    self.fD = np.zeros((nvars,quadpoints,Npx,Npy))
-    self.fL = np.zeros((nvars,quadpoints,Npx,Npy))
-    self.fR = np.zeros((nvars,quadpoints,Npx,Npy))
-    self.fUS = np.zeros((nvars,quadpoints,Npx,Npy))
-    self.fDS = np.zeros((nvars,quadpoints,Npx,Npy))
-    self.fLS = np.zeros((nvars,quadpoints,Npx,Npy))
-    self.fRS = np.zeros((nvars,quadpoints,Npx,Npy))
-    self.fUI = np.zeros((nvars,order,Npx,Npy))
-    self.fDI = np.zeros((nvars,order,Npx,Npy))
-    self.fLI = np.zeros((nvars,order,Npx,Npy))
-    self.fRI = np.zeros((nvars,order,Npx,Npy))
-    self.fR_edge = np.zeros((nvars,quadpoints,Npy))
-    self.fL_edge = np.zeros((nvars,quadpoints,Npy))
-    self.fU_edge = np.zeros((nvars,quadpoints,Npx))
-    self.fD_edge = np.zeros((nvars,quadpoints,Npx))
-   
+    self.fx = np.zeros((nvars,quadpoints,quadpoints,quadpoints,Npx,Npy,Npz))
+    self.fy = np.zeros((nvars,quadpoints,quadpoints,quadpoints,Npx,Npy,Npz))
+    self.fz = np.zeros((nvars,quadpoints,quadpoints,quadpoints,Npx,Npy,Npz))
+
+    self.fU = np.zeros((nvars,quadpoints,quadpoints,Npx,Npy,Npz))
+    self.fD = np.zeros((nvars,quadpoints,quadpoints,Npx,Npy,Npz))
+    self.fL = np.zeros((nvars,quadpoints,quadpoints,Npx,Npy,Npz))
+    self.fR = np.zeros((nvars,quadpoints,quadpoints,Npx,Npy,Npz))
+    self.fF = np.zeros((nvars,quadpoints,quadpoints,Npx,Npy,Npz))
+    self.fB = np.zeros((nvars,quadpoints,quadpoints,Npx,Npy,Npz))
+
+    self.fUS = np.zeros((nvars,quadpoints,quadpoints,Npx,Npy,Npz))
+    self.fDS = np.zeros((nvars,quadpoints,quadpoints,Npx,Npy,Npz))
+    self.fLS = np.zeros((nvars,quadpoints,quadpoints,Npx,Npy,Npz))
+    self.fRS = np.zeros((nvars,quadpoints,quadpoints,Npx,Npy,Npz))
+    self.fFS = np.zeros((nvars,quadpoints,quadpoints,Npx,Npy,Npz))
+    self.fBS = np.zeros((nvars,quadpoints,quadpoints,Npx,Npy,Npz))
+
+    self.fUI = np.zeros((nvars,order,order,Npx,Npy,Npz))
+    self.fDI = np.zeros((nvars,order,order,Npx,Npy,Npz))
+    self.fLI = np.zeros((nvars,order,order,Npx,Npy,Npz))
+    self.fRI = np.zeros((nvars,order,order,Npx,Npy,Npz))
+    self.fFI = np.zeros((nvars,order,order,Npx,Npy,Npz))
+    self.fBI = np.zeros((nvars,order,order,Npx,Npy,Npz))
+
+    self.fR_edge = np.zeros((nvars,quadpoints,quapdoints,Npy,Npz))
+    self.fL_edge = np.zeros((nvars,quadpoints,quadpoints,Npy,Npz))
+    self.fU_edge = np.zeros((nvars,quadpoints,quadpoints,Npx,Npz))
+    self.fD_edge = np.zeros((nvars,quadpoints,quadpoints,Npx,Npz))
+    self.fF_edge = np.zeros((nvars,quadpoints,quadpoints,Npx,Npy))
+    self.fB_edge = np.zeros((nvars,quadpoints,quadpoints,Npx,Npy))
+  
 
 class variables:
-  def __init__(self,Nel,order,quadpoints,eqns,mu,xG,yG,t,et,dt,iteration,save_freq,schemes,turb_str,procx,procy):
+  def __init__(self,Nel,order,quadpoints,eqns,mu,xG,yG,zG,t,et,dt,iteration,save_freq,schemes,turb_str,procx,procy):
     ## DG scheme information
     self.Nel = Nel
     self.order = order
@@ -84,6 +109,8 @@ class variables:
       sys.exit()
     self.Npy = int(float(Nel[1] / procy)) #number of points on each x plane. MUST BE UNIFORM BETWEEN PROCS
     self.Npx = int(float(Nel[0] / procx))
+    self.Npz = int(Nel[2])
+
     self.sy = slice(int(self.mpi_rank)/int(self.procx)*self.Npy,(int(self.mpi_rank)/int(self.procx) + 1)*self.Npy)  ##slicing in y direction
     self.sx = slice(int(self.mpi_rank%self.procx)*self.Npx,int(self.mpi_rank%self.procx + 1)*self.Npx)
     self.rank_connect = getRankConnectionsSlab(self.mpi_rank,self.num_processes,self.procx,self.procy)
@@ -92,15 +119,15 @@ class variables:
     ## Initialize arrays
     self.dx = xG[1] - xG[0]
     self.dy = yG[1] - yG[0]
+    self.dz = zG[1] - zG[0]
     self.x = xG[self.sx]
     self.y = yG[self.sy] 
+    self.z = zG
     self.nvars = eqns.nvars
-    self.a0 = np.zeros((eqns.nvars,self.order,order,self.Npx,self.Npy))
-    self.a = variable(eqns.nvars,self.order,self.quadpoints,self.Npx,self.Npy)
-    self.b = variable(eqns.nvisc_vars,self.order,self.quadpoints,self.Npx,self.Npy)
-    self.iFlux = fluxvariable(eqns.nvars,self.order,self.quadpoints,self.Npx,self.Npy)
-    self.vFlux = fluxvariable(eqns.nvisc_vars,self.order,self.quadpoints,self.Npx,self.Npy)
-    self.vFlux2 = fluxvariable(eqns.nvars,self.order,self.quadpoints,self.Npx,self.Npy)
+
+    self.a0 = np.zeros((eqns.nvars,self.order,self.order,self.order,self.Npx,self.Npy,self.Npz))
+    self.a = variable(eqns.nvars,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz)
+    self.iFlux = fluxvariable(eqns.nvars,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz)
     if (schemes.vflux_type == 'BR1'):
       self.getRHS = getRHS_BR1
     if (schemes.vflux_type == 'IP'): 
@@ -109,7 +136,7 @@ class variables:
       self.getRHS = getRHS_INVISCID
 
     self.getFlux = getFlux
-    self.RHS = np.zeros((eqns.nvars,self.order,self.order,self.Npx,self.Npy))
+    self.RHS = np.zeros((eqns.nvars,self.order,self.order,self.order,self.Npx,self.Npy,self.Npz))
     self.turb_str = turb_str
     if (turb_str == 'tau-model'):
       self.turb_model = tauModel
@@ -121,7 +148,7 @@ class variables:
 class fschemes:
   def __init__(self,iflux_str,vflux_str):
     if (iflux_str == 'central'):
-      self.inviscidFlux = eulercentralflux
+      self.inviscidFlux = linearAdvectionCentralFlux
     if (iflux_str == 'roe'):
       self.inviscidFlux = kfid_roeflux
 

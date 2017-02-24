@@ -114,7 +114,7 @@ def faceIntegrate(weights,f):
 def getFlux(main,eqns,schemes):
   # first reconstruct states
   reconstructEdges(main,main.a)
-  sendEdgesSlab(main,main.a)
+  main.a.uR_edge,main.a.uL_edge,main.a.uU_edge,main.a.uD_edge,main.a.uF_edge,main.a.uB_edge = sendEdgesGeneralSlab(main.a.uL,main.a.uR,main.a.uD,main.a.uU,main.a.uB,main.a.uF,main)
   inviscidFlux(main,eqns,schemes,main.iFlux,main.a)
   # now we need to integrate along the boundary 
   for i in range(0,main.order):
