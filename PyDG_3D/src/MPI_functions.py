@@ -3,7 +3,7 @@ import mpi4py as MPI
 
 
 
-def sendEdgesGeneralSlab(fL,fR,fD,fU,fF,fB,main):
+def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main):
   if (main.rank_connect[0] == main.mpi_rank and main.rank_connect[1] == main.mpi_rank):
     uR = fL[:,:,:,0, :,:]
     uL = fR[:,:,:,-1,:,:]
@@ -33,8 +33,9 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fF,fB,main):
                        recvbuf=tmp,source=main.rank_connect[2],recvtag=main.rank_connect[2]*100)
     uD = np.reshape(tmp,(main.nvars,main.quadpoints,main.quadpoints,main.Npx,main.Npz))
 
-    uF = fB[:,:,:,:,:,0]
-    uB = fF[:,:,:,:,:,-1]
+    
+  uF = fB[:,:,:,:,:,0]
+  uB = fF[:,:,:,:,:,-1]
 
   return uR,uL,uU,uD,uF,uB
 
@@ -51,7 +52,7 @@ def gatherSolSlab(main,eqns,var):
       xR = int(((loc_rank%main.procx) +1)*main.Npx)
       yD = int(loc_rank)/int(main.procx)*main.Npy
       yU = (int(loc_rank)/int(main.procx) + 1)*main.Npy
-      uG[:,:,:,xL:xR,yD:yU,:] = np.reshape(data,(var.nvars,var.quadpoints,var.quadpoints,var.quadpoints,main.Npx,main.Npy,main.Npz))
+      uG[:,:,:,:,xL:xR,yD:yU,:] = np.reshape(data,(var.nvars,var.quadpoints,var.quadpoints,var.quadpoints,main.Npx,main.Npy,main.Npz))
     return uG
   else:
     main.comm.Send(var.u.flatten(),dest=0,tag=main.mpi_rank)

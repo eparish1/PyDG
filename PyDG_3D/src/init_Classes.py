@@ -1,20 +1,18 @@
 import numpy as np
 import sys
 from mpi4py import MPI
-from MPI_functions import getRankConnections,sendEdges,getRankConnectionsSlab
+from MPI_functions import getRankConnectionsSlab
 from legendreBasis import *
 from fluxSchemes import *
 from equationFluxes import *
-from viscousFluxesBR1 import *
-from viscousFluxesIP import *
-from DG_functions import getRHS_IP,getRHS_BR1,getFlux,getRHS_INVISCID
+from DG_functions import getFlux,getRHS_INVISCID
 from turb_models import tauModel,DNS,DtauModel
 class variable:
   def __init__(self,nvars,order,quadpoints,Npx,Npy,Npz):
       self.nvars = nvars
       self.order = order
       self.quadpoints = quadpoints
-      self.a =np.zeros((nvars,order,order,Npx,Npy))
+      self.a =np.zeros((nvars,order,order,order,Npx,Npy,Npz))
       self.u =np.zeros((nvars,quadpoints,quadpoints,quadpoints,Npx,Npy,Npz))
       self.uR_edge = np.zeros((nvars,quadpoints,quadpoints,Npy,Npz))
       self.uL_edge = np.zeros((nvars,quadpoints,quadpoints,Npy,Npz))
@@ -77,7 +75,7 @@ class fluxvariable:
     self.fFI = np.zeros((nvars,order,order,Npx,Npy,Npz))
     self.fBI = np.zeros((nvars,order,order,Npx,Npy,Npz))
 
-    self.fR_edge = np.zeros((nvars,quadpoints,quapdoints,Npy,Npz))
+    self.fR_edge = np.zeros((nvars,quadpoints,quadpoints,Npy,Npz))
     self.fL_edge = np.zeros((nvars,quadpoints,quadpoints,Npy,Npz))
     self.fU_edge = np.zeros((nvars,quadpoints,quadpoints,Npx,Npz))
     self.fD_edge = np.zeros((nvars,quadpoints,quadpoints,Npx,Npz))
@@ -151,7 +149,6 @@ class fschemes:
       self.inviscidFlux = linearAdvectionCentralFlux
     if (iflux_str == 'roe'):
       self.inviscidFlux = kfid_roeflux
-
     if (iflux_str == 'rusanov'):
       self.inviscidFlux = rusanovFlux
     if (vflux_str == 'BR1'):
@@ -165,11 +162,13 @@ class fschemes:
 class equations:
   def __init__(self,eq_str,schemes):
     if (eq_str == 'Navier-Stokes'):
-      self.nvars = 4
-      self.nvisc_vars = 4
+      self.nvars = 5
+      self.nvisc_vars = 5
       self.evalFluxX = evalFluxXEuler 
       self.evalFluxY = evalFluxYEuler
-      self.getEigs = getEigsEuler
+      self.evalFluxZ = evalFluxZEuler
+
+#      self.getEigs = getEigsEuler
       if (schemes.vflux_type == 'IP'):
         self.evalViscousFluxX = evalViscousFluxXNS_IP
         self.evalViscousFluxY = evalViscousFluxYNS_IP
@@ -188,6 +187,8 @@ class equations:
       self.nvisc_vars = 2
       self.evalFluxX = evalFluxXLA
       self.evalFluxY = evalFluxYLA
+      self.evalFluxZ = evalFluxZLA
+
       #self.getEigs = getEigsEuler
       if (schemes.vflux_type == 'IP'):
         self.evalViscousFluxX = evalViscousFluxXLA_IP

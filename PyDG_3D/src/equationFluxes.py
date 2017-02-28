@@ -15,6 +15,8 @@ def evalFluxXLA(u,f):
 def evalFluxYLA(u,f):
   f[0] = u[0]
 
+def evalFluxZLA(u,f):
+  f[0] = u[0]
 #######################################################################
 ###### ====== Euler Fluxes and Eigen Values ==== ############
 def evalFluxXEuler(u,f):
@@ -23,16 +25,15 @@ def evalFluxXEuler(u,f):
   gamma = 1.4
   p = (gamma - 1.)*(u[4] - 0.5*u[1]**2/u[0] - 0.5*u[2]**2/u[0] - 0.5*u[3]**2/u[0])
   f[0] = u[1]
-  f[1] = u[1]*u[1]/(u[0]+es) + p
-  f[2] = u[1]*u[2]/(u[0]+es)
-  f[3] = u[1]*u[3]/(u[0]+es)
-  f[4] = (u[4] + p)*u[1]/(u[0]+es)
+  f[1] = u[1]*u[1]/(u[0]) + p
+  f[2] = u[1]*u[2]/(u[0])
+  f[3] = u[1]*u[3]/(u[0])
+  f[4] = (u[4] + p)*u[1]/(u[0])
 
 def evalFluxYEuler(u,f):
   #f = np.zeros(np.shape(u))
   gamma = 1.4
   p = (gamma - 1.)*(u[4] - 0.5*u[1]**2/u[0] - 0.5*u[2]**2/u[0] - 0.5*u[3]**2/u[0])
-
   f[0] = u[2]
   f[1] = u[1]*u[2]/u[0]
   f[2] = u[2]*u[2]/u[0] + p
@@ -45,8 +46,8 @@ def evalFluxZEuler(u,f):
   p = (gamma - 1.)*(u[4] - 0.5*u[1]**2/u[0] - 0.5*u[2]**2/u[0] - 0.5*u[3]**2/u[0])
   f[0] = u[3]
   f[1] = u[1]*u[3]/u[0]
-  f[2] = u[2]*u[3]/u[0] + p
-  f[3] = u[3]*u[3]/u[0] 
+  f[2] = u[2]*u[3]/u[0] 
+  f[3] = u[3]*u[3]/u[0] + p 
   f[4] = (u[4] + p)*u[3]/u[0]
 
 

@@ -1,5 +1,5 @@
 import numpy as np
-from MPI_functions import sendEdges,sendEdgesGeneral,sendEdgesSlab,sendEdgesGeneralSlab
+from MPI_functions import sendEdgesGeneralSlab
 from fluxSchemes import *
 from scipy import weave
 from scipy.weave import converters
@@ -80,24 +80,6 @@ def reconstructEdgesGeneral(a,main):
   return uR,uL,uU,uD,uF,uB
 
 
-#def reconstructEdges2(main,var):
-#  var.aU[:] =  np.sum(var.a,axis=(2))
-#  var.aD[:] =  np.sum(var.a*main.altarray[None,None,:,None,None],axis=(2))
-#  var.aR[:] =  np.sum(var.a,axis=(1))
-#  var.aL[:] =  np.sum(var.a*main.altarray[None,:,None,None,None],axis=(1))
-#
-#  var.uU[:] = 0. 
-#  var.uD[:] = 0.
-#  var.uL[:] = 0. 
-#  var.uR[:] = 0.
-#  for m in range(0,var.order):
-#    #for k in range(0,var.nvars):
-#       var.uU[:,:,:,:] += main.w[None,m,:,None,None]*var.aU[:,m,:,:]
-#       var.uD[:,:,:,:] += main.w[None,m,:,None,None]*var.aD[:,m,:,:]
-#       var.uR[:,:,:,:] += main.w[None,m,:,None,None]*var.aR[:,m,:,:]
-#       var.uL[:,:,:,:] += main.w[None,m,:,None,None]*var.aL[:,m,:,:]
-
-
 
 def volIntegrate(weights,f):
   return  np.einsum('zpqrijk->zijk',weights[None,:,None,None,None,None,None]*weights[None,None,:,None,None,None,None]*weights[None,None,None,:,None,None,None]*f[:,:,:,:,:])
@@ -113,7 +95,7 @@ def faceIntegrate(weights,f):
 
 def getFlux(main,eqns,schemes):
   # first reconstruct states
-  reconstructEdges(main,main.a)
+  main.a.uR,main.a.uL,main.a.uU,main.a.uD,main.a.uF,main.a.uB = reconstructEdgesGeneral(main.a.a,main)
   main.a.uR_edge,main.a.uL_edge,main.a.uU_edge,main.a.uD_edge,main.a.uF_edge,main.a.uB_edge = sendEdgesGeneralSlab(main.a.uL,main.a.uR,main.a.uD,main.a.uU,main.a.uB,main.a.uF,main)
   inviscidFlux(main,eqns,schemes,main.iFlux,main.a)
   # now we need to integrate along the boundary 
@@ -146,7 +128,6 @@ def getRHS_INVISCID(main,eqns,schemes):
                           (-main.iFlux.fRI[:,j,k] + main.iFlux.fLI[:,j,k]*main.altarray[i])*2./main.dx + \
                           (-main.iFlux.fUI[:,i,k] + main.iFlux.fDI[:,i,k]*main.altarray[j])*2./main.dy + \
                           (-main.iFlux.fFI[:,i,j] + main.iFlux.fBI[:,i,j]*main.altarray[k])*2./main.dz 
-
         main.RHS[:,i,j,k] = main.RHS[:,i,j,k]*(2.*i + 1.)*(2.*j + 1.)*(2.*k+1.)/8.
 
 

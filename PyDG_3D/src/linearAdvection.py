@@ -16,21 +16,14 @@ def getIC(main,f,qnum):
           tg = np.ones((main.order,main.order))
           main.a.a[qnum,p,q,i,j] = (2.*p+1)/2.*(2.*q+1)/2.*np.sum(main.weights[:,None]*main.weights[None,:]*main.w[p,:,None]*main.w[q,None,:]*f(xloc[:,None]*tg,yloc[None,:]*tg,qnum))
 
-def vortexICS(x,y,qnum):
-  nx,ny = np.shape(x)
-  q = np.zeros((1,nx,ny))
-  q[0] = np.sin(x)*np.sin(y)
-  return q[qnum]
 
 
-
-L = 10.#2.*np.pi
-L = 10.#2.*np.pi
 Nel = np.array([2**7,2**7])
 order = 2
 nu = 1.e-1
 x = np.linspace(0,L,Nel[0]+1)
 y = np.linspace(0,L,Nel[1]+1)
+z = np.linspace(0,L,Nel[2]+1)
 
 t = 0
 dt = 1.e-3
