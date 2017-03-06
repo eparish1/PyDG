@@ -157,66 +157,106 @@ def getGsNSZ(u,main):
 
 
 
-
-
-def evalViscousFluxXNS_IP(main,u,Ux,Uy):
+def evalViscousFluxXNS_IP(main,u,Ux,Uy,Uz):
   gamma = 1.4
   Pr = 0.72
-  ux = 1./u[0]*Ux[1] - u[1]/u[0]**2*Ux[0]
   ## ->  v_x = 1/rho d/dx(rho v) - rho v /rho^2 rho_x
+  ux = 1./u[0]*Ux[1] - u[1]/u[0]**2*Ux[0]
   vx = 1./u[0]*Ux[2] - u[2]/u[0]**2*Ux[0]
+  wx = 1./u[0]*Ux[3] - u[3]/u[0]**2*Ux[0]
   ## ->  u_y = 1/rho d/dy(rho u) - rho u /rho^2 rho_y
   uy = 1./u[0]*Uy[1] - u[1]/u[0]**2*Uy[0]
-  ## ->  v_y = 1/rho d/dy(rho v) - rho v /rho^2 rho_y
   vy = 1./u[0]*Uy[2] - u[2]/u[0]**2*Uy[0]
+  wy = 1./u[0]*Uy[3] - u[3]/u[0]**2*Uy[0]
+  ## ->  u_z = 1/rho d/dz(rho u) - rho u /rho^2 rho_z
+  uz = 1./u[0]*Uz[1] - u[1]/u[0]**2*Uz[0]
+  vz = 1./u[0]*Uz[2] - u[2]/u[0]**2*Uz[0]
+  wz = 1./u[0]*Uz[3] - u[3]/u[0]**2*Uz[0]
   ## -> (kT)_x =d/dx[ (mu gamma)/Pr*(E - 1/2 v^2 ) ]
   ## ->        =mu gamma/Pr *[ dE/dx - 0.5 d/dx(v1^2 + v2^2) ]
   ## ->        =mu gamma/Pr *[ dE/dx - (v1 v1_x + v2 v2_x) ]
   ## ->  E_x = 1/rho d/x(rho E) - rho E /rho^2 rho_x
-  kTx =( 1./u[0]*Ux[3] - u[3]/u[0]**2*Ux[0] - 1./u[0]*(u[1]*ux + u[2]*vx)  )*main.mu*gamma/Pr
-  ## -> (kT)_y =d/dy[ (mu gamma)/Pr*(E - 1/2 v^2 ) ]
-  ## ->        =mu gamma/Pr *[ dE/dy - 0.5 d/dy(v1^2 + v2^2) ]
-  ## ->        =mu gamma/Pr *[ dE/dy - (v1 v1_y + v2 v2_y) ]
-  ## ->  E_x = 1/rho d/y(rho E) - rho E /rho^2 rho_y
-  kTy =( 1./u[0]*Uy[3] - u[3]/u[0]**2*Uy[0] - 1./u[0]*(u[1]*uy + u[2]*vy)  )*main.mu*gamma/Pr
+  kTx =( 1./u[0]*Ux[4] - u[4]/u[0]**2*Ux[0] - 1./u[0]*(u[1]*ux + u[2]*vx + u[3]*wx)  )*main.mu*gamma/Pr
+  kTy =( 1./u[0]*Uy[4] - u[4]/u[0]**2*Uy[0] - 1./u[0]*(u[1]*uy + u[2]*vy + u[3]*wy)  )*main.mu*gamma/Pr
+  kTz =( 1./u[0]*Uz[4] - u[4]/u[0]**2*Uz[0] - 1./u[0]*(u[1]*uz + u[2]*vz + u[3]*wz)  )*main.mu*gamma/Pr
 
   fx = np.zeros(np.shape(u))
   v1 = u[1]/u[0]
   v2 = u[2]/u[0]
-  fx[1] = main.mu*(4./3.*ux - 2./3.*vy)
-  fx[2] = main.mu*(vx + uy)
-  fx[3] = fx[1]*v1 + fx[2]*v2 + kTx
+  v3 = u[3]/u[0]
+  fx[1] = 2./3.*main.mu*(2.*ux - vy - wz) #tau11
+  fx[2] = main.mu*(uy + vx)  #tau11
+  fx[3] = main.mu*(uz + wx) #tau13
+  fx[4] = fx[1]*v1 + fx[2]*v2 + fx[3]*v3 + kTx
   return fx
 
 
-def evalViscousFluxYNS_IP(main,u,Ux,Uy):
+def evalViscousFluxYNS_IP(main,u,Ux,Uy,Uz):
   gamma = 1.4
   Pr = 0.72
-  ux = 1./u[0]*Ux[1] - u[1]/u[0]**2*Ux[0]
   ## ->  v_x = 1/rho d/dx(rho v) - rho v /rho^2 rho_x
+  ux = 1./u[0]*Ux[1] - u[1]/u[0]**2*Ux[0]
   vx = 1./u[0]*Ux[2] - u[2]/u[0]**2*Ux[0]
+  wx = 1./u[0]*Ux[3] - u[3]/u[0]**2*Ux[0]
   ## ->  u_y = 1/rho d/dy(rho u) - rho u /rho^2 rho_y
   uy = 1./u[0]*Uy[1] - u[1]/u[0]**2*Uy[0]
-  ## ->  v_y = 1/rho d/dy(rho v) - rho v /rho^2 rho_y
   vy = 1./u[0]*Uy[2] - u[2]/u[0]**2*Uy[0]
+  wy = 1./u[0]*Uy[3] - u[3]/u[0]**2*Uy[0]
+  ## ->  u_z = 1/rho d/dz(rho u) - rho u /rho^2 rho_z
+  uz = 1./u[0]*Uz[1] - u[1]/u[0]**2*Uz[0]
+  vz = 1./u[0]*Uz[2] - u[2]/u[0]**2*Uz[0]
+  wz = 1./u[0]*Uz[3] - u[3]/u[0]**2*Uz[0]
   ## -> (kT)_x =d/dx[ (mu gamma)/Pr*(E - 1/2 v^2 ) ]
   ## ->        =mu gamma/Pr *[ dE/dx - 0.5 d/dx(v1^2 + v2^2) ]
   ## ->        =mu gamma/Pr *[ dE/dx - (v1 v1_x + v2 v2_x) ]
   ## ->  E_x = 1/rho d/x(rho E) - rho E /rho^2 rho_x
-  kTx =( 1./u[0]*Ux[3] - u[3]/u[0]**2*Ux[0] - 1./u[0]*(u[1]*ux + u[2]*vx)  )*main.mu*gamma/Pr
-  ## -> (kT)_y =d/dy[ (mu gamma)/Pr*(E - 1/2 v^2 ) ]
-  ## ->        =mu gamma/Pr *[ dE/dy - 0.5 d/dy(v1^2 + v2^2) ]
-  ## ->        =mu gamma/Pr *[ dE/dy - (v1 v1_y + v2 v2_y) ]
-  ## ->  E_x = 1/rho d/y(rho E) - rho E /rho^2 rho_y
-  kTy =( 1./u[0]*Uy[3] - u[3]/u[0]**2*Uy[0] - 1./u[0]*(u[1]*uy + u[2]*vy)  )*main.mu*gamma/Pr
+  kTx =( 1./u[0]*Ux[4] - u[4]/u[0]**2*Ux[0] - 1./u[0]*(u[1]*ux + u[2]*vx + u[3]*wx)  )*main.mu*gamma/Pr
+  kTy =( 1./u[0]*Uy[4] - u[4]/u[0]**2*Uy[0] - 1./u[0]*(u[1]*uy + u[2]*vy + u[3]*wy)  )*main.mu*gamma/Pr
+  kTz =( 1./u[0]*Uz[4] - u[4]/u[0]**2*Uz[0] - 1./u[0]*(u[1]*uz + u[2]*vz + u[3]*wz)  )*main.mu*gamma/Pr
 
   fy = np.zeros(np.shape(u))
   v1 = u[1]/u[0]
   v2 = u[2]/u[0]
-  fy[1] = main.mu*(vx + uy)
-  fy[2] = main.mu*(4./3.*vy - 2./3.*ux)
-  fy[3] = fy[1]*v1 + fy[2]*v2 + kTy
+  v3 = u[3]/u[0]
+  fy[1] = main.mu*(vx + uy)  #tau12
+  fy[2] = 2./3.*main.mu*(2.*vy - ux - wz) #tau22
+  fy[3] = main.mu*(vz + wy) #tau23
+  fy[4] = fy[1]*v1 + fy[2]*v2 + fy[3]*v3 + kTy
   return fy
+
+
+def evalViscousFluxZNS_IP(main,u,Ux,Uy,Uz):
+  gamma = 1.4
+  Pr = 0.72
+  ## ->  v_x = 1/rho d/dx(rho v) - rho v /rho^2 rho_x
+  ux = 1./u[0]*Ux[1] - u[1]/u[0]**2*Ux[0]
+  vx = 1./u[0]*Ux[2] - u[2]/u[0]**2*Ux[0]
+  wx = 1./u[0]*Ux[3] - u[3]/u[0]**2*Ux[0]
+  ## ->  u_y = 1/rho d/dy(rho u) - rho u /rho^2 rho_y
+  uy = 1./u[0]*Uy[1] - u[1]/u[0]**2*Uy[0]
+  vy = 1./u[0]*Uy[2] - u[2]/u[0]**2*Uy[0]
+  wy = 1./u[0]*Uy[3] - u[3]/u[0]**2*Uy[0]
+  ## ->  u_z = 1/rho d/dz(rho u) - rho u /rho^2 rho_z
+  uz = 1./u[0]*Uz[1] - u[1]/u[0]**2*Uz[0]
+  vz = 1./u[0]*Uz[2] - u[2]/u[0]**2*Uz[0]
+  wz = 1./u[0]*Uz[3] - u[3]/u[0]**2*Uz[0]
+  ## -> (kT)_x =d/dx[ (mu gamma)/Pr*(E - 1/2 v^2 ) ]
+  ## ->        =mu gamma/Pr *[ dE/dx - 0.5 d/dx(v1^2 + v2^2) ]
+  ## ->        =mu gamma/Pr *[ dE/dx - (v1 v1_x + v2 v2_x) ]
+  ## ->  E_x = 1/rho d/x(rho E) - rho E /rho^2 rho_x
+  kTx =( 1./u[0]*Ux[4] - u[4]/u[0]**2*Ux[0] - 1./u[0]*(u[1]*ux + u[2]*vx + u[3]*wx)  )*main.mu*gamma/Pr
+  kTy =( 1./u[0]*Uy[4] - u[4]/u[0]**2*Uy[0] - 1./u[0]*(u[1]*uy + u[2]*vy + u[3]*wy)  )*main.mu*gamma/Pr
+  kTz =( 1./u[0]*Uz[4] - u[4]/u[0]**2*Uz[0] - 1./u[0]*(u[1]*uz + u[2]*vz + u[3]*wz)  )*main.mu*gamma/Pr
+
+  fz = np.zeros(np.shape(u))
+  v1 = u[1]/u[0]
+  v2 = u[2]/u[0]
+  v3 = u[3]/u[0]
+  fz[1] = main.mu*(uz + wx)  #tau13
+  fz[2] = main.mu*(vz + wy)  #tau23
+  fz[3] = 2./3.*main.mu*(2.*wz - ux - vy)
+  fz[4] = fz[1]*v1 + fz[2]*v2 + fz[3]*v3 + kTz
+  return fz
 
 
 ### Linear Advection

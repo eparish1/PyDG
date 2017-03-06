@@ -276,6 +276,7 @@ def getViscousFlux(main,eqns,schemes):
       fvBG33[i] += G33D[i,j]*(main.a.uB[j] - uhatB[j])
 
 
+  
   apx,apy,apz = diffCoeffs(main.a.a)
   apx = apx*2./main.dx
   apy = apy*2./main.dy
@@ -305,29 +306,98 @@ def getViscousFlux(main,eqns,schemes):
   fvzB_edge = eqns.evalViscousFluxZ(main,main.a.uB_edge,UxB_edge,UyB_edge,UzB_edge)
 
   shatR,shatL,shatU,shatD,shatF,shatB = centralFluxGeneral(fvxR,fvxL,fvyU,fvyD,fvzF,fvzB,fvxR_edge,fvxL_edge,fvyU_edge,fvyD_edge,fvzF_edge,fvzB_edge)
-  jumpR,jumpL,jumpU,jumpD,jumpF,jumpB = computeJump(main.a.uR,main.a.uL,main.a.uU,main.a.uD,main.a.uF,main.a.uB,main.a.uR_edge,main.a.uL_edge,main.a.uU_edge,main.a.uD_edge)
+  jumpR,jumpL,jumpU,jumpD,jumpF,jumpB = computeJump(main.a.uR,main.a.uL,main.a.uU,main.a.uD,main.a.uF,main.a.uB,main.a.uR_edge,main.a.uL_edge,main.a.uU_edge,main.a.uD_edge,main.a.uF_edge,main.a.uB_edge)
   fvR2[:] = shatR[:] - 2.*main.mu*jumpR[:]*3**2/main.dx
   fvL2[:] = shatL[:] - 2.*main.mu*jumpL[:]*3**2/main.dx
   fvU2[:] = shatU[:] - 2.*main.mu*jumpU[:]*3**2/main.dy
   fvD2[:] = shatD[:] - 2.*main.mu*jumpD[:]*3**2/main.dy
-  fvF2[:] = shatF[:] - 2.*main.mu*jumpF[:]*3**2/main.dy
-  fvB2[:] = shatB[:] - 2.*main.mu*jumpB[:]*3**2/main.dy
+  fvF2[:] = shatF[:] - 2.*main.mu*jumpF[:]*3**2/main.dz
+  fvB2[:] = shatB[:] - 2.*main.mu*jumpB[:]*3**2/main.dz
 
  # now we need to integrate along the boundary 
-  fvRIG11 = np.zeros((main.nvars,main.order,main.Npx,main.Npy))
-  fvLIG11 = np.zeros((main.nvars,main.order,main.Npx,main.Npy))
+  fvRIG11 = np.zeros((main.nvars,main.order,main.order,main.Npx,main.Npy,main.Npz))
+  fvLIG11 = np.zeros((main.nvars,main.order,main.order,main.Npx,main.Npy,main.Npz))
+  fvRIG21 = np.zeros((main.nvars,main.order,main.order,main.Npx,main.Npy,main.Npz))
+  fvLIG21 = np.zeros((main.nvars,main.order,main.order,main.Npx,main.Npy,main.Npz))
+  fvRIG31 = np.zeros((main.nvars,main.order,main.order,main.Npx,main.Npy,main.Npz))
+  fvLIG31 = np.zeros((main.nvars,main.order,main.order,main.Npx,main.Npy,main.Npz))
 
-  fvRIG21 = np.zeros((main.nvars,main.order,main.Npx,main.Npy))
-  fvLIG21 = np.zeros((main.nvars,main.order,main.Npx,main.Npy))
 
-  fvUIG12 = np.zeros((main.nvars,main.order,main.Npx,main.Npy))
-  fvDIG12 = np.zeros((main.nvars,main.order,main.Npx,main.Npy))
+  fvUIG12 = np.zeros((main.nvars,main.order,main.order,main.Npx,main.Npy,main.Npz))
+  fvDIG12 = np.zeros((main.nvars,main.order,main.order,main.Npx,main.Npy,main.Npz))
+  fvUIG22 = np.zeros((main.nvars,main.order,main.order,main.Npx,main.Npy,main.Npz))
+  fvDIG22 = np.zeros((main.nvars,main.order,main.order,main.Npx,main.Npy,main.Npz))
+  fvUIG32 = np.zeros((main.nvars,main.order,main.order,main.Npx,main.Npy,main.Npz))
+  fvDIG32 = np.zeros((main.nvars,main.order,main.order,main.Npx,main.Npy,main.Npz))
 
-  fvUIG22 = np.zeros((main.nvars,main.order,main.Npx,main.Npy))
-  fvDIG22 = np.zeros((main.nvars,main.order,main.Npx,main.Npy))
+  fvFIG13 = np.zeros((main.nvars,main.order,main.order,main.Npx,main.Npy,main.Npz))
+  fvBIG13 = np.zeros((main.nvars,main.order,main.order,main.Npx,main.Npy,main.Npz))
+  fvFIG23 = np.zeros((main.nvars,main.order,main.order,main.Npx,main.Npy,main.Npz))
+  fvBIG23 = np.zeros((main.nvars,main.order,main.order,main.Npx,main.Npy,main.Npz))
+  fvFIG33 = np.zeros((main.nvars,main.order,main.order,main.Npx,main.Npy,main.Npz))
+  fvBIG33 = np.zeros((main.nvars,main.order,main.order,main.Npx,main.Npy,main.Npz))
 
-  fvR2I = np.zeros((main.nvars,main.order,main.Npx,main.Npy))
-  fvL2I = np.zeros((main.nvars,main.order,main.Npx,main.Npy))
-  fvU2I = np.zeros((main.nvars,main.order,main.Npx,main.Npy))
-  fvD2I = np.zeros((main.nvars,main.order,main.Npx,main.Npy))
+  fvR2I   = np.zeros((main.nvars,main.order,main.order,main.Npx,main.Npy,main.Npz))
+  fvL2I   = np.zeros((main.nvars,main.order,main.order,main.Npx,main.Npy,main.Npz))
+  fvU2I   = np.zeros((main.nvars,main.order,main.order,main.Npx,main.Npy,main.Npz))
+  fvD2I   = np.zeros((main.nvars,main.order,main.order,main.Npx,main.Npy,main.Npz))
+  fvF2I   = np.zeros((main.nvars,main.order,main.order,main.Npx,main.Npy,main.Npz))
+  fvB2I   = np.zeros((main.nvars,main.order,main.order,main.Npx,main.Npy,main.Npz))
+
+  for i in range(0,main.order):
+    for j in range(0,main.order):
+      fvRIG11[:,i,j] = faceIntegrate(main.weights,main.w[i][:,None]*w[j][None,:],fvRG11)
+      fvLIG11[:,i,j] = faceIntegrate(main.weights,main.w[i][:,None]*w[j][None,:],fvLG11)
+      fvRIG21[:,i,j] = faceIntegrate(main.weights,main.wp[i][:,None]*w[j][None,:],fvRG21)
+      fvLIG21[:,i,j] = faceIntegrate(main.weights,main.wp[i][:,None]*w[j][None,:],fvLG21)
+      fvRIG31[:,i,j] = faceIntegrate(main.weights,main.w[i][:,None]*wp[j][None,:],fvRG31)
+      fvLIG31[:,i,j] = faceIntegrate(main.weights,main.w[i][:,None]*wp[j][None,:],fvLG31)
+
+
+      fvUIG12[:,i,j] = faceIntegrate(main.weights,main.wp[i][:,None]*main.w[j][None,:],fvUG12)
+      fvDIG12[:,i,j] = faceIntegrate(main.weights,main.wp[i][:,None]*main.w[j][None,:],fvDG12)
+      fvUIG22[:,i,j] = faceIntegrate(main.weights,main.w[i][:,None]*main.w[j][None,:],fvUG22)
+      fvDIG22[:,i,j] = faceIntegrate(main.weights,main.w[i][:,None]*main.w[j][None,:],fvDG22)
+      fvUIG32[:,i,j] = faceIntegrate(main.weights,main.w[i][:,None]*main.wp[j][None,:],fvUG32)
+      fvDIG32[:,i,j] = faceIntegrate(main.weights,main.w[i][:,None]*main.wp[j][None,:],fvDG32)
+
+      fvUIG13[:,i,j] = faceIntegrate(main.weights,main.wp[i][:,None]*main.w[j][None,:],fvUG13)
+      fvDIG13[:,i,j] = faceIntegrate(main.weights,main.wp[i][:,None]*main.w[j][None,:],fvDG13)
+      fvUIG23[:,i,j] = faceIntegrate(main.weights,main.w[i][:,None]*main.wp[j][None,:],fvUG23)
+      fvDIG23[:,i,j] = faceIntegrate(main.weights,main.w[i][:,None]*main.wp[j][None,:],fvDG23)
+      fvUIG33[:,i,j] = faceIntegrate(main.weights,main.w[i][:,None]*main.w[j][None,:],fvUG33)
+      fvDIG33[:,i,j] = faceIntegrate(main.weights,main.w[i][:,None]*main.w[j][None,:],fvDG33)
+
+
+      fvR2I[:,i,j]   = faceIntegrate(main.weights,main.w[i],fvR2)
+      fvL2I[:,i,j]   = faceIntegrate(main.weights,main.w[i],fvL2)
+      fvU2I[:,i,j]   = faceIntegrate(main.weights,main.w[i],fvU2)
+      fvD2I[:,i,j]   = faceIntegrate(main.weights,main.w[i],fvD2)
+
+
+
+def computeJump(uR,uL,uU,uD,uF,uB,uR_edge,uL_edge,uU_edge,uD_edge,uF_edge,uB_edge):
+  nvars,order,order,Npx,Npy,Npz = np.shape(uR)
+  jumpR = np.zeros((nvars,order,order,Npx,Npy,Npz))
+  jumpL = np.zeros((nvars,order,order,Npx,Npy,Npz))
+  jumpU = np.zeros((nvars,order,order,Npx,Npy,Npz))
+  jumpD = np.zeros((nvars,order,order,Npx,Npy,Npz))
+  jumpF = np.zeros((nvars,order,order,Npx,Npy,Npz))
+  jumpB = np.zeros((nvars,order,order,Npx,Npy,Npz))
+
+  jumpR[:,:,:,0:-1,:,:] = uR[:,:,:,0:-1,:,:] - uL[:,:,:,1::,:,:]
+  jumpR[:,:,:,-1   ,:,:] = uR[:,:,:,  -1,:,:] - uR_edge
+  jumpL[:,:,:,1:: ,:,:] = jumpR[:,:,:,0:-1,:,:]
+  jumpL[:,:,:,0   ,:,:] = uL_edge - uL[:,:,:,  0,:,:]
+  jumpU[:,:,:,:,0:-1,:] = uU[:,:,:,:,0:-1,:] - uD[:,:,:,:,1::,:]
+  jumpU[:,:,:,:,  -1,:] = uU[:,:,:,:,  -1,:] - uU_edge
+  jumpD[:,:,:,:,1:: ,:] = jumpU[:,:,:,:,0:-1,:]
+  jumpD[:,:,:,:,0   ,:] = uD_edge - uD[:,:,:,:,   0,:]
+
+  jumpF[:,:,:,:,:,0:-1] = uF[:,:,:,:,:,0:-1] - uB[:,:,:,:,:,1::]
+  jumpF[:,:,:,:,:,  -1] = uF[:,:,:,:,:,  -1] - uF_edge
+  jumpB[:,:,:,:,,:1:: ] = jumpF[:,:,:,:,:,0:-1]
+  jumpB[:,:,:,:,:,0   ] = uB_edge - uB[:,:,:,:,:,   0]
+
+  return jumpR,jumpL,jumpU,jumpD,jumpF,jumpB
 
