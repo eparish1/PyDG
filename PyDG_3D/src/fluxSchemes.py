@@ -1,5 +1,28 @@
 import numpy as np
 
+def centralFluxGeneral(fR,fL,fU,fD,fF,fB,fR_edge,fL_edge,fU_edge,fD_edge,fF_edge,fB_edge):
+  fRS = np.zeros(np.shape(fR))
+  fLS = np.zeros(np.shape(fL))
+  fUS = np.zeros(np.shape(fU))
+  fDS = np.zeros(np.shape(fD))
+  fFS = np.zeros(np.shape(fD))
+  fBS = np.zeros(np.shape(fD))
+
+  fRS[:,:,:,0:-1,:,:] = 0.5*(fR[:,:,:,0:-1,:,:] + fL[:,:,:,1::,:,:])
+  fRS[:,:,:,  -1,:,:] = 0.5*(fR[:,:,:,  -1,:,:] + fR_edge)
+  fLS[:,:,:,1:: ,:,:] = fRS[:,:,:,0:-1,:,:]
+  fLS[:,:,:,0   ,:,:] = 0.5*(fL[:,:,:,0,:,:]    + fL_edge)
+  fUS[:,:,:,:,0:-1,:] = 0.5*(fU[:,:,:,0:-1,:] + fD[:,:,:,:,1::,:])
+  fUS[:,:,:,:,  -1,:] = 0.5*(fU[:,:,:,:,  -1,:] + fU_edge)
+  fDS[:,:,:,:,1:: ,:] = fUS[:,:,:,:,0:-1,:]
+  fDS[:,:,:,:,0   ,:] = 0.5*(fD[:,:,:,:,   0,:] + fD_edge)
+  fFS[:,:,:,:,:,0:-1] = 0.5*(fU[:,:,:,:,:,0:-1] + fD[:,:,:,:,:,1::])
+  fFS[:,:,:,:,:,  -1] = 0.5*(fU[:,:,:,:,:,  -1] + fU_edge)
+  fBS[:,:,:,:,:,1:: ] = fUS[:,:,:,:,:,0:-1]
+  fBS[:,:,:,:,:,0   ] = 0.5*(fD[:,:,:,:,:,   0] + fD_edge)
+  return fRS,fLS,fUS,fDS,fFS,fBS
+
+
 def inviscidFlux(main,eqns,schemes,fluxVar,var):
   nx = np.array([1,0,0])
   ny = np.array([0,1,0])
@@ -183,7 +206,7 @@ def kfid_roeflux(UL,UR,n):
   unL = uL*n[0] + vL*n[1] + wL*n[2]
 
   qL = np.sqrt(UL[1]*UL[1] + UL[2]*UL[2] + UL[3]*UL[3])/rL
-  pL = (gamma-1)*(UL[4] - 0.5*rL*qL**2.)
+  pL = (gamma-1)*(UL[4] - 0.5*rL*qL*qL)
   rHL = UL[4] + pL
   HL = rHL/rL
   cL = np.sqrt(gamma*pL/rL)
@@ -202,7 +225,7 @@ def kfid_roeflux(UL,UR,n):
   wR = UR[3]/rR
   unR = uR*n[0] + vR*n[1] + wR*n[2]
   qR = np.sqrt(UR[1]*UR[1] + UR[2]*UR[2] + UR[3]*UR[3])/rR
-  pR = (gamma-1)*(UR[4] - 0.5*rR*qR**2.)
+  pR = (gamma-1)*(UR[4] - 0.5*rR*qR*qR)
   rHR = UR[4] + pR
   HR = rHR/rR
   cR = np.sqrt(gamma*pR/rR)
