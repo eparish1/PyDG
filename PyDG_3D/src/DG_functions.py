@@ -27,14 +27,14 @@ def reconstructU2(main,var):
 
 
 def diffU(a,main):
-  tmp =  np.einsum('rn,zpqrijk->zpqnijk',main.w,var.a) #reconstruct along third axis 
+  tmp =  np.einsum('rn,zpqrijk->zpqnijk',main.w,a) #reconstruct along third axis 
   tmp2 = np.einsum('qm,zpqnijk->zpmnijk',main.w,tmp) #reconstruct along second axis
   ux = np.einsum('pl,zpmnijk->zlmnijk',main.wp,tmp2) # get ux by differentiating along the first axis
 
   tmp2 = np.einsum('qm,zpqnijk->zpmnijk',main.wp,tmp) #diff tmp along second axis
   uy = np.einsum('pl,zpmnijk->zlmnijk',main.wp,tmp2) # get uy by reconstructing along the first axis
 
-  tmp =  np.einsum('rn,zpqrijk->zpqnijk',main.wp,var.a) #diff along third axis 
+  tmp =  np.einsum('rn,zpqrijk->zpqnijk',main.wp,a) #diff along third axis 
   tmp = np.einsum('qm,zpqnijk->zpmnijk',main.w,tmp) #reconstruct along second axis
   uz = np.einsum('pl,zpmnijk->zlmnijk',main.w,tmp) # reconstruct along the first axis
   return ux,uy,uz
@@ -155,7 +155,9 @@ def faceIntegrate(weights,f):
 def getFlux(main,eqns,schemes):
   # first reconstruct states
   main.a.uR,main.a.uL,main.a.uU,main.a.uD,main.a.uF,main.a.uB = reconstructEdgesGeneral(main.a.a,main)
-  main.a.uR_edge,main.a.uL_edge,main.a.uU_edge,main.a.uD_edge,main.a.uF_edge,main.a.uB_edge = sendEdgesGeneralSlab(main.a.uL,main.a.uR,main.a.uD,main.a.uU,main.a.uB,main.a.uF,main)
+  main.a.uR_edge[:],main.a.uL_edge[:],main.a.uU_edge[:],main.a.uD_edge[:],main.a.uF_edge[:],main.a.uB_edge[:] = sendEdgesGeneralSlab(main.a.uL,main.a.uR,main.a.uD,main.a.uU,main.a.uB,main.a.uF,main)
+#  print(np.shape(main.a.uD_edge))
+#  print(main.mpi_rank,np.linalg.norm(main.a.uD_edge))
   inviscidFlux(main,eqns,schemes,main.iFlux,main.a)
   # now we need to integrate along the boundary 
   for i in range(0,main.order):
@@ -168,7 +170,8 @@ def getFlux(main,eqns,schemes):
       main.iFlux.fBI[:,i,j] = faceIntegrate(main.weights,main.w[i][None,:,None,None,None,None]*main.w[j][None,None,:,None,None,None]*main.iFlux.fBS)
 
 
-def getRHS_INVISCID2(main,eqns,schemes):
+
+def getRHS_IP(main,eqns,schemes):
   reconstructU(main,main.a)
   # evaluate inviscid flux
   getFlux(main,eqns,schemes)
@@ -176,17 +179,39 @@ def getRHS_INVISCID2(main,eqns,schemes):
   eqns.evalFluxX(main.a.u,main.iFlux.fx)
   eqns.evalFluxY(main.a.u,main.iFlux.fy)
   eqns.evalFluxZ(main.a.u,main.iFlux.fz)
+
+  # now get viscous flux
+  fvRIG11,fvLIG11,fvRIG21,fvLIG21,fvRIG31,fvLIG31,fvUIG12,fvDIG12,fvUIG22,fvDIG22,fvUIG32,fvDIG32,fvFIG13,fvBIG13,fvFIG23,fvBIG23,fvFIG33,fvBIG33,fvR2I,fvL2I,fvU2I,fvD2I,fvF2I,fvB2I = getViscousFlux(main,eqns,schemes)
+  upx,upy,upz = diffU(main.a.a,main)
+  upx = upx*2./main.dx
+  upy = upy*2./main.dy
+  upz = upz*2./main.dz
+  fvGX = np.zeros(np.shape(main.a.u))
+  fvGY = np.zeros(np.shape(main.a.u))
+  fvGZ = np.zeros(np.shape(main.a.u))
+  G11,G12,G13,G21,G22,G23,G31,G32,G33 = eqns.getGs(main.a.u,main)
+  for i in range(0,eqns.nvars):
+    for j in range(0,eqns.nvars):
+      fvGX[i] = fvGX[i] + G11[i,j]*upx[j] + G12[i,j]*upy[j] + G13[i,j]*upz[j]
+      fvGY[i] = fvGY[i] + G21[i,j]*upx[j] + G22[i,j]*upy[j] + G32[i,j]*upz[j]
+      fvGZ[i] = fvGZ[i] + G31[i,j]*upx[j] + G32[i,j]*upy[j] + G33[i,j]*upz[j]
   # Now form RHS
   for i in range(0,main.order):
     for j in range(0,main.order):
       for k in range(0,main.order):
-        main.RHS[:,i,j,k] = volIntegrate(main.weights,main.wp[i][None,:,None,None,None,None,None]*main.w[j][None,None,:,None,None,None,None]*main.w[k][None,None,None,:,None,None,None]*main.iFlux.fx)*2./main.dx
-        main.RHS[:,i,j,k] +=volIntegrate(main.weights,main.w[i][None,:,None,None,None,None,None]*main.wp[j][None,None,:,None,None,None,None]*main.w[k][None,None,None,:,None,None,None]*main.iFlux.fy)*2./main.dx
-        main.RHS[:,i,j,k] +=volIntegrate(main.weights,main.w[i][None,:,None,None,None,None,None]*main.w[j][None,None,:,None,None,None,None]*main.wp[k][None,None,None,:,None,None,None]*main.iFlux.fz)*2./main.dz 
-        main.RHS[:,i,j,k] +=  (-main.iFlux.fRI[:,j,k] + main.iFlux.fLI[:,j,k]*main.altarray[i])*2./main.dx + \
+        main.RHS[:,i,j,k] = volIntegrate(main.weights,main.wp[i][None,:,None,None,None,None,None]*main.w[j][None,None,:,None,None,None,None]*main.w[k][None,None,None,:,None,None,None]*main.iFlux.fx)*2./main.dx + \
+                          volIntegrate(main.weights,main.w[i][None,:,None,None,None,None,None]*main.wp[j][None,None,:,None,None,None,None]*main.w[k][None,None,None,:,None,None,None]*main.iFlux.fy)*2./main.dy + \
+                          volIntegrate(main.weights,main.w[i][None,:,None,None,None,None,None]*main.w[j][None,None,:,None,None,None,None]*main.wp[k][None,None,None,:,None,None,None]*main.iFlux.fz)*2./main.dz + \
+                          (-main.iFlux.fRI[:,j,k] + main.iFlux.fLI[:,j,k]*main.altarray[i])*2./main.dx + \
                           (-main.iFlux.fUI[:,i,k] + main.iFlux.fDI[:,i,k]*main.altarray[j])*2./main.dy + \
-                          (-main.iFlux.fFI[:,i,j] + main.iFlux.fBI[:,i,j]*main.altarray[k])*2./main.dz 
+                          (-main.iFlux.fFI[:,i,j] + main.iFlux.fBI[:,i,j]*main.altarray[k])*2./main.dz + \
+                          (fvRIG11[:,j,k]*main.wpedge[i,1] + fvRIG21[:,j,k] + fvRIG31[:,j,k]  - (fvLIG11[:,j,k]*main.wpedge[i,0] + fvLIG21[:,j,k]*main.altarray[i] + fvLIG31[:,j,k]*main.altarray[i]) )*2./main.dx + \
+                          (fvUIG12[:,i,k] + fvUIG22[:,i,k]*main.wpedge[j,1] + fvUIG32[:,i,k]  - (fvDIG12[:,i,k]*main.altarray[j] + fvDIG22[:,i,k]*main.wpedge[j,0] + fvDIG32[:,i,k]*main.altarray[j]) )*2./main.dy + \
+                          (fvFIG13[:,i,j] + fvFIG23[:,i,j] + fvFIG33[:,i,j]*main.wpedge[k,1]  - (fvBIG13[:,i,j]*main.altarray[k] + fvBIG23[:,i,j]*main.wpedge[k,0] + fvBIG33[:,i,j]*main.altarray[k]) )*2./main.dz + \
+                        + (fvR2I[:,j,k] - fvL2I[:,j,k]*main.altarray[i])*2./main.dx + (fvU2I[:,i,k] - fvD2I[:,i,k]*main.altarray[j])*2./main.dy + (fvF2I[:,i,j] - fvB2I[:,i,j]*main.altarray[k])*2./main.dz
+ 
         main.RHS[:,i,j,k] = main.RHS[:,i,j,k]*(2.*i + 1.)*(2.*j + 1.)*(2.*k+1.)/8.
+        
 
 
 def getRHS_INVISCID(main,eqns,schemes):
@@ -208,7 +233,6 @@ def getRHS_INVISCID(main,eqns,schemes):
                           (-main.iFlux.fUI[:,i,k] + main.iFlux.fDI[:,i,k]*main.altarray[j])*2./main.dy + \
                           (-main.iFlux.fFI[:,i,j] + main.iFlux.fBI[:,i,j]*main.altarray[k])*2./main.dz 
         main.RHS[:,i,j,k] = main.RHS[:,i,j,k]*(2.*i + 1.)*(2.*j + 1.)*(2.*k+1.)/8.
-
 
 def getViscousFlux(main,eqns,schemes):
   gamma = 1.4
@@ -241,15 +265,17 @@ def getViscousFlux(main,eqns,schemes):
   fvL2 = np.zeros((main.nvars,main.quadpoints,main.quadpoints,main.Npx,main.Npy,main.Npz))
   fvU2 = np.zeros((main.nvars,main.quadpoints,main.quadpoints,main.Npx,main.Npy,main.Npz))
   fvD2 = np.zeros((main.nvars,main.quadpoints,main.quadpoints,main.Npx,main.Npy,main.Npz))
+  fvF2 = np.zeros((main.nvars,main.quadpoints,main.quadpoints,main.Npx,main.Npy,main.Npz))
+  fvB2 = np.zeros((main.nvars,main.quadpoints,main.quadpoints,main.Npx,main.Npy,main.Npz))
 
   uhatR,uhatL,uhatU,uhatD,uhatF,uhatB = centralFluxGeneral(main.a.uR,main.a.uL,main.a.uU,main.a.uD,main.a.uF,main.a.uB,main.a.uR_edge,main.a.uL_edge,main.a.uU_edge,main.a.uD_edge,main.a.uF_edge,main.a.uB_edge)
  
-  G11R,G21R = eqns.getGsX(main.a.uR,main)
-  G11L,G21L = eqns.getGsX(main.a.uL,main)
-  G12U,G22U = eqns.getGsY(main.a.uU,main)
-  G12D,G22D = eqns.getGsY(main.a.uD,main)
-  G13U,G23U = eqns.getGsZ(main.a.uF,main)
-  G13D,G23D = eqns.getGsZ(main.a.uB,main)
+  G11R,G21R,G31R = eqns.getGsX(main.a.uR,main)
+  G11L,G21L,G31L = eqns.getGsX(main.a.uL,main)
+  G12U,G22U,G32U = eqns.getGsY(main.a.uU,main)
+  G12D,G22D,G32D = eqns.getGsY(main.a.uD,main)
+  G13F,G23F,G33F = eqns.getGsZ(main.a.uF,main)
+  G13B,G23B,G33B = eqns.getGsZ(main.a.uB,main)
 
   for i in range(0,nvars):
     for j in range(0,nvars):
@@ -268,12 +294,12 @@ def getViscousFlux(main,eqns,schemes):
       fvUG32[i] += G32U[i,j]*(main.a.uU[j] - uhatU[j])
       fvDG32[i] += G32D[i,j]*(main.a.uD[j] - uhatD[j])
 
-      fvFG13[i] += G13U[i,j]*(main.a.uF[j] - uhatF[j])
-      fvBG13[i] += G13D[i,j]*(main.a.uB[j] - uhatB[j])
-      fvFG23[i] += G23U[i,j]*(main.a.uF[j] - uhatF[j])
-      fvBG23[i] += G23D[i,j]*(main.a.uB[j] - uhatB[j])
-      fvFG33[i] += G33U[i,j]*(main.a.uF[j] - uhatF[j])
-      fvBG33[i] += G33D[i,j]*(main.a.uB[j] - uhatB[j])
+      fvFG13[i] += G13F[i,j]*(main.a.uF[j] - uhatF[j])
+      fvBG13[i] += G13B[i,j]*(main.a.uB[j] - uhatB[j])
+      fvFG23[i] += G23F[i,j]*(main.a.uF[j] - uhatF[j])
+      fvBG23[i] += G23B[i,j]*(main.a.uB[j] - uhatB[j])
+      fvFG33[i] += G33F[i,j]*(main.a.uF[j] - uhatF[j])
+      fvBG33[i] += G33B[i,j]*(main.a.uB[j] - uhatB[j])
 
 
   
@@ -307,12 +333,12 @@ def getViscousFlux(main,eqns,schemes):
 
   shatR,shatL,shatU,shatD,shatF,shatB = centralFluxGeneral(fvxR,fvxL,fvyU,fvyD,fvzF,fvzB,fvxR_edge,fvxL_edge,fvyU_edge,fvyD_edge,fvzF_edge,fvzB_edge)
   jumpR,jumpL,jumpU,jumpD,jumpF,jumpB = computeJump(main.a.uR,main.a.uL,main.a.uU,main.a.uD,main.a.uF,main.a.uB,main.a.uR_edge,main.a.uL_edge,main.a.uU_edge,main.a.uD_edge,main.a.uF_edge,main.a.uB_edge)
-  fvR2[:] = shatR[:] - 2.*main.mu*jumpR[:]*3**2/main.dx
-  fvL2[:] = shatL[:] - 2.*main.mu*jumpL[:]*3**2/main.dx
-  fvU2[:] = shatU[:] - 2.*main.mu*jumpU[:]*3**2/main.dy
-  fvD2[:] = shatD[:] - 2.*main.mu*jumpD[:]*3**2/main.dy
-  fvF2[:] = shatF[:] - 2.*main.mu*jumpF[:]*3**2/main.dz
-  fvB2[:] = shatB[:] - 2.*main.mu*jumpB[:]*3**2/main.dz
+  fvR2[:] = shatR[:] - 6.*main.mu*jumpR[:]*3**2/main.dx
+  fvL2[:] = shatL[:] - 6.*main.mu*jumpL[:]*3**2/main.dx
+  fvU2[:] = shatU[:] - 6.*main.mu*jumpU[:]*3**2/main.dy
+  fvD2[:] = shatD[:] - 6.*main.mu*jumpD[:]*3**2/main.dy
+  fvF2[:] = shatF[:] - 6.*main.mu*jumpF[:]*3**2/main.dz
+  fvB2[:] = shatB[:] - 6.*main.mu*jumpB[:]*3**2/main.dz
 
  # now we need to integrate along the boundary 
   fvRIG11 = np.zeros((main.nvars,main.order,main.order,main.Npx,main.Npy,main.Npz))
@@ -346,35 +372,37 @@ def getViscousFlux(main,eqns,schemes):
 
   for i in range(0,main.order):
     for j in range(0,main.order):
-      fvRIG11[:,i,j] = faceIntegrate(main.weights,main.w[i][:,None]*w[j][None,:],fvRG11)
-      fvLIG11[:,i,j] = faceIntegrate(main.weights,main.w[i][:,None]*w[j][None,:],fvLG11)
-      fvRIG21[:,i,j] = faceIntegrate(main.weights,main.wp[i][:,None]*w[j][None,:],fvRG21)
-      fvLIG21[:,i,j] = faceIntegrate(main.weights,main.wp[i][:,None]*w[j][None,:],fvLG21)
-      fvRIG31[:,i,j] = faceIntegrate(main.weights,main.w[i][:,None]*wp[j][None,:],fvRG31)
-      fvLIG31[:,i,j] = faceIntegrate(main.weights,main.w[i][:,None]*wp[j][None,:],fvLG31)
+      fvRIG11[:,i,j] = faceIntegrate(main.weights,(main.w[i][:,None]*main.w[j][None,:])[:,:,None,None,None]*fvRG11)
+      fvLIG11[:,i,j] = faceIntegrate(main.weights,(main.w[i][:,None]*main.w[j][None,:])[:,:,None,None,None]*fvLG11)
+      fvRIG21[:,i,j] = faceIntegrate(main.weights,(main.wp[i][:,None]*main.w[j][None,:])[:,:,None,None,None]*fvRG21)
+      fvLIG21[:,i,j] = faceIntegrate(main.weights,(main.wp[i][:,None]*main.w[j][None,:])[:,:,None,None,None]*fvLG21)
+      fvRIG31[:,i,j] = faceIntegrate(main.weights,(main.w[i][:,None]*main.wp[j][None,:])[:,:,None,None,None]*fvRG31)
+      fvLIG31[:,i,j] = faceIntegrate(main.weights,(main.w[i][:,None]*main.wp[j][None,:])[:,:,None,None,None]*fvLG31)
 
 
-      fvUIG12[:,i,j] = faceIntegrate(main.weights,main.wp[i][:,None]*main.w[j][None,:],fvUG12)
-      fvDIG12[:,i,j] = faceIntegrate(main.weights,main.wp[i][:,None]*main.w[j][None,:],fvDG12)
-      fvUIG22[:,i,j] = faceIntegrate(main.weights,main.w[i][:,None]*main.w[j][None,:],fvUG22)
-      fvDIG22[:,i,j] = faceIntegrate(main.weights,main.w[i][:,None]*main.w[j][None,:],fvDG22)
-      fvUIG32[:,i,j] = faceIntegrate(main.weights,main.w[i][:,None]*main.wp[j][None,:],fvUG32)
-      fvDIG32[:,i,j] = faceIntegrate(main.weights,main.w[i][:,None]*main.wp[j][None,:],fvDG32)
+      fvUIG12[:,i,j] = faceIntegrate(main.weights,(main.wp[i][:,None]*main.w[j][None,:])[:,:,None,None,None]*fvUG12)
+      fvDIG12[:,i,j] = faceIntegrate(main.weights,(main.wp[i][:,None]*main.w[j][None,:])[:,:,None,None,None]*fvDG12)
+      fvUIG22[:,i,j] = faceIntegrate(main.weights,(main.w[i][:,None]*main.w[j][None,:])[:,:,None,None,None]*fvUG22)
+      fvDIG22[:,i,j] = faceIntegrate(main.weights,(main.w[i][:,None]*main.w[j][None,:])[:,:,None,None,None]*fvDG22)
+      fvUIG32[:,i,j] = faceIntegrate(main.weights,(main.w[i][:,None]*main.wp[j][None,:])[:,:,None,None,None]*fvUG32)
+      fvDIG32[:,i,j] = faceIntegrate(main.weights,(main.w[i][:,None]*main.wp[j][None,:])[:,:,None,None,None]*fvDG32)
 
-      fvUIG13[:,i,j] = faceIntegrate(main.weights,main.wp[i][:,None]*main.w[j][None,:],fvUG13)
-      fvDIG13[:,i,j] = faceIntegrate(main.weights,main.wp[i][:,None]*main.w[j][None,:],fvDG13)
-      fvUIG23[:,i,j] = faceIntegrate(main.weights,main.w[i][:,None]*main.wp[j][None,:],fvUG23)
-      fvDIG23[:,i,j] = faceIntegrate(main.weights,main.w[i][:,None]*main.wp[j][None,:],fvDG23)
-      fvUIG33[:,i,j] = faceIntegrate(main.weights,main.w[i][:,None]*main.w[j][None,:],fvUG33)
-      fvDIG33[:,i,j] = faceIntegrate(main.weights,main.w[i][:,None]*main.w[j][None,:],fvDG33)
-
-
-      fvR2I[:,i,j]   = faceIntegrate(main.weights,main.w[i],fvR2)
-      fvL2I[:,i,j]   = faceIntegrate(main.weights,main.w[i],fvL2)
-      fvU2I[:,i,j]   = faceIntegrate(main.weights,main.w[i],fvU2)
-      fvD2I[:,i,j]   = faceIntegrate(main.weights,main.w[i],fvD2)
+      fvFIG13[:,i,j] = faceIntegrate(main.weights,(main.wp[i][:,None]*main.w[j][None,:])[:,:,None,None,None]*fvFG13)
+      fvBIG13[:,i,j] = faceIntegrate(main.weights,(main.wp[i][:,None]*main.w[j][None,:])[:,:,None,None,None]*fvBG13)
+      fvFIG23[:,i,j] = faceIntegrate(main.weights,(main.w[i][:,None]*main.wp[j][None,:])[:,:,None,None,None]*fvFG23)
+      fvBIG23[:,i,j] = faceIntegrate(main.weights,(main.w[i][:,None]*main.wp[j][None,:])[:,:,None,None,None]*fvBG23)
+      fvFIG33[:,i,j] = faceIntegrate(main.weights,(main.w[i][:,None]*main.w[j][None,:])[:,:,None,None,None]*fvFG33)
+      fvBIG33[:,i,j] = faceIntegrate(main.weights,(main.w[i][:,None]*main.w[j][None,:])[:,:,None,None,None]*fvBG33)
 
 
+      fvR2I[:,i,j]   = faceIntegrate(main.weights,(main.w[i][:,None]*main.w[j][None,:])[:,:,None,None,None]*fvR2)
+      fvL2I[:,i,j]   = faceIntegrate(main.weights,(main.w[i][:,None]*main.w[j][None,:])[:,:,None,None,None]*fvL2)
+      fvU2I[:,i,j]   = faceIntegrate(main.weights,(main.w[i][:,None]*main.w[j][None,:])[:,:,None,None,None]*fvU2)
+      fvD2I[:,i,j]   = faceIntegrate(main.weights,(main.w[i][:,None]*main.w[j][None,:])[:,:,None,None,None]*fvD2)
+      fvF2I[:,i,j]   = faceIntegrate(main.weights,(main.w[i][:,None]*main.w[j][None,:])[:,:,None,None,None]*fvF2)
+      fvB2I[:,i,j]   = faceIntegrate(main.weights,(main.w[i][:,None]*main.w[j][None,:])[:,:,None,None,None]*fvB2)
+
+  return fvRIG11,fvLIG11,fvRIG21,fvLIG21,fvRIG31,fvLIG31,fvUIG12,fvDIG12,fvUIG22,fvDIG22,fvUIG32,fvDIG32,fvFIG13,fvBIG13,fvFIG23,fvBIG23,fvFIG33,fvBIG33,fvR2I,fvL2I,fvU2I,fvD2I,fvF2I,fvB2I
 
 def computeJump(uR,uL,uU,uD,uF,uB,uR_edge,uL_edge,uU_edge,uD_edge,uF_edge,uB_edge):
   nvars,order,order,Npx,Npy,Npz = np.shape(uR)
@@ -393,10 +421,9 @@ def computeJump(uR,uL,uU,uD,uF,uB,uR_edge,uL_edge,uU_edge,uD_edge,uF_edge,uB_edg
   jumpU[:,:,:,:,  -1,:] = uU[:,:,:,:,  -1,:] - uU_edge
   jumpD[:,:,:,:,1:: ,:] = jumpU[:,:,:,:,0:-1,:]
   jumpD[:,:,:,:,0   ,:] = uD_edge - uD[:,:,:,:,   0,:]
-
   jumpF[:,:,:,:,:,0:-1] = uF[:,:,:,:,:,0:-1] - uB[:,:,:,:,:,1::]
   jumpF[:,:,:,:,:,  -1] = uF[:,:,:,:,:,  -1] - uF_edge
-  jumpB[:,:,:,:,,:1:: ] = jumpF[:,:,:,:,:,0:-1]
+  jumpB[:,:,:,:,:,1:: ] = jumpF[:,:,:,:,:,0:-1]
   jumpB[:,:,:,:,:,0   ] = uB_edge - uB[:,:,:,:,:,   0]
 
   return jumpR,jumpL,jumpU,jumpD,jumpF,jumpB

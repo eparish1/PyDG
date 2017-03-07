@@ -5,8 +5,9 @@ from MPI_functions import getRankConnectionsSlab
 from legendreBasis import *
 from fluxSchemes import *
 from equationFluxes import *
-from DG_functions import getFlux,getRHS_INVISCID
+from DG_functions import getFlux,getRHS_INVISCID,getRHS_IP
 from turb_models import tauModel,DNS,DtauModel
+from viscousFluxesIP import *
 class variable:
   def __init__(self,nvars,order,quadpoints,Npx,Npy,Npz):
       self.nvars = nvars
@@ -147,6 +148,7 @@ class fschemes:
   def __init__(self,iflux_str,vflux_str):
     if (iflux_str == 'central'):
       self.inviscidFlux = linearAdvectionCentralFlux
+#      self.inviscidFlux = eulercentralflux
     if (iflux_str == 'roe'):
       self.inviscidFlux = kfid_roeflux
     if (iflux_str == 'rusanov'):
@@ -167,14 +169,14 @@ class equations:
       self.evalFluxX = evalFluxXEuler 
       self.evalFluxY = evalFluxYEuler
       self.evalFluxZ = evalFluxZEuler
-
-#      self.getEigs = getEigsEuler
       if (schemes.vflux_type == 'IP'):
         self.evalViscousFluxX = evalViscousFluxXNS_IP
         self.evalViscousFluxY = evalViscousFluxYNS_IP
+        self.evalViscousFluxZ = evalViscousFluxZNS_IP
         self.getGs = getGsNS 
         self.getGsX = getGsNSX
         self.getGsY = getGsNSY 
+        self.getGsZ = getGsNSZ 
 
       if (schemes.vflux_type == 'BR1'):
         self.evalViscousFluxX = evalViscousFluxXNS_BR1

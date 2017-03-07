@@ -14,7 +14,7 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main):
                        recvbuf=tmp,source=main.rank_connect[1],recvtag=main.rank_connect[1])
 
     uR = np.reshape(tmp,(main.nvars,main.quadpoints,main.quadpoints,main.Npy,main.Npz))
-    tmp[:] = 0. 
+    tmp = np.zeros((main.nvars,main.quadpoints,main.quadpoints,main.Npy,main.Npz)).flatten()
     main.comm.Sendrecv(fR[:,:,:,-1,:,:].flatten(),dest=main.rank_connect[1],sendtag=main.mpi_rank*10,\
                        recvbuf=tmp,source=main.rank_connect[0],recvtag=main.rank_connect[0]*10)
     uL = np.reshape(tmp,(main.nvars,main.quadpoints,main.quadpoints,main.Npy,main.Npz))
@@ -28,7 +28,7 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main):
     main.comm.Sendrecv(fD[:,:,:,:,0,:].flatten(),dest=main.rank_connect[2],sendtag=main.mpi_rank,\
                        recvbuf=tmp,source=main.rank_connect[3],recvtag=main.rank_connect[3])
     uU = np.reshape(tmp,(main.nvars,main.quadpoints,main.quadpoints,main.Npx,main.Npz))
-    tmp[:] = 0. 
+    tmp = np.zeros((main.nvars,main.quadpoints,main.quadpoints,main.Npy,main.Npz)).flatten()
     main.comm.Sendrecv(fU[:,:,:,:,-1,:].flatten(),dest=main.rank_connect[3],sendtag=main.mpi_rank*100,\
                        recvbuf=tmp,source=main.rank_connect[2],recvtag=main.rank_connect[2]*100)
     uD = np.reshape(tmp,(main.nvars,main.quadpoints,main.quadpoints,main.Npx,main.Npz))

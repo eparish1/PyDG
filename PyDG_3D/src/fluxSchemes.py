@@ -12,22 +12,34 @@ def centralFluxGeneral(fR,fL,fU,fD,fF,fB,fR_edge,fL_edge,fU_edge,fD_edge,fF_edge
   fRS[:,:,:,  -1,:,:] = 0.5*(fR[:,:,:,  -1,:,:] + fR_edge)
   fLS[:,:,:,1:: ,:,:] = fRS[:,:,:,0:-1,:,:]
   fLS[:,:,:,0   ,:,:] = 0.5*(fL[:,:,:,0,:,:]    + fL_edge)
-  fUS[:,:,:,:,0:-1,:] = 0.5*(fU[:,:,:,0:-1,:] + fD[:,:,:,:,1::,:])
+  fUS[:,:,:,:,0:-1,:] = 0.5*(fU[:,:,:,:,0:-1,:] + fD[:,:,:,:,1::,:])
   fUS[:,:,:,:,  -1,:] = 0.5*(fU[:,:,:,:,  -1,:] + fU_edge)
   fDS[:,:,:,:,1:: ,:] = fUS[:,:,:,:,0:-1,:]
   fDS[:,:,:,:,0   ,:] = 0.5*(fD[:,:,:,:,   0,:] + fD_edge)
-  fFS[:,:,:,:,:,0:-1] = 0.5*(fU[:,:,:,:,:,0:-1] + fD[:,:,:,:,:,1::])
-  fFS[:,:,:,:,:,  -1] = 0.5*(fU[:,:,:,:,:,  -1] + fU_edge)
-  fBS[:,:,:,:,:,1:: ] = fUS[:,:,:,:,:,0:-1]
-  fBS[:,:,:,:,:,0   ] = 0.5*(fD[:,:,:,:,:,   0] + fD_edge)
+  fFS[:,:,:,:,:,0:-1] = 0.5*(fF[:,:,:,:,:,0:-1] + fB[:,:,:,:,:,1::])
+  fFS[:,:,:,:,:,  -1] = 0.5*(fF[:,:,:,:,:,  -1] + fF_edge)
+  fBS[:,:,:,:,:,1:: ] = fFS[:,:,:,:,:,0:-1]
+  fBS[:,:,:,:,:,0   ] = 0.5*(fB[:,:,:,:,:,   0] + fB_edge)
   return fRS,fLS,fUS,fDS,fFS,fBS
+
+# 64 def inviscidFlux(main,eqns,schemes,fluxVar,var):
+# 65   nx = np.array([1,0])
+# 66   ny = np.array([0,1])
+# 67   fluxVar.fRS[:,:,0:-1,:] = schemes.inviscidFlux(var.uR[:,:,0:-1,:],var.uL[:,:,1::,:],nx)
+# 68   fluxVar.fRS[:,:,  -1,:] = schemes.inviscidFlux(var.uR[:,:,  -1,:],var.uR_edge,nx)
+# 69   fluxVar.fLS[:,:,1:: ,:] = fluxVar.fRS[:,:,0:-1,:]
+# 70   fluxVar.fLS[:,:,0   ,:] = schemes.inviscidFlux(var.uL_edge,var.uL[:,:,0],nx)
+# 71   fluxVar.fUS[:,:,:,0:-1] = schemes.inviscidFlux(var.uU[:,:,:,0:-1],var.uD[:,:,:,1::],ny )
+# 72   fluxVar.fUS[:,:,:,  -1] = schemes.inviscidFlux(var.uU[:,:,:,  -1],var.uU_edge,ny)
+# 73   fluxVar.fDS[:,:,:,1:: ] = fluxVar.fUS[:,:,:,0:-1]
+# 74   fluxVar.fDS[:,:,:,0   ] = schemes.inviscidFlux(var.uD_edge,var.uD[:,:,:,0],ny)
+
 
 
 def inviscidFlux(main,eqns,schemes,fluxVar,var):
   nx = np.array([1,0,0])
   ny = np.array([0,1,0])
   nz = np.array([0,0,1])
-
   fluxVar.fRS[:,:,:,0:-1,:,:] = schemes.inviscidFlux(var.uR[:,:,:,0:-1,:,:],var.uL[:,:,:,1::,:,:],nx)
   fluxVar.fRS[:,:,:,  -1,:,:] = schemes.inviscidFlux(var.uR[:,:,:,  -1,:,:],var.uR_edge,nx)
   fluxVar.fLS[:,:,:,1:: ,:,:] = fluxVar.fRS[:,:,:,0:-1,:,:]
@@ -46,46 +58,69 @@ def linearAdvectionCentralFlux(UL,UR,n):
   F[0] = 0.5*(UR[0] + UL[0])
   return F
 
+
 def eulercentralflux(UL,UR,n):
+# PURPOSE: This function calculates the flux for the Euler equations
+# using the Roe flux function
+#
+# INPUTS:
+#    UL: conservative state vector in left cell
+#    UR: conservative state vector in right cell
+#    n: normal pointing from the left cell to the right cell
+#
+# OUTPUTS:
+#  F   : the flux out of the left cell (into the right cell)
+#  smag: the maximum propagation speed of disturbance
+#
   gamma = 1.4
   gmi = gamma-1.0
   #process left state
   rL = UL[0]
   uL = UL[1]/rL
   vL = UL[2]/rL
-  unL = uL*n[0] + vL*n[1]
-  qL = np.sqrt(UL[1]*UL[1] + UL[2]*UL[2])/rL
-  pL = (gamma-1)*(UL[3] - 0.5*rL*qL**2.)
-  rHL = UL[3] + pL
+  wL = UL[3]/rL
+
+  unL = uL*n[0] + vL*n[1] + wL*n[2]
+
+  qL = np.sqrt(UL[1]*UL[1] + UL[2]*UL[2] + UL[3]*UL[3])/rL
+  pL = (gamma-1)*(UL[4] - 0.5*rL*qL**2.)
+  rHL = UL[4] + pL
+  HL = rHL/rL
+  cL = np.sqrt(gamma*pL/rL)
   # left flux
   FL = np.zeros(np.shape(UL))
   FL[0] = rL*unL
   FL[1] = UL[1]*unL + pL*n[0]
   FL[2] = UL[2]*unL + pL*n[1]
-  FL[3] = rHL*unL
+  FL[3] = UL[3]*unL + pL*n[2]
+  FL[4] = rHL*unL
 
   # process right state
   rR = UR[0]
   uR = UR[1]/rR
   vR = UR[2]/rR
-  unR = uR*n[0] + vR*n[1]
-  qR = np.sqrt(UR[1]**2. + UR[2]**2.)/rR
-  pR = (gamma-1)*(UR[3] - 0.5*rR*qR**2.)
-  rHR = UR[3] + pR
+  wR = UR[3]/rR
+  unR = uR*n[0] + vR*n[1] + wR*n[2]
+  qR = np.sqrt(UR[1]*UR[1] + UR[2]*UR[2] + UR[3]*UR[3])/rR
+  pR = (gamma-1)*(UR[4] - 0.5*rR*qR**2.)
+  rHR = UR[4] + pR
+  HR = rHR/rR
+  cR = np.sqrt(gamma*pR/rR)
   # right flux
   FR = np.zeros(np.shape(UR))
   FR[0] = rR*unR
   FR[1] = UR[1]*unR + pR*n[0]
   FR[2] = UR[2]*unR + pR*n[1]
-  FR[3] = rHR*unR
-
+  FR[3] = UR[3]*unR + pR*n[2]
+  FR[4] = rHR*unR
   F = np.zeros(np.shape(FL))  # for allocation
-  F[0]    = 0.5*(FL[0]+FR[0])
-  F[1]    = 0.5*(FL[1]+FR[1])
-  F[2]    = 0.5*(FL[2]+FR[2])
-  F[3]    = 0.5*(FL[3]+FR[3])
+  F[0]    = 0.5*(FL[0]+FR[0])#-0.5*smax*(UR[0] - UL[0])
+  F[1]    = 0.5*(FL[1]+FR[1])#-0.5*smax*(UR[1] - UL[1])
+  F[2]    = 0.5*(FL[2]+FR[2])#-0.5*smax*(UR[2] - UL[2])
+  F[3]    = 0.5*(FL[3]+FR[3])#-0.5*smax*(UR[3] - UL[3])
+  F[4]    = 0.5*(FL[4]+FR[4])#-0.5*smax*(UR[4] - UL[4])
+  smag = np.amax(l)
   return F
-
 
 def rusanovFlux(UL,UR,n):
 # PURPOSE: This function calculates the flux for the Euler equations
