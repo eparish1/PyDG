@@ -306,7 +306,7 @@ def getViscousFlux(main,eqns,schemes):
   apx,apy,apz = diffCoeffs(main.a.a)
   apx = apx*2./main.dx
   apy = apy*2./main.dy
-  apy = apy*2./main.dz
+  apz = apz*2./main.dz
 
   UxR,UxL,UxU,UxD,UxF,UxB = reconstructEdgesGeneral(apx,main)
   UyR,UyL,UyU,UyD,UyF,UyB = reconstructEdgesGeneral(apy,main)
