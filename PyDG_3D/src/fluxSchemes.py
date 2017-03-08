@@ -119,7 +119,6 @@ def eulercentralflux(UL,UR,n):
   F[2]    = 0.5*(FL[2]+FR[2])#-0.5*smax*(UR[2] - UL[2])
   F[3]    = 0.5*(FL[3]+FR[3])#-0.5*smax*(UR[3] - UL[3])
   F[4]    = 0.5*(FL[4]+FR[4])#-0.5*smax*(UR[4] - UL[4])
-  smag = np.amax(l)
   return F
 
 def rusanovFlux(UL,UR,n):
