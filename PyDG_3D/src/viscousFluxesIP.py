@@ -1,6 +1,117 @@
 import numpy as np
 #from DG_functions import reconstructEdgesGeneral,faceIntegrate
 
+
+def getGsNS2(u,main):
+  nvars = np.shape(u)[0]
+  gamma = 1.4
+  Pr = 0.72
+  ashape = np.array(np.shape(u[0]))
+  ashape = np.insert(ashape,0,nvars)
+  ashape = np.insert(ashape,0,nvars)
+  G11 = np.zeros(ashape)
+  G21 = np.zeros(ashape)
+  G31 = np.zeros(ashape)
+  G12 = np.zeros(ashape)
+  G22 = np.zeros(ashape)
+  G32 = np.zeros(ashape)
+  G13 = np.zeros(ashape)
+  G23 = np.zeros(ashape)
+  G33 = np.zeros(ashape)
+
+  v1 = u[1]/u[0]
+  v2 = u[2]/u[0]
+  v3 = u[3]/u[0]
+  E = u[4]/u[0]
+  vsqr = v1**2 + v2**2 + v3**2
+  mu_by_rho = main.mu/u[0]
+  G11[1,0] = -4./3.*v1*mu_by_rho
+  G11[1,1] = 4./3.*mu_by_rho
+  G11[2,0] = -v2*mu_by_rho
+  G11[2,2] = mu_by_rho
+  G11[3,0] = -v3*mu_by_rho
+  G11[3,3] = mu_by_rho
+  G11[4,0] = -(4./3.*v1**2 + v2**2 + v3**2 + gamma/Pr*(E - vsqr) )*mu_by_rho
+  G11[4,1] = (4./3. - gamma/Pr)*v1*mu_by_rho
+  G11[4,2] = (1. - gamma/Pr)*v2*mu_by_rho
+  G11[4,3] = (1. - gamma/Pr)*v3*mu_by_rho
+  G11[4,4] = gamma/Pr*mu_by_rho
+
+  G21[1,0] = G11[2,0]#-v2*mu_by_rho
+  G21[1,2] = mu_by_rho
+  G21[2,0] = 2./3.*v1*mu_by_rho
+  G21[2,1] = -2./3.*mu_by_rho
+  G21[4,0] = -1./3.*v1*v2*mu_by_rho
+  G21[4,1] = -2./3.*v2*mu_by_rho
+  G21[4,2] = v1*mu_by_rho
+
+  G31[1,0] = G11[3,0]#-v3*mu_by_rho
+  G31[1,3] = mu_by_rho
+  G31[3,0] = G21[2,0]#2./3.*v1*mu_by_rho
+  G31[3,1] = G21[2,1]#-2./3.*mu_by_rho
+  G31[4,0] = -1./3.*v1*v3*mu_by_rho
+  G31[4,1] = 2./3.*G11[3,0]#-2./3.*v3*mu_by_rho
+  G31[4,3] = G21[4,2]#v1*mu_by_rho
+
+  G12[1,0] = -G21[4,1]#2./3.*v2*mu_by_rho
+  G12[1,2] = G21[2,1]#-2./3.*mu_by_rho
+  G12[2,0] = -G31[4,3]#-v1*mu_by_rho
+  G12[2,1] = mu_by_rho
+  G12[4,0] = G21[4,0]#-1./3.*v1*v2*mu_by_rho
+  G12[4,1] = -G21[1,0]#v2*mu_by_rho
+  G12[4,2] = -G31[3,0]#-2./3.*v1*mu_by_rho
+
+  G22[1,0] = G12[2,0]#-v1*mu_by_rho
+  G22[1,1] = mu_by_rho
+  G22[2,0] = -4./3.*v2*mu_by_rho
+  G22[2,2] = 4./3.*mu_by_rho
+  G22[3,0] = G31[1,0]#-v3*mu_by_rho
+  G22[3,3] = mu_by_rho
+  G22[4,0] = -(v1**2 + 4./3.*v2**2 + v3**2 + gamma/Pr*(E - vsqr) )*mu_by_rho
+  G22[4,1] = (1. - gamma/Pr)*v1*mu_by_rho
+  G22[4,2] = (4./3. - gamma/Pr)*v2*mu_by_rho
+  G22[4,3] = G11[4,3]#(1. - gamma/Pr)*v3*mu_by_rho
+  G22[4,4] = G11[4,4]#gamma/Pr*mu_by_rho
+
+  G32[2,0] = G22[3,0]#-v3*mu_by_rho
+  G32[2,3] = mu_by_rho
+  G32[3,0] = G12[1,0]#2./3.*v2*mu_by_rho
+  G32[3,2] = G12[1,2]#-2./3.*mu_by_rho
+  G32[4,0] = -1./3.*v2*v3*mu_by_rho
+  G32[4,2] = G31[4,1]#-2./3.*v3*mu_by_rho
+  G32[4,3] = G12[4,1]#v2*mu_by_rho
+
+  G13[1,0] = -G31[4,1]#2./3.*v3*mu_by_rho
+  G13[1,3] = -2./3.*mu_by_rho
+  G13[3,0] = G12[2,0]#-v1*mu_by_rho
+  G13[3,1] = mu_by_rho
+  G13[4,0] = G31[4,0]#-1./3.*v1*v3*mu_by_rho
+  G13[4,1] = -G31[1,0]#v3*mu_by_rho
+  G13[4,3] = G12[4,2]#-2./3.*v1*mu_by_rho
+
+  G23[2,0] = G13[1,0]#2./3.*v3*mu_by_rho
+  G23[2,3] = G12[1,2]#-2./3.*mu_by_rho
+  G23[3,0] = G21[1,0]#-v2*mu_by_rho
+  G23[3,2] = mu_by_rho
+  G23[4,0] = -1./3.*v2*v3*mu_by_rho
+  G23[4,2] = G13[4,1]#v3*mu_by_rho
+  G23[4,3] = G21[4,1]#-2./3.*v2*mu_by_rho
+
+  G33[1,0] = G12[2,0]#-v1*mu_by_rho
+  G33[1,1] = mu_by_rho
+  G33[2,0] = G21[1,0]#-v2*mu_by_rho
+  G33[2,2] = mu_by_rho
+  G33[3,0] = -4./3.*v3*mu_by_rho
+  G33[3,3] = 4./3.*mu_by_rho
+  G33[4,0] = -(v1**2 + v2**2 + 4./3.*v3**2 + gamma/Pr*(E - vsqr) )*mu_by_rho
+  G33[4,1] = G22[4,1]#(1. - gamma/Pr)*v1*mu_by_rho
+  G33[4,2] = G11[4,2]#(1. - gamma/Pr)*v2*mu_by_rho
+  G33[4,3] = (4./3. - gamma/Pr)*v3*mu_by_rho
+  G33[4,4] = G11[4,4]#gamma/Pr*mu_by_rho
+
+  return G11,G12,G13,G21,G22,G23,G31,G32,G33
+
+
 def getGsNS(u,main):
   nvars = np.shape(u)[0]
   gamma = 1.4

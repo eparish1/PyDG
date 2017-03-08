@@ -3,7 +3,7 @@ from MPI_functions import sendEdgesGeneralSlab
 from fluxSchemes import *
 from scipy import weave
 from scipy.weave import converters
-
+import time
 def reconstructU(main,var):
   var.u[:] = 0.
   #var.u = np.einsum('lmpq,klmij->kpqij',main.w[:,None,:,None]*main.w[None,:,None,:],var.a) ## this is actually much slower than the two line code
@@ -179,8 +179,64 @@ def getFlux(main,eqns,schemes):
       main.iFlux.fBI[:,i,j] = faceIntegrate(main.weights,main.w[i][None,:,None,None,None,None]*main.w[j][None,None,:,None,None,None]*main.iFlux.fBS)
 
 
-
 def getRHS_IP(main,eqns,schemes):
+  t0 = time.time()
+  reconstructU(main,main.a)
+  # evaluate inviscid flux
+  getFlux(main,eqns,schemes)
+  ### Get interior vol terms
+  eqns.evalFluxX(main.a.u,main.iFlux.fx)
+  eqns.evalFluxY(main.a.u,main.iFlux.fy)
+  eqns.evalFluxZ(main.a.u,main.iFlux.fz)
+
+  # now get viscous flux
+  fvRIG11,fvLIG11,fvRIG21,fvLIG21,fvRIG31,fvLIG31,fvUIG12,fvDIG12,fvUIG22,fvDIG22,fvUIG32,fvDIG32,fvFIG13,fvBIG13,fvFIG23,fvBIG23,fvFIG33,fvBIG33,fvR2I,fvL2I,fvU2I,fvD2I,fvF2I,fvB2I = getViscousFlux(main,eqns,schemes)
+  upx,upy,upz = diffU(main.a.a,main)
+  upx = upx*2./main.dx
+  upy = upy*2./main.dy
+  upz = upz*2./main.dz
+  G11,G12,G13,G21,G22,G23,G31,G32,G33 = eqns.getGs(main.a.u,main)
+  fvGX = np.einsum('ij...,j...->i...',G11,upx)
+  fvGX += np.einsum('ij...,j...->i...',G12,upy)
+  fvGX += np.einsum('ij...,j...->i...',G13,upz)
+  fvGY = np.einsum('ij...,j...->i...',G21,upx)
+  fvGY += np.einsum('ij...,j...->i...',G22,upy)
+  fvGY += np.einsum('ij...,j...->i...',G23,upz)
+  fvGZ = np.einsum('ij...,j...->i...',G31,upx)
+  fvGZ += np.einsum('ij...,j...->i...',G32,upy)
+  fvGZ += np.einsum('ij...,j...->i...',G33,upz)
+  # Now form RHS
+  for i in range(0,main.order):
+    ## This is important. Do partial integrations in each direction to avoid doing for each ijk
+    v1i = np.einsum('zpqrijk->zqrijk',main.weights[None,:,None,None,None,None,None]*main.wp[i][None,:,None,None,None,None,None]*main.iFlux.fx)
+    v2i = np.einsum('zpqrijk->zqrijk',main.weights[None,:,None,None,None,None,None]*main.w[i][None,:,None,None,None,None,None]*main.iFlux.fy)
+    v3i = np.einsum('zpqrijk->zqrijk',main.weights[None,:,None,None,None,None,None]*main.w[i][None,:,None,None,None,None,None]*main.iFlux.fz)
+    for j in range(0,main.order):
+      v1ij = np.einsum('zqrijk->zrijk',main.weights[None,:,None,None,None,None]*main.w[j][None,:,None,None,None,None]*v1i)
+      v2ij = np.einsum('zqrijk->zrijk',main.weights[None,:,None,None,None,None]*main.wp[j][None,:,None,None,None,None]*v2i)
+      v3ij = np.einsum('zqrijk->zrijk',main.weights[None,:,None,None,None,None]*main.w[j][None,:,None,None,None,None]*v3i)
+      for k in range(0,main.order):
+        scale =  (2.*i + 1.)*(2.*j + 1.)*(2.*k+1.)/8.
+        dxi = 2./main.dx*scale
+        dyi = 2./main.dy*scale
+        dzi = 2./main.dz*scale
+        v1ijk = np.einsum('zrijk->zijk',main.weights[None,:,None,None,None]*main.w[k][None,:,None,None,None]*v1ij)*dxi
+        v2ijk = np.einsum('zrijk->zijk',main.weights[None,:,None,None,None]*main.w[k][None,:,None,None,None]*v2ij)*dyi
+        v3ijk = np.einsum('zrijk->zijk',main.weights[None,:,None,None,None]*main.wp[k][None,:,None,None,None]*v3ij)*dzi
+        #tmp = volIntegrate(main.weights,main.wp[i][None,:,None,None,None,None,None]*main.w[j][None,None,:,None,None,None,None]*main.w[k][None,None,None,:,None,None,None]*main.iFlux.fx)*dxi 
+        #tmp +=  volIntegrate(main.weights,main.w[i][None,:,None,None,None,None,None]*main.wp[j][None,None,:,None,None,None,None]*main.w[k][None,None,None,:,None,None,None]*main.iFlux.fy)*dyi
+        #tmp +=  volIntegrate(main.weights,main.w[i][None,:,None,None,None,None,None]*main.w[j][None,None,:,None,None,None,None]*main.wp[k][None,None,None,:,None,None,None]*main.iFlux.fz)*dzi
+        tmp = v1ijk + v2ijk + v3ijk
+        tmp +=  (-main.iFlux.fRI[:,j,k] + main.iFlux.fLI[:,j,k]*main.altarray[i])*dxi
+        tmp +=  (-main.iFlux.fUI[:,i,k] + main.iFlux.fDI[:,i,k]*main.altarray[j])*dyi
+        tmp +=  (-main.iFlux.fFI[:,i,j] + main.iFlux.fBI[:,i,j]*main.altarray[k])*dzi 
+        tmp +=  (fvRIG11[:,j,k]*main.wpedge[i,1] + fvRIG21[:,j,k] + fvRIG31[:,j,k]  - (fvLIG11[:,j,k]*main.wpedge[i,0] + fvLIG21[:,j,k]*main.altarray[i] + fvLIG31[:,j,k]*main.altarray[i]) )*dxi
+        tmp +=  (fvUIG12[:,i,k] + fvUIG22[:,i,k]*main.wpedge[j,1] + fvUIG32[:,i,k]  - (fvDIG12[:,i,k]*main.altarray[j] + fvDIG22[:,i,k]*main.wpedge[j,0] + fvDIG32[:,i,k]*main.altarray[j]) )*dyi
+        tmp +=  (fvFIG13[:,i,j] + fvFIG23[:,i,j] + fvFIG33[:,i,j]*main.wpedge[k,1]  - (fvBIG13[:,i,j]*main.altarray[k] + fvBIG23[:,i,j]*main.wpedge[k,0] + fvBIG33[:,i,j]*main.altarray[k]) )*dzi 
+        tmp +=  (fvR2I[:,j,k] - fvL2I[:,j,k]*main.altarray[i])*dxi + (fvU2I[:,i,k] - fvD2I[:,i,k]*main.altarray[j])*dyi + (fvF2I[:,i,j] - fvB2I[:,i,j]*main.altarray[k])*dzi
+        main.RHS[:,i,j,k] = tmp[:]
+  
+def getRHS_IP2(main,eqns,schemes):
   reconstructU(main,main.a)
   # evaluate inviscid flux
   getFlux(main,eqns,schemes)
