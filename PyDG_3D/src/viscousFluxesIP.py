@@ -2,7 +2,7 @@ import numpy as np
 #from DG_functions import reconstructEdgesGeneral,faceIntegrate
 
 
-def getGsNS2(u,main):
+def getGsNS(u,main):
   nvars = np.shape(u)[0]
   gamma = 1.4
   Pr = 0.72
@@ -112,7 +112,7 @@ def getGsNS2(u,main):
   return G11,G12,G13,G21,G22,G23,G31,G32,G33
 
 
-def getGsNS(u,main):
+def getGsNS2(u,main):
   nvars = np.shape(u)[0]
   gamma = 1.4
   Pr = 0.72
