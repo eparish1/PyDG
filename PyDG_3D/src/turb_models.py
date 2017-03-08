@@ -24,7 +24,7 @@ def tauModel(main,MZ,eqns,schemes):
     RHS3 = np.zeros(np.shape(MZ.RHS))
     RHS3[:] = MZ.RHS[:]
     PLQLU = (RHS2[:,0:main.order,0:main.order,0:main.order] - RHS3[:,0:main.order,0:main.order,0:main.order])/eps
-    return MZ.tau*PLQLU
+    return RHS1[:,0:main.order,0:main.order,0:main.order],MZ.tau*PLQLU
 
 
 def DtauModel(main,MZ,eqns,schemes):
