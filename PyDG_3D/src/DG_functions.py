@@ -239,9 +239,9 @@ def getRHS_IP(main,eqns,schemes):
   # Now form RHS
   for i in range(0,main.order):
     ## This is important. Do partial integrations in each direction to avoid doing for each ijk
-    v1i = np.einsum('zpqrijk->zqrijk',main.weights[None,:,None,None,None,None,None]*main.wp[i][None,:,None,None,None,None,None]*main.iFlux.fx - fvGX)
-    v2i = np.einsum('zpqrijk->zqrijk',main.weights[None,:,None,None,None,None,None]*main.w[i][None,:,None,None,None,None,None]*main.iFlux.fy - fvGY)
-    v3i = np.einsum('zpqrijk->zqrijk',main.weights[None,:,None,None,None,None,None]*main.w[i][None,:,None,None,None,None,None]*main.iFlux.fz - fvGZ)
+    v1i = np.einsum('zpqrijk->zqrijk',main.weights[None,:,None,None,None,None,None]*main.wp[i][None,:,None,None,None,None,None]*(main.iFlux.fx - fvGX))
+    v2i = np.einsum('zpqrijk->zqrijk',main.weights[None,:,None,None,None,None,None]*main.w[i][None,:,None,None,None,None,None]*(main.iFlux.fy - fvGY))
+    v3i = np.einsum('zpqrijk->zqrijk',main.weights[None,:,None,None,None,None,None]*main.w[i][None,:,None,None,None,None,None]*(main.iFlux.fz - fvGZ))
     for j in range(0,main.order):
       v1ij = np.einsum('zqrijk->zrijk',main.weights[None,:,None,None,None,None]*main.w[j][None,:,None,None,None,None]*v1i)
       v2ij = np.einsum('zqrijk->zrijk',main.weights[None,:,None,None,None,None]*main.wp[j][None,:,None,None,None,None]*v2i)
