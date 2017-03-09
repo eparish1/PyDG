@@ -257,7 +257,7 @@ def getRHS_IP(main,eqns,schemes):
         tmp +=  (-main.iFlux.fFI[:,i,j] + main.iFlux.fBI[:,i,j]*main.altarray[k])*dzi 
         tmp +=  (fvRIG11[:,j,k]*main.wpedge[i,1] + fvRIG21[:,j,k] + fvRIG31[:,j,k]  - (fvLIG11[:,j,k]*main.wpedge[i,0] + fvLIG21[:,j,k]*main.altarray[i] + fvLIG31[:,j,k]*main.altarray[i]) )*dxi
         tmp +=  (fvUIG12[:,i,k] + fvUIG22[:,i,k]*main.wpedge[j,1] + fvUIG32[:,i,k]  - (fvDIG12[:,i,k]*main.altarray[j] + fvDIG22[:,i,k]*main.wpedge[j,0] + fvDIG32[:,i,k]*main.altarray[j]) )*dyi
-        tmp +=  (fvFIG13[:,i,j] + fvFIG23[:,i,j] + fvFIG33[:,i,j]*main.wpedge[k,1]  - (fvBIG13[:,i,j]*main.altarray[k] + fvBIG23[:,i,j]*main.wpedge[k,0] + fvBIG33[:,i,j]*main.altarray[k]) )*dzi 
+        tmp +=  (fvFIG13[:,i,j] + fvFIG23[:,i,j] + fvFIG33[:,i,j]*main.wpedge[k,1]  - (fvBIG13[:,i,j]*main.altarray[k] + fvBIG23[:,i,j]*main.altarray[k] + fvBIG33[:,i,j]*main.wpedge[k,0]) )*dzi 
         tmp +=  (fvR2I[:,j,k] - fvL2I[:,j,k]*main.altarray[i])*dxi + (fvU2I[:,i,k] - fvD2I[:,i,k]*main.altarray[j])*dyi + (fvF2I[:,i,j] - fvB2I[:,i,j]*main.altarray[k])*dzi
         main.RHS[:,i,j,k] = tmp[:]
   
