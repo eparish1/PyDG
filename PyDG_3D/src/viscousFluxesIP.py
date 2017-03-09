@@ -310,7 +310,7 @@ def getGsNSY(u,main):
   G32[3,2] = -2./3.*main.mu/u[0]
   G32[4,0] = -1./3.*v2*v3*main.mu/u[0]
   G32[4,2] = -2./3.*v3*main.mu/u[0]
-  G32[4,3] = v2
+  G32[4,3] = v2*main.mu/u[0]
 
   return G12,G22,G32
 
