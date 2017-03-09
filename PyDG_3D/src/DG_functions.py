@@ -32,7 +32,7 @@ def diffU(a,main):
   ux = np.einsum('pl,zpmnijk->zlmnijk',main.wp,tmp2) # get ux by differentiating along the first axis
 
   tmp2 = np.einsum('qm,zpqnijk->zpmnijk',main.wp,tmp) #diff tmp along second axis
-  uy = np.einsum('pl,zpmnijk->zlmnijk',main.wp,tmp2) # get uy by reconstructing along the first axis
+  uy = np.einsum('pl,zpmnijk->zlmnijk',main.w,tmp2) # get uy by reconstructing along the first axis
 
   tmp =  np.einsum('rn,zpqrijk->zpqnijk',main.wp,a) #diff along third axis 
   tmp = np.einsum('qm,zpqnijk->zpmnijk',main.w,tmp) #reconstruct along second axis
