@@ -685,9 +685,9 @@ def getViscousFlux(main,eqns,schemes):
       fvR2I[:,i,j] = np.einsum('zqijk->zijk',main.weights[None,:,None,None,None]*main.w[j][None,:,None,None,None]*fvR2I_i)
       fvL2I[:,i,j] = np.einsum('zqijk->zijk',main.weights[None,:,None,None,None]*main.w[j][None,:,None,None,None]*fvL2I_i)
       fvU2I[:,i,j] = np.einsum('zqijk->zijk',main.weights[None,:,None,None,None]*main.w[j][None,:,None,None,None]*fvU2I_i)
-      fvD2I[:,i,j] = np.einsum('zqijk->zijk',main.weights[None,:,None,None,None]*main.w[j][None,:,None,None,None]*fvB2I_i)
+      fvD2I[:,i,j] = np.einsum('zqijk->zijk',main.weights[None,:,None,None,None]*main.w[j][None,:,None,None,None]*fvD2I_i)
       fvF2I[:,i,j] = np.einsum('zqijk->zijk',main.weights[None,:,None,None,None]*main.w[j][None,:,None,None,None]*fvF2I_i)
-      fvB2I[:,i,j] = np.einsum('zqijk->zijk',main.weights[None,:,None,None,None]*main.w[j][None,:,None,None,None]*fvD2I_i)
+      fvB2I[:,i,j] = np.einsum('zqijk->zijk',main.weights[None,:,None,None,None]*main.w[j][None,:,None,None,None]*fvB2I_i)
 
 #      fvRIG11[:,i,j] = faceIntegrate(main.weights,(main.w[i][:,None]*main.w[j][None,:])[:,:,None,None,None]*fvRG11)
 #      fvLIG11[:,i,j] = faceIntegrate(main.weights,(main.w[i][:,None]*main.w[j][None,:])[:,:,None,None,None]*fvLG11)
