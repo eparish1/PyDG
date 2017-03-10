@@ -2,6 +2,39 @@ import numpy as np
 import mpi4py as MPI
 
 
+def sendaEdgesGeneralSlab(a,main):
+  if (main.rank_connect[0] == main.mpi_rank and main.rank_connect[1] == main.mpi_rank):
+    aR_edge = a[:,:,:,:,0, :,:]
+    aL_edge = a[:,:,:,:,-1,:,:]
+  else:
+    ## Send right and left fluxes
+    tmp = np.zeros((main.nvars,main.order,main.order,main.order,main.Npy,main.Npz)).flatten()
+    main.comm.Sendrecv(a[:,:,:,:,0,:,:].flatten(),dest=main.rank_connect[0],sendtag=main.mpi_rank,\
+                       recvbuf=tmp,source=main.rank_connect[1],recvtag=main.rank_connect[1])
+    aR_edge = np.reshape(tmp,(main.nvars,main.order,main.order,main.order,main.Npy,main.Npz))
+    tmp = np.zeros((main.nvars,main.order,main.order,main.order,main.Npy,main.Npz)).flatten()
+    main.comm.Sendrecv(a[:,:,:,:,-1,:,:].flatten(),dest=main.rank_connect[1],sendtag=main.mpi_rank*10,\
+                       recvbuf=tmp,source=main.rank_connect[0],recvtag=main.rank_connect[0]*10)
+    aL_edge = np.reshape(tmp,(main.nvars,main.order,main.order,main.order,main.Npy,main.Npz))
+
+  if (main.rank_connect[2] == main.mpi_rank and main.rank_connect[3] == main.mpi_rank):
+    aU_edge = a[:,:,:,:,:,0 ,:]
+    aD_edge = a[:,:,:,:,:,-1,:]
+  else:
+    ## Send up and down fluxes
+    tmp = np.zeros((main.nvars,main.order,main.order,main.order,main.Npx,main.Npz)).flatten()
+    main.comm.Sendrecv(a[:,:,:,:,:,0,:].flatten(),dest=main.rank_connect[2],sendtag=main.mpi_rank,\
+                       recvbuf=tmp,source=main.rank_connect[3],recvtag=main.rank_connect[3])
+    aU_edge = np.reshape(tmp,(main.nvars,main.order,main.order,main.order,main.Npx,main.Npz))
+    tmp = np.zeros((main.nvars,main.order,main.order,main.order,main.Npx,main.Npz)).flatten()
+    main.comm.Sendrecv(a[:,:,:,:,:,-1,:].flatten(),dest=main.rank_connect[3],sendtag=main.mpi_rank*100,\
+                       recvbuf=tmp,source=main.rank_connect[2],recvtag=main.rank_connect[2]*100)
+    aD_edge = np.reshape(tmp,(main.nvars,main.order,main.order,main.order,main.Npx,main.Npz))
+    
+  aF_edge = a[:,:,:,:,:,:,0]
+  aB_edge = a[:,:,:,:,:,:,-1]
+  return aR_edge,aL_edge,aU_edge,aD_edge,aF_edge,aB_edge
+
 
 def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main):
   if (main.rank_connect[0] == main.mpi_rank and main.rank_connect[1] == main.mpi_rank):

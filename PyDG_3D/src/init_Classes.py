@@ -15,6 +15,15 @@ class variable:
       self.quadpoints = quadpoints
       self.a =np.zeros((nvars,order,order,order,Npx,Npy,Npz))
       self.u =np.zeros((nvars,quadpoints,quadpoints,quadpoints,Npx,Npy,Npz))
+
+      self.aR_edge = np.zeros((nvars,order,order,order,Npy,Npz))
+      self.aL_edge = np.zeros((nvars,order,order,order,Npy,Npz))
+      self.aU_edge = np.zeros((nvars,order,order,order,Npx,Npz))
+      self.aD_edge = np.zeros((nvars,order,order,order,Npx,Npz))
+      self.aF_edge = np.zeros((nvars,order,order,order,Npx,Npy))
+      self.aB_edge = np.zeros((nvars,order,order,order,Npx,Npy))
+
+
       self.uR_edge = np.zeros((nvars,quadpoints,quadpoints,Npy,Npz))
       self.uL_edge = np.zeros((nvars,quadpoints,quadpoints,Npy,Npz))
       self.uU_edge = np.zeros((nvars,quadpoints,quadpoints,Npx,Npz))
