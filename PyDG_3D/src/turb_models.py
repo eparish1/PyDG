@@ -1,6 +1,20 @@
 import numpy as np
 from MPI_functions import gatherSolSpectral
 
+def orthogonalDynamics(main,MZ,eqns,schemes):
+    ### EVAL RESIDUAL AND DO MZ STUFF
+    MZ.a.a[:,:,:,:,:,:,:] = main.a.a[:,:,:,:,:,:,:]
+    MZ.getRHS(MZ,eqns,schemes)
+    RHS1 = np.zeros(np.shape(MZ.RHS))
+    RHS1[:] = MZ.RHS[:]
+    MZ.a.a[:] = 0.
+    MZ.a.a[:,0:main.rorder,0:main.rorder,0:main.rorder] = main.a.a[:,0:main.rorder,0:main.rorder,0:main.rorder]
+    MZ.getRHS(MZ,eqns,schemes)
+    RHS2 = np.zeros(np.shape(MZ.RHS))
+    RHS2[:] = MZ.RHS[:]
+    return RHS1 - RHS2,0
+
+
 def tauModel(main,MZ,eqns,schemes):
     ### EVAL RESIDUAL AND DO MZ STUFF
     filtarray = np.zeros(np.shape(MZ.a.a))

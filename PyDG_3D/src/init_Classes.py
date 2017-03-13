@@ -6,7 +6,7 @@ from legendreBasis import *
 from fluxSchemes import *
 from equationFluxes import *
 from DG_functions import getFlux,getRHS_INVISCID,getRHS_IP
-from turb_models import tauModel,DNS,DtauModel
+from turb_models import *
 from viscousFluxesIP import *
 class variable:
   def __init__(self,nvars,order,quadpoints,Npx,Npy,Npz):
@@ -152,6 +152,8 @@ class variables:
       self.turb_model = DtauModel
     if (turb_str == 'DNS'):
       self.turb_model = DNS
+    if (turb_str == 'orthogonal dynamics'):
+      self.turb_model = orthogonalDynamics
 
 class fschemes:
   def __init__(self,iflux_str,vflux_str):
