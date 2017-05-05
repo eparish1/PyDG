@@ -245,6 +245,7 @@ def advanceSolImplicit2(main,MZ,eqns,schemes):
   main.t += main.dt
   main.iteration += 1
 
+
 def advanceSolImplicit4(main,MZ,eqns,schemes):
   old = np.zeros(np.shape(main.a0))
   old[:] = main.a0[:]
@@ -297,6 +298,101 @@ def advanceSolImplicit4(main,MZ,eqns,schemes):
   #stage 4
   RHS_stage4 = main.dt*( (1. - b2 - b3 - gam)*R1 + b2*R2 + b3*R3 + gam*R0).flatten()
   sol = gmres(A, RHS_stage4, x0=sol[0], tol=1e-07, restart=200, maxiter=None, xtype=None, M=None, callback=printnorm,restrt=None)
+  main.a.a = main.a0 + np.reshape(sol[0],np.shape(main.a.a))
+  main.t += main.dt
+  main.iteration += 1
+
+
+
+
+def advanceSolImplicit4PC(main,MZ,eqns,schemes):
+  coarsen = 4
+  main_coarse = variables(main.Nel,main.order/coarsen,main.quadpoints/(2*coarsen),eqns,main.mu,main.xG,main.yG,main.zG,main.t,main.et,main.dt,main.iteration,main.save_freq,schemes,'DNS',main.procx,main.procy)
+  old = np.zeros(np.shape(main.a0))
+  old[:] = main.a0[:]
+  main.a0[:] = main.a.a[:]
+  main_coarse.a.a[:] = main.a.a[:,0:main.order/coarsen,0:main.order/coarsen,0:main.order/coarsen]
+  main_coarse.a0[:] = main.a.a[:,0:main.order/coarsen,0:main.order/coarsen,0:main.order/coarsen]
+  main.getRHS(main,eqns,schemes)
+  main_coarse.getRHS(main_coarse,eqns,schemes)
+  R0 = np.zeros(np.shape(main.RHS))
+  R0[:] = main.RHS[:]
+  R0_coarse = np.zeros(np.shape(main_coarse.RHS))
+  R0_coarse[:] = main_coarse.RHS[:]
+  old_coarse = np.zeros(np.size(main_coarse.a.a))
+
+  gam = 9./40.
+  c2 = 7./13.
+  c3 = 11./15.
+  b2 = -(-2. + 3.*c3 + 9.*gam - 12.*c3*gam - 6.*gam**2 + 6.*c3*gam**2)/(6.*(c2 - c3)*(c2 - gam))
+  b3 =  (-2. + 3.*c2 + 9.*gam - 12.*c2*gam - 6.*gam**2 + 6.*c2*gam**2)/(6.*(c2 - c3)*(c3 - gam))
+  a32 = -(c2 - c3)*(c3 - gam)*(-1. + 9.*gam - 18.*gam**2 + 6.*gam**3)/ \
+       ( (c2 - gam)*(-2. + 3.*c2 + 9.*gam - 12.*c2*gam - 6.*gam**2 + 6.*c2*gam**2) )
+
+  def mv(v):
+    vr = np.reshape(v,np.shape(main.a.a))
+    eps = 1.e-5
+    main.a.a[:] = main.a0[:] + eps*vr
+    main.getRHS(main,eqns,schemes)
+    R1 = np.zeros(np.shape(main.RHS))
+    R1[:] = main.RHS[:]
+    Av = vr - main.dt*gam*(R1 - R0)/eps
+    main.a.a[:] = main.a0[:] 
+    return Av.flatten()
+
+  def printnorm(r):
+    print('GMRES norm = ' + str(np.linalg.norm(r)))
+  def printnormPC(r):
+    print('PC GMRES norm = ' + str(np.linalg.norm(r)))
+
+  def mv_coarse(v):
+    vr = np.reshape(v,np.shape(main_coarse.a.a))
+    eps = 1.e-5
+    main_coarse.a.a[:] = main_coarse.a0[:] + eps*vr
+    main_coarse.getRHS(main_coarse,eqns,schemes)
+    R1 = np.zeros(np.shape(main_coarse.RHS))
+    R1[:] = main_coarse.RHS[:]
+    Av = vr - main_coarse.dt*gam*(R1 - R0_coarse)/eps
+    main_coarse.a.a[:] = main_coarse.a0[:] 
+    return Av.flatten()
+
+  A_coarse = LinearOperator( (np.size(main_coarse.a.a),np.size(main_coarse.a.a)), matvec=mv_coarse )
+  def coarse_solve(v):
+    vf = np.reshape(v,np.shape(main.a.a))
+    vr = vf[:,0:main.order/coarsen,0:main.order/coarsen,0:main.order/coarsen]
+    print(np.linalg.norm(vr))
+#    sol2 = lgmres(A_coarse, vr.flatten(),x0=np.zeros(np.size(main_coarse.a.a)), tol=1e-02, maxiter=10, M=None, callback=printnormPC, inner_m=30, outer_k=3, outer_v=None, store_outer_Av=True)[0]
+    sol2 = lgmres(A_coarse, vr.flatten(),old_coarse, tol=1e-02, maxiter=10, M=None, callback=printnormPC, inner_m=30, outer_k=3, outer_v=None, store_outer_Av=True)[0]
+    old_coarse[:] = sol2[:]
+    solf = np.zeros(np.shape(main.a.a))
+    solf[:,0:main.order/coarsen,0:main.order/coarsen,0:main.order/coarsen] = np.reshape(sol2,np.shape(main_coarse.a.a) )
+    return solf.flatten()
+
+  A = LinearOperator( (np.size(main.a.a),np.size(main.a.a)), matvec=mv )
+  APC = LinearOperator( (np.size(main.a.a),np.size(main.a.a)), matvec=coarse_solve )
+  #stage 1
+  sol = gmres(A, main.dt*gam*R0.flatten(), x0=np.zeros(np.size(R0)), tol=1e-07, restart=200, maxiter=None, xtype=None, M=APC, callback=printnorm,restrt=None)
+  main.a.a = main.a0 + np.reshape(sol[0],np.shape(main.a.a))
+  main.getRHS(main,eqns,schemes)
+  R1 = np.zeros(np.shape(main.RHS))
+  R1[:] = main.RHS[:]
+  #stage 2
+  RHS_stage2 = main.dt*( (c2 - gam)*R1 + gam*R0).flatten()
+  sol = gmres(A, RHS_stage2, x0=sol[0], tol=1e-07, restart=200, maxiter=None, xtype=None, M=APC, callback=printnorm,restrt=None)
+  main.a.a = main.a0 + np.reshape(sol[0],np.shape(main.a.a))
+  main.getRHS(main,eqns,schemes)
+  R2 = np.zeros(np.shape(main.RHS))
+  R2[:] = main.RHS[:]
+  #stage 3
+  RHS_stage3 = main.dt*( (c3 - a32 - gam)*R1 + a32*R2 + gam*R0).flatten()
+  sol = gmres(A, RHS_stage3, x0=sol[0], tol=1e-07, restart=200, maxiter=None, xtype=None, M=APC, callback=printnorm,restrt=None)
+  main.a.a = main.a0 + np.reshape(sol[0],np.shape(main.a.a))
+  main.getRHS(main,eqns,schemes)
+  R3 = np.zeros(np.shape(main.RHS))
+  R3[:] = main.RHS[:]
+  #stage 4
+  RHS_stage4 = main.dt*( (1. - b2 - b3 - gam)*R1 + b2*R2 + b3*R3 + gam*R0).flatten()
+  sol = gmres(A, RHS_stage4, x0=sol[0], tol=1e-07, restart=200, maxiter=None, xtype=None, M=APC, callback=printnorm,restrt=None)
   main.a.a = main.a0 + np.reshape(sol[0],np.shape(main.a.a))
   main.t += main.dt
   main.iteration += 1
