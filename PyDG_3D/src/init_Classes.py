@@ -131,6 +131,9 @@ class variables:
     self.x = xG[self.sx]
     self.y = yG[self.sy] 
     self.z = zG
+    self.xG = xG
+    self.yG = yG
+    self.zG = zG
     self.nvars = eqns.nvars
 
     self.a0 = np.zeros((eqns.nvars,self.order,self.order,self.order,self.Npx,self.Npy,self.Npz))
