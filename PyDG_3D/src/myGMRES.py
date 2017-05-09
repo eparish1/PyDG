@@ -34,6 +34,8 @@ def GMRes(Af, b, x0,main,tol=1e-9,maxiter_outer=1,maxiter=20, restart=None,print
     error = 1.
     while (k_outer < maxiter_outer and error >= tol):
       r = b - Af(x0)
+      if (main.mpi_rank == 0 and printnorm==1):
+        print('Outer true norm = ' + str(np.linalg.norm(r)))
       cs = np.zeros(maxiter) #should be the same on all procs
       sn = np.zeros(maxiter) #same on all procs
       e1 = np.zeros(np.size(b)) #should vary across procs
@@ -54,8 +56,15 @@ def GMRes(Af, b, x0,main,tol=1e-9,maxiter_outer=1,maxiter=20, restart=None,print
           beta[k+1] = -sn[k]*beta[k]
           beta[k] = cs[k]*beta[k]
           error = abs(beta[k+1])/bnorm
+          ## For testing
+          #y = np.linalg.solve(H[0:k,0:k],beta[0:k]) 
+          #x = x0 + np.dot(Q[:,0:k],y)
+          #rt = b - Af(x)
+          #rtnorm = np.linalg.norm(rt)#globalNorm(rt,main)
           if (main.mpi_rank == 0 and printnorm == 1):
-            print('Iteration = ' + str(k) + '  GMRES error = ' + str(error))
+            print('Outer iteration = ' + str(k_outer) + ' Iteration = ' + str(k) + '  GMRES error = ' + str(error))
+            #print('Outer iteration = ' + str(k_outer) + ' Iteration = ' + str(k) + '  GMRES error = ' + str(error), ' Real norm = ' + str(rtnorm))
+
           k += 1
       y = np.linalg.solve(H[0:k,0:k],beta[0:k]) 
       x = x0 + np.dot(Q[:,0:k],y)

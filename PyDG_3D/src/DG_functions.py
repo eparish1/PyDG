@@ -1,8 +1,6 @@
 import numpy as np
 from MPI_functions import sendEdgesGeneralSlab,sendaEdgesGeneralSlab
 from fluxSchemes import *
-from scipy import weave
-from scipy.weave import converters
 import time
 def reconstructU(main,var):
   var.u[:] = 0.
@@ -423,10 +421,64 @@ def getRHS_IP(main,eqns,schemes):
   tmp +=  (fvFIG13[:,:,:,None] + fvFIG23[:,:,:,None] + fvFIG33[:,:,:,None]*main.wpedge[None,None,None,:,1,None,None,None]  - (fvBIG13[:,:,:,None]*main.altarray[None,None,None,:,None,None,None] + fvBIG23[:,:,:,None]*main.altarray[None,None,None,:,None,None,None] + fvBIG33[:,:,:,None]*main.wpedge[None,None,None,:,0,None,None,None]) )*dzi[None,:,:,:,None,None,None] 
   tmp +=  (fvR2I[:,None,:,:] - fvL2I[:,None,:,:]*main.altarray[None,:,None,None,None,None,None])*dxi[None,:,:,:,None,None,None] + (fvU2I[:,:,None,:] - fvD2I[:,:,None,:]*main.altarray[None,None,:,None,None,None,None])*dyi[None,:,:,:,None,None,None] + (fvF2I[:,:,:,None] - fvB2I[:,:,:,None]*main.altarray[None,None,None,:,None,None,None])*dzi[None,:,:,:,None,None,None]
   main.RHS = tmp
+  main.comm.Barrier()
+
+
+
+
+def getRHS_DIAG(main,eqns,schemes):
+  t0 = time.time()
+  reconstructU(main,main.a)
+  order = np.shape(main.a.a)[1]
+  ## This is important. Do partial integrations in each direction to avoid doing for each ijk
+  ord_arr= np.linspace(0,order-1,order)
+  scale =  (2.*ord_arr[:,None,None] + 1.)*(2.*ord_arr[None,:,None] + 1.)*(2.*ord_arr[None,None,:]+1.)/8.
+  dxi = 2./main.dx*scale
+  dyi = 2./main.dy*scale
+  dzi = 2./main.dz*scale
+  v1ijk = dxi[None,:,:,:,None,None,None]
+  v2ijk = dyi[None,:,:,:,None,None,None]
+  v3ijk = dzi[None,:,:,:,None,None,None]
+
+  tmp = v1ijk + v2ijk + v3ijk
+  tmp +=  dxi[None,:,:,:,None,None,None]
+  tmp +=  dyi[None,:,:,:,None,None,None]
+  tmp +=  dzi[None,:,:,:,None,None,None]
+  main.RHS = tmp
+  main.comm.Barrier()
 
 
 
 def getRHS_INVISCID(main,eqns,schemes):
+  t0 = time.time()
+  reconstructU(main,main.a)
+  order = np.shape(main.a.a)[1]
+  # evaluate inviscid flux
+  getFlux(main,eqns,schemes)
+  ### Get interior vol terms
+  eqns.evalFluxX(main.a.u,main.iFlux.fx)
+  eqns.evalFluxY(main.a.u,main.iFlux.fy)
+  eqns.evalFluxZ(main.a.u,main.iFlux.fz)
+  # Now form RHS
+  t1 = time.time()
+  ## This is important. Do partial integrations in each direction to avoid doing for each ijk
+  ord_arr= np.linspace(0,order-1,order)
+  scale =  (2.*ord_arr[:,None,None] + 1.)*(2.*ord_arr[None,:,None] + 1.)*(2.*ord_arr[None,None,:]+1.)/8.
+  dxi = 2./main.dx*scale
+  dyi = 2./main.dy*scale
+  dzi = 2./main.dz*scale
+  v1ijk = volIntegrateGlob(main,main.iFlux.fx ,main.wp,main.w,main.w)*dxi[None,:,:,:,None,None,None]
+  v2ijk = volIntegrateGlob(main,main.iFlux.fy ,main.w,main.wp,main.w)*dyi[None,:,:,:,None,None,None]
+  v3ijk = volIntegrateGlob(main,main.iFlux.fz ,main.w,main.w,main.wp)*dzi[None,:,:,:,None,None,None]
+
+  tmp = v1ijk + v2ijk + v3ijk
+  tmp +=  (-main.iFlux.fRI[:,None,:,:] + main.iFlux.fLI[:,None,:,:]*main.altarray[None,:,None,None,None,None,None])*dxi[None,:,:,:,None,None,None]
+  tmp +=  (-main.iFlux.fUI[:,:,None,:] + main.iFlux.fDI[:,:,None,:]*main.altarray[None,None,:,None,None,None,None])*dyi[None,:,:,:,None,None,None]
+  tmp +=  (-main.iFlux.fFI[:,:,:,None] + main.iFlux.fBI[:,:,:,None]*main.altarray[None,None,None,:,None,None,None])*dzi[None,:,:,:,None,None,None]
+  main.RHS = tmp
+  main.comm.Barrier()
+
+def getRHS_INVISCID2(main,eqns,schemes):
   reconstructU(main,main.a)
   # evaluate inviscid flux
   getFlux(main,eqns,schemes)

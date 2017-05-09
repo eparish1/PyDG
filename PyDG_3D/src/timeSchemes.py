@@ -331,7 +331,7 @@ def advanceSolImplicit_MYNKPC(main,MZ,eqns,schemes):
   coarsen = 2
   coarsen2 = 4
 
-  coarsen_f = 16
+  coarsen_f = 1
   Rstarn,Rn,Rstar_glob = unsteadyResid(main.a.a)
   Rstar_glob0 = Rstar_glob*1.
   cschemes = fschemes('central','Inviscid')
@@ -355,7 +355,7 @@ def advanceSolImplicit_MYNKPC(main,MZ,eqns,schemes):
 
     def mv_coarse2(v1):
       vr = np.reshape(v1,np.shape(main_coarse.a.a))
-      eps = 1.e-3
+      eps = 1e-1
       main_coarse2.a.a[:] = an[:]*filtarray
       main_coarse2.getRHS(main_coarse2,eqns,schemes)
 
@@ -371,11 +371,11 @@ def advanceSolImplicit_MYNKPC(main,MZ,eqns,schemes):
 
 
     def mv_coarse(v1):
-      #y = GMRes(mv_coarse2,v1, 0*np.ones(np.size(main.a.a)),main, tol=1e-5,maxiter=40, restart=None,printnorm=1)
+      #y = GMRes(mv_coarse2,v1, 0*np.ones(np.size(main.a.a)),main, tol=1e-5,maxiter_outer=1,maxiter=10, restart=None,printnorm=0)
       #vr = np.reshape(y,np.shape(main_coarse.a.a))
 
       vr = np.reshape(v1,np.shape(main.a.a))
-      eps = 1.e-3
+      eps = 0.2
       #main_coarse.a.a[:] = an[:]*filtarray
       #main_coarse.getRHS(main_coarse,eqns,schemes)
       #Rn = np.zeros(np.shape(main_coarse.RHS))
@@ -385,7 +385,7 @@ def advanceSolImplicit_MYNKPC(main,MZ,eqns,schemes):
       main_coarse.getRHS(main_coarse,eqns,schemes)
       R1 = np.zeros(np.shape(main_coarse.RHS))
       R1[:] = main_coarse.RHS[:]
-      Av = vr - main_coarse.dt/2.*(R1 - Rnc)/eps
+      Av = vr - main_coarse.dt/2.*(R1 - Rn)/eps
       return Av.flatten()
 
 
@@ -393,9 +393,8 @@ def advanceSolImplicit_MYNKPC(main,MZ,eqns,schemes):
       y = GMRes(mv_coarse,v, 0.*np.ones(np.size(main.a.a)),main, tol=1e-5,maxiter_outer=1,maxiter=40, restart=None,printnorm=0)
       #w = GMRes(mv_coarse,v, 1.e-20*np.ones(np.size(main.a.a)),main, tol=1e-5,maxiter_outer=1,maxiter=40, restart=None,printnorm=1)
       #y = GMRes(mv_coarse2,w, 1.e-20*np.ones(np.size(main.a.a)),main, tol=1e-5,maxiter_outer=1,maxiter=40, restart=None,printnorm=1)
-
       vr = np.reshape(y,np.shape(main.a.a))
-      eps = 1.e-3
+      eps = 1.e-2
       main.a.a[:] = an[:] + eps*vr
       main.getRHS(main,eqns,schemes)
       R1 = np.zeros(np.shape(main.RHS))
@@ -404,8 +403,8 @@ def advanceSolImplicit_MYNKPC(main,MZ,eqns,schemes):
       return Av.flatten()
 
     ts = time.time()
-    w = GMRes(mv, -Rstarn.flatten(), np.ones(np.size(main.a.a))*1.e-10,main, tol=1e-5,maxiter_outer=2,maxiter=40, restart=None,printnorm=1)
-    sol = GMRes(mv_coarse,w, np.ones(np.size(main.a.a))*1e-10,main, tol=1e-5,maxiter_outer=10,maxiter=40, restart=None,printnorm=1)
+    w = GMRes(mv, -Rstarn.flatten(), np.ones(np.size(main.a.a))*1.e-10,main, tol=1e-5,maxiter_outer=4,maxiter=20, restart=None,printnorm=1)
+    sol = GMRes(mv_coarse,w, np.ones(np.size(main.a.a))*0.,main, tol=1e-5,maxiter_outer=40,maxiter=20, restart=None,printnorm=1)
 
     #sol = GMRes(mv_coarse
     main.a.a[:] = an[:] + np.reshape(sol,np.shape(main.a.a))

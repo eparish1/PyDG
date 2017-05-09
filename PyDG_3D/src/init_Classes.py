@@ -1,6 +1,7 @@
 import numpy as np
 import sys
 from mpi4py import MPI
+#from petsc4py import PETSc
 from MPI_functions import getRankConnectionsSlab
 from legendreBasis import *
 from fluxSchemes import *
