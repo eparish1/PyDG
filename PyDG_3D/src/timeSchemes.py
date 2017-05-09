@@ -473,7 +473,7 @@ def advanceSolImplicit_MYNK(main,MZ,eqns,schemes):
     #sol = gmres(A, -Rstarn.flatten(), x0=np.zeros(np.size(main.a.a)), tol=1e-20, restart=60, maxiter=20, xtype=None, M=None, callback=printnorm,restrt=None)[0]
     #sol = bicgstab(A, -Rstarn.flatten(), x0=None, tol=1e-20, maxiter=2, xtype=None, M=None, callback=None)
     #sol = lgmres(A,-Rstarn.flatten(),x0=np.zeros(np.size(main.a.a)), tol=1e-20, maxiter=3, M=None, callback=None, inner_m=10, outer_k=3, outer_v=None, store_outer_Av=True)
-    sol = GMRes(mv, -Rstarn.flatten(), np.zeros(np.size(main.a.a)),main, tol=1e-9,maxiter=40, restart=None,printnorm=1)
+    sol = GMRes(mv, -Rstarn.flatten(), np.zeros(np.size(main.a.a)),main, tol=1e-6,maxiter_outer = 40,maxiter=40, restart=None,printnorm=1)
     main.a.a[:] = an[:] + np.reshape(sol,np.shape(main.a.a))
     an[:] = main.a.a[:]
     Rstarn,Rn,Rstar_glob = unsteadyResid(main.a.a)
