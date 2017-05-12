@@ -2,36 +2,74 @@ import numpy as np
 from MPI_functions import sendEdgesGeneralSlab,sendaEdgesGeneralSlab
 from fluxSchemes import *
 import time
+#def reconstructU(main,var):
+#  var.u[:] = 0.
+#  #var.u = np.einsum('lmpq,klmij->kpqij',main.w[:,None,:,None]*main.w[None,:,None,:],var.a) ## this is actually much slower than the two line code
+#  tmp =  np.einsum('rn,zpqr...->zpqn...',main.w,var.a)
+#  tmp = np.einsum('qm,zpqn...->zpmn...',main.w,tmp)
+#  var.u = np.einsum('pl,zpmn...->zlmn...',main.w,tmp)
+
+#def reconstructUGeneral(main,a):
+#  tmp =  np.einsum('rn,zpqr...->zpqn...',main.w,a)
+#  tmp = np.einsum('qm,zpqn...->zpmn...',main.w,tmp)
+#  return np.einsum('pl,zpmn...->zlmn...',main.w,tmp)
+
+
 def reconstructU(main,var):
   var.u[:] = 0.
-  #var.u = np.einsum('lmpq,klmij->kpqij',main.w[:,None,:,None]*main.w[None,:,None,:],var.a) ## this is actually much slower than the two line code
-  tmp =  np.einsum('rn,zpqrijk->zpqnijk',main.w,var.a)
-  tmp = np.einsum('qm,zpqnijk->zpmnijk',main.w,tmp)
-  var.u = np.einsum('pl,zpmnijk->zlmnijk',main.w,tmp)
+  tmp = np.tensordot(var.a,main.w,axes=([1],[0])) 
+  tmp = np.tensordot(tmp,main.w,axes=([1],[0])) 
+  tmp = np.tensordot(tmp,main.w,axes=([1],[0])) 
+#  var.u = np.swapaxes( np.swapaxes( np.swapaxes( tmp , 1 , 4) , 2 , 5), 3, 6)
+  var.u = np.rollaxis( np.rollaxis( np.rollaxis( tmp , -3 , 1) , -2 , 2), -1, 3)
 
 def reconstructUGeneral(main,a):
-  tmp =  np.einsum('rn,zpqrijk->zpqnijk',main.w,a)
-  tmp = np.einsum('qm,zpqnijk->zpmnijk',main.w,tmp)
-  return np.einsum('pl,zpmnijk->zlmnijk',main.w,tmp)
-
+  tmp = np.tensordot(a,main.w,axes=([1],[0])) 
+  tmp = np.tensordot(tmp,main.w,axes=([1],[0])) 
+  tmp = np.tensordot(tmp,main.w,axes=([1],[0])) 
+  #return np.swapaxes( np.swapaxes( np.swapaxes( tmp , 1 , 4) , 2 , 5), 3, 6)
+  return np.rollaxis( np.rollaxis( np.rollaxis( tmp , -3 , 1) , -2 , 2), -1, 3)
 
 def reconstructU2(main,var):
   var.u[:] = 0.
-  var.u = np.einsum('pqrlmn,zpqrijk->zlmnijk',main.w[:,None,None,:,None,None]*main.w[None,:,None,None,:,None]*main.w[None,None,:,None,None,:],var.a) ## this is actually much slower than the two line code
+  var.u = np.einsum('pqrlmn,zpqr...->zlmn...',main.w[:,None,None,:,None,None]*main.w[None,:,None,None,:,None]*main.w[None,None,:,None,None,:],var.a) ## this is actually much slower than the two line code
 
 
 def diffU(a,main):
-  tmp =  np.einsum('rn,zpqrijk->zpqnijk',main.w,a) #reconstruct along third axis 
-  tmp2 = np.einsum('qm,zpqnijk->zpmnijk',main.w,tmp) #reconstruct along second axis
-  ux = np.einsum('pl,zpmnijk->zlmnijk',main.wp,tmp2) # get ux by differentiating along the first axis
+  tmp = np.tensordot(a,main.wp,axes=([1],[0]))
+  tmp = np.tensordot(tmp,main.w,axes=([1],[0]))
+  tmp = np.tensordot(tmp,main.w,axes=([1],[0]))
+  #ux = np.swapaxes( np.swapaxes( np.swapaxes( tmp , 1 , 4) , 2 , 5), 3, 6)
+  ux = np.rollaxis( np.rollaxis( np.rollaxis( tmp , -3 , 1) , -2 , 2), -1, 3)
+ 
+  tmpu = np.tensordot(a,main.w,axes=([1],[0]))
+  tmp = np.tensordot(tmpu,main.wp,axes=([1],[0]))
+  tmp = np.tensordot(tmp,main.w,axes=([1],[0]))
+  #uy = np.swapaxes( np.swapaxes( np.swapaxes( tmp , 1 , 4) , 2 , 5), 3, 6)
+  uy = np.rollaxis( np.rollaxis( np.rollaxis( tmp , -3 , 1) , -2 , 2), -1, 3)
 
-  tmp2 = np.einsum('qm,zpqnijk->zpmnijk',main.wp,tmp) #diff tmp along second axis
-  uy = np.einsum('pl,zpmnijk->zlmnijk',main.w,tmp2) # get uy by reconstructing along the first axis
+  #tmp = np.tensordot(a,main.w,axes=([1],[0]))
+  tmp = np.tensordot(tmpu,main.w,axes=([1],[0]))
+  tmp = np.tensordot(tmp,main.wp,axes=([1],[0]))
+  #uz = np.swapaxes( np.swapaxes( np.swapaxes( tmp , 1 , 4) , 2 , 5), 3, 6)
+  uz = np.rollaxis( np.rollaxis( np.rollaxis( tmp , -3 , 1) , -2 , 2), -1, 3)
 
-  tmp =  np.einsum('rn,zpqrijk->zpqnijk',main.wp,a) #diff along third axis 
-  tmp = np.einsum('qm,zpqnijk->zpmnijk',main.w,tmp) #reconstruct along second axis
-  uz = np.einsum('pl,zpmnijk->zlmnijk',main.w,tmp) # reconstruct along the first axis
   return ux,uy,uz
+
+#def diffU(a,main):
+#  tmp =  np.einsum('rn,zpqr...->zpqn...',main.w,a) #reconstruct along third axis 
+#  tmp2 = np.einsum('qm,zpqn...->zpmn...',main.w,tmp) #reconstruct along second axis
+#  ux = np.einsum('pl,zpmn...->zlmn...',main.wp,tmp2) # get ux by differentiating along the first axis
+#
+#  tmp2 = np.einsum('qm,zpqn...->zpmn...',main.wp,tmp) #diff tmp along second axis
+#  uy = np.einsum('pl,zpmn...->zlmn...',main.w,tmp2) # get uy by reconstructing along the first axis
+#
+#  tmp =  np.einsum('rn,zpqr...->zpqn...',main.wp,a) #diff along third axis 
+#  tmp = np.einsum('qm,zpqn...->zpmn...',main.w,tmp) #reconstruct along second axis
+#  uz = np.einsum('pl,zpmn...->zlmn...',main.w,tmp) # reconstruct along the first axis
+#  return ux,uy,uz
+
+
 
 def diffUXEdge_edge(main):
   aL = np.einsum('zpqr...->zqr...',main.a.aL_edge*main.wpedge[:,1][None,:,None,None,None,None])
@@ -63,32 +101,68 @@ def diffUXEdge_edge(main):
   return uxR,uxL,uxU,uxD,uxF,uxB
 
 
-def diffUX_edge(a,main):
-  aR = np.einsum('zpqrijk->zqrijk',a*main.wpedge[:,1][None,:,None,None,None,None,None])
-  aL = np.einsum('zpqrijk->zqrijk',a*main.wpedge[:,0] [None,:,None,None,None,None,None])
+def diffUXEdge_edge2(main):
+  aL = np.einsum('zpqr...->zqr...',main.a.aL_edge*main.wpedge[:,1][None,:,None,None,None,None])
+  aR = np.einsum('zpqr...->zqr...',main.a.aR_edge*main.wpedge[:,0][None,:,None,None,None,None])
 
-  aU = np.einsum('zpqrijk->zprijk',a)
-  aD = np.einsum('zpqrijk->zprijk',a*main.altarray[None,None,:,None,None,None,None])
+  aD = np.einsum('zpqr...->zpr...',main.a.aD_edge)
+  aU = np.einsum('zpqr...->zpr...',main.a.aU_edge*main.altarray[None,None,:,None,None,None])
 
-  aF = np.einsum('zpqrijk->zpqijk',a)
-  aB = np.einsum('zpqrijk->zpqijk',a*main.altarray[None,None,None,:,None,None,None])
+  aB = np.einsum('zpqr...->zpq...',main.a.aB_edge)
+  aF = np.einsum('zpqr...->zpq...',main.a.aF_edge*main.altarray[None,None,None,:,None,None])
 
 #  uU = np.zeros((main.nvars,main.quadpoints,main.quadpoints,main.Npx,main.Npy,main.Npz))
   # need to do 2D reconstruction to the gauss points on each face
-  tmp = np.einsum('rn,zqrijk->zqnijk',main.w,aR)  #reconstruct in y and z
-  uxR  = np.einsum('qm,zqnijk->zmnijk',main.w,tmp)*2./main.dx 
-  tmp = np.einsum('rn,zqrijk->zqnijk',main.w,aL)
-  uxL  = np.einsum('qm,zqnijk->zmnijk',main.w,tmp)*2./main.dx
+  tmp = np.tensordot(aR,main.w,axes=([1],[0])) #reconstruct in y and z
+  tmp = np.tensordot(tmp,main.w,axes=([1],[0]))*2./main.dx
+  uxR = np.swapaxes( np.swapaxes( tmp , 1 , 3) , 2 , 4)
+  tmp = np.tensordot(aL,main.w,axes=([1],[0]))
+  tmp = np.tensordot(tmp,main.w,axes=([1],[0]))*2./main.dx
+  uxL = np.swapaxes( np.swapaxes( tmp , 1 , 3) , 2 , 4)
 
-  tmp = np.einsum('rn,zprijk->zpnijk',main.w,aU) #reconstruct in x and z 
-  uxU  = np.einsum('pl,zpnijk->zlnijk',main.wp,tmp)*2./main.dx
-  tmp = np.einsum('rn,zprijk->zpnijk',main.w,aD)
-  uxD  = np.einsum('pl,zpnijk->zlnijk',main.wp,tmp)*2./main.dx
+  tmp = np.tensordot(aU,main.wp,axes=([1],[0])) #reconstruct in x and z 
+  tmp = np.tensordot(tmp,main.w,axes=([1],[0]))*2./main.dx
+  uxU = np.swapaxes( np.swapaxes( tmp , 1 , 3) , 2 , 4)
+  tmp = np.tensordot(aD,main.wp,axes=([1],[0]))
+  tmp = np.tensordot(tmp,main.w,axes=([1],[0]))*2./main.dx
+  uxD = np.swapaxes( np.swapaxes( tmp , 1 , 3) , 2 , 4)
 
-  tmp = np.einsum('qm,zpqijk->zpmijk',main.w,aF) #reconstruct in x and y
-  uxF  = np.einsum('pl,zpmijk->zlmijk',main.wp,tmp)*2./main.dx
-  tmp = np.einsum('qm,zpqijk->zpmijk',main.w,aB)
-  uxB  = np.einsum('pl,zpmijk->zlmijk',main.wp,tmp)*2./main.dx
+  tmp = np.tensordot(aF,main.wp,axes=([1],[0])) #reconstruct in x and y 
+  tmp = np.tensordot(tmp,main.w,axes=([1],[0]))*2./main.dx
+  uxF = np.swapaxes( np.swapaxes( tmp , 1 , 3) , 2 , 4)
+  tmp = np.tensordot(aB,main.wp,axes=([1],[0]))
+  tmp = np.tensordot(tmp,main.w,axes=([1],[0]))*2./main.dx
+  uxB = np.swapaxes( np.swapaxes( tmp , 1 , 3) , 2 , 4)
+  return uxR,uxL,uxU,uxD,uxF,uxB
+
+
+
+def diffUX_edge(a,main):
+  aR = np.einsum('zpqr...->zqr...',a*main.wpedge[:,1][None,:,None,None,None,None,None])
+  aL = np.einsum('zpqr...->zqr...',a*main.wpedge[:,0] [None,:,None,None,None,None,None])
+
+  aU = np.einsum('zpqr...->zpr...',a)
+  aD = np.einsum('zpqr...->zpr...',a*main.altarray[None,None,:,None,None,None,None])
+
+  aF = np.einsum('zpqr...->zpq...',a)
+  aB = np.einsum('zpqr...->zpq...',a*main.altarray[None,None,None,:,None,None,None])
+
+#  uU = np.zeros((main.nvars,main.quadpoints,main.quadpoints,main.Npx,main.Npy,main.Npz))
+  # need to do 2D reconstruction to the gauss points on each face
+  tmp = np.einsum('rn,zqr...->zqn...',main.w,aR)  #reconstruct in y and z
+  uxR  = np.einsum('qm,zqn...->zmn...',main.w,tmp)*2./main.dx 
+  tmp = np.einsum('rn,zqr...->zqn...',main.w,aL)
+  uxL  = np.einsum('qm,zqn...->zmn...',main.w,tmp)*2./main.dx
+
+  tmp = np.einsum('rn,zpr...->zpn...',main.w,aU) #reconstruct in x and z 
+  uxU  = np.einsum('pl,zpn...->zln...',main.wp,tmp)*2./main.dx
+  tmp = np.einsum('rn,zpr...->zpn...',main.w,aD)
+  uxD  = np.einsum('pl,zpn...->zln...',main.wp,tmp)*2./main.dx
+
+  tmp = np.einsum('qm,zpq...->zpm...',main.w,aF) #reconstruct in x and y
+  uxF  = np.einsum('pl,zpm...->zlm...',main.wp,tmp)*2./main.dx
+  tmp = np.einsum('qm,zpq...->zpm...',main.w,aB)
+  uxB  = np.einsum('pl,zpm...->zlm...',main.wp,tmp)*2./main.dx
   return uxR,uxL,uxU,uxD,uxF,uxB
 
 def diffUYEdge_edge(main):
@@ -119,31 +193,31 @@ def diffUYEdge_edge(main):
   return uyR,uyL,uyU,uyD,uyF,uyB
 
 def diffUY_edge(a,main):
-  aR = np.einsum('zpqrijk->zqrijk',a)
-  aL = np.einsum('zpqrijk->zqrijk',a*main.altarray[None,:,None,None,None,None,None])
+  aR = np.einsum('zpqr...->zqr...',a)
+  aL = np.einsum('zpqr...->zqr...',a*main.altarray[None,:,None,None,None,None,None])
 
-  aU = np.einsum('zpqrijk->zprijk',a*main.wpedge[:,1][None,None,:,None,None,None,None])
-  aD = np.einsum('zpqrijk->zprijk',a*main.wpedge[:,0][None,None,:,None,None,None,None])
+  aU = np.einsum('zpqr...->zpr...',a*main.wpedge[:,1][None,None,:,None,None,None,None])
+  aD = np.einsum('zpqr...->zpr...',a*main.wpedge[:,0][None,None,:,None,None,None,None])
 
-  aF = np.einsum('zpqrijk->zpqijk',a)
-  aB = np.einsum('zpqrijk->zpqijk',a*main.altarray[None,None,None,:,None,None,None])
+  aF = np.einsum('zpqr...->zpq...',a)
+  aB = np.einsum('zpqr...->zpq...',a*main.altarray[None,None,None,:,None,None,None])
 
 #  uU = np.zeros((main.nvars,main.quadpoints,main.quadpoints,main.Npx,main.Npy,main.Npz))
   # need to do 2D reconstruction to the gauss points on each face
-  tmp = np.einsum('rn,zqrijk->zqnijk',main.w,aR)  #reconstruct in y and z
-  uyR  = np.einsum('qm,zqnijk->zmnijk',main.wp,tmp)*2./main.dy
-  tmp = np.einsum('rn,zqrijk->zqnijk',main.w,aL)
-  uyL  = np.einsum('qm,zqnijk->zmnijk',main.wp,tmp)*2./main.dy
+  tmp = np.einsum('rn,zqr...->zqn...',main.w,aR)  #reconstruct in y and z
+  uyR  = np.einsum('qm,zqn...->zmn...',main.wp,tmp)*2./main.dy
+  tmp = np.einsum('rn,zqr...->zqn...',main.w,aL)
+  uyL  = np.einsum('qm,zqn...->zmn...',main.wp,tmp)*2./main.dy
 
-  tmp = np.einsum('rn,zprijk->zpnijk',main.w,aU) #recounstruct in x and z
-  uyU  = np.einsum('pl,zpnijk->zlnijk',main.w,tmp)*2./main.dy
-  tmp = np.einsum('rn,zprijk->zpnijk',main.w,aD)
-  uyD  = np.einsum('pl,zpnijk->zlnijk',main.w,tmp)*2./main.dy
+  tmp = np.einsum('rn,zpr...->zpn...',main.w,aU) #recounstruct in x and z
+  uyU  = np.einsum('pl,zpn...->zln...',main.w,tmp)*2./main.dy
+  tmp = np.einsum('rn,zpr...->zpn...',main.w,aD)
+  uyD  = np.einsum('pl,zpn...->zln...',main.w,tmp)*2./main.dy
 
-  tmp = np.einsum('qm,zpqijk->zpmijk',main.wp,aF) #reconstruct in x and y
-  uyF  = np.einsum('pl,zpmijk->zlmijk',main.w,tmp)*2./main.dy
-  tmp = np.einsum('qm,zpqijk->zpmijk',main.wp,aB)
-  uyB  = np.einsum('pl,zpmijk->zlmijk',main.w,tmp)*2./main.dy
+  tmp = np.einsum('qm,zpq...->zpm...',main.wp,aF) #reconstruct in x and y
+  uyF  = np.einsum('pl,zpm...->zlm...',main.w,tmp)*2./main.dy
+  tmp = np.einsum('qm,zpq...->zpm...',main.wp,aB)
+  uyB  = np.einsum('pl,zpm...->zlm...',main.w,tmp)*2./main.dy
   return uyR,uyL,uyU,uyD,uyF,uyB
 
 
@@ -176,30 +250,30 @@ def diffUZEdge_edge(main):
 
 
 def diffUZ_edge(a,main):
-  aR = np.einsum('zpqrijk->zqrijk',a)
-  aL = np.einsum('zpqrijk->zqrijk',a*main.altarray[None,:,None,None,None,None,None])
+  aR = np.einsum('zpqr...->zqr...',a)
+  aL = np.einsum('zpqr...->zqr...',a*main.altarray[None,:,None,None,None,None,None])
 
-  aU = np.einsum('zpqrijk->zprijk',a)
-  aD = np.einsum('zpqrijk->zprijk',a*main.altarray[None,None,:,None,None,None,None])
+  aU = np.einsum('zpqr...->zpr...',a)
+  aD = np.einsum('zpqr...->zpr...',a*main.altarray[None,None,:,None,None,None,None])
 
-  aF = np.einsum('zpqrijk->zpqijk',a*main.wpedge[:,1][None,None,None,:,None,None,None])
-  aB = np.einsum('zpqrijk->zpqijk',a*main.wpedge[:,0][None,None,None,:,None,None,None])
+  aF = np.einsum('zpqr...->zpq...',a*main.wpedge[:,1][None,None,None,:,None,None,None])
+  aB = np.einsum('zpqr...->zpq...',a*main.wpedge[:,0][None,None,None,:,None,None,None])
 
   # need to do 2D reconstruction to the gauss points on each face
-  tmp = np.einsum('rn,zqrijk->zqnijk',main.wp,aR)  #reconstruct in y and z
-  uzR  = np.einsum('qm,zqnijk->zmnijk',main.w,tmp)*2./main.dz 
-  tmp = np.einsum('rn,zqrijk->zqnijk',main.wp,aL)
-  uzL  = np.einsum('qm,zqnijk->zmnijk',main.w,tmp)*2./main.dz
+  tmp = np.einsum('rn,zqr...->zqn...',main.wp,aR)  #reconstruct in y and z
+  uzR  = np.einsum('qm,zqn...->zmn...',main.w,tmp)*2./main.dz 
+  tmp = np.einsum('rn,zqr...->zqn...',main.wp,aL)
+  uzL  = np.einsum('qm,zqn...->zmn...',main.w,tmp)*2./main.dz
 
-  tmp = np.einsum('rn,zprijk->zpnijk',main.wp,aU) #recounstruct in x and z
-  uzU  = np.einsum('pl,zpnijk->zlnijk',main.w,tmp)*2./main.dz
-  tmp = np.einsum('rn,zprijk->zpnijk',main.wp,aD)
-  uzD  = np.einsum('pl,zpnijk->zlnijk',main.w,tmp)*2./main.dz
+  tmp = np.einsum('rn,zpr...->zpn...',main.wp,aU) #recounstruct in x and z
+  uzU  = np.einsum('pl,zpn...->zln...',main.w,tmp)*2./main.dz
+  tmp = np.einsum('rn,zpr...->zpn...',main.wp,aD)
+  uzD  = np.einsum('pl,zpn...->zln...',main.w,tmp)*2./main.dz
 
-  tmp = np.einsum('qm,zpqijk->zpmijk',main.w,aF) #reconstruct in x and y
-  uzF  = np.einsum('pl,zpmijk->zlmijk',main.w,tmp)*2./main.dz
-  tmp = np.einsum('qm,zpqijk->zpmijk',main.w,aB)
-  uzB  = np.einsum('pl,zpmijk->zlmijk',main.w,tmp)*2./main.dz
+  tmp = np.einsum('qm,zpq...->zpm...',main.w,aF) #reconstruct in x and y
+  uzF  = np.einsum('pl,zpm...->zlm...',main.w,tmp)*2./main.dz
+  tmp = np.einsum('qm,zpq...->zpm...',main.w,aB)
+  uzB  = np.einsum('pl,zpm...->zlm...',main.w,tmp)*2./main.dz
   return uzR,uzL,uzU,uzD,uzF,uzB
 
 
@@ -328,15 +402,25 @@ def reconstructEdgeEdgesGeneral(main):
   return uR,uL,uU,uD,uF,uB
 
 
-def volIntegrate(weights,f):
-  return  np.einsum('zpqrijk->zijk',weights[None,:,None,None,None,None,None]*weights[None,None,:,None,None,None,None]*weights[None,None,None,:,None,None,None]*f[:,:,:,:,:])
+def volIntegrateGlob(main,f,w1,w2,w3):
+  tmp = np.tensordot(main.weights[None,:,None,None,None,None,None]*f  ,w1,axes=([1],[1]))
+  tmp = np.tensordot(main.weights[None,:,None,None,None,None,None]*tmp,w2,axes=([1],[1]))
+  tmp = np.tensordot(main.weights[None,:,None,None,None,None,None]*tmp,w3,axes=([1],[1]))
+#  return np.swapaxes( np.swapaxes( np.swapaxes( tmp , 1 , 4) , 2 , 5), 3, 6)
+  return np.rollaxis( np.rollaxis( np.rollaxis( tmp , -3 , 1) , -2 , 2), -1, 3)
 
 
 def faceIntegrate(weights,f):
   return np.einsum('zpqijk->zijk',weights[None,:,None,None,None,None]*weights[None,None,:,None,None,None]*f)
 
-
 def faceIntegrateGlob(main,f,w1,w2):
+  tmp = np.tensordot(main.weights[None,:,None,None,None,None]*f,w1,axes=([1],[1]))
+  tmp = np.tensordot(main.weights[None,:,None,None,None,None]*tmp,w2,axes=([1],[1]))
+  #return np.swapaxes( np.swapaxes( tmp , 1 , 4) , 2 , 5)
+  return np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
+
+
+def faceIntegrateGlob2(main,f,w1,w2):
   tmp = np.einsum('nr,zqrijk->zqnijk',w2,main.weights[None,None,:,None,None,None]*f)
   return np.einsum('mq,zqnijk->zmnijk',w1,main.weights[None,:,None,None,None,None]*tmp)
 
@@ -358,10 +442,11 @@ def getFlux(main,eqns):
   main.iFlux.fBI = faceIntegrateGlob(main,main.iFlux.fBS,main.w,main.w)
 
 
-def volIntegrateGlob(main,f,w1,w2,w3):
-  tmp = np.einsum('nr,zpqrijk->zpqnijk',w3,main.weights[None,None,None,:,None,None,None]*f)
-  tmp = np.einsum('mq,zpqnijk->zpmnijk',w2,main.weights[None,None,:,None,None,None,None]*tmp)
-  return np.einsum('lp,zpmnijk->zlmnijk',w1,main.weights[None,:,None,None,None,None,None]*tmp)
+#def volIntegrateGlob(main,f,w1,w2,w3):
+#  tmp = np.einsum('nr,zpqrijk->zpqnijk',w3,main.weights[None,None,None,:,None,None,None]*f)
+#  tmp = np.einsum('mq,zpqnijk->zpmnijk',w2,main.weights[None,None,:,None,None,None,None]*tmp)
+#  return np.einsum('lp,zpmnijk->zlmnijk',w1,main.weights[None,:,None,None,None,None,None]*tmp)
+
 
 
 def getRHS_IP(main,eqns):

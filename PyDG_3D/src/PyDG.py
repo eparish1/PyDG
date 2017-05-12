@@ -88,7 +88,7 @@ xG2,yG2,zG2 = getGlobGrid2(x,y,z,main.zeta)
 getIC(main,IC_function,xG2[:,:,:,main.sx,main.sy,:],yG2[:,:,:,main.sx,main.sy,:],zG2[:,:,:,main.sx,main.sy,:])
 reconstructU(main,main.a)
 
-timescheme = timeschemes(time_integration)
+timescheme = timeschemes(time_integration,linear_solver_str,nonlinear_solver_str)
 
 np.savez('DGgrid',x=xG,y=yG,z=zG)
 if (main.mpi_rank == 0):
@@ -112,7 +112,7 @@ while (main.t <= main.et - main.dt/2):
       sys.stdout.flush()
 
   timescheme.advanceSol(main,main,eqns,timescheme.args)
-  #advanceSolImplicit_MYNK(main,main,eqns)
+  #advanceSolImplicit_MG(main,main,eqns)
 reconstructU(main,main.a)
 uG = gatherSolSlab(main,eqns,main.a)
 if (main.mpi_rank == 0):
