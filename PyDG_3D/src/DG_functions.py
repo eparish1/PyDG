@@ -71,7 +71,7 @@ def diffU(a,main):
 
 
 
-def diffUXEdge_edge(main):
+def diffUXEdge_edge2(main):
   aL = np.einsum('zpqr...->zqr...',main.a.aL_edge*main.wpedge[:,1][None,:,None,None,None,None])
   aR = np.einsum('zpqr...->zqr...',main.a.aR_edge*main.wpedge[:,0][None,:,None,None,None,None])
 
@@ -101,7 +101,7 @@ def diffUXEdge_edge(main):
   return uxR,uxL,uxU,uxD,uxF,uxB
 
 
-def diffUXEdge_edge2(main):
+def diffUXEdge_edge(main):
   aL = np.einsum('zpqr...->zqr...',main.a.aL_edge*main.wpedge[:,1][None,:,None,None,None,None])
   aR = np.einsum('zpqr...->zqr...',main.a.aR_edge*main.wpedge[:,0][None,:,None,None,None,None])
 
@@ -115,29 +115,62 @@ def diffUXEdge_edge2(main):
   # need to do 2D reconstruction to the gauss points on each face
   tmp = np.tensordot(aR,main.w,axes=([1],[0])) #reconstruct in y and z
   tmp = np.tensordot(tmp,main.w,axes=([1],[0]))*2./main.dx
-  uxR = np.swapaxes( np.swapaxes( tmp , 1 , 3) , 2 , 4)
+  uxR = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
   tmp = np.tensordot(aL,main.w,axes=([1],[0]))
   tmp = np.tensordot(tmp,main.w,axes=([1],[0]))*2./main.dx
-  uxL = np.swapaxes( np.swapaxes( tmp , 1 , 3) , 2 , 4)
+  uxL = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
 
   tmp = np.tensordot(aU,main.wp,axes=([1],[0])) #reconstruct in x and z 
   tmp = np.tensordot(tmp,main.w,axes=([1],[0]))*2./main.dx
-  uxU = np.swapaxes( np.swapaxes( tmp , 1 , 3) , 2 , 4)
+  uxU = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
   tmp = np.tensordot(aD,main.wp,axes=([1],[0]))
   tmp = np.tensordot(tmp,main.w,axes=([1],[0]))*2./main.dx
-  uxD = np.swapaxes( np.swapaxes( tmp , 1 , 3) , 2 , 4)
+  uxD = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
 
   tmp = np.tensordot(aF,main.wp,axes=([1],[0])) #reconstruct in x and y 
   tmp = np.tensordot(tmp,main.w,axes=([1],[0]))*2./main.dx
-  uxF = np.swapaxes( np.swapaxes( tmp , 1 , 3) , 2 , 4)
+  uxF = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
   tmp = np.tensordot(aB,main.wp,axes=([1],[0]))
   tmp = np.tensordot(tmp,main.w,axes=([1],[0]))*2./main.dx
-  uxB = np.swapaxes( np.swapaxes( tmp , 1 , 3) , 2 , 4)
+  uxB = np.rollaxis( np.rollaxis( tmp , -1 , 1) , -1 , 2)
   return uxR,uxL,uxU,uxD,uxF,uxB
 
 
-
 def diffUX_edge(a,main):
+  aR = np.einsum('zpqr...->zqr...',a*main.wpedge[:,1][None,:,None,None,None,None,None])
+  aL = np.einsum('zpqr...->zqr...',a*main.wpedge[:,0] [None,:,None,None,None,None,None])
+
+  aU = np.einsum('zpqr...->zpr...',a)
+  aD = np.einsum('zpqr...->zpr...',a*main.altarray[None,None,:,None,None,None,None])
+
+  aF = np.einsum('zpqr...->zpq...',a)
+  aB = np.einsum('zpqr...->zpq...',a*main.altarray[None,None,None,:,None,None,None])
+
+#  uU = np.zeros((main.nvars,main.quadpoints,main.quadpoints,main.Npx,main.Npy,main.Npz))
+  # need to do 2D reconstruction to the gauss points on each face
+  tmp = np.tensordot(aR,main.w,axes=([1],[0])) #reconstruct in y and z
+  tmp = np.tensordot(tmp,main.w,axes=([1],[0]))*2./main.dx
+  uxR = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
+  tmp = np.tensordot(aL,main.w,axes=([1],[0]))
+  tmp = np.tensordot(tmp,main.w,axes=([1],[0]))*2./main.dx
+  uxL = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
+
+  tmp = np.tensordot(aU,main.wp,axes=([1],[0])) #reconstruct in x and z 
+  tmp = np.tensordot(tmp,main.w,axes=([1],[0]))*2./main.dx
+  uxU = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
+  tmp = np.tensordot(aD,main.wp,axes=([1],[0]))
+  tmp = np.tensordot(tmp,main.w,axes=([1],[0]))*2./main.dx
+  uxD = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
+
+  tmp = np.tensordot(aF,main.wp,axes=([1],[0])) #reconstruct in x and y 
+  tmp = np.tensordot(tmp,main.w,axes=([1],[0]))*2./main.dx
+  uxF = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
+  tmp = np.tensordot(aB,main.wp,axes=([1],[0]))
+  tmp = np.tensordot(tmp,main.w,axes=([1],[0]))*2./main.dx
+  uxB = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
+  return uxR,uxL,uxU,uxD,uxF,uxB
+
+def diffUX_edge2(a,main):
   aR = np.einsum('zpqr...->zqr...',a*main.wpedge[:,1][None,:,None,None,None,None,None])
   aL = np.einsum('zpqr...->zqr...',a*main.wpedge[:,0] [None,:,None,None,None,None,None])
 
@@ -165,7 +198,7 @@ def diffUX_edge(a,main):
   uxB  = np.einsum('pl,zpm...->zlm...',main.wp,tmp)*2./main.dx
   return uxR,uxL,uxU,uxD,uxF,uxB
 
-def diffUYEdge_edge(main):
+def diffUYEdge_edge2(main):
   aL = np.einsum('zpqr...->zqr...',main.a.aL_edge)
   aR = np.einsum('zpqr...->zqr...',main.a.aR_edge*main.altarray[None,:,None,None,None,None])
 
@@ -192,7 +225,43 @@ def diffUYEdge_edge(main):
   uyB  = np.einsum('pl,zpm...->zlm...',main.w,tmp)*2./main.dy
   return uyR,uyL,uyU,uyD,uyF,uyB
 
-def diffUY_edge(a,main):
+
+def diffUYEdge_edge(main):
+  aL = np.einsum('zpqr...->zqr...',main.a.aL_edge*main.wpedge[:,1][None,:,None,None,None,None])
+  aR = np.einsum('zpqr...->zqr...',main.a.aR_edge*main.wpedge[:,0][None,:,None,None,None,None])
+
+  aD = np.einsum('zpqr...->zpr...',main.a.aD_edge)
+  aU = np.einsum('zpqr...->zpr...',main.a.aU_edge*main.altarray[None,None,:,None,None,None])
+
+  aB = np.einsum('zpqr...->zpq...',main.a.aB_edge)
+  aF = np.einsum('zpqr...->zpq...',main.a.aF_edge*main.altarray[None,None,None,:,None,None])
+
+#  uU = np.zeros((main.nvars,main.quadpoints,main.quadpoints,main.Npx,main.Npy,main.Npz))
+  # need to do 2D reconstruction to the gauss points on each face
+  tmp = np.tensordot(aR,main.wp,axes=([1],[0])) #reconstruct in y and z
+  tmp = np.tensordot(tmp,main.w,axes=([1],[0]))*2./main.dx
+  uyR = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
+  tmp = np.tensordot(aL,main.wp,axes=([1],[0]))
+  tmp = np.tensordot(tmp,main.w,axes=([1],[0]))*2./main.dx
+  uyL = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
+
+  tmp = np.tensordot(aU,main.w,axes=([1],[0])) #reconstruct in x and z 
+  tmp = np.tensordot(tmp,main.w,axes=([1],[0]))*2./main.dx
+  uyU = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
+  tmp = np.tensordot(aD,main.w,axes=([1],[0]))
+  tmp = np.tensordot(tmp,main.w,axes=([1],[0]))*2./main.dx
+  uyD = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
+
+  tmp = np.tensordot(aF,main.w,axes=([1],[0])) #reconstruct in x and y 
+  tmp = np.tensordot(tmp,main.wp,axes=([1],[0]))*2./main.dx
+  uyF = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
+  tmp = np.tensordot(aB,main.w,axes=([1],[0]))
+  tmp = np.tensordot(tmp,main.wp,axes=([1],[0]))*2./main.dx
+  uyB = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
+  return uyR,uyL,uyU,uyD,uyF,uyB
+
+
+def diffUY_edge2(a,main):
   aR = np.einsum('zpqr...->zqr...',a)
   aL = np.einsum('zpqr...->zqr...',a*main.altarray[None,:,None,None,None,None,None])
 
@@ -220,8 +289,42 @@ def diffUY_edge(a,main):
   uyB  = np.einsum('pl,zpm...->zlm...',main.w,tmp)*2./main.dy
   return uyR,uyL,uyU,uyD,uyF,uyB
 
+def diffUY_edge(a,main):
+  aR = np.einsum('zpqr...->zqr...',a*main.wpedge[:,1][None,:,None,None,None,None,None])
+  aL = np.einsum('zpqr...->zqr...',a*main.wpedge[:,0] [None,:,None,None,None,None,None])
 
-def diffUZEdge_edge(main):
+  aU = np.einsum('zpqr...->zpr...',a)
+  aD = np.einsum('zpqr...->zpr...',a*main.altarray[None,None,:,None,None,None,None])
+
+  aF = np.einsum('zpqr...->zpq...',a)
+  aB = np.einsum('zpqr...->zpq...',a*main.altarray[None,None,None,:,None,None,None])
+
+#  uU = np.zeros((main.nvars,main.quadpoints,main.quadpoints,main.Npx,main.Npy,main.Npz))
+  # need to do 2D reconstruction to the gauss points on each face
+  tmp = np.tensordot(aR,main.wp,axes=([1],[0])) #reconstruct in y and z
+  tmp = np.tensordot(tmp,main.w,axes=([1],[0]))*2./main.dx
+  uyR = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
+  tmp = np.tensordot(aL,main.wp,axes=([1],[0]))
+  tmp = np.tensordot(tmp,main.w,axes=([1],[0]))*2./main.dx
+  uyL = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
+
+  tmp = np.tensordot(aU,main.w,axes=([1],[0])) #reconstruct in x and z 
+  tmp = np.tensordot(tmp,main.w,axes=([1],[0]))*2./main.dx
+  uyU = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
+  tmp = np.tensordot(aD,main.w,axes=([1],[0]))
+  tmp = np.tensordot(tmp,main.w,axes=([1],[0]))*2./main.dx
+  uyD = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
+
+  tmp = np.tensordot(aF,main.w,axes=([1],[0])) #reconstruct in x and y 
+  tmp = np.tensordot(tmp,main.wp,axes=([1],[0]))*2./main.dx
+  uyF = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
+  tmp = np.tensordot(aB,main.w,axes=([1],[0]))
+  tmp = np.tensordot(tmp,main.wp,axes=([1],[0]))*2./main.dx
+  uyB = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
+  return uyR,uyL,uyU,uyD,uyF,uyB
+
+
+def diffUZEdge_edge2(main):
   aL = np.einsum('zpqr...->zqr...',main.a.aL_edge)
   aR = np.einsum('zpqr...->zqr...',main.a.aR_edge*main.altarray[None,:,None,None,None,None])
 
@@ -249,7 +352,42 @@ def diffUZEdge_edge(main):
   return uzR,uzL,uzU,uzD,uzF,uzB
 
 
-def diffUZ_edge(a,main):
+def diffUZEdge_edge(main):
+  aL = np.einsum('zpqr...->zqr...',main.a.aL_edge*main.wpedge[:,1][None,:,None,None,None,None])
+  aR = np.einsum('zpqr...->zqr...',main.a.aR_edge*main.wpedge[:,0][None,:,None,None,None,None])
+
+  aD = np.einsum('zpqr...->zpr...',main.a.aD_edge)
+  aU = np.einsum('zpqr...->zpr...',main.a.aU_edge*main.altarray[None,None,:,None,None,None])
+
+  aB = np.einsum('zpqr...->zpq...',main.a.aB_edge)
+  aF = np.einsum('zpqr...->zpq...',main.a.aF_edge*main.altarray[None,None,None,:,None,None])
+
+#  uU = np.zeros((main.nvars,main.quadpoints,main.quadpoints,main.Npx,main.Npy,main.Npz))
+  # need to do 2D reconstruction to the gauss points on each face
+  tmp = np.tensordot(aR,main.w,axes=([1],[0])) #reconstruct in y and z
+  tmp = np.tensordot(tmp,main.wp,axes=([1],[0]))*2./main.dx
+  uzR = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
+  tmp = np.tensordot(aL,main.w,axes=([1],[0]))
+  tmp = np.tensordot(tmp,main.wp,axes=([1],[0]))*2./main.dx
+  uzL = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
+
+  tmp = np.tensordot(aU,main.w,axes=([1],[0])) #reconstruct in x and z 
+  tmp = np.tensordot(tmp,main.wp,axes=([1],[0]))*2./main.dx
+  uzU = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
+  tmp = np.tensordot(aD,main.w,axes=([1],[0]))
+  tmp = np.tensordot(tmp,main.wp,axes=([1],[0]))*2./main.dx
+  uzD = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
+
+  tmp = np.tensordot(aF,main.w,axes=([1],[0])) #reconstruct in x and y 
+  tmp = np.tensordot(tmp,main.w,axes=([1],[0]))*2./main.dx
+  uzF = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
+  tmp = np.tensordot(aB,main.w,axes=([1],[0]))
+  tmp = np.tensordot(tmp,main.w,axes=([1],[0]))*2./main.dx
+  uzB = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
+  return uzR,uzL,uzU,uzD,uzF,uzB
+
+
+def diffUZ_edge2(a,main):
   aR = np.einsum('zpqr...->zqr...',a)
   aL = np.einsum('zpqr...->zqr...',a*main.altarray[None,:,None,None,None,None,None])
 
@@ -274,6 +412,41 @@ def diffUZ_edge(a,main):
   uzF  = np.einsum('pl,zpm...->zlm...',main.w,tmp)*2./main.dz
   tmp = np.einsum('qm,zpq...->zpm...',main.w,aB)
   uzB  = np.einsum('pl,zpm...->zlm...',main.w,tmp)*2./main.dz
+  return uzR,uzL,uzU,uzD,uzF,uzB
+
+
+def diffUZ_edge(a,main):
+  aR = np.einsum('zpqr...->zqr...',a*main.wpedge[:,1][None,:,None,None,None,None,None])
+  aL = np.einsum('zpqr...->zqr...',a*main.wpedge[:,0] [None,:,None,None,None,None,None])
+
+  aU = np.einsum('zpqr...->zpr...',a)
+  aD = np.einsum('zpqr...->zpr...',a*main.altarray[None,None,:,None,None,None,None])
+
+  aF = np.einsum('zpqr...->zpq...',a)
+  aB = np.einsum('zpqr...->zpq...',a*main.altarray[None,None,None,:,None,None,None])
+
+#  uU = np.zeros((main.nvars,main.quadpoints,main.quadpoints,main.Npx,main.Npy,main.Npz))
+  # need to do 2D reconstruction to the gauss points on each face
+  tmp = np.tensordot(aR,main.w,axes=([1],[0])) #reconstruct in y and z
+  tmp = np.tensordot(tmp,main.wp,axes=([1],[0]))*2./main.dx
+  uzR = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
+  tmp = np.tensordot(aL,main.w,axes=([1],[0]))
+  tmp = np.tensordot(tmp,main.wp,axes=([1],[0]))*2./main.dx
+  uzL = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
+
+  tmp = np.tensordot(aU,main.w,axes=([1],[0])) #reconstruct in x and z 
+  tmp = np.tensordot(tmp,main.wp,axes=([1],[0]))*2./main.dx
+  uzU = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
+  tmp = np.tensordot(aD,main.w,axes=([1],[0]))
+  tmp = np.tensordot(tmp,main.wp,axes=([1],[0]))*2./main.dx
+  uzD = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
+
+  tmp = np.tensordot(aF,main.w,axes=([1],[0])) #reconstruct in x and y 
+  tmp = np.tensordot(tmp,main.w,axes=([1],[0]))*2./main.dx
+  uzF = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
+  tmp = np.tensordot(aB,main.w,axes=([1],[0]))
+  tmp = np.tensordot(tmp,main.w,axes=([1],[0]))*2./main.dx
+  uzB = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
   return uzR,uzL,uzU,uzD,uzF,uzB
 
 
@@ -357,6 +530,43 @@ def reconstructEdgesGeneral(a,main):
 
 #  uU = np.zeros((main.nvars,main.quadpoints,main.quadpoints,main.Npx,main.Npy,main.Npz))
   # need to do 2D reconstruction to the gauss points on each face
+  tmp = np.tensordot(aR,main.w,axes=([1],[0])) #reconstruct in y and z
+  tmp = np.tensordot(tmp,main.w,axes=([1],[0]))
+  uR = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
+  tmp = np.tensordot(aL,main.w,axes=([1],[0]))
+  tmp = np.tensordot(tmp,main.w,axes=([1],[0]))
+  uL = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
+
+  tmp = np.tensordot(aU,main.w,axes=([1],[0])) #reconstruct in x and z 
+  tmp = np.tensordot(tmp,main.w,axes=([1],[0]))
+  uU = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
+  tmp = np.tensordot(aD,main.w,axes=([1],[0]))
+  tmp = np.tensordot(tmp,main.w,axes=([1],[0]))
+  uD = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
+
+  tmp = np.tensordot(aF,main.w,axes=([1],[0])) #reconstruct in x and y 
+  tmp = np.tensordot(tmp,main.w,axes=([1],[0]))
+  uF = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
+  tmp = np.tensordot(aB,main.w,axes=([1],[0]))
+  tmp = np.tensordot(tmp,main.w,axes=([1],[0]))
+  uB = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
+  return uR,uL,uU,uD,uF,uB
+
+
+
+def reconstructEdgesGeneral2(a,main):
+  nvars = np.shape(a)[0]
+  aR = np.einsum('zpqrijk->zqrijk',a)
+  aL = np.einsum('zpqrijk->zqrijk',a*main.altarray[None,:,None,None,None,None,None])
+
+  aU = np.einsum('zpqrijk->zprijk',a)
+  aD = np.einsum('zpqrijk->zprijk',a*main.altarray[None,None,:,None,None,None,None])
+
+  aF = np.einsum('zpqrijk->zpqijk',a)
+  aB = np.einsum('zpqrijk->zpqijk',a*main.altarray[None,None,None,:,None,None,None])
+
+#  uU = np.zeros((main.nvars,main.quadpoints,main.quadpoints,main.Npx,main.Npy,main.Npz))
+  # need to do 2D reconstruction to the gauss points on each face
   tmp = np.einsum('rn,zqrijk->zqnijk',main.w,aR)
   uR  = np.einsum('qm,zqnijk->zmnijk',main.w,tmp)
   tmp = np.einsum('rn,zqrijk->zqnijk',main.w,aL)
@@ -373,7 +583,41 @@ def reconstructEdgesGeneral(a,main):
   uB  = np.einsum('pl,zpmijk->zlmijk',main.w,tmp)
   return uR,uL,uU,uD,uF,uB
 
+
 def reconstructEdgeEdgesGeneral(main):
+  aL = np.einsum('zpqr...->zqr...',main.a.aL_edge)
+  aR = np.einsum('zpqr...->zqr...',main.a.aR_edge*main.altarray[None,:,None,None,None,None])
+
+  aD = np.einsum('zpqr...->zpr...',main.a.aD_edge)
+  aU = np.einsum('zpqr...->zpr...',main.a.aU_edge*main.altarray[None,None,:,None,None,None])
+
+  aB = np.einsum('zpqr...->zpq...',main.a.aB_edge)
+  aF = np.einsum('zpqr...->zpq...',main.a.aF_edge*main.altarray[None,None,None,:,None,None])
+#  uU = np.zeros((main.nvars,main.quadpoints,main.quadpoints,main.Npx,main.Npy,main.Npz))
+  # need to do 2D reconstruction to the gauss points on each face
+  tmp = np.tensordot(aR,main.w,axes=([1],[0])) #reconstruct in y and z
+  tmp = np.tensordot(tmp,main.w,axes=([1],[0]))
+  uR = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
+  tmp = np.tensordot(aL,main.w,axes=([1],[0]))
+  tmp = np.tensordot(tmp,main.w,axes=([1],[0]))
+  uL = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
+
+  tmp = np.tensordot(aU,main.w,axes=([1],[0])) #reconstruct in x and z 
+  tmp = np.tensordot(tmp,main.w,axes=([1],[0]))
+  uU = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
+  tmp = np.tensordot(aD,main.w,axes=([1],[0]))
+  tmp = np.tensordot(tmp,main.w,axes=([1],[0]))
+  uD = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
+
+  tmp = np.tensordot(aF,main.w,axes=([1],[0])) #reconstruct in x and y 
+  tmp = np.tensordot(tmp,main.w,axes=([1],[0]))
+  uF = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
+  tmp = np.tensordot(aB,main.w,axes=([1],[0]))
+  tmp = np.tensordot(tmp,main.w,axes=([1],[0]))
+  uB = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
+  return uR,uL,uU,uD,uF,uB
+
+def reconstructEdgeEdgesGeneral2(main):
   aL = np.einsum('zpqr...->zqr...',main.a.aL_edge)
   aR = np.einsum('zpqr...->zqr...',main.a.aR_edge*main.altarray[None,:,None,None,None,None])
 
@@ -459,22 +703,35 @@ def getRHS_IP(main,eqns):
   eqns.evalFluxX(main.a.u,main.iFlux.fx)
   eqns.evalFluxY(main.a.u,main.iFlux.fy)
   eqns.evalFluxZ(main.a.u,main.iFlux.fz)
+
   # now get viscous flux
   fvRIG11,fvLIG11,fvRIG21,fvLIG21,fvRIG31,fvLIG31,fvUIG12,fvDIG12,fvUIG22,fvDIG22,fvUIG32,fvDIG32,fvFIG13,fvBIG13,fvFIG23,fvBIG23,fvFIG33,fvBIG33,fvR2I,fvL2I,fvU2I,fvD2I,fvF2I,fvB2I = getViscousFlux(main,eqns) ##takes roughly 20% of the time
+
   upx,upy,upz = diffU(main.a.a,main)
   upx = upx*2./main.dx
   upy = upy*2./main.dy
   upz = upz*2./main.dz
   G11,G12,G13,G21,G22,G23,G31,G32,G33 = eqns.getGs(main.a.u,main)
-  fvGX = np.einsum('ij...,j...->i...',G11,upx)
-  fvGX += np.einsum('ij...,j...->i...',G12,upy)
-  fvGX += np.einsum('ij...,j...->i...',G13,upz)
-  fvGY = np.einsum('ij...,j...->i...',G21,upx)
-  fvGY += np.einsum('ij...,j...->i...',G22,upy)
-  fvGY += np.einsum('ij...,j...->i...',G23,upz)
-  fvGZ = np.einsum('ij...,j...->i...',G31,upx)
-  fvGZ += np.einsum('ij...,j...->i...',G32,upy)
-  fvGZ += np.einsum('ij...,j...->i...',G33,upz)
+  fvGX = np.sum(G11*upx,axis=1)
+  fvGX += np.sum(G12*upy,axis=1)
+  fvGX += np.sum(G13*upz,axis=1)
+  fvGY = np.sum(G21*upx,axis=1)
+  fvGY += np.sum(G22*upy,axis=1)
+  fvGY += np.sum(G23*upz,axis=1)
+  fvGZ = np.sum(G31*upx,axis=1)
+  fvGZ += np.sum(G32*upy,axis=1)
+  fvGZ += np.sum(G33*upz,axis=1)
+
+
+#  fvGX = np.einsum('ij...,j...->i...',G11,upx)
+#  fvGX += np.einsum('ij...,j...->i...',G12,upy)
+#  fvGX += np.einsum('ij...,j...->i...',G13,upz)
+#  fvGY = np.einsum('ij...,j...->i...',G21,upx)
+#  fvGY += np.einsum('ij...,j...->i...',G22,upy)
+#  fvGY += np.einsum('ij...,j...->i...',G23,upz)
+#  fvGZ = np.einsum('ij...,j...->i...',G31,upx)
+#  fvGZ += np.einsum('ij...,j...->i...',G32,upy)
+#  fvGZ += np.einsum('ij...,j...->i...',G33,upz)
   # Now form RHS
   t1 = time.time()
   ## This is important. Do partial integrations in each direction to avoid doing for each ijk
@@ -486,7 +743,6 @@ def getRHS_IP(main,eqns):
   v1ijk = volIntegrateGlob(main,main.iFlux.fx - fvGX,main.wp,main.w,main.w)*dxi[None,:,:,:,None,None,None]
   v2ijk = volIntegrateGlob(main,main.iFlux.fy - fvGY,main.w,main.wp,main.w)*dyi[None,:,:,:,None,None,None]
   v3ijk = volIntegrateGlob(main,main.iFlux.fz - fvGZ,main.w,main.w,main.wp)*dzi[None,:,:,:,None,None,None]
-
   tmp = v1ijk + v2ijk + v3ijk
   tmp +=  (-main.iFlux.fRI[:,None,:,:] + main.iFlux.fLI[:,None,:,:]*main.altarray[None,:,None,None,None,None,None])*dxi[None,:,:,:,None,None,None]
   tmp +=  (-main.iFlux.fUI[:,:,None,:] + main.iFlux.fDI[:,:,None,:]*main.altarray[None,None,:,None,None,None,None])*dyi[None,:,:,:,None,None,None]
@@ -497,7 +753,6 @@ def getRHS_IP(main,eqns):
   tmp +=  (fvR2I[:,None,:,:] - fvL2I[:,None,:,:]*main.altarray[None,:,None,None,None,None,None])*dxi[None,:,:,:,None,None,None] + (fvU2I[:,:,None,:] - fvD2I[:,:,None,:]*main.altarray[None,None,:,None,None,None,None])*dyi[None,:,:,:,None,None,None] + (fvF2I[:,:,:,None] - fvB2I[:,:,:,None]*main.altarray[None,None,None,:,None,None,None])*dzi[None,:,:,:,None,None,None]
   main.RHS = tmp
   main.comm.Barrier()
-
 
 
 
@@ -592,6 +847,27 @@ def getViscousFlux(main,eqns):
   fvBG23 = np.einsum('ij...,j...->i...',G23B,main.a.uB - uhatB)
   fvFG33 = np.einsum('ij...,j...->i...',G33F,main.a.uF - uhatF)
   fvBG33 = np.einsum('ij...,j...->i...',G33B,main.a.uB - uhatB)
+
+#  fvRG11 = np.sum(G11R*(main.a.uR - uhatR),axis=1)
+#  fvLG11 = np.sum(G11L*(main.a.uL - uhatL),axis=1)
+#  fvRG21 = np.sum(G21R*(main.a.uR - uhatR),axis=1)
+#  fvLG21 = np.sum(G21L*(main.a.uL - uhatL),axis=1)
+#  fvRG31 = np.sum(G31R*(main.a.uR - uhatR),axis=1)
+#  fvLG31 = np.sum(G31L*(main.a.uL - uhatL),axis=1)
+#
+#  fvUG12 = np.sum(G12U*(main.a.uU - uhatU),axis=1)
+#  fvDG12 = np.sum(G12D*(main.a.uD - uhatD),axis=1)
+#  fvUG22 = np.sum(G22U*(main.a.uU - uhatU),axis=1)
+#  fvDG22 = np.sum(G22D*(main.a.uD - uhatD),axis=1)
+#  fvUG32 = np.sum(G32U*(main.a.uU - uhatU),axis=1)
+#  fvDG32 = np.sum(G32D*(main.a.uD - uhatD),axis=1)
+
+#  fvFG13 = np.sum(G13F*(main.a.uF - uhatF),axis=1)
+#  fvBG13 = np.sum(G13B*(main.a.uB - uhatB),axis=1)
+#  fvFG23 = np.sum(G23F*(main.a.uF - uhatF),axis=1)
+#  fvBG23 = np.sum(G23B*(main.a.uB - uhatB),axis=1)
+#  fvFG33 = np.sum(G33F*(main.a.uF - uhatF),axis=1)
+#  fvBG33 = np.sum(G33B*(main.a.uB - uhatB),axis=1)
 
   
 #  apx,apy,apz = diffCoeffs(main.a.a)
