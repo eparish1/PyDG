@@ -17,7 +17,7 @@ class timeschemes:
       self.advanceSol = CrankNicolson
       self.linear_solver = linearSolver(lsolver_str)
       self.nonlinear_solver = nonlinearSolver(nlsolver_str)
-      self.sparse_quadrature = False 
+      self.sparse_quadrature = True
       self.args = [self.nonlinear_solver,self.linear_solver,self.sparse_quadrature]
     if (time_str == 'SDIRK2'):
       check_t = 0
@@ -31,7 +31,7 @@ class timeschemes:
       self.advanceSol = SDIRK4 
       self.linear_solver = linearSolver(lsolver_str)
       self.nonlinear_solver = nonlinearSolver(nlsolver_str)
-      self.sparse_quadrature = True 
+      self.sparse_quadrature = False 
       self.args = [self.nonlinear_solver,self.linear_solver,self.sparse_quadrature]
 
 class nonlinearSolver:

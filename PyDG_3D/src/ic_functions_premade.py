@@ -38,9 +38,9 @@ def shocktubeIC(x,y,z,gas):
   E = np.zeros(np.shape(u))
   p[:] = 1.
   #p[:,:,:,0:Nelx/2,:,:] = 1.
-  p[x>0.7] = 0.5
+  p[x>0.7] = 0.7
   rho[:] = 1
-  rho[x>0.7] = 0.525
+  rho[x>0.7] = 0.725
 #  rho[:,:,:,0:Nelx/2,:,:] = 1.
 #  rho[:,:,:,Nelx/2::,:,:] = 0.8
   T = p/(rho*R)
