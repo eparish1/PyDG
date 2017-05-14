@@ -203,16 +203,16 @@ def rusanovFlux(UL,UR,n):
   l[0] = ucp+ci
   l[1] = ucp-ci
   l[2] = ucp
-
-  smax = np.maximum(np.abs(l[0]),np.abs(l[1]))
+  #print(np.shape(l))
+  smax = np.abs(ucp) + np.abs(ci)
+  #smax = np.maximum(np.abs(l[0]),np.abs(l[1]))
   # flux assembly
   F = np.zeros(np.shape(FL))  # for allocation
-  F[0]    = 0.5*(FL[0]+FR[0])#-0.5*smax*(UR[0] - UL[0])
-  F[1]    = 0.5*(FL[1]+FR[1])#-0.5*smax*(UR[1] - UL[1])
-  F[2]    = 0.5*(FL[2]+FR[2])#-0.5*smax*(UR[2] - UL[2])
-  F[3]    = 0.5*(FL[3]+FR[3])#-0.5*smax*(UR[3] - UL[3])
-  F[4]    = 0.5*(FL[4]+FR[4])#-0.5*smax*(UR[4] - UL[4])
-  smag = np.amax(l)
+  F[0]    = 0.5*(FL[0]+FR[0])-0.5*smax*(UR[0] - UL[0])
+  F[1]    = 0.5*(FL[1]+FR[1])-0.5*smax*(UR[1] - UL[1])
+  F[2]    = 0.5*(FL[2]+FR[2])-0.5*smax*(UR[2] - UL[2])
+  F[3]    = 0.5*(FL[3]+FR[3])-0.5*smax*(UR[3] - UL[3])
+  F[4]    = 0.5*(FL[4]+FR[4])-0.5*smax*(UR[4] - UL[4])
   return F
                
   

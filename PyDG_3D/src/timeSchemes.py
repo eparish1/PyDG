@@ -5,7 +5,7 @@ import numpy as np
 from mpi4py import MPI
 import sys
 from turb_models import tauModel
-from init_Classes import variables
+from init_Classes import variables,equations
 from scipy.sparse.linalg import LinearOperator
 from scipy.sparse.linalg import gmres,bicgstab
 from scipy.sparse.linalg import lgmres

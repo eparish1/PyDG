@@ -5,8 +5,8 @@ def centralFluxGeneral(fR,fL,fU,fD,fF,fB,fR_edge,fL_edge,fU_edge,fD_edge,fF_edge
   fLS = np.zeros(np.shape(fL))
   fUS = np.zeros(np.shape(fU))
   fDS = np.zeros(np.shape(fD))
-  fFS = np.zeros(np.shape(fD))
-  fBS = np.zeros(np.shape(fD))
+  fFS = np.zeros(np.shape(fF))
+  fBS = np.zeros(np.shape(fB))
 
   fRS[:,:,:,0:-1,:,:] = 0.5*(fR[:,:,:,0:-1,:,:] + fL[:,:,:,1::,:,:])
   fRS[:,:,:,  -1,:,:] = 0.5*(fR[:,:,:,  -1,:,:] + fR_edge)
@@ -34,6 +34,7 @@ def inviscidFlux(main,eqns,fluxVar,var):
   fluxVar.fUS[:,:,:,:,  -1,:] = eqns.inviscidFlux(var.uU[:,:,:,:,  -1,:],var.uU_edge,ny)
   fluxVar.fDS[:,:,:,:,1:: ,:] = fluxVar.fUS[:,:,:,:,0:-1,:] 
   fluxVar.fDS[:,:,:,:,0   ,:] = eqns.inviscidFlux(var.uD_edge,var.uD[:,:,:,:,0,:],ny)
+  #print(np.amax(fluxVar.fDS[1,:,:,:,0,:]),np.amax(np.abs(var.uD_edge[1])), np.amax(np.abs(var.uD[1,:,:,:,0,:]/var.uD[0,:,:,:,0,:] ) )  )
   fluxVar.fFS[:,:,:,:,:,0:-1] = eqns.inviscidFlux(var.uF[:,:,:,:,:,0:-1],var.uB[:,:,:,:,:,1::],nz )
   fluxVar.fFS[:,:,:,:,:,  -1] = eqns.inviscidFlux(var.uF[:,:,:,:,:,  -1],var.uF_edge,nz)
   fluxVar.fBS[:,:,:,:,:,1:: ] = fluxVar.fFS[:,:,:,:,:,0:-1] 

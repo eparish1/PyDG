@@ -11,62 +11,76 @@ import time
 from scipy import interpolate
 from scipy.interpolate import RegularGridInterpolator
 
-def getGlobGrid2(x,y,z,zeta):
+def getGlobGrid2(x,y,z,zeta0,zeta1,zeta2):
   dx = x[1] - x[0]
   dy = y[1] - y[0]
   dz = z[1] - z[0]
   Npx,Npy,Npz = np.size(x),np.size(y),np.size(z)
 
-  nq = np.size(zeta)
-  xG = np.zeros((nq,nq,nq,Npx-1,Npy-1,Npz-1))
-  yG = np.zeros((nq,nq,nq,Npx-1,Npy-1,Npz-1))
-  zG = np.zeros((nq,nq,nq,Npx-1,Npy-1,Npz-1))
+  nqx = np.size(zeta0)
+  nqy = np.size(zeta1)
+  nqz = np.size(zeta2)
+
+  xG = np.zeros((nqx,nqy,nqz,Npx-1,Npy-1,Npz-1))
+  yG = np.zeros((nqx,nqy,nqz,Npx-1,Npy-1,Npz-1))
+  zG = np.zeros((nqx,nqy,nqz,Npx-1,Npy-1,Npz-1))
   for i in range(0,Npx-1):
-     xG[:,:,:,i,:,:] = ( (2.*x[i]  + dx)/2. + zeta/2.*(dx) )[:,None,None,None,None]
+     xG[:,:,:,i,:,:] = ( (2.*x[i]  + dx)/2. + zeta0/2.*(dx) )[:,None,None,None,None]
   for i in range(0,Npy-1):
-     yG[:,:,:,:,i,:] = ( (2.*y[i]  + dy)/2. + zeta/2.*(dy) )[None,:,None,None,None]
+     yG[:,:,:,:,i,:] = ( (2.*y[i]  + dy)/2. + zeta1/2.*(dy) )[None,:,None,None,None]
   for i in range(0,Npz-1):
-     zG[:,:,:,:,:,i] = ( (2.*z[i]  + dz)/2. + zeta/2.*(dz) )[None,None,:,None,None]
+     zG[:,:,:,:,:,i] = ( (2.*z[i]  + dz)/2. + zeta2/2.*(dz) )[None,None,:,None,None]
   return xG,yG,zG
 
 
-def getGlobGrid(x,y,z,zeta):
+def getGlobGrid(x,y,z,zeta0,zeta1,zeta2):
   dx = x[1] - x[0]
   dy = y[1] - y[0]
   dz = z[1] - z[0]
   Nelx,Nely,Nelz = np.size(x),np.size(y),np.size(z)
-  order = np.size(zeta)
-  xG = np.zeros(((np.size(x)-1)*np.size(zeta)))
-  yG = np.zeros(((np.size(y)-1)*np.size(zeta)))
-  zG = np.zeros(((np.size(z)-1)*np.size(zeta)))
+  order0 = np.size(zeta0)
+  order1 = np.size(zeta1)
+  order2 = np.size(zeta2)
+
+  xG = np.zeros(((np.size(x)-1)*np.size(zeta0)))
+  yG = np.zeros(((np.size(y)-1)*np.size(zeta1)))
+  zG = np.zeros(((np.size(z)-1)*np.size(zeta2)))
   for i in range(0,Nelx-1):
-     xG[i*quadpoints:(i+1)*quadpoints] = (2.*x[i]  + dx)/2. + zeta/2.*(dx)
+     xG[i*quadpoints[0]:(i+1)*quadpoints[0]] = (2.*x[i]  + dx)/2. + zeta0/2.*(dx)
   for i in range(0,Nely-1):
-     yG[i*quadpoints:(i+1)*quadpoints] = (2.*y[i]  + dy)/2. + zeta/2.*(dy)
+     yG[i*quadpoints[1]:(i+1)*quadpoints[1]] = (2.*y[i]  + dy)/2. + zeta1/2.*(dy)
   for i in range(0,Nelz-1):
-     zG[i*quadpoints:(i+1)*quadpoints] = (2.*z[i]  + dz)/2. + zeta/2.*(dz)
+     zG[i*quadpoints[2]:(i+1)*quadpoints[2]] = (2.*z[i]  + dz)/2. + zeta2/2.*(dz)
 
   return xG,yG,zG
 
 
 def getGlobU(u):
-  nvars,quadpoints,quadpoints,quadpoints,Nelx,Nely,Nelz = np.shape(u)
-  uG = np.zeros((nvars,quadpoints*Nelx,quadpoints*Nely,quadpoints*Nelz))
+  nvars,quadpoints0,quadpoints1,quadpoints2,Nelx,Nely,Nelz = np.shape(u)
+  uG = np.zeros((nvars,quadpoints0*Nelx,quadpoints1*Nely,quadpoints2*Nelz))
   for i in range(0,Nelx):
     for j in range(0,Nely):
       for k in range(0,Nelz):
         for m in range(0,nvars):
-          uG[m,i*quadpoints:(i+1)*quadpoints,j*quadpoints:(j+1)*quadpoints,k*quadpoints:(k+1)*quadpoints] = u[m,:,:,:,i,j,k]
+          uG[m,i*quadpoints0:(i+1)*quadpoints0,j*quadpoints1:(j+1)*quadpoints1,k*quadpoints2:(k+1)*quadpoints2] = u[m,:,:,:,i,j,k]
   return uG
 
 
 def getIC(main,f,x,y,z):
   ## First perform integration in x
-  ord_arr= np.linspace(0,order-1,order)
-  scale =  (2.*ord_arr[:,None,None] + 1.)*(2.*ord_arr[None,:,None] + 1.)*(2.*ord_arr[None,None,:]+1.)/8.
-  U = f(x,y,z)
-  main.a.a[:] = volIntegrateGlob(main,U,main.w,main.w,main.w)*scale[None,:,:,:,None,None,None]
+  ord_arrx= np.linspace(0,order[0]-1,order[0])
+  ord_arry= np.linspace(0,order[1]-1,order[1])
+  ord_arrz= np.linspace(0,order[2]-1,order[2])
+  scale =  (2.*ord_arrx[:,None,None] + 1.)*(2.*ord_arry[None,:,None] + 1.)*(2.*ord_arrz[None,None,:]+1.)/8.
+  U = f(x,y,z,main.gas)
+  main.a.a[:] = volIntegrateGlob(main,U,main.w0,main.w1,main.w2)*scale[None,:,:,:,None,None,None]
 
+
+if 'source' in globals():
+  pass
+else:
+  source = False
+  source_mag = []
 
 
 comm = MPI.COMM_WORLD
@@ -77,13 +91,13 @@ if (mpi_rank == 0):
 dx =  L/Nel[0]
 t = 0
 if (mpi_rank == 0):
-  print('CFL = ' + str(10.*dt/(dx/order)))
+  print('CFL = ' + str(10.*dt/(dx/order[0])))
 iteration = 0
 eqns = equations(eqn_str,schemes)
-main = variables(Nel,order,quadpoints,eqns,mu,x,y,z,t,et,dt,iteration,save_freq,'DNS',procx,procy)
+main = variables(Nel,order,quadpoints,eqns,mu,x,y,z,t,et,dt,iteration,save_freq,'DNS',procx,procy,BCs,source,source_mag)
 
-xG,yG,zG = getGlobGrid(x,y,z,main.zeta)
-xG2,yG2,zG2 = getGlobGrid2(x,y,z,main.zeta)
+xG,yG,zG = getGlobGrid(x,y,z,main.zeta0,main.zeta1,main.zeta2)
+xG2,yG2,zG2 = getGlobGrid2(x,y,z,main.zeta0,main.zeta1,main.zeta2)
 
 getIC(main,IC_function,xG2[:,:,:,main.sx,main.sy,:],yG2[:,:,:,main.sx,main.sy,:],zG2[:,:,:,main.sx,main.sy,:])
 reconstructU(main,main.a)
