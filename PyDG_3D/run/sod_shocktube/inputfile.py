@@ -5,15 +5,15 @@ from ic_functions_premade import shocktubeIC  #import the IC for taylor green vo
 
 ## Make square grid
 L = 1.                       #|  length
-Nel = np.array([32,32,2])   #|  elements in x,y,z
-order =np.array([4,4,1])                       #|  spatial order
+Nel = np.array([128,128,1])   #|  elements in x,y,z
+order =np.array([3,3,1])                       #|  spatial order
 quadpoints = order*2               #|  number of quadrature points. 2x the order is reccomended
 mu = 1e-5                       #|  viscocity
 x = np.linspace(0,L,Nel[0]+1)      #|  x, y, and z
 y = np.linspace(0,L,Nel[1]+1)      #|
 z = np.linspace(0,L,Nel[2]+1)      #|
 t = 0                              #|  simulation start time
-dt = 0.002                        #|  simulation time step
+dt = 0.0005                         #|  simulation time step
 et = 200.                           #|  simulation end time
 save_freq = 10                      #|  frequency to save output and print to screen
 eqn_str = 'Navier-Stokes'          #|  equation set
