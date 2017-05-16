@@ -63,7 +63,7 @@ def tauModelLinearized(main,MZ,eqns):
    MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2]] = main.a.a[:]
    MZ.getRHS_Inner(MZ,main,eqnsLin,[RHS1f]) ## this is PLQLu
    PLQLU = MZ.RHS[:,0:main.order[0],0:main.order[1],0:main.order[2]]
-   main.RHS[:] =  RHS1[:,0:main.order[0],0:main.order[1],0:main.order[2]] + main.dx/main.order[0]**2*PLQLU
+   main.RHS[:] =  RHS1[:,0:main.order[0],0:main.order[1],0:main.order[2]] + main.dx/MZ.order[0]**2*PLQLU
    main.comm.Barrier()
 
 
