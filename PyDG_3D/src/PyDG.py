@@ -82,6 +82,21 @@ else:
   source = False
   source_mag = []
 
+if 'enriched_ratio' in globals():
+  pass
+else:
+  enriched_ratio = 2
+if 'enriched' in globals():
+  pass
+else:
+  enriched = False
+  enriched_ratio = 1
+
+if 'turb_str' in globals():
+  pass
+else:
+  turb_str = 'DNS'
+
 
 comm = MPI.COMM_WORLD
 num_processes = comm.Get_size()
@@ -91,11 +106,15 @@ if (mpi_rank == 0):
 dx =  L/Nel[0]
 t = 0
 if (mpi_rank == 0):
-  print('CFL = ' + str(10.*dt/(dx/order[0])))
+  print('CFL = ' + str(1.*dt/(dx/order[0])))
 iteration = 0
 eqns = equations(eqn_str,schemes)
-main = variables(Nel,order,quadpoints,eqns,mu,x,y,z,t,et,dt,iteration,save_freq,'DNS',procx,procy,BCs,source,source_mag)
-
+main = variables(Nel,order,quadpoints,eqns,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,source,source_mag)
+if (enriched):
+  eqnsEnriched = equations(enriched_eqn_str,enriched_schemes)
+  mainEnriched = variables(Nel,order*enriched_ratio,quadpoints,eqnsEnriched,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,source,source_mag)
+else:
+  mainEnriched = main
 xG,yG,zG = getGlobGrid(x,y,z,main.zeta0,main.zeta1,main.zeta2)
 xG2,yG2,zG2 = getGlobGrid2(x,y,z,main.zeta0,main.zeta1,main.zeta2)
 
@@ -125,7 +144,7 @@ while (main.t <= main.et - main.dt/2):
       np.savez('Solution/npsol' + str(main.iteration),U=UG,a=aG,t=main.t,iteration=main.iteration,order=order)
       sys.stdout.flush()
 
-  timescheme.advanceSol(main,main,eqns,timescheme.args)
+  timescheme.advanceSol(main,mainEnriched,eqns,timescheme.args)
   #advanceSolImplicit_MG(main,main,eqns)
 reconstructU(main,main.a)
 uG = gatherSolSlab(main,eqns,main.a)

@@ -1,17 +1,19 @@
 import numpy as np
 def TGVIC(x,y,z,gas):
-  rho = 1.
-  rho0 = 1.
+  Minf = 0.1
   nqx,nqy,nqz,Nelx,Nely,Nelz = np.shape(x)
-  u = np.sin(x)*np.cos(y)*np.cos(z)
-  v = -np.cos(x)*np.sin(y)*np.cos(z)
-  w = 0
-  speed_of_sound = 10.
-  gamma = 1.4
-  R = 287.
-  p0 = speed_of_sound**2*gamma/rho0
+  gamma = gas.gamma
+  T0 = 1./gamma
+  R = gas.R #1
+  rho = 1.
+  p0 = rho*R*T0
+  a = np.sqrt(gamma*R*T0) 
+  V0 = Minf*a
   Cv = 5./2.*R
-  p = p0 + rho0/16.*(np.cos(2.*x) + np.cos(2.*y) )*(np.cos(2.*z) + 2.)
+  u = V0*np.sin(x)*np.cos(y)*np.cos(z)
+  v = -V0*np.cos(x)*np.sin(y)*np.cos(z)
+  w = 0
+  p = p0 + rho*V0**2/16.*(np.cos(2.*x) + np.cos(2.*y) )*(np.cos(2.*z) + 2.)
   T = p/(rho*R)
   E = Cv*T + 0.5*(u**2 + v**2 + w**2)
   q = np.zeros((5,nqx,nqy,nqz,Nelx,Nely,Nelz))

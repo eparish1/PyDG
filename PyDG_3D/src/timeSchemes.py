@@ -4,7 +4,6 @@ import numpy as np
 #from petsc4py import PETSc
 from mpi4py import MPI
 import sys
-from turb_models import tauModel
 from init_Classes import variables,equations
 from scipy.sparse.linalg import LinearOperator
 from scipy.sparse.linalg import gmres,bicgstab
@@ -35,13 +34,8 @@ def ExplicitRK4(main,MZ,eqns,args=None):
   rk4const = np.array([1./4,1./3,1./2,1.])
   for i in range(0,4):
     main.rkstage = i
-    if (main.turb_str == 'DNS'):
-      main.getRHS(main,eqns)  ## put RHS in a array since we don't need it
-      main.a.a[:] = main.a0 + main.dt*rk4const[i]*(main.RHS[:])
-    else:
-      main.RHS[:],w = main.turb_model(main,MZ,eqns)
-      #print(np.linalg.norm(main.w))
-      main.a.a[:] = main.a0 + main.dt*rk4const[i]*(main.RHS[:] + w)
+    main.getRHS(main,MZ,eqns)  ## put RHS in a array since we don't need it
+    main.a.a[:] = main.a0 + main.dt*rk4const[i]*(main.RHS[:])
   main.t += main.dt
   main.iteration += 1
 
@@ -50,12 +44,12 @@ def CrankNicolson(main,MZ,eqns,args):
   linear_solver = args[1]
   sparse_quadrature = args[2]
   main.a0[:] = main.a.a[:]
-  main.getRHS(main,eqns)
+  main.getRHS(main,MZ,eqns)
   R0 = np.zeros(np.shape(main.RHS))
   R0[:] = main.RHS[:]
   def unsteadyResidual(v):
     main.a.a[:] = np.reshape(v,np.shape(main.a.a))
-    main.getRHS(main,eqns)
+    main.getRHS(main,MZ,eqns)
     R1 = np.zeros(np.shape(main.RHS))
     R1[:] = main.RHS[:]
     Rstar = ( main.a.a[:] - main.a0 ) - 0.5*main.dt*(R0 + R1)
@@ -68,7 +62,7 @@ def CrankNicolson(main,MZ,eqns,args):
     vr = np.reshape(v,np.shape(main.a.a))
     eps = 5.e-2
     main.a.a[:] = an + eps*vr
-    main.getRHS(main,eqns)
+    main.getRHS(main,MZ,eqns)
     R1 = np.zeros(np.shape(main.RHS))
     R1[:] = main.RHS[:]
     Av = vr - main.dt/2.*(R1 - Rn)/eps
@@ -84,14 +78,14 @@ def SDIRK2(main,MZ,eqns,args):
   linear_solver = args[1]
   sparse_quadrature = args[2]
   main.a0[:] = main.a.a[:]
-  main.getRHS(main,eqns)
+  main.getRHS(main,MZ,eqns)
   R0 = np.zeros(np.shape(main.RHS))
   R0[:] = main.RHS[:]
   alpha = (2. - np.sqrt(2.))/2.
   
   def STAGE1_unsteadyResidual(v):
     main.a.a[:] = np.reshape(v,np.shape(main.a.a))
-    main.getRHS(main,eqns)
+    main.getRHS(main,MZ,eqns)
     R1 = np.zeros(np.shape(main.RHS))
     R1[:] = main.RHS[:]
     Rstar = ( main.a.a[:] - main.a0 ) - alpha*main.dt*R1
@@ -104,19 +98,19 @@ def SDIRK2(main,MZ,eqns,args):
     vr = np.reshape(v,np.shape(main.a.a))
     eps = 5.e-2
     main.a.a[:] = an[:] + eps*vr
-    main.getRHS(main,eqns)
+    main.getRHS(main,MZ,eqns)
     R1 = np.zeros(np.shape(main.RHS))
     R1[:] = main.RHS[:]
     Av = vr - main.dt*alpha*(R1 - Rn)/eps
     return Av.flatten()
   #stage 1
   nonlinear_solver.solve(STAGE1_unsteadyResidual, create_MF_Jacobian,main,linear_solver,sparse_quadrature,eqns)
-  main.getRHS(main,eqns)
+  main.getRHS(main,MZ,eqns)
   R0[:] = main.RHS[:]
   main.a0[:] = main.a.a[:]
   def STAGE2_unsteadyResidual(v):
     main.a.a[:] = np.reshape(v,np.shape(main.a.a))
-    main.getRHS(main,eqns)
+    main.getRHS(main,MZ,eqns)
     R1 = np.zeros(np.shape(main.RHS))
     R1[:] = main.RHS[:]
     Rstar = ( main.a.a[:] - main.a0 ) - main.dt*( (1. - alpha)*R0 + alpha*R1 )
@@ -133,7 +127,7 @@ def SDIRK4(main,MZ,eqns,args):
   linear_solver = args[1]
   sparse_quadrature = args[2]
   main.a0[:] = main.a.a[:]
-  main.getRHS(main,eqns)
+  main.getRHS(main,MZ,eqns)
   R0 = np.zeros(np.shape(main.RHS))
   R0[:] = main.RHS[:]
   gam = 9./40.
@@ -150,7 +144,7 @@ def SDIRK4(main,MZ,eqns,args):
     vr = np.reshape(v,np.shape(main.a.a))
     eps = 5.e-2
     main.a.a[:] = an[:] + eps*vr
-    main.getRHS(main,eqns)
+    main.getRHS(main,MZ,eqns)
     R1 = np.zeros(np.shape(main.RHS))
     R1[:] = main.RHS[:]
     Av = vr - main.dt*gam*(R1 - Rn)/eps
@@ -161,7 +155,7 @@ def SDIRK4(main,MZ,eqns,args):
 
   def STAGE1_unsteadyResidual(v):
     main.a.a[:] = np.reshape(v,np.shape(main.a.a))
-    main.getRHS(main,eqns)
+    main.getRHS(main,MZ,eqns)
     R1 = np.zeros(np.shape(main.RHS))
     R1[:] = main.RHS[:]
     Rstar = ( main.a.a[:] - main.a0 ) - gam*main.dt*R1
@@ -169,7 +163,7 @@ def SDIRK4(main,MZ,eqns,args):
     return Rstar,R1,Rstar_glob
 
   nonlinear_solver.solve(STAGE1_unsteadyResidual, create_MF_Jacobian,main,linear_solver,sparse_quadrature,eqns)
-  main.getRHS(main,eqns)
+  main.getRHS(main,MZ,eqns)
   R1 = np.zeros( np.shape(main.RHS) )
   R1[:] = main.RHS[:]
   main.a0[:] = main.a.a[:]
@@ -177,7 +171,7 @@ def SDIRK4(main,MZ,eqns,args):
   #========= STAGE 2 ==========================
   def STAGE2_unsteadyResidual(v):
     main.a.a[:] = np.reshape(v,np.shape(main.a.a))
-    main.getRHS(main,eqns)
+    main.getRHS(main,MZ,eqns)
     R2 = np.zeros(np.shape(main.RHS))
     R2[:] = main.RHS[:]
     Rstar = ( main.a.a[:] - main.a0 ) - main.dt*( (c2 - gam)*R1 + gam*R2 )
@@ -185,7 +179,7 @@ def SDIRK4(main,MZ,eqns,args):
     return Rstar,R2,Rstar_glob
 
   nonlinear_solver.solve(STAGE2_unsteadyResidual, create_MF_Jacobian,main,linear_solver,sparse_quadrature,eqns)
-  main.getRHS(main,eqns)
+  main.getRHS(main,MZ,eqns)
   R2 = np.zeros( np.shape(main.RHS) )
   R2[:] = main.RHS[:]
   main.a0[:] = main.a.a[:]
@@ -193,7 +187,7 @@ def SDIRK4(main,MZ,eqns,args):
   #============ STAGE 3 ===============
   def STAGE3_unsteadyResidual(v):
     main.a.a[:] = np.reshape(v,np.shape(main.a.a))
-    main.getRHS(main,eqns)
+    main.getRHS(main,MZ,eqns)
     R3 = np.zeros(np.shape(main.RHS))
     R3[:] = main.RHS[:]
     Rstar = ( main.a.a[:] - main.a0 ) - main.dt*( (c3 - a32 -  gam)*R1 + a32*R2 + gam*R3 )
@@ -201,7 +195,7 @@ def SDIRK4(main,MZ,eqns,args):
     return Rstar,R3,Rstar_glob
 
   nonlinear_solver.solve(STAGE3_unsteadyResidual, create_MF_Jacobian,main,linear_solver,sparse_quadrature,eqns)
-  main.getRHS(main,eqns)
+  main.getRHS(main,MZ,eqns)
   R3 = np.zeros( np.shape(main.RHS) )
   R3[:] = main.RHS[:]
   main.a0[:] = main.a.a[:]
@@ -209,7 +203,7 @@ def SDIRK4(main,MZ,eqns,args):
   #============ STAGE 4 ============
   def STAGE4_unsteadyResidual(v):
     main.a.a[:] = np.reshape(v,np.shape(main.a.a))
-    main.getRHS(main,eqns)
+    main.getRHS(main,MZ,eqns)
     R4 = np.zeros(np.shape(main.RHS))
     R4[:] = main.RHS[:]
     Rstar = ( main.a.a[:] - main.a0 ) - main.dt*( (1. - b2 - b3 - gam)*R1 + b2*R2 + b3*R3 + gam*R4 )
@@ -225,14 +219,14 @@ def advanceSolImplicit_PETsc(main,MZ,eqns):
   old = np.zeros(np.shape(main.a0))
   old[:] = main.a0[:]
   main.a0[:] = main.a.a[:]
-  main.getRHS(main,eqns)
+  main.getRHS(main,MZ,eqns)
   R0 = np.zeros(np.shape(main.RHS))
   R0[:] = main.RHS[:]
   def unsteadyResid( snes, V, R):
     v = V[...] #+ main.a0.flatten()
     Resid = R[...]
     main.a.a[:] = np.reshape(v,np.shape(main.a.a))
-    main.getRHS(main,eqns)
+    main.getRHS(main,MZ,eqns)
     R1 = np.zeros(np.shape(main.RHS))
     R1[:] = main.RHS[:]
     Resid[:] = (v - main.a0.flatten() ) - 0.5*main.dt*(R0 + R1).flatten()

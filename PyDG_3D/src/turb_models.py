@@ -1,6 +1,8 @@
+import matplotlib.pyplot as plt
 import numpy as np
 from MPI_functions import gatherSolSpectral
-
+from equations_class import *
+from tensor_products import *
 def orthogonalDynamics(main,MZ,eqns,schemes):
     ### EVAL RESIDUAL AND DO MZ STUFF
     MZ.a.a[:,:,:,:,:,:,:] = main.a.a[:,:,:,:,:,:,:]
@@ -15,30 +17,139 @@ def orthogonalDynamics(main,MZ,eqns,schemes):
     return RHS1 - RHS2,0
 
 
-def tauModel(main,MZ,eqns,schemes):
+## Evaluate the tau model through the FD approximation. This is expensive AF
+def tauModelFD(main,MZ,eqns):
     ### EVAL RESIDUAL AND DO MZ STUFF
     filtarray = np.zeros(np.shape(MZ.a.a))
-    filtarray[:,0:main.order,0:main.order,0:main.order,:,:,:] = 1.
+    filtarray[:,0:main.order[0],0:main.order[1],0:main.order[2],:,:,:] = 1.
     eps = 1.e-5
     MZ.a.a[:] = 0.
-    MZ.a.a[:,0:main.order,0:main.order,0:main.order] = main.a.a[:]
-    MZ.getRHS(MZ,eqns,schemes)
+    MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2]] = main.a.a[:]
+    MZ.getRHS_Inner(MZ,MZ,eqns)
     RHS1 = np.zeros(np.shape(MZ.RHS))
     RHS1[:] = MZ.RHS[:]
     MZ.a.a[:] = 0.
-    MZ.a.a[:,0:main.order,0:main.order,0:main.order] = main.a.a[:]
+    MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2]] = main.a.a[:]
     MZ.a.a[:] = MZ.a.a[:] + eps*RHS1[:]
-    MZ.getRHS(MZ,eqns,schemes)
+    MZ.getRHS_Inner(MZ,MZ,eqns)
     RHS2 = np.zeros(np.shape(MZ.RHS))
     RHS2[:] = MZ.RHS[:]
     MZ.a.a[:] = 0.
-    MZ.a.a[:,0:main.order,0:main.order,0:main.order] = main.a.a[:]
+    MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2]] = main.a.a[:]
     MZ.a.a[:] = MZ.a.a[:] + eps*RHS1[:]*filtarray
-    MZ.getRHS(MZ,eqns,schemes)
+    MZ.getRHS_Inner(MZ,MZ,eqns)
     RHS3 = np.zeros(np.shape(MZ.RHS))
     RHS3[:] = MZ.RHS[:]
-    PLQLU = (RHS2[:,0:main.order,0:main.order,0:main.order] - RHS3[:,0:main.order,0:main.order,0:main.order])/eps
-    return RHS1[:,0:main.order,0:main.order,0:main.order],MZ.tau*PLQLU
+    PLQLU = (RHS2[:,0:main.order[0],0:main.order[1],0:main.order[2]] - RHS3[:,0:main.order[0],0:main.order[1],0:main.order[2]])/eps
+#    clf()
+#    plot(PLQLU[:,0,0,0,:,0,0])
+#    pause(0.001)
+    print(np.linalg.norm(PLQLU[0]))
+    main.RHS[:] =  RHS1[:,0:main.order[0],0:main.order[1],0:main.order[2]] #+ 0.0001*PLQLU
+
+def tauModelLinearized(main,MZ,eqns):
+   filtarray = np.zeros(np.shape(MZ.a.a))
+   filtarray[:,0:main.order[0],0:main.order[1],0:main.order[2],:,:,:] = 1.
+   MZ.a.a[:] = 0.  #zero out state variable in MZ class and assign it to be that of the main class
+   MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2]] = main.a.a[:]
+   main.getRHS_Inner(MZ,MZ,eqns) #compute the residual in an enriched space
+   RHS1 = np.zeros(np.shape(MZ.RHS))
+   RHS1f = np.zeros(np.shape(MZ.RHS))
+   RHS1[:] = MZ.RHS[:]
+   RHS1f[:] = RHS1[:] - RHS1[:]*filtarray
+   eqnsLin = equations('Linearized Navier-Stokes',('central','Inviscid') )
+   # now we need to compute the linearized RHS
+   MZ.a.a[:] = 0.  #zero out state variable in MZ class and assign it to be that of the main class
+   MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2]] = main.a.a[:]
+   MZ.getRHS_Inner(MZ,main,eqnsLin,[RHS1f]) ## this is PLQLu
+   PLQLU = MZ.RHS[:,0:main.order[0],0:main.order[1],0:main.order[2]]
+   main.RHS[:] =  RHS1[:,0:main.order[0],0:main.order[1],0:main.order[2]] + main.dx/main.order**2*PLQLU
+   main.comm.Barrier()
+
+
+
+
+def validateLinearized(main,MZ,eqns):
+    # validation of the linearized equations
+    # should have R(a + eps f) - R(a) / eps = Rlin(a)
+    filtarray = np.zeros(np.shape(MZ.a.a))
+    filtarray[:,0:main.order[0],0:main.order[1],0:main.order[2],:,:,:] = 1.
+    MZ.a.a[:] = 0.  #zero out state variable in MZ class and assign it to be that of the main class
+    MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2]] = main.a.a[:]
+    eqnsLin = equations('Linearized Navier-Stokes',('central','Inviscid') )
+    MZ.getRHS_Inner(MZ,MZ,eqns) #compute the residual in an enriched space
+    RHSLin = np.zeros(np.shape(MZ.RHS))
+    RHSLin[:] = MZ.RHS[:]
+    # now we need to compute the linearized RHS via finite difference
+    eps = 1.e-6
+    MZ.a.a[:] = 0.
+    MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2]] = main.a.a[:]
+    MZ.getRHS_Inner(MZ,eqns,eqns)
+    RHS1 = np.zeros(np.shape(MZ.RHS))
+    RHS1[:] = MZ.RHS[:]
+    MZ.a.a[:] = 0.
+    MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2]] = main.a.a[:]
+    MZ.a.a[:] = MZ.a.a[:] + eps*MZ.a.a[:]
+    MZ.getRHS_Inner(MZ,eqns,eqns)
+    RHS2 = np.zeros(np.shape(MZ.RHS))
+    RHS2[:] = MZ.RHS[:]
+    RHSLinFD = (RHS2 - RHS1)/eps
+    print(np.linalg.norm(RHSLin),np.linalg.norm(RHSLinFD) )
+    print(np.linalg.norm(RHSLin[:] -  RHSLinFD[:]) )
+    main.RHS[:] =  RHS1[:,0:main.order[0],0:main.order[1],0:main.order[2]] #+ 0.0001*MZ.RHS[:,0:main.order[0],0:main.order[1],0:main.order[2]]
+
+
+def tauModelValidateLinearized(main,MZ,eqns):
+    filtarray = np.zeros(np.shape(MZ.a.a))
+    filtarray[:,0:main.order[0],0:main.order[1],0:main.order[2],:,:,:] = 1.
+    MZ.a.a[:] = 0.  #zero out state variable in MZ class and assign it to be that of the main class
+    MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2]] = main.a.a[:]
+    MZ.getRHS_Inner(MZ,MZ,eqns) #compute the residual in an enriched space
+    RHS1 = np.zeros(np.shape(MZ.RHS))
+    RHS1f = np.zeros(np.shape(MZ.RHS))
+    RHS1[:] = MZ.RHS[:]
+    RHS1f[:] = RHS1[:] - RHS1[:]*filtarray
+    Z = reconstructUGeneral(main,main.a.a)
+    eqnsLin = equations('Linearized Navier-Stokes',('central','Inviscid') )
+    # now we need to compute the linearized RHS
+    MZ.a.a[:] = 0.  #zero out state variable in MZ class and assign it to be that of the main class
+    MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2]] = main.a.a[:]
+    MZ.getRHS_Inner(MZ,main,eqnsLin,[RHS1f]) ## this is PLQLu
+    PLQLULin = np.zeros(np.shape(MZ.RHS[:,0:main.order[0],0:main.order[1],0:main.order[2]]))
+    PLQLULin[:] = MZ.RHS[:,0:main.order[0],0:main.order[1],0:main.order[2]]
+
+#    print(np.linalg.norm(PLQLU[0]))
+
+    eps = 1.e-5
+    MZ.a.a[:] = 0.
+    MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2]] = main.a.a[:]
+    MZ.getRHS_Inner(MZ,MZ,eqns)
+    RHS1 = np.zeros(np.shape(MZ.RHS))
+    RHS1[:] = MZ.RHS[:]
+    MZ.a.a[:] = 0.
+    MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2]] = main.a.a[:]
+    MZ.a.a[:] = MZ.a.a[:] + eps*RHS1[:]
+    MZ.getRHS_Inner(MZ,MZ,eqns)
+    RHS2 = np.zeros(np.shape(MZ.RHS))
+    RHS2[:] = MZ.RHS[:]
+    MZ.a.a[:] = 0.
+    MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2]] = main.a.a[:]
+    MZ.a.a[:] = MZ.a.a[:] + eps*RHS1[:]*filtarray
+    MZ.getRHS_Inner(MZ,MZ,eqns)
+    RHS3 = np.zeros(np.shape(MZ.RHS))
+    RHS3[:] = MZ.RHS[:]
+    PLQLUFD = (RHS2[:,0:main.order[0],0:main.order[1],0:main.order[2]] - RHS3[:,0:main.order[0],0:main.order[1],0:main.order[2]])/eps
+
+    print(np.linalg.norm(PLQLULin),np.linalg.norm(PLQLUFD) )
+    print(np.linalg.norm(PLQLULin[4] - PLQLUFD[4] ))
+    main.RHS[:] =  RHS1[:,0:main.order[0],0:main.order[1],0:main.order[2]] #+ 0.0001*MZ.RHS[:,0:main.order[0],0:main.order[1],0:main.order[2]]
+
+    plt.clf()
+    plt.plot(PLQLULin[4,1,0,0,:,0,0])
+    plt.plot( PLQLUFD[4,1,0,0,:,0,0],'o')
+    plt.pause(0.001)
+    main.comm.Barrier()
+
 
 
 def DtauModel(main,MZ,eqns,schemes):

@@ -4,7 +4,7 @@ import numpy as np
 
 
 ###### ====== Inviscid Fluxes Fluxes and Eigen Values (Eigenvalues currently not in use) ==== ############
-def evalFluxXEuler(u,f): 
+def evalFluxXEuler(u,f,args): 
   #f = np.zeros(np.shape(u))
   es = 1.e-30
   gamma = 1.4
@@ -15,7 +15,8 @@ def evalFluxXEuler(u,f):
   f[3] = u[1]*u[3]/(u[0])
   f[4] = (u[4] + p)*u[1]/(u[0])
 
-def evalFluxYEuler(u,f):
+
+def evalFluxYEuler(u,f,args):
   #f = np.zeros(np.shape(u))
   gamma = 1.4
   p = (gamma - 1.)*(u[4] - 0.5*u[1]**2/u[0] - 0.5*u[2]**2/u[0] - 0.5*u[3]**2/u[0])
@@ -25,7 +26,9 @@ def evalFluxYEuler(u,f):
   f[3] = u[2]*u[3]/u[0] 
   f[4] = (u[4] + p)*u[2]/u[0]
 
-def evalFluxZEuler(u,f):
+
+
+def evalFluxZEuler(u,f,args):
   #f = np.zeros(np.shape(u))
   gamma = 1.4
   p = (gamma - 1.)*(u[4] - 0.5*u[1]**2/u[0] - 0.5*u[2]**2/u[0] - 0.5*u[3]**2/u[0])
@@ -34,6 +37,72 @@ def evalFluxZEuler(u,f):
   f[2] = u[2]*u[3]/u[0] 
   f[3] = u[3]*u[3]/u[0] + p 
   f[4] = (u[4] + p)*u[3]/u[0]
+
+
+def evalFluxXEulerLin(U0,f,args): 
+  up = args[0]
+  #decompose as U = U0 + up, where up is the perturbation
+  #f = np.zeros(np.shape(u))
+  es = 1.e-30
+  gamma = 1.4
+  u = U0[1]/U0[0]
+  v = U0[2]/U0[0]
+  w = U0[3]/U0[0]
+  qsqr = u**2 + v**2 + w**2
+  # compute H in three steps (H = E + p/rho)
+  H = (gamma - 1.)*(U0[4] - 0.5*U0[0]*qsqr) #compute pressure
+  H += U0[4]
+  H /= U0[0]
+  f[0] = up[1]
+  f[1] = ( (gamma - 1.)/2.*qsqr - u**2)*up[0] + (3. - gamma)*u*up[1] + (1. - gamma)*v*up[2] + \
+         (1. - gamma)*w*up[3] + (gamma - 1.)*up[4]
+  f[2] = -u*v*up[0] + v*up[1] + u*up[2]
+  f[3] = -u*w*up[0] + w*up[1] + u*up[3]
+  f[4] = ((gamma - 1.)/2.*qsqr - H)*u*up[0] + (H + (1. - gamma)*u**2)*up[1] + (1. - gamma)*u*v*up[2] + \
+         (1. - gamma)*u*w*up[3] + gamma*u*up[4]
+
+
+def evalFluxYEulerLin(U0,f,args):
+  up = args[0]
+  gamma = 1.4
+  u = U0[1]/U0[0]
+  v = U0[2]/U0[0]
+  w = U0[3]/U0[0]
+  qsqr = u**2 + v**2 + w**2
+  # compute H in three steps (H = E + p/rho)
+  H = (gamma - 1.)*(U0[4] - 0.5*U0[0]*qsqr) #compute pressure
+  H += U0[4]
+  H /= U0[0]
+  f[0] = up[2]
+  f[1] = -v*u*up[0] + v*up[1] + u*up[2]
+  f[2] = ( (gamma - 1.)/2.*qsqr - v**2)*up[0] + (1. - gamma)*u*up[1] + (3. - gamma)*v*up[2] + \
+         (1. - gamma)*w*up[3] + (gamma - 1.)*up[4]
+  f[3] = -v*w*up[0] + w*up[2] + v*up[3]
+  f[4] = ((gamma - 1.)/2.*qsqr - H)*v*up[0] + (1. - gamma)*u*v*up[1] + (H + (1. - gamma)*v**2)*up[2] + \
+         (1. - gamma)*v*w*up[3] + gamma*v*up[4]
+
+
+
+def evalFluxZEulerLin(U0,f,args):
+  up = args[0]
+  gamma = 1.4
+  u = U0[1]/U0[0]
+  v = U0[2]/U0[0]
+  w = U0[3]/U0[0]
+  qsqr = u**2 + v**2 + w**2
+  # compute H in three steps (H = E + p/rho)
+  H = (gamma - 1.)*(U0[4] - 0.5*U0[0]*qsqr) #compute pressure
+  H += U0[4]
+  H /= U0[0]
+  f[0] = up[3]
+  f[1] = -u*w*up[0] + w*up[1] + u*up[3]
+  f[2] = -v*w*up[0] + w*up[2] + v*up[3]
+  f[3] = ( (gamma - 1.)/2.*qsqr - w**2)*up[0] + (1. - gamma)*u*up[1] + (1. - gamma)*v*up[2] + \
+         (3. - gamma)*w*up[3] + (gamma - 1.)*up[4]
+  f[4] = ((gamma - 1.)/2.*qsqr - H)*w*up[0] + (1. - gamma)*u*w*up[1] + (1. - gamma)*v*w*up[2] + \
+          (H + (1. - gamma)*w**2)*up[3] + gamma*w*up[4]
+
+
 
 def getEigs(ustarLR,ustarUD,ustarFB):
   eigsLR = zeros(shape(ustarLR))
@@ -60,7 +129,7 @@ def getEigs(ustarLR,ustarUD,ustarFB):
 #== rusanov flux
 #== Roe flux
 
-def eulercentralflux(UL,UR,n):
+def eulerCentralFlux(UL,UR,n,args=None):
 # PURPOSE: This function calculates the flux for the Euler equations
 # using the Roe flux function
 #
@@ -122,7 +191,58 @@ def eulercentralflux(UL,UR,n):
   F[4]    = 0.5*(FL[4]+FR[4])#-0.5*smax*(UR[4] - UL[4])
   return F
 
-def rusanovFlux(UL,UR,n):
+
+def eulerCentralFluxLinearized(U0L,U0R,n,args):
+  gamma = 1.4
+  upL = args[0]
+  upR = args[1]
+  K = gamma - 1.
+  uL = U0L[1]/U0L[0]
+  vL = U0L[2]/U0L[0]
+  wL = U0L[3]/U0L[0]
+  uR = U0R[1]/U0R[0]
+  vR = U0R[2]/U0R[0]
+  wR = U0R[3]/U0R[0]
+
+  qnL = uL*n[0] + vL*n[1] + wL*n[2]
+  qnR = uR*n[0] + vR*n[1] + wR*n[2]
+  qsqrL = uL**2 + vL**2 + wL**2
+  qsqrR = uR**2 + vR**2 + wR**2
+
+  # compute H in three steps (H = E + p/rho)
+  HL = (gamma - 1.)*(U0L[4] - 0.5*U0L[0]*qsqrL) #compute pressure
+  HL += U0L[4]
+  HL /= U0L[0]
+  HR = (gamma - 1.)*(U0R[4] - 0.5*U0R[0]*qsqrR) #compute pressure
+  HR += U0R[4]
+  HR /= U0R[0]
+  
+  FL = np.zeros(np.shape(U0L))
+  FR = np.zeros(np.shape(U0R))
+
+  #Evaluate linearized normal flux (evaluated as dF/dU V nx + dG/dU v ny + dH/dU v nz. Jacobiam from I do like CFD, vol II) 
+  FL[0] = n[0]*upL[1] + n[1]*upL[2] + n[2]*upL[3]
+  FL[1] = (K/2.*qsqrL*n[0] - uL*qnL)*upL[0] + (uL*n[0] - K*uL*n[0] + qnL)*upL[1] + (uL*n[1] - K*vL*n[0])*upL[2] + (uL*n[2] - K*wL*n[0])*upL[3] + K*n[0]*upL[4]
+  FL[2] = (K/2.*qsqrL*n[1] - vL*qnL)*upL[0] + (vL*n[0] - K*uL*n[1])*upL[1] + (vL*n[1] - K*vL*n[1] + qnL)*upL[2] + (vL*n[2] - K*wL*n[1])*upL[3] + K*n[1]*upL[4]
+  FL[3] = (K/2.*qsqrL*n[2] - wL*qnL)*upL[0] + (wL*n[0] - K*uL*n[2])*upL[1] + (wL*n[1] - K*vL*n[2])*upL[2] + (wL*n[2] - K*wL*n[2] + qnL)*upL[3] + K*n[2]*upL[4]
+  FL[4] = (K/2.*qsqrL - HL)*qnL*upL[0] + (HL*n[0] - K*uL*qnL)*upL[1] + (HL*n[1] - K*vL*qnL)*upL[2] + (HL*n[2] - K*wL*qnL)*upL[3] + gamma*qnL*upL[4]
+
+  FR[0] = n[0]*upR[1] + n[1]*upR[2] + n[2]*upR[3]
+  FR[1] = (K/2.*qsqrR*n[0] - uR*qnR)*upR[0] + (uR*n[0] - K*uR*n[0] + qnR)*upR[1] + (uR*n[1] - K*vR*n[0])*upR[2] + (uR*n[2] - K*wR*n[0])*upR[3] + K*n[0]*upR[4]
+  FR[2] = (K/2.*qsqrR*n[1] - vR*qnR)*upR[0] + (vR*n[0] - K*uR*n[1])*upR[1] + (vR*n[1] - K*vR*n[1] + qnR)*upR[2] + (vR*n[2] - K*wR*n[1])*upR[3] + K*n[1]*upR[4]
+  FR[3] = (K/2.*qsqrR*n[2] - wR*qnR)*upR[0] + (wR*n[0] - K*uR*n[2])*upR[1] + (wR*n[1] - K*vR*n[2])*upR[2] + (wR*n[2] - K*wR*n[2] + qnR)*upR[3] + K*n[2]*upR[4]
+  FR[4] = (K/2.*qsqrR - HR)*qnR*upR[0] + (HR*n[0] - K*uR*qnR)*upR[1] + (HR*n[1] - K*vR*qnR)*upR[2] + (HR*n[2] - K*wR*qnR)*upR[3] + gamma*qnR*upR[4]
+
+  F = np.zeros(np.shape(FL))  
+  F[0]    = 0.5*(FL[0]+FR[0])
+  F[1]    = 0.5*(FL[1]+FR[1])
+  F[2]    = 0.5*(FL[2]+FR[2])
+  F[3]    = 0.5*(FL[3]+FR[3])
+  F[4]    = 0.5*(FL[4]+FR[4])
+  return F
+
+
+def rusanovFlux(UL,UR,n,args=None):
 # PURPOSE: This function calculates the flux for the Euler equations
 # using the Roe flux function
 #
@@ -217,7 +337,7 @@ def rusanovFlux(UL,UR,n):
                
   
 
-def kfid_roeflux(UL,UR,n):
+def kfid_roeflux(UL,UR,n,args=None):
 # PURPOSE: This function calculates the flux for the Euler equations
 # using the Roe flux function
 #

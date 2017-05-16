@@ -3,39 +3,9 @@ from fluxSchemes import *
 from navier_stokes import evalViscousFluxZNS_IP
 from navier_stokes import evalViscousFluxYNS_IP
 from navier_stokes import evalViscousFluxXNS_IP
+from tensor_products import *
+from turb_models import *
 import time
-#def reconstructU(main,var):
-#  var.u[:] = 0.
-#  #var.u = np.einsum('lmpq,klmij->kpqij',main.w[:,None,:,None]*main.w[None,:,None,:],var.a) ## this is actually much slower than the two line code
-#  tmp =  np.einsum('rn,zpqr...->zpqn...',main.w,var.a)
-#  tmp = np.einsum('qm,zpqn...->zpmn...',main.w,tmp)
-#  var.u = np.einsum('pl,zpmn...->zlmn...',main.w,tmp)
-
-#def reconstructUGeneral(main,a):
-#  tmp =  np.einsum('rn,zpqr...->zpqn...',main.w,a)
-#  tmp = np.einsum('qm,zpqn...->zpmn...',main.w,tmp)
-#  return np.einsum('pl,zpmn...->zlmn...',main.w,tmp)
-
-
-def reconstructU(main,var):
-  var.u[:] = 0.
-  tmp = np.tensordot(var.a,main.w0,axes=([1],[0])) 
-  tmp = np.tensordot(tmp,main.w1,axes=([1],[0])) 
-  tmp = np.tensordot(tmp,main.w2,axes=([1],[0])) 
-#  var.u = np.swapaxes( np.swapaxes( np.swapaxes( tmp , 1 , 4) , 2 , 5), 3, 6)
-  var.u = np.rollaxis( np.rollaxis( np.rollaxis( tmp , -3 , 1) , -2 , 2), -1, 3)
-
-def reconstructUGeneral(main,a):
-  tmp = np.tensordot(a,main.w0,axes=([1],[0])) 
-  tmp = np.tensordot(tmp,main.w1,axes=([1],[0])) 
-  tmp = np.tensordot(tmp,main.w2,axes=([1],[0])) 
-  #return np.swapaxes( np.swapaxes( np.swapaxes( tmp , 1 , 4) , 2 , 5), 3, 6)
-  return np.rollaxis( np.rollaxis( np.rollaxis( tmp , -3 , 1) , -2 , 2), -1, 3)
-
-def reconstructU2(main,var):
-  var.u[:] = 0.
-  var.u = np.einsum('pqrlmn,zpqr...->zlmn...',main.w[:,None,None,:,None,None]*main.w[None,:,None,None,:,None]*main.w[None,None,:,None,None,:],var.a) ## this is actually much slower than the two line code
-
 
 def diffU(a,main):
   tmp = np.tensordot(a,main.wp0,axes=([1],[0]))
@@ -520,133 +490,6 @@ def diffCoeffs(a):
 
 
 
-def reconstructEdgesGeneral(a,main):
-  nvars = np.shape(a)[0]
-  aR = np.einsum('zpqrijk->zqrijk',a)
-  aL = np.einsum('zpqrijk->zqrijk',a*main.altarray0[None,:,None,None,None,None,None])
-
-  aU = np.einsum('zpqrijk->zprijk',a)
-  aD = np.einsum('zpqrijk->zprijk',a*main.altarray1[None,None,:,None,None,None,None])
-
-  aF = np.einsum('zpqrijk->zpqijk',a)
-  aB = np.einsum('zpqrijk->zpqijk',a*main.altarray2[None,None,None,:,None,None,None])
-
-#  uU = np.zeros((main.nvars,main.quadpoints,main.quadpoints,main.Npx,main.Npy,main.Npz))
-  # need to do 2D reconstruction to the gauss points on each face
-  tmp = np.tensordot(aR,main.w1,axes=([1],[0])) #reconstruct in y and z
-  tmp = np.tensordot(tmp,main.w2,axes=([1],[0]))
-  uR = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
-  tmp = np.tensordot(aL,main.w1,axes=([1],[0]))
-  tmp = np.tensordot(tmp,main.w2,axes=([1],[0]))
-  uL = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
-
-  tmp = np.tensordot(aU,main.w0,axes=([1],[0])) #reconstruct in x and z 
-  tmp = np.tensordot(tmp,main.w2,axes=([1],[0]))
-  uU = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
-  tmp = np.tensordot(aD,main.w0,axes=([1],[0]))
-  tmp = np.tensordot(tmp,main.w2,axes=([1],[0]))
-  uD = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
-
-  tmp = np.tensordot(aF,main.w0,axes=([1],[0])) #reconstruct in x and y 
-  tmp = np.tensordot(tmp,main.w1,axes=([1],[0]))
-  uF = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
-  tmp = np.tensordot(aB,main.w0,axes=([1],[0]))
-  tmp = np.tensordot(tmp,main.w1,axes=([1],[0]))
-  uB = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
-  return uR,uL,uU,uD,uF,uB
-
-
-
-def reconstructEdgesGeneral2(a,main):
-  nvars = np.shape(a)[0]
-  aR = np.einsum('zpqrijk->zqrijk',a)
-  aL = np.einsum('zpqrijk->zqrijk',a*main.altarray[None,:,None,None,None,None,None])
-
-  aU = np.einsum('zpqrijk->zprijk',a)
-  aD = np.einsum('zpqrijk->zprijk',a*main.altarray[None,None,:,None,None,None,None])
-
-  aF = np.einsum('zpqrijk->zpqijk',a)
-  aB = np.einsum('zpqrijk->zpqijk',a*main.altarray[None,None,None,:,None,None,None])
-
-#  uU = np.zeros((main.nvars,main.quadpoints,main.quadpoints,main.Npx,main.Npy,main.Npz))
-  # need to do 2D reconstruction to the gauss points on each face
-  tmp = np.einsum('rn,zqrijk->zqnijk',main.w,aR)
-  uR  = np.einsum('qm,zqnijk->zmnijk',main.w,tmp)
-  tmp = np.einsum('rn,zqrijk->zqnijk',main.w,aL)
-  uL  = np.einsum('qm,zqnijk->zmnijk',main.w,tmp)
-
-  tmp = np.einsum('rn,zprijk->zpnijk',main.w,aU)
-  uU  = np.einsum('pl,zpnijk->zlnijk',main.w,tmp)
-  tmp = np.einsum('rn,zprijk->zpnijk',main.w,aD)
-  uD  = np.einsum('pl,zpnijk->zlnijk',main.w,tmp)
-
-  tmp = np.einsum('qm,zpqijk->zpmijk',main.w,aF)
-  uF  = np.einsum('pl,zpmijk->zlmijk',main.w,tmp)
-  tmp = np.einsum('qm,zpqijk->zpmijk',main.w,aB)
-  uB  = np.einsum('pl,zpmijk->zlmijk',main.w,tmp)
-  return uR,uL,uU,uD,uF,uB
-
-
-def reconstructEdgeEdgesGeneral(main):
-  aL = np.einsum('zpqr...->zqr...',main.a.aL_edge)
-  aR = np.einsum('zpqr...->zqr...',main.a.aR_edge*main.altarray0[None,:,None,None,None,None])
-
-  aD = np.einsum('zpqr...->zpr...',main.a.aD_edge)
-  aU = np.einsum('zpqr...->zpr...',main.a.aU_edge*main.altarray1[None,None,:,None,None,None])
-
-  aB = np.einsum('zpqr...->zpq...',main.a.aB_edge)
-  aF = np.einsum('zpqr...->zpq...',main.a.aF_edge*main.altarray2[None,None,None,:,None,None])
-#  uU = np.zeros((main.nvars,main.quadpoints,main.quadpoints,main.Npx,main.Npy,main.Npz))
-  # need to do 2D reconstruction to the gauss points on each face
-  tmp = np.tensordot(aR,main.w1,axes=([1],[0])) #reconstruct in y and z
-  tmp = np.tensordot(tmp,main.w2,axes=([1],[0]))
-  uR = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
-  tmp = np.tensordot(aL,main.w1,axes=([1],[0]))
-  tmp = np.tensordot(tmp,main.w2,axes=([1],[0]))
-  uL = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
-
-  tmp = np.tensordot(aU,main.w0,axes=([1],[0])) #reconstruct in x and z 
-  tmp = np.tensordot(tmp,main.w2,axes=([1],[0]))
-  uU = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
-  tmp = np.tensordot(aD,main.w0,axes=([1],[0]))
-  tmp = np.tensordot(tmp,main.w2,axes=([1],[0]))
-  uD = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
-
-  tmp = np.tensordot(aF,main.w0,axes=([1],[0])) #reconstruct in x and y 
-  tmp = np.tensordot(tmp,main.w1,axes=([1],[0]))
-  uF = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
-  tmp = np.tensordot(aB,main.w0,axes=([1],[0]))
-  tmp = np.tensordot(tmp,main.w1,axes=([1],[0]))
-  uB = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
-  return uR,uL,uU,uD,uF,uB
-
-def reconstructEdgeEdgesGeneral2(main):
-  aL = np.einsum('zpqr...->zqr...',main.a.aL_edge)
-  aR = np.einsum('zpqr...->zqr...',main.a.aR_edge*main.altarray[None,:,None,None,None,None])
-
-  aD = np.einsum('zpqr...->zpr...',main.a.aD_edge)
-  aU = np.einsum('zpqr...->zpr...',main.a.aU_edge*main.altarray[None,None,:,None,None,None])
-
-  aB = np.einsum('zpqr...->zpq...',main.a.aB_edge)
-  aF = np.einsum('zpqr...->zpq...',main.a.aF_edge*main.altarray[None,None,None,:,None,None])
-
-#  uU = np.zeros((main.nvars,main.quadpoints,main.quadpoints,main.Npx,main.Npy,main.Npz))
-  # need to do 2D reconstruction to the gauss points on each face
-  tmp = np.einsum('rn,zqr...->zqn...',main.w,aR)
-  uR  = np.einsum('qm,zqn...->zmn...',main.w,tmp)
-  tmp = np.einsum('rn,zqr...->zqn...',main.w,aL)
-  uL  = np.einsum('qm,zqn...->zmn...',main.w,tmp)
-
-  tmp = np.einsum('rn,zpr...->zpn...',main.w,aU)
-  uU  = np.einsum('pl,zpn...->zln...',main.w,tmp)
-  tmp = np.einsum('rn,zpr...->zpn...',main.w,aD)
-  uD  = np.einsum('pl,zpn...->zln...',main.w,tmp)
-
-  tmp = np.einsum('qm,zpq...->zpm...',main.w,aF)
-  uF  = np.einsum('pl,zpm...->zlm...',main.w,tmp)
-  tmp = np.einsum('qm,zpq...->zpm...',main.w,aB)
-  uB  = np.einsum('pl,zpm...->zlm...',main.w,tmp)
-  return uR,uL,uU,uD,uF,uB
 
 
 def volIntegrateGlob(main,f,w1,w2,w3):
@@ -673,7 +516,7 @@ def faceIntegrateGlob2(main,f,w1,w2,weights0,weights1):
 
 
 
-def getFlux(main,eqns):
+def getFlux(main,MZ,eqns,args):
   # first reconstruct states
   main.a.uR,main.a.uL,main.a.uU,main.a.uD,main.a.uF,main.a.uB = reconstructEdgesGeneral(main.a.a,main)
   #print('first ' + str(np.amax(np.abs(main.a.uD[1,:,:,:,0,:]/main.a.uD[0,:,:,:,0,:] ) )  ))
@@ -683,14 +526,14 @@ def getFlux(main,eqns):
 
   #main.a.aR_edge[:],main.a.aL_edge[:],main.a.aU_edge[:],main.a.aD_edge[:],main.a.aF_edge[:],main.a.aB_edge[:] = sendaEdgesGeneralSlab(main.a.a,main)
   #main.a.uR_edge[:],main.a.uL_edge[:],main.a.uU_edge[:],main.a.uD_edge[:],main.a.uF_edge[:],main.a.uB_edge[:] = reconstructEdgeEdgesGeneral(main)
-  inviscidFlux(main,eqns,main.iFlux,main.a)
+  inviscidFluxGen(main,eqns,main.iFlux,main.a,args)
   # now we need to integrate along the boundary 
-  main.iFlux.fRI = faceIntegrateGlob(main,main.iFlux.fRS,main.w1,main.w2,main.weights1,main.weights2)
-  main.iFlux.fLI = faceIntegrateGlob(main,main.iFlux.fLS,main.w1,main.w2,main.weights1,main.weights2)
-  main.iFlux.fUI = faceIntegrateGlob(main,main.iFlux.fUS,main.w0,main.w2,main.weights0,main.weights2)
-  main.iFlux.fDI = faceIntegrateGlob(main,main.iFlux.fDS,main.w0,main.w2,main.weights0,main.weights2)
-  main.iFlux.fFI = faceIntegrateGlob(main,main.iFlux.fFS,main.w0,main.w1,main.weights0,main.weights1)
-  main.iFlux.fBI = faceIntegrateGlob(main,main.iFlux.fBS,main.w0,main.w1,main.weights0,main.weights1)
+  main.iFlux.fRI = faceIntegrateGlob(main,main.iFlux.fRS,MZ.w1,MZ.w2,MZ.weights1,MZ.weights2)
+  main.iFlux.fLI = faceIntegrateGlob(main,main.iFlux.fLS,MZ.w1,MZ.w2,MZ.weights1,MZ.weights2)
+  main.iFlux.fUI = faceIntegrateGlob(main,main.iFlux.fUS,MZ.w0,MZ.w2,MZ.weights0,MZ.weights2)
+  main.iFlux.fDI = faceIntegrateGlob(main,main.iFlux.fDS,MZ.w0,MZ.w2,MZ.weights0,MZ.weights2)
+  main.iFlux.fFI = faceIntegrateGlob(main,main.iFlux.fFS,MZ.w0,MZ.w1,MZ.weights0,MZ.weights1)
+  main.iFlux.fBI = faceIntegrateGlob(main,main.iFlux.fBS,MZ.w0,MZ.w1,MZ.weights0,MZ.weights1)
 
 
 #def volIntegrateGlob(main,f,w1,w2,w3):
@@ -698,17 +541,15 @@ def getFlux(main,eqns):
 #  tmp = np.einsum('mq,zpqnijk->zpmnijk',w2,main.weights[None,None,:,None,None,None,None]*tmp)
 #  return np.einsum('lp,zpmnijk->zlmnijk',w1,main.weights[None,:,None,None,None,None,None]*tmp)
 
-
-
-def getRHS_IP(main,eqns):
+def getRHS_IP(main,MZ,eqns,args=[]):
   t0 = time.time()
   reconstructU(main,main.a)
   # evaluate inviscid flux
-  getFlux(main,eqns)
+  getFlux(main,MZ,eqns,args)
   ### Get interior vol terms
-  eqns.evalFluxX(main.a.u,main.iFlux.fx)
-  eqns.evalFluxY(main.a.u,main.iFlux.fy)
-  eqns.evalFluxZ(main.a.u,main.iFlux.fz)
+  eqns.evalFluxX(main.a.u,main.iFlux.fx,args)
+  eqns.evalFluxY(main.a.u,main.iFlux.fy,args)
+  eqns.evalFluxZ(main.a.u,main.iFlux.fz,args)
 
   # now get viscous flux
   fvRIG11,fvLIG11,fvRIG21,fvLIG21,fvRIG31,fvLIG31,fvUIG12,fvDIG12,fvUIG22,fvDIG22,fvUIG32,fvDIG32,fvFIG13,fvBIG13,fvFIG23,fvBIG23,fvFIG33,fvBIG33,fvR2I,fvL2I,fvU2I,fvD2I,fvF2I,fvB2I = getViscousFlux(main,eqns) ##takes roughly 20% of the time
@@ -718,17 +559,6 @@ def getRHS_IP(main,eqns):
   upy = upy*2./main.dy
   upz = upz*2./main.dz
  # G11,G12,G13,G21,G22,G23,G31,G32,G33 = eqns.getGs(main.a.u,main)
-
-
-#  fvGX = np.sum(G11*upx,axis=1)
-#  fvGX += np.sum(G12*upy,axis=1)
-#  fvGX += np.sum(G13*upz,axis=1)
-#  fvGY = np.sum(G21*upx,axis=1)
-#  fvGY += np.sum(G22*upy,axis=1)
-#  fvGY += np.sum(G23*upz,axis=1)
-#  fvGZ = np.sum(G31*upx,axis=1)
-#  fvGZ += np.sum(G32*upy,axis=1)
-#  fvGZ += np.sum(G33*upz,axis=1)
  # fvGX = np.einsum('ij...,j...->i...',G11,upx)
  # fvGX += np.einsum('ij...,j...->i...',G12,upy)
  # fvGX += np.einsum('ij...,j...->i...',G13,upz)
@@ -777,36 +607,42 @@ def getRHS_IP(main,eqns):
   main.comm.Barrier()
 
 
-
-def getRHS_INVISCID(main,eqns):
+def getRHS_INVISCID(main,MZ,eqns,args=[]):
   t0 = time.time()
   reconstructU(main,main.a)
-  order = np.shape(main.a.a)[1]
   # evaluate inviscid flux
-  getFlux(main,eqns)
+  getFlux(main,MZ,eqns,args )
+
   ### Get interior vol terms
-  eqns.evalFluxX(main.a.u,main.iFlux.fx)
-  eqns.evalFluxY(main.a.u,main.iFlux.fy)
-  eqns.evalFluxZ(main.a.u,main.iFlux.fz)
+  nargs = np.shape(args)[0]
+  args_u = []
+  for i in range(0,nargs):
+    tmp = reconstructUGeneral(main,args[i])
+    args_u.append(tmp)
+  eqns.evalFluxX(main.a.u,main.iFlux.fx,args_u)
+  eqns.evalFluxY(main.a.u,main.iFlux.fy,args_u)
+  eqns.evalFluxZ(main.a.u,main.iFlux.fz,args_u)
   # Now form RHS
   t1 = time.time()
   ## This is important. Do partial integrations in each direction to avoid doing for each ijk
-  ord_arr0= np.linspace(0,main.order[0]-1,main.order[0])
-  ord_arr1= np.linspace(0,main.order[1]-1,main.order[1])
-  ord_arr2= np.linspace(0,main.order[2]-1,main.order[2])
+  ord_arr0= np.linspace(0,MZ.order[0]-1,MZ.order[0])
+  ord_arr1= np.linspace(0,MZ.order[1]-1,MZ.order[1])
+  ord_arr2= np.linspace(0,MZ.order[2]-1,MZ.order[2])
 
   scale =  (2.*ord_arr0[:,None,None] + 1.)*(2.*ord_arr1[None,:,None] + 1.)*(2.*ord_arr2[None,None,:]+1.)/8.
+#  print('got here')
+
   dxi = 2./main.dx*scale
   dyi = 2./main.dy*scale
   dzi = 2./main.dz*scale
-  v1ijk = volIntegrateGlob(main,main.iFlux.fx ,main.wp0,main.w1,main.w2)*dxi[None,:,:,:,None,None,None]
-  v2ijk = volIntegrateGlob(main,main.iFlux.fy ,main.w0,main.wp1,main.w2)*dyi[None,:,:,:,None,None,None]
-  v3ijk = volIntegrateGlob(main,main.iFlux.fz ,main.w0,main.w1,main.wp2)*dzi[None,:,:,:,None,None,None]
+  v1ijk = volIntegrateGlob(main,main.iFlux.fx ,MZ.wp0,MZ.w1,MZ.w2)*dxi[None,:,:,:,None,None,None]
+  v2ijk = volIntegrateGlob(main,main.iFlux.fy ,MZ.w0,MZ.wp1,MZ.w2)*dyi[None,:,:,:,None,None,None]
+  v3ijk = volIntegrateGlob(main,main.iFlux.fz ,MZ.w0,MZ.w1,MZ.wp2)*dzi[None,:,:,:,None,None,None]
 
   tmp = v1ijk + v2ijk + v3ijk
-  tmp +=  (-main.iFlux.fRI[:,None,:,:] + main.iFlux.fLI[:,None,:,:]*main.altarray0[None,:,None,None,None,None,None])*dxi[None,:,:,:,None,None,None]
-  tmp +=  (-main.iFlux.fUI[:,:,None,:] + main.iFlux.fDI[:,:,None,:]*main.altarray1[None,None,:,None,None,None,None])*dyi[None,:,:,:,None,None,None]
-  tmp +=  (-main.iFlux.fFI[:,:,:,None] + main.iFlux.fBI[:,:,:,None]*main.altarray2[None,None,None,:,None,None,None])*dzi[None,:,:,:,None,None,None]
+  tmp +=  (-main.iFlux.fRI[:,None,:,:] + main.iFlux.fLI[:,None,:,:]*MZ.altarray0[None,:,None,None,None,None,None])*dxi[None,:,:,:,None,None,None]
+  tmp +=  (-main.iFlux.fUI[:,:,None,:] + main.iFlux.fDI[:,:,None,:]*MZ.altarray1[None,None,:,None,None,None,None])*dyi[None,:,:,:,None,None,None]
+  tmp +=  (-main.iFlux.fFI[:,:,:,None] + main.iFlux.fBI[:,:,:,None]*MZ.altarray2[None,None,None,:,None,None,None])*dzi[None,:,:,:,None,None,None]
   main.RHS = tmp
   main.comm.Barrier()
 
