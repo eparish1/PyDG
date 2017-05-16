@@ -205,7 +205,7 @@ class variables:
     if (turb_str == 'DNS'):
       self.getRHS = self.getRHS_Inner
     if (turb_str == 'tau-model'):
-      self.getRHS = tauModelLinearized
+      self.getRHS = tauModelFD#Linearized
     if (turb_str == 'tau-modelFD'):
       self.getRHS = tauModelFD
 

@@ -41,11 +41,7 @@ def tauModelFD(main,MZ,eqns):
     RHS3 = np.zeros(np.shape(MZ.RHS))
     RHS3[:] = MZ.RHS[:]
     PLQLU = (RHS2[:,0:main.order[0],0:main.order[1],0:main.order[2]] - RHS3[:,0:main.order[0],0:main.order[1],0:main.order[2]])/eps
-#    clf()
-#    plot(PLQLU[:,0,0,0,:,0,0])
-#    pause(0.001)
-    print(np.linalg.norm(PLQLU[0]))
-    main.RHS[:] =  RHS1[:,0:main.order[0],0:main.order[1],0:main.order[2]] #+ 0.0001*PLQLU
+    main.RHS[:] =  RHS1[:,0:main.order[0],0:main.order[1],0:main.order[2]] + main.dx/MZ.order[0]**2*PLQLU
 
 def tauModelLinearized(main,MZ,eqns):
    filtarray = np.zeros(np.shape(MZ.a.a))
