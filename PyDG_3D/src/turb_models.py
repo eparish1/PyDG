@@ -25,7 +25,7 @@ def tauModelFD(main,MZ,eqns):
     eps = 1.e-5
     MZ.a.a[:] = 0.
     MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2]] = main.a.a[:]
-    MZ.getRHS_Inner(MZ,MZ,eqns)
+    main.getRHS_Inner(MZ,MZ,eqns)
     RHS1 = np.zeros(np.shape(MZ.RHS))
     RHS1[:] = MZ.RHS[:]
     MZ.a.a[:] = 0.
