@@ -190,12 +190,6 @@ class variables:
     self.a0 = np.zeros((eqns.nvars,self.order[0],self.order[1],self.order[2],self.Npx,self.Npy,self.Npz))
     self.a = variable(eqns.nvars,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz)
     self.iFlux = fluxvariable(eqns.nvars,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz)
-    if (eqns.vflux_type == 'BR1'):
-      self.getRHS_Inner = getRHS_BR1
-    if (eqns.vflux_type == 'IP'): 
-      self.getRHS_Inner = getRHS_IP
-    if (eqns.vflux_type == 'Inviscid'): 
-      self.getRHS_Inner = getRHS_INVISCID
 
     self.getFlux = getFlux
     self.RHS = np.zeros((eqns.nvars,self.order[0],self.order[1],self.order[2],self.Npx,self.Npy,self.Npz))
@@ -203,15 +197,12 @@ class variables:
     ### Check turbulence models
     self.turb_str = turb_str
     if (turb_str == 'DNS'):
-      self.getRHS = self.getRHS_Inner
+      self.getRHS = DNS
     if (turb_str == 'tau-model'):
-      self.getRHS = tauModelFD#Linearized
+      self.getRHS = tauModelLinearized
     if (turb_str == 'tau-modelFD'):
       self.getRHS = tauModelFD
-
-#    if (turb_str == 'dynamic-tau model'):
-#      self.turb_model = DtauModel
-#    if (turb_str == 'orthogonal dynamics'):
-#      self.turb_model = orthogonalDynamics
+    if (turb_str == 'FM1'):
+      self.getRHS = FM1Linearized 
 
 

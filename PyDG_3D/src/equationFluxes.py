@@ -20,6 +20,7 @@ def evalFluxZLA(u,f):
 #######################################################################
 ###### ====== Euler Fluxes and Eigen Values ==== ############
 def evalFluxXEuler(u,f):
+  print('i am here')
   #f = np.zeros(np.shape(u))
   es = 1.e-30
   gamma = 1.4

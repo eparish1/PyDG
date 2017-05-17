@@ -73,7 +73,7 @@ def getIC(main,f,x,y,z):
   ord_arrz= np.linspace(0,order[2]-1,order[2])
   scale =  (2.*ord_arrx[:,None,None] + 1.)*(2.*ord_arry[None,:,None] + 1.)*(2.*ord_arrz[None,None,:]+1.)/8.
   U = f(x,y,z,main.gas)
-  main.a.a[:] = volIntegrateGlob(main,U,main.w0,main.w1,main.w2)*scale[None,:,:,:,None,None,None]
+  main.a.a[0:5] = volIntegrateGlob(main,U,main.w0,main.w1,main.w2)*scale[None,:,:,:,None,None,None]
 
 
 if 'source' in globals():

@@ -4,7 +4,6 @@ from navier_stokes import evalViscousFluxZNS_IP
 from navier_stokes import evalViscousFluxYNS_IP
 from navier_stokes import evalViscousFluxXNS_IP
 from tensor_products import *
-from turb_models import *
 import time
 
 def diffU(a,main):
@@ -519,11 +518,7 @@ def faceIntegrateGlob2(main,f,w1,w2,weights0,weights1):
 def getFlux(main,MZ,eqns,args):
   # first reconstruct states
   main.a.uR,main.a.uL,main.a.uU,main.a.uD,main.a.uF,main.a.uB = reconstructEdgesGeneral(main.a.a,main)
-  #print('first ' + str(np.amax(np.abs(main.a.uD[1,:,:,:,0,:]/main.a.uD[0,:,:,:,0,:] ) )  ))
   main.a.uR_edge[:],main.a.uL_edge[:],main.a.uU_edge[:],main.a.uD_edge[:],main.a.uF_edge[:],main.a.uB_edge[:] = sendEdgesGeneralSlab(main.a.uL,main.a.uR,main.a.uD,main.a.uU,main.a.uB,main.a.uF,main)
-  #print(main.a.uU_edge[3]/main.a.uU_edge[0])
-  #print('now ' + str(np.amax(np.abs(main.a.uD[1,:,:,:,0,:]/main.a.uD[0,:,:,:,0,:] ) )  ))
-
   #main.a.aR_edge[:],main.a.aL_edge[:],main.a.aU_edge[:],main.a.aD_edge[:],main.a.aF_edge[:],main.a.aB_edge[:] = sendaEdgesGeneralSlab(main.a.a,main)
   #main.a.uR_edge[:],main.a.uL_edge[:],main.a.uU_edge[:],main.a.uD_edge[:],main.a.uF_edge[:],main.a.uB_edge[:] = reconstructEdgeEdgesGeneral(main)
   inviscidFluxGen(main,eqns,main.iFlux,main.a,args)
@@ -540,6 +535,63 @@ def getFlux(main,MZ,eqns,args):
 #  tmp = np.einsum('nr,zpqrijk->zpqnijk',w3,main.weights[None,None,None,:,None,None,None]*f)
 #  tmp = np.einsum('mq,zpqnijk->zpmnijk',w2,main.weights[None,None,:,None,None,None,None]*tmp)
 #  return np.einsum('lp,zpmnijk->zlmnijk',w1,main.weights[None,:,None,None,None,None,None]*tmp)
+
+def getRHS_FM1(main,MZ,eqns,args=[]):
+  t0 = time.time()
+  reconstructU(main,main.a)
+  # evaluate inviscid flux
+  getFlux(main,MZ,eqns,args)
+  ### Get interior vol terms
+  eqns.evalFluxX(main.a.u,main.iFlux.fx,args)
+  eqns.evalFluxY(main.a.u,main.iFlux.fy,args)
+  eqns.evalFluxZ(main.a.u,main.iFlux.fz,args)
+
+  # now get viscous flux
+  fvRIG11,fvLIG11,fvRIG21,fvLIG21,fvRIG31,fvLIG31,fvUIG12,fvDIG12,fvUIG22,fvDIG22,fvUIG32,fvDIG32,fvFIG13,fvBIG13,fvFIG23,fvBIG23,fvFIG33,fvBIG33,fvR2I,fvL2I,fvU2I,fvD2I,fvF2I,fvB2I = getViscousFlux(main,eqns) ##takes roughly 20% of the time
+
+  upx,upy,upz = diffU(main.a.a,main)
+  upx = upx*2./main.dx
+  upy = upy*2./main.dy
+  upz = upz*2./main.dz
+
+  fvGX = eqns.evalViscousFluxX(main,main.a.u,upx,upy,upz)
+  fvGY = eqns.evalViscousFluxY(main,main.a.u,upx,upy,upz)
+  fvGZ = eqns.evalViscousFluxZ(main,main.a.u,upx,upy,upz)
+  #print(np.linalg.norm(fvGX2 - fvGX))
+  # Now form RHS
+  t1 = time.time()
+  ord_arr0= np.linspace(0,main.order[0]-1,main.order[0])
+  ord_arr1= np.linspace(0,main.order[1]-1,main.order[1])
+  ord_arr2= np.linspace(0,main.order[2]-1,main.order[2])
+
+  scale =  (2.*ord_arr0[:,None,None] + 1.)*(2.*ord_arr1[None,:,None] + 1.)*(2.*ord_arr2[None,None,:]+1.)/8.
+  dxi = 2./main.dx*scale
+  dyi = 2./main.dy*scale
+  dzi = 2./main.dz*scale
+  v1ijk = volIntegrateGlob(main,main.iFlux.fx - fvGX,main.wp0,main.w1,main.w2)*dxi[None,:,:,:,None,None,None]
+  v2ijk = volIntegrateGlob(main,main.iFlux.fy - fvGY,main.w0,main.wp1,main.w2)*dyi[None,:,:,:,None,None,None]
+  v3ijk = volIntegrateGlob(main,main.iFlux.fz - fvGZ,main.w0,main.w1,main.wp2)*dzi[None,:,:,:,None,None,None]
+
+  tmp = v1ijk + v2ijk + v3ijk
+  tmp +=  (-main.iFlux.fRI[:,None,:,:] + main.iFlux.fLI[:,None,:,:]*main.altarray0[None,:,None,None,None,None,None])*dxi[None,:,:,:,None,None,None]
+  tmp +=  (-main.iFlux.fUI[:,:,None,:] + main.iFlux.fDI[:,:,None,:]*main.altarray1[None,None,:,None,None,None,None])*dyi[None,:,:,:,None,None,None]
+  tmp +=  (-main.iFlux.fFI[:,:,:,None] + main.iFlux.fBI[:,:,:,None]*main.altarray2[None,None,None,:,None,None,None])*dzi[None,:,:,:,None,None,None]
+  tmp +=  (fvRIG11[:,None,:,:]*main.wpedge0[None,:,None,None,1,None,None,None] + fvRIG21[:,None,:,:] + fvRIG31[:,None,:,:]  - (fvLIG11[:,None,:,:]*main.wpedge0[None,:,None,None,0,None,None,None] + fvLIG21[:,None,:,:]*main.altarray0[None,:,None,None,None,None,None] + fvLIG31[:,None,:,:]*main.altarray0[None,:,None,None,None,None,None]) )*dxi[None,:,:,:,None,None,None]
+  tmp +=  (fvUIG12[:,:,None,:] + fvUIG22[:,:,None,:]*main.wpedge1[None,None,:,None,1,None,None,None] + fvUIG32[:,:,None,:]  - (fvDIG12[:,:,None,:]*main.altarray1[None,None,:,None,None,None,None] + fvDIG22[:,:,None,:]*main.wpedge1[None,None,:,None,0,None,None,None] + fvDIG32[:,:,None,:]*main.altarray1[None,None,:,None,None,None,None]) )*dyi[None,:,:,:,None,None,None]
+  tmp +=  (fvFIG13[:,:,:,None] + fvFIG23[:,:,:,None] + fvFIG33[:,:,:,None]*main.wpedge2[None,None,None,:,1,None,None,None]  - (fvBIG13[:,:,:,None]*main.altarray2[None,None,None,:,None,None,None] + fvBIG23[:,:,:,None]*main.altarray2[None,None,None,:,None,None,None] + fvBIG33[:,:,:,None]*main.wpedge2[None,None,None,:,0,None,None,None]) )*dzi[None,:,:,:,None,None,None] 
+  tmp +=  (fvR2I[:,None,:,:] - fvL2I[:,None,:,:]*main.altarray0[None,:,None,None,None,None,None])*dxi[None,:,:,:,None,None,None] + (fvU2I[:,:,None,:] - fvD2I[:,:,None,:]*main.altarray1[None,None,:,None,None,None,None])*dyi[None,:,:,:,None,None,None] + (fvF2I[:,:,:,None] - fvB2I[:,:,:,None]*main.altarray2[None,None,None,:,None,None,None])*dzi[None,:,:,:,None,None,None]
+ 
+  if (main.source):
+    force = np.zeros(np.shape(fvGX))
+    for i in range(0,main.nvars):
+      force[i] = main.source_mag[i]
+    tmp += volIntegrateGlob(main, force ,main.w0,main.w1,main.w2)*scale[None,:,:,:,None,None,None]
+
+  main.RHS = tmp
+  main.comm.Barrier()
+
+
+
 
 def getRHS_IP(main,MZ,eqns,args=[]):
   t0 = time.time()
@@ -558,24 +610,13 @@ def getRHS_IP(main,MZ,eqns,args=[]):
   upx = upx*2./main.dx
   upy = upy*2./main.dy
   upz = upz*2./main.dz
- # G11,G12,G13,G21,G22,G23,G31,G32,G33 = eqns.getGs(main.a.u,main)
- # fvGX = np.einsum('ij...,j...->i...',G11,upx)
- # fvGX += np.einsum('ij...,j...->i...',G12,upy)
- # fvGX += np.einsum('ij...,j...->i...',G13,upz)
- # fvGY = np.einsum('ij...,j...->i...',G21,upx)
- # fvGY += np.einsum('ij...,j...->i...',G22,upy)
- # fvGY += np.einsum('ij...,j...->i...',G23,upz)
- # fvGZ = np.einsum('ij...,j...->i...',G31,upx)
- # fvGZ += np.einsum('ij...,j...->i...',G32,upy)
- # fvGZ += np.einsum('ij...,j...->i...',G33,upz)
+
   fvGX = eqns.evalViscousFluxX(main,main.a.u,upx,upy,upz)
   fvGY = eqns.evalViscousFluxY(main,main.a.u,upx,upy,upz)
   fvGZ = eqns.evalViscousFluxZ(main,main.a.u,upx,upy,upz)
   #print(np.linalg.norm(fvGX2 - fvGX))
-#  fvGX = 
   # Now form RHS
   t1 = time.time()
-  ## This is important. Do partial integrations in each direction to avoid doing for each ijk
   ord_arr0= np.linspace(0,main.order[0]-1,main.order[0])
   ord_arr1= np.linspace(0,main.order[1]-1,main.order[1])
   ord_arr2= np.linspace(0,main.order[2]-1,main.order[2])
