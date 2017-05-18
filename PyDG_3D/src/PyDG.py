@@ -82,6 +82,9 @@ def getIC(main,f,x,y,z):
   main.a.a[0:5] = volIntegrateGlob(main,U,main.w0,main.w1,main.w2)*scale[None,:,:,:,None,None,None]
 
 
+comm = MPI.COMM_WORLD
+mpi_rank = comm.Get_rank()
+
 if 'source' in globals():
   pass
 else:
@@ -103,6 +106,11 @@ if 'turb_str' in globals():
 else:
   turb_str = 'DNS'
 
+if 'shock_capturing' in globals():
+  if (mpi_rank == 0): print('shock_capturing set to ' + str(shock_capturing) )
+else:
+  if (mpi_rank == 0): print('shock_capturing not set, turned off by default' )
+  shock_capturing = False
 
 comm = MPI.COMM_WORLD
 num_processes = comm.Get_size()
@@ -115,10 +123,10 @@ if (mpi_rank == 0):
   print('CFL = ' + str(1.*dt/(dx/order[0])))
 iteration = 0
 eqns = equations(eqn_str,schemes)
-main = variables(Nel,order,quadpoints,eqns,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,source,source_mag)
+main = variables(Nel,order,quadpoints,eqns,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,source,source_mag,shock_capturing)
 if (enriched):
   eqnsEnriched = equations(enriched_eqn_str,enriched_schemes)
-  mainEnriched = variables(Nel,order*enriched_ratio,quadpoints,eqnsEnriched,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,source,source_mag)
+  mainEnriched = variables(Nel,order*enriched_ratio,quadpoints,eqnsEnriched,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,source,source_mag,shock_capturing)
 else:
   mainEnriched = main
 xG,yG,zG = getGlobGrid(x,y,z,main.zeta0,main.zeta1,main.zeta2)

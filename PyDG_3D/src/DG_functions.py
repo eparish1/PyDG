@@ -31,6 +31,40 @@ def getFlux(main,MZ,eqns,args):
 #  tmp = np.einsum('mq,zpqnijk->zpmnijk',w2,main.weights[None,None,:,None,None,None,None]*tmp)
 #  return np.einsum('lp,zpmnijk->zlmnijk',w1,main.weights[None,:,None,None,None,None,None]*tmp)
 
+def shockCapturingSetViscosity(main):
+  ### Shock capturing
+  filta = np.zeros(np.shape(main.a.a))
+  filta[:,0:main.order[0]-1,main.order[1]-1,main.order[2]-1] = 1.
+  af = main.a.a*filta    #make filtered state
+  uf = reconstructUGeneral(main,af)
+  udff = (main.a.u - uf)**2
+  # now compute switch
+  Se_num = volIntegrate(main.weights0,main.weights1,main.weights2,udff) 
+  Se_den = volIntegrate(main.weights0,main.weights1,main.weights2,main.a.u**2)
+  Se = (Se_num + 1e-10)/(Se_den + 1.e-30)
+  eps0 = 1.*main.dx/main.order[0]
+  s0 =1./main.order[0]**4
+  kap = 5.
+  se = np.log10(Se)
+  #print(np.amax(udff))
+  epse = eps0/2.*(1. + np.sin(np.pi/(2.*kap)*(se - s0) ) )
+  epse[se<s0-kap] = 0.
+  epse[se>s0  + kap] = eps0
+  #plt.clf()
+  #print(np.amax(epse),np.amin(epse))
+  #plt.plot(epse[0,:,0,0])
+  #plt.ylim([1e-9,0.005])
+  #plt.pause(0.001)
+  #print(np.shape(main.mu),np.shape(epse) )
+  main.mu = main.mu0 + epse[0]
+  main.muR = main.mu0R + epse[0]
+  main.muL = main.mu0L + epse[0]
+  main.muU = main.mu0F + epse[0]
+  main.muD = main.mu0D + epse[0]
+  main.muF = main.mu0U + epse[0]
+  main.muB = main.mu0B + epse[0]
+
+
 def getRHS_IP(main,MZ,eqns,args=[]):
   t0 = time.time()
   reconstructU(main,main.a)
@@ -41,42 +75,9 @@ def getRHS_IP(main,MZ,eqns,args=[]):
   eqns.evalFluxY(main.a.u,main.iFlux.fy,args)
   eqns.evalFluxZ(main.a.u,main.iFlux.fz,args)
 
-  ### Shock capturing
-#  filta = np.zeros(np.shape(main.a.a))
-#  filta[:,0:main.order[0]-1,main.order[1]-1,main.order[2]-1] = 1.
-#  af = main.a.a*filta    #make filtered state
-#  uf = reconstructUGeneral(main,af)
-#  udff = (main.a.u - uf)**2
-#  # now compute switch
-#  Se_num = volIntegrate(main.weights0,main.weights1,main.weights2,udff) 
-#  Se_den = volIntegrate(main.weights0,main.weights1,main.weights2,main.a.u**2)
-#  Se = (Se_num + 1e-10)/(Se_den + 1.e-30)
-#  eps0 = 1.*main.dx/main.order[0]
-#  s0 =1./main.order[0]**4
-#  kap = 5.
-#  se = np.log10(Se)
-#  #print(np.amax(udff))
-#  epse = eps0/2.*(1. + np.sin(np.pi/(2.*kap)*(se - s0) ) )
-#  epse[se<s0-kap] = 0.
-#  epse[se>s0  + kap] = eps0
-#  plt.clf()
-#  print(np.amax(epse),np.amin(epse))
-#  plt.plot(epse[0,:,0,0])
+  if (main.shock_capturing):
+    shockCapturingSetViscosity(main)
 
-#  plt.ylim([1e-9,0.005])
-#  plt.pause(0.001)
-#  #print(np.shape(main.mu),np.shape(epse) )
-#  main.mu = main.mu0 + epse[0]
-#  main.muR = main.mu0R + epse[0]
-#  main.muL = main.mu0L + epse[0]
-#  main.muU = main.mu0F + epse[0]
-#  main.muD = main.mu0D + epse[0]
-#  main.muF = main.mu0U + epse[0]
-#  main.muB = main.mu0B + epse[0]
-
-
-#  print(np.linalg.norm(Sk))
-  # now get viscous flux
   fvRIG11,fvLIG11,fvRIG21,fvLIG21,fvRIG31,fvLIG31,fvUIG12,fvDIG12,fvUIG22,fvDIG22,fvUIG32,fvDIG32,fvFIG13,fvBIG13,fvFIG23,fvBIG23,fvFIG33,fvBIG33,fvR2I,fvL2I,fvU2I,fvD2I,fvF2I,fvB2I = getViscousFlux(main,eqns) ##takes roughly 20% of the time
 
   upx,upy,upz = diffU(main.a.a,main)
@@ -310,12 +311,12 @@ def getViscousFlux(main,eqns):
   shatR,shatL,shatU,shatD,shatF,shatB = centralFluxGeneral(fvxR,fvxL,fvyU,fvyD,fvzF,fvzB,fvxR_edge,fvxL_edge,fvyU_edge,fvyD_edge,fvzF_edge,fvzB_edge)
   jumpR,jumpL,jumpU,jumpD,jumpF,jumpB = computeJump(main.a.uR,main.a.uL,main.a.uU,main.a.uD,main.a.uF,main.a.uB,main.a.uR_edge,main.a.uL_edge,main.a.uU_edge,main.a.uD_edge,main.a.uF_edge,main.a.uB_edge)
 #  print(np.linalg.norm(main.muR))
-  fvR2 = shatR - 6.*main.muR*jumpR*3**2/main.dx
-  fvL2 = shatL - 6.*main.muL*jumpL*3**2/main.dx
-  fvU2 = shatU - 6.*main.muU*jumpU*3**2/main.dy
-  fvD2 = shatD - 6.*main.muD*jumpD*3**2/main.dy
-  fvF2 = shatF - 6.*main.muF*jumpF*3**2/main.dz
-  fvB2 = shatB - 6.*main.muB*jumpB*3**2/main.dz
+  fvR2 = shatR - 6.*main.muR*3**2*jumpR/main.dx
+  fvL2 = shatL - 6.*main.muL*3**2*jumpL/main.dx
+  fvU2 = shatU - 6.*main.muU*3**2*jumpU/main.dy
+  fvD2 = shatD - 6.*main.muD*3**2*jumpD/main.dy
+  fvF2 = shatF - 6.*main.muF*3**2*jumpF/main.dz
+  fvB2 = shatB - 6.*main.muB*3**2*jumpB/main.dz
   fvRIG11 = faceIntegrateGlob(main,fvRG11,main.w1,main.w2,main.weights1,main.weights2) 
   fvLIG11 = faceIntegrateGlob(main,fvLG11,main.w1,main.w2,main.weights1,main.weights2)  
   fvRIG21 = faceIntegrateGlob(main,fvRG21,main.wp1,main.w2,main.weights1,main.weights2) 

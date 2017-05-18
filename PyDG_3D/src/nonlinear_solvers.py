@@ -5,11 +5,11 @@ from init_Classes import variables,equations
 def newtonSolver(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadrature,eqns):
   if (sparse_quadrature):
     coarsen = 2
-    main_coarse = variables(main.Nel,main.order,main.quadpoints/(coarsen),eqns,main.mu,main.xG,main.yG,main.zG,main.t,main.et,main.dt,main.iteration,main.save_freq,'DNS',main.procx,main.procy,main.BCs,main.source,main.source_mag)
+    main_coarse = variables(main.Nel,main.order,main.quadpoints/(coarsen),eqns,main.mus,main.xG,main.yG,main.zG,main.t,main.et,main.dt,main.iteration,main.save_freq,'DNS',main.procx,main.procy,main.BCs,main.source,main.source_mag)
     main_coarse.a.a[:] = main.a.a[:]
     def newtonHook(main_coarse,main,Rn):
       main_coarse.a.a[:] = main.a.a[:]
-      main_coarse.getRHS(main_coarse,eqns)
+      main_coarse.getRHS(main_coarse,main_coarse,eqns)
       Rn[:] = main_coarse.RHS[:]
   else: 
     main_coarse = main

@@ -127,7 +127,7 @@ class boundaryConditions:
     
 
 class variables:
-  def __init__(self,Nel,order,quadpoints,eqns,mu,xG,yG,zG,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,source,source_mag):
+  def __init__(self,Nel,order,quadpoints,eqns,mu,xG,yG,zG,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,source,source_mag,shock_capturing):
     ## DG scheme information
     self.Nel = Nel
     self.order = order
@@ -137,6 +137,7 @@ class variables:
     self.dt = dt
     self.iteration = iteration
     self.save_freq = save_freq
+    self.shock_capturing = shock_capturing
     ##============== MPI INFORMATION ===================
     self.procx = procx
     self.procy = procy
@@ -195,7 +196,7 @@ class variables:
     self.a0 = np.zeros((eqns.nvars,self.order[0],self.order[1],self.order[2],self.Npx,self.Npy,self.Npz))
     self.a = variable(eqns.nvars,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz)
     self.iFlux = fluxvariable(eqns.nvars,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz)
-
+    self.mus = mu
     self.mu = np.ones(np.shape( self.a.u[0]))*mu
     self.muR = np.ones(np.shape( self.a.uR[0]))*mu
     self.muL = np.ones(np.shape( self.a.uL[0]))*mu
