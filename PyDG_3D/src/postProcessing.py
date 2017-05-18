@@ -6,10 +6,10 @@ import os.path
 
 class postProcessor:
   def __init__(self):
-    def writeAllToParaview(self,start=0,end=10000,skip=1):
+    def writeAllToParaview(self,start=0,end=100000,skip=1):
       grid = np.load('../DGgrid.npz')
       x,y,z = np.meshgrid(grid['x'],grid['y'],grid['z'],indexing='ij')
-      for i in range(0,10000,skip):
+      for i in range(0,end,skip):
         sol_str = 'npsol' + str(i) + '.npz'
         if (os.path.isfile(sol_str)):
           print('found ' + sol_str)

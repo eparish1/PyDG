@@ -109,7 +109,7 @@ num_processes = comm.Get_size()
 mpi_rank = comm.Get_rank()
 if (mpi_rank == 0):
   print('Running on ' + str(num_processes) + ' Procs')
-dx =  L/Nel[0]
+dx =  (x[-1] - x[0])/Nel[0]
 t = 0
 if (mpi_rank == 0):
   print('CFL = ' + str(1.*dt/(dx/order[0])))
