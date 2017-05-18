@@ -42,38 +42,37 @@ def getRHS_IP(main,MZ,eqns,args=[]):
   eqns.evalFluxZ(main.a.u,main.iFlux.fz,args)
 
   ### Shock capturing
-  filta = np.zeros(np.shape(main.a.a))
-  filta[:,0:main.order[0]-1,main.order[1]-1,main.order[2]-1] = 1.
-  af = main.a.a*filta    #make filtered state
-  uf = reconstructUGeneral(main,af)
-  udff = (main.a.u - uf)**2
-  # now compute switch
-  Se_num = volIntegrate(main.weights0,main.weights1,main.weights2,udff) 
-  Se_den = volIntegrate(main.weights0,main.weights1,main.weights2,main.a.u**2)
-  Se = (Se_num + 1e-10)/(Se_den + 1.e-30)
-  eps0 = 1.*main.dx/main.order[0]
-  s0 =1./main.order[0]**4
-  kap = 10.
-  se = np.log10(Se)
-  #print(np.amax(udff))
-  epse = eps0/2.*(1. + np.sin(np.pi/(2.*kap)*(se - s0) ) )
-  epse[se<s0-kap] = 0.
-  epse[se>s0  + kap] = eps0
-  plt.clf()
-  print(np.amax(epse),np.amin(epse))
-  plt.semilogy(epse[0,:,0,0])
-  plt.semilogy(epse[4,:,0,0])
+#  filta = np.zeros(np.shape(main.a.a))
+#  filta[:,0:main.order[0]-1,main.order[1]-1,main.order[2]-1] = 1.
+#  af = main.a.a*filta    #make filtered state
+#  uf = reconstructUGeneral(main,af)
+#  udff = (main.a.u - uf)**2
+#  # now compute switch
+#  Se_num = volIntegrate(main.weights0,main.weights1,main.weights2,udff) 
+#  Se_den = volIntegrate(main.weights0,main.weights1,main.weights2,main.a.u**2)
+#  Se = (Se_num + 1e-10)/(Se_den + 1.e-30)
+#  eps0 = 1.*main.dx/main.order[0]
+#  s0 =1./main.order[0]**4
+#  kap = 5.
+#  se = np.log10(Se)
+#  #print(np.amax(udff))
+#  epse = eps0/2.*(1. + np.sin(np.pi/(2.*kap)*(se - s0) ) )
+#  epse[se<s0-kap] = 0.
+#  epse[se>s0  + kap] = eps0
+#  plt.clf()
+#  print(np.amax(epse),np.amin(epse))
+#  plt.plot(epse[0,:,0,0])
 
-  plt.ylim([1e-9,0.005])
-  plt.pause(0.001)
-  #print(np.shape(main.mu),np.shape(epse) )
-  main.mu = main.mu0 + epse[1]
-  main.muR = main.mu0R + epse[1]
-  main.muL = main.mu0L + epse[1]
-  main.muU = main.mu0F + epse[1]
-  main.muD = main.mu0D + epse[1]
-  main.muF = main.mu0U + epse[1]
-  main.muB = main.mu0B + epse[1]
+#  plt.ylim([1e-9,0.005])
+#  plt.pause(0.001)
+#  #print(np.shape(main.mu),np.shape(epse) )
+#  main.mu = main.mu0 + epse[0]
+#  main.muR = main.mu0R + epse[0]
+#  main.muL = main.mu0L + epse[0]
+#  main.muU = main.mu0F + epse[0]
+#  main.muD = main.mu0D + epse[0]
+#  main.muF = main.mu0U + epse[0]
+#  main.muB = main.mu0B + epse[0]
 
 
 #  print(np.linalg.norm(Sk))
