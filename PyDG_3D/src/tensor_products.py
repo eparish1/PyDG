@@ -481,6 +481,8 @@ def diffCoeffs(a):
 #        uy[k,:,:,:,:] += main.w[l][:,None,None,None]*main.wp[m][None,:,None,None]*a[k,l,m,:,:]
 #  return ux,uy
 
+def volIntegrate(weights0,weights1,weights2,f):
+  return  np.einsum('zpqrijk->zijk',weights0[None,:,None,None,None,None,None]*weights1[None,None,:,None,None,None,None]*weights2[None,None,None,:,None,None,None]*f[:,:,:,:,:])
 
 
 

@@ -137,7 +137,6 @@ class variables:
     self.dt = dt
     self.iteration = iteration
     self.save_freq = save_freq
-    self.mu = mu
     ##============== MPI INFORMATION ===================
     self.procx = procx
     self.procy = procy
@@ -165,6 +164,7 @@ class variables:
     self.w2,self.wp2,self.wpedge2,self.weights2,self.zeta2 = gaussPoints(self.order[2],self.quadpoints[2])
     self.altarray2 = (-np.ones(self.order[2]))**(np.linspace(0,self.order[2]-1,self.order[2]))
     self.gas = gasClass() 
+
     ## Initialize BCs
     self.BCs = BCs
     self.rightBC = boundaryConditions(BCs[0],BCs[1])
@@ -195,6 +195,21 @@ class variables:
     self.a0 = np.zeros((eqns.nvars,self.order[0],self.order[1],self.order[2],self.Npx,self.Npy,self.Npz))
     self.a = variable(eqns.nvars,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz)
     self.iFlux = fluxvariable(eqns.nvars,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz)
+
+    self.mu = np.ones(np.shape( self.a.u[0]))*mu
+    self.muR = np.ones(np.shape( self.a.uR[0]))*mu
+    self.muL = np.ones(np.shape( self.a.uL[0]))*mu
+    self.muU = np.ones(np.shape( self.a.uU[0]))*mu
+    self.muD = np.ones(np.shape( self.a.uD[0]))*mu
+    self.muF = np.ones(np.shape( self.a.uF[0]))*mu
+    self.muB = np.ones(np.shape( self.a.uB[0]))*mu
+    self.mu0 = np.ones(np.shape( self.a.u[0]))*mu
+    self.mu0R = np.ones(np.shape( self.a.uR[0]))*mu
+    self.mu0L = np.ones(np.shape( self.a.uL[0]))*mu
+    self.mu0U = np.ones(np.shape( self.a.uU[0]))*mu
+    self.mu0D = np.ones(np.shape( self.a.uD[0]))*mu
+    self.mu0F = np.ones(np.shape( self.a.uF[0]))*mu
+    self.mu0B = np.ones(np.shape( self.a.uB[0]))*mu
 
     self.getFlux = getFlux
     self.RHS = np.zeros((eqns.nvars,self.order[0],self.order[1],self.order[2],self.Npx,self.Npy,self.Npz))
