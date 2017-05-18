@@ -13,10 +13,10 @@ def TGVIC_W(x,y,z,gas):
   a = np.sqrt(gamma*R*T0) 
   V0 = Minf*a
   Cv = 5./2.*R
-  u = V0*np.sin(x*2.*np.pi/Lx)*np.cos(y*2.*np.pi/Ly)*np.cos(z*2.*np.pi/Lz)
-  w = -V0*np.cos(x*2.*np.pi/Lx)*np.sin(y*2.*np.pi/Ly)*np.cos(z*2.*np.pi/Lz)
+  u = V0*np.sin(x*2.*np.pi/Lx)*np.cos(z*2.*np.pi/Lz)*np.sin(y*2.*np.pi/Ly)
+  w = -V0*np.cos(x*2.*np.pi/Lx)*np.sin(z*2.*np.pi/Lz)*np.sin(y*2.*np.pi/Ly)
   v = 0
-  p = p0 + rho*V0**2/16.*(np.cos(2.*x*2.*np.pi/Lx) + np.cos(2.*y*2.*np.pi/Ly) )*(np.cos(2.*z*2.*np.pi/Lz) + 2.)
+  p = p0 + rho*V0**2/16.*(np.sin(2.*x*2.*np.pi/Lx) + np.sin(2.*z*2.*np.pi/Lz) )*(np.sin(2.*y*2.*np.pi/Ly) + 2.)
   T = p/(rho*R)
   E = Cv*T + 0.5*(u**2 + v**2 + w**2)
   q = np.zeros((5,nqx,nqy,nqz,Nelx,Nely,Nelz))
@@ -101,7 +101,7 @@ def zeroFSIC(x,y,z,gas):
   v = np.zeros(np.shape(u))
   w = np.zeros(np.shape(u))
   E = np.zeros(np.shape(u))
-  T[:] = 1.
+  T[:] = 1./gamma
   rho[:] = T**(1./(gamma - 1.))
   E[:] = Cv*T + 0.5*(u**2 + v**2)
   q[0] = rho
