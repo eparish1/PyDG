@@ -12,9 +12,9 @@ from scipy import interpolate
 from scipy.interpolate import RegularGridInterpolator
 
 def getGlobGrid2(x,y,z,zeta0,zeta1,zeta2):
-  dx = x[1] - x[0]
-  dy = y[1] - y[0]
-  dz = z[1] - z[0]
+#  dx = x[1] - x[0]
+#  dy = y[1] - y[0]
+#  dz = z[1] - z[0]
   Npx,Npy,Npz = np.size(x),np.size(y),np.size(z)
 
   nqx = np.size(zeta0)
@@ -25,18 +25,21 @@ def getGlobGrid2(x,y,z,zeta0,zeta1,zeta2):
   yG = np.zeros((nqx,nqy,nqz,Npx-1,Npy-1,Npz-1))
   zG = np.zeros((nqx,nqy,nqz,Npx-1,Npy-1,Npz-1))
   for i in range(0,Npx-1):
+     dx = x[i+1] - x[i]
      xG[:,:,:,i,:,:] = ( (2.*x[i]  + dx)/2. + zeta0/2.*(dx) )[:,None,None,None,None]
   for i in range(0,Npy-1):
+     dy = y[i+1] - y[i]
      yG[:,:,:,:,i,:] = ( (2.*y[i]  + dy)/2. + zeta1/2.*(dy) )[None,:,None,None,None]
   for i in range(0,Npz-1):
+     dz = z[i+1] - z[i]
      zG[:,:,:,:,:,i] = ( (2.*z[i]  + dz)/2. + zeta2/2.*(dz) )[None,None,:,None,None]
   return xG,yG,zG
 
 
 def getGlobGrid(x,y,z,zeta0,zeta1,zeta2):
-  dx = x[1] - x[0]
-  dy = y[1] - y[0]
-  dz = z[1] - z[0]
+#  dx = x[1] - x[0]
+#  dy = y[1] - y[0]
+#  dz = z[1] - z[0]
   Nelx,Nely,Nelz = np.size(x),np.size(y),np.size(z)
   order0 = np.size(zeta0)
   order1 = np.size(zeta1)
@@ -46,10 +49,13 @@ def getGlobGrid(x,y,z,zeta0,zeta1,zeta2):
   yG = np.zeros(((np.size(y)-1)*np.size(zeta1)))
   zG = np.zeros(((np.size(z)-1)*np.size(zeta2)))
   for i in range(0,Nelx-1):
+     dx = x[i+1] - x[i]
      xG[i*quadpoints[0]:(i+1)*quadpoints[0]] = (2.*x[i]  + dx)/2. + zeta0/2.*(dx)
   for i in range(0,Nely-1):
+     dy = y[i+1] - y[i]
      yG[i*quadpoints[1]:(i+1)*quadpoints[1]] = (2.*y[i]  + dy)/2. + zeta1/2.*(dy)
   for i in range(0,Nelz-1):
+     dz = z[i+1] - z[i]
      zG[i*quadpoints[2]:(i+1)*quadpoints[2]] = (2.*z[i]  + dz)/2. + zeta2/2.*(dz)
 
   return xG,yG,zG

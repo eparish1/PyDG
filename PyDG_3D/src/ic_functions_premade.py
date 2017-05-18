@@ -1,6 +1,9 @@
 import numpy as np
 def TGVIC(x,y,z,gas):
-  Minf = 0.1
+  Lx = x[-1] - x[0]
+  Ly = y[-1] - y[0]
+  Lz = z[-1] - z[0]
+  Minf = 0.2
   nqx,nqy,nqz,Nelx,Nely,Nelz = np.shape(x)
   gamma = gas.gamma
   T0 = 1./gamma
@@ -10,10 +13,10 @@ def TGVIC(x,y,z,gas):
   a = np.sqrt(gamma*R*T0) 
   V0 = Minf*a
   Cv = 5./2.*R
-  u = V0*np.sin(x)*np.cos(y)*np.cos(z)
-  v = -V0*np.cos(x)*np.sin(y)*np.cos(z)
+  u = V0*np.sin(x*2.*np.pi/Lx)*np.cos(y*2.*np.pi/Ly)*np.cos(z*2.*np.pi/Lz)
+  v = -V0*np.cos(x*2.*np.pi/Lx)*np.sin(y*2.*np.pi/Ly)*np.cos(z*2.*np.pi/Lz)
   w = 0
-  p = p0 + rho*V0**2/16.*(np.cos(2.*x) + np.cos(2.*y) )*(np.cos(2.*z) + 2.)
+  p = p0 + rho*V0**2/16.*(np.cos(2.*x*2.*np.pi/Lx) + np.cos(2.*y*2.*np.pi/Ly) )*(np.cos(2.*z*2.*np.pi/Lz) + 2.)
   T = p/(rho*R)
   E = Cv*T + 0.5*(u**2 + v**2 + w**2)
   q = np.zeros((5,nqx,nqy,nqz,Nelx,Nely,Nelz))

@@ -179,6 +179,11 @@ class variables:
     self.dx = xG[1] - xG[0]
     self.dy = yG[1] - yG[0]
     self.dz = zG[1] - zG[0]
+    self.dx2 = np.diff(xG)[self.sx]
+    self.dy2 = np.diff(yG)[self.sy]
+    self.dz2 = np.diff(zG)
+
+    #print(np.shape(xG))
     self.x = xG[self.sx]
     self.y = yG[self.sy] 
     self.z = zG
