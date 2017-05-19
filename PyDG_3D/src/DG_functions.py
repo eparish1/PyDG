@@ -26,6 +26,7 @@ def getFlux(main,MZ,eqns,args):
   main.iFlux.fBI = faceIntegrateGlob(main,main.iFlux.fBS,MZ.w0,MZ.w1,MZ.weights0,MZ.weights1)
 
 
+
 #def volIntegrateGlob(main,f,w1,w2,w3):
 #  tmp = np.einsum('nr,zpqrijk->zpqnijk',w3,main.weights[None,None,None,:,None,None,None]*f)
 #  tmp = np.einsum('mq,zpqnijk->zpmnijk',w2,main.weights[None,None,:,None,None,None,None]*tmp)
@@ -64,6 +65,30 @@ def shockCapturingSetViscosity(main):
   main.muF = main.mu0U + epse[0]
   main.muB = main.mu0B + epse[0]
 
+def computeSmagViscosity(main,Ux,Uy,Uz,mu,mu0,u):
+  ux = 1./u[0]*(Ux[1] - u[1]/u[0]*Ux[0])
+  vx = 1./u[0]*(Ux[2] - u[2]/u[0]*Ux[0])
+  wx = 1./u[0]*(Ux[3] - u[3]/u[0]*Ux[0])
+  ## ->  u_y = 1/rho d/dy(rho u) - rho u /rho^2 rho_y
+  uy = 1./u[0]*(Uy[1] - u[1]/u[0]*Uy[0])
+  vy = 1./u[0]*(Uy[2] - u[2]/u[0]*Uy[0])
+  wy = 1./u[0]*(Uy[3] - u[3]/u[0]*Uy[0])
+  # ->  u_z = 1/rho d/dz(rho u) - rho u /rho^2 rho_z
+  uz = 1./u[0]*(Uz[1] - u[1]/u[0]*Uz[0])
+  vz = 1./u[0]*(Uz[2] - u[2]/u[0]*Uz[0])
+  wz = 1./u[0]*(Uz[3] - u[3]/u[0]*Uz[0])
+  Delta = main.dx*main.dx*main.dz
+  S11 = ux
+  S22 = vy
+  S33 = wz
+  S12 = 0.5*(uy + vx)
+  S13 = 0.5*(uz + wx)
+  S23 = 0.5*(vz + wy)
+  
+  S_mag = np.sqrt( 2.*(S11**2 + S22* + S33**2 + 2.*S12**2 + 2.*S13**3 + 2.*S23**2) )
+  mut = u[0]*0.16**2*Delta**2*np.abs(S_mag)
+  mu = mu0 + mut
+
 
 def getRHS_IP(main,MZ,eqns,args=[]):
   t0 = time.time()
@@ -75,15 +100,27 @@ def getRHS_IP(main,MZ,eqns,args=[]):
   eqns.evalFluxY(main.a.u,main.iFlux.fy,args)
   eqns.evalFluxZ(main.a.u,main.iFlux.fz,args)
 
-  if (main.shock_capturing):
-    shockCapturingSetViscosity(main)
-
-  fvRIG11,fvLIG11,fvRIG21,fvLIG21,fvRIG31,fvLIG31,fvUIG12,fvDIG12,fvUIG22,fvDIG22,fvUIG32,fvDIG32,fvFIG13,fvBIG13,fvFIG23,fvBIG23,fvFIG33,fvBIG33,fvR2I,fvL2I,fvU2I,fvD2I,fvF2I,fvB2I = getViscousFlux(main,eqns) ##takes roughly 20% of the time
-
   upx,upy,upz = diffU(main.a.a,main)
   upx = upx*2./main.dx2[None,None,None,None,:,None,None]
   upy = upy*2./main.dy2[None,None,None,None,None,:,None]
   upz = upz*2./main.dz2[None,None,None,None,None,None,:]
+
+
+  UxR,UxL,UxU,UxD,UxF,UxB = diffUX_edge(main.a.a,main)
+  UyR,UyL,UyU,UyD,UyF,UyB = diffUY_edge(main.a.a,main)
+  UzR,UzL,UzU,UzD,UzF,UzB = diffUZ_edge(main.a.a,main)
+  computeSmagViscosity(main,upx,upy,upz,main.mu,main.mu0,main.a.u)
+  computeSmagViscosity(main,UxR,UyR,UzR,main.muR,main.mu0R,main.a.uR)
+  computeSmagViscosity(main,UxL,UyL,UzL,main.muL,main.mu0L,main.a.uL)
+  computeSmagViscosity(main,UxU,UyU,UzU,main.muU,main.mu0U,main.a.uU)
+  computeSmagViscosity(main,UxD,UyD,UzD,main.muD,main.mu0D,main.a.uD)
+  computeSmagViscosity(main,UxF,UyF,UzF,main.muF,main.mu0F,main.a.uF)
+  computeSmagViscosity(main,UxB,UyB,UzB,main.muB,main.mu0B,main.a.uB)
+
+  if (main.shock_capturing):
+    shockCapturingSetViscosity(main)
+
+  fvRIG11,fvLIG11,fvRIG21,fvLIG21,fvRIG31,fvLIG31,fvUIG12,fvDIG12,fvUIG22,fvDIG22,fvUIG32,fvDIG32,fvFIG13,fvBIG13,fvFIG23,fvBIG23,fvFIG33,fvBIG33,fvR2I,fvL2I,fvU2I,fvD2I,fvF2I,fvB2I = getViscousFlux(main,eqns) ##takes roughly 20% of the time
 
 
   fvGX = eqns.evalViscousFluxX(main,main.a.u,upx,upy,upz,main.mu)
@@ -299,7 +336,7 @@ def getViscousFlux(main,eqns):
 
 
   fvzF = eqns.evalViscousFluxZ(main,main.a.uF,UxF,UyF,UzF,main.muF)
-  fvzB = eqns.evalViscousFluxZ(main,main.a.uB,UxB,UyB,UzB,main.muD)
+  fvzB = eqns.evalViscousFluxZ(main,main.a.uB,UxB,UyB,UzB,main.muB)
 #  fvzF_edge = eqns.evalViscousFluxZ(main,main.a.uF_edge,UxF_edge,UyF_edge,UzF_edge)
 #  fvzB_edge = eqns.evalViscousFluxZ(main,main.a.uB_edge,UxB_edge,UyB_edge,UzB_edge)
 #  fvzF_edge = fvzF[:,:,:,:,:,-1]
