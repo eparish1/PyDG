@@ -65,7 +65,7 @@ def shockCapturingSetViscosity(main):
   main.muF = main.mu0U + epse[0]
   main.muB = main.mu0B + epse[0]
 
-def computeSmagViscosity(main,Ux,Uy,Uz,mu,mu0,u):
+def computeSmagViscosity(main,Ux,Uy,Uz,mu0,u):
   ux = 1./u[0]*(Ux[1] - u[1]/u[0]*Ux[0])
   vx = 1./u[0]*(Ux[2] - u[2]/u[0]*Ux[0])
   wx = 1./u[0]*(Ux[3] - u[3]/u[0]*Ux[0])
@@ -77,18 +77,17 @@ def computeSmagViscosity(main,Ux,Uy,Uz,mu,mu0,u):
   uz = 1./u[0]*(Uz[1] - u[1]/u[0]*Uz[0])
   vz = 1./u[0]*(Uz[2] - u[2]/u[0]*Uz[0])
   wz = 1./u[0]*(Uz[3] - u[3]/u[0]*Uz[0])
-  Delta = main.dx*main.dx*main.dz
+  Delta = (main.dx/main.order[0]*main.dy/main.order[1]*main.dz/main.order[2])**(1./3.)
   S11 = ux
   S22 = vy
   S33 = wz
   S12 = 0.5*(uy + vx)
   S13 = 0.5*(uz + wx)
   S23 = 0.5*(vz + wy)
-  
-  S_mag = np.sqrt( 2.*(S11**2 + S22* + S33**2 + 2.*S12**2 + 2.*S13**3 + 2.*S23**2) )
+  S_mag = np.sqrt( 2.*(S11**2 + S22**2 + S33**2 + 2.*S12**2 + 2.*S13**2 + 2.*S23**2) )
   mut = u[0]*0.16**2*Delta**2*np.abs(S_mag)
-  mu = mu0 + mut
-
+  return mu0 + mut
+#  print(np.mean(np.abs(mu)))
 
 def getRHS_IP(main,MZ,eqns,args=[]):
   t0 = time.time()
@@ -105,17 +104,20 @@ def getRHS_IP(main,MZ,eqns,args=[]):
   upy = upy*2./main.dy2[None,None,None,None,None,:,None]
   upz = upz*2./main.dz2[None,None,None,None,None,None,:]
 
-
+#  print(np.mean(main.mu))
   UxR,UxL,UxU,UxD,UxF,UxB = diffUX_edge(main.a.a,main)
   UyR,UyL,UyU,UyD,UyF,UyB = diffUY_edge(main.a.a,main)
   UzR,UzL,UzU,UzD,UzF,UzB = diffUZ_edge(main.a.a,main)
-  computeSmagViscosity(main,upx,upy,upz,main.mu,main.mu0,main.a.u)
-  computeSmagViscosity(main,UxR,UyR,UzR,main.muR,main.mu0R,main.a.uR)
-  computeSmagViscosity(main,UxL,UyL,UzL,main.muL,main.mu0L,main.a.uL)
-  computeSmagViscosity(main,UxU,UyU,UzU,main.muU,main.mu0U,main.a.uU)
-  computeSmagViscosity(main,UxD,UyD,UzD,main.muD,main.mu0D,main.a.uD)
-  computeSmagViscosity(main,UxF,UyF,UzF,main.muF,main.mu0F,main.a.uF)
-  computeSmagViscosity(main,UxB,UyB,UzB,main.muB,main.mu0B,main.a.uB)
+  main.mu[:] = computeSmagViscosity(main,upx,upy,upz,main.mu0,main.a.u)
+  main.muR[:] = computeSmagViscosity(main,UxR,UyR,UzR,main.mu0R,main.a.uR)
+  main.muL[:] = computeSmagViscosity(main,UxL,UyL,UzL,main.mu0L,main.a.uL)
+  main.muU[:] = computeSmagViscosity(main,UxU,UyU,UzU,main.mu0U,main.a.uU)
+  main.muD[:] = computeSmagViscosity(main,UxD,UyD,UzD,main.mu0D,main.a.uD)
+  main.muF[:] = computeSmagViscosity(main,UxF,UyF,UzF,main.mu0F,main.a.uF)
+  main.muB[:] = computeSmagViscosity(main,UxB,UyB,UzB,main.mu0B,main.a.uB)
+#  print(np.mean(main.mu[-1]))
+#  print(np.mean(main.muR))
+#  print(np.mean(main.muL))
 
   if (main.shock_capturing):
     shockCapturingSetViscosity(main)
