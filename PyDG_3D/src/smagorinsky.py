@@ -31,7 +31,7 @@ def staticSmagorinsky(main):
   main.muD[:] = computeSmagViscosity(main,main.a.UxD,main.a.UyD,main.a.UzD,main.mu0D,main.a.uD)
   main.muF[:] = computeSmagViscosity(main,main.a.UxF,main.a.UyF,main.a.UzF,main.mu0F,main.a.uF)
   main.muB[:] = computeSmagViscosity(main,main.a.UxB,main.a.UyB,main.a.UzB,main.mu0B,main.a.uB)
-  print(np.mean(main.mu0),np.amax(main.mu))
+  #print(np.mean(main.mu0),np.amax(main.mu))
 
 ### For some reason this keeps giving a negative C^2
 def computeDynSmagViscosity(main,Ux,Uy,Uz,mu0,u):
