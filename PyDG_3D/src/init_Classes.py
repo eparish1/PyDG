@@ -227,5 +227,8 @@ class variables:
     if (turb_str == 'FM1'):
       self.getRHS = FM1Linearized 
       check = 1
+    if (turb_str == 'Smagorinsky'):
+      self.getRHS = DNS
+      if (self.mpi_rank == 0): print('Using Smagorinsky Model')
     if (check == 0):
       self.getRHS = DNS
