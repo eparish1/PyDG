@@ -8,7 +8,7 @@ from fluxSchemes import inviscidFlux,centralFluxGeneral
 from navier_stokes import *
 from linear_advection import *
 #from equationFluxes import *
-from DG_functions import getFlux,getRHS_INVISCID,getRHS_IP
+from DG_functions import getFlux,getRHS
 from turb_models import *
 from viscousFluxesIP import *
 from boundary_conditions import *
@@ -217,13 +217,15 @@ class variables:
   
     ### Check turbulence models
     self.turb_str = turb_str
-    if (turb_str == 'DNS'):
-      self.getRHS = DNS
+    check = 0
     if (turb_str == 'tau-model'):
       self.getRHS = tauModelLinearized
+      check = 1
     if (turb_str == 'tau-modelFD'):
       self.getRHS = tauModelFD
+      check = 1
     if (turb_str == 'FM1'):
       self.getRHS = FM1Linearized 
-
-
+      check = 1
+    if (check == 0):
+      self.getRHS = DNS

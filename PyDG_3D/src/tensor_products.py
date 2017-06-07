@@ -19,6 +19,9 @@ def diffU(a,main):
   #uz = np.swapaxes( np.swapaxes( np.swapaxes( tmp , 1 , 4) , 2 , 5), 3, 6)
   uz = np.rollaxis( np.rollaxis( np.rollaxis( tmp , -3 , 1) , -2 , 2), -1, 3)
 
+  ux *= 2./main.dx2[None,None,None,None,:,None,None]
+  uy *= 2./main.dy2[None,None,None,None,None,:,None]
+  uz *= 2./main.dz2[None,None,None,None,None,None,:]
   return ux,uy,uz
 
 #def diffU(a,main):
@@ -532,6 +535,53 @@ def reconstructU(main,var):
 #  var.u = np.swapaxes( np.swapaxes( np.swapaxes( tmp , 1 , 4) , 2 , 5), 3, 6)
   var.u = np.rollaxis( np.rollaxis( np.rollaxis( tmp , -3 , 1) , -2 , 2), -1, 3)
 
+def reconstructU_entropy(main,var):
+  var.u[:] = 0.
+  tmp = np.tensordot(var.a,main.w0,axes=([1],[0])) 
+  tmp = np.tensordot(tmp,main.w1,axes=([1],[0])) 
+  tmp = np.tensordot(tmp,main.w2,axes=([1],[0])) 
+  v = np.rollaxis( np.rollaxis( np.rollaxis( tmp , -3 , 1) , -2 , 2), -1, 3)
+  var.u[:] = entropy_to_conservative(v)
+
+def entropy_to_conservative(v):
+  gamma = 1.4
+  gamma1   = gamma-1.0      # gamma-1
+  igamma1  = 1.0/gamma1    # 1/(gamma-1)
+  gmogm1   = gamma*igamma1 #  gamma/(gamma-1) 
+  iu4 = 1./v[4]
+  u = -iu4*v[1]
+  v = -iu4*v[2]
+  w = -iu4*v[3]
+  t0 = -0.5*iu4*(+u[1]**2+u[2]**2+u[3]**2) # 0.5*rho*v^2/p
+  t1 = v[0] - gmogm1+t0 # -s/(gamma-1)
+  t2 = exp(-igamma1*log(-v[4])) # pow(-u4,-igamma1)
+  t3 = exp(t1)
+  rho = t2*t3          
+  H = -iu4*(gmogm1+t0) 
+  E = (H+iu4)          # total enery
+  rhou = rho*u         # x-momentum
+  rhov = rho*v         # y-momentum
+  rhow = rho*w         # z-momentum
+  rhoE = rho*E
+  u = np.zeros(np.shape(v))
+  u[0] = rho
+  u[1] = rhou
+  u[2] = rhov
+  u[3] = rhow
+  u[4] = rhoE
+  return u
+ 
+
+def reconstructUGeneral_entropy(main,a):
+  tmp = np.tensordot(a,main.w0,axes=([1],[0])) 
+  tmp = np.tensordot(tmp,main.w1,axes=([1],[0])) 
+  tmp = np.tensordot(tmp,main.w2,axes=([1],[0])) 
+  v = np.rollaxis( np.rollaxis( np.rollaxis( tmp , -3 , 1) , -2 , 2), -1, 3)
+  ## This is the same, but first we need to make the transformation from entropy variables 
+  ## to conservative variables (adopted from murman)
+  return entropy_to_conservative(v)
+
+
 def reconstructUGeneral(main,a):
   tmp = np.tensordot(a,main.w0,axes=([1],[0])) 
   tmp = np.tensordot(tmp,main.w1,axes=([1],[0])) 
@@ -540,7 +590,9 @@ def reconstructUGeneral(main,a):
   return np.rollaxis( np.rollaxis( np.rollaxis( tmp , -3 , 1) , -2 , 2), -1, 3)
 
 
-def reconstructEdgesGeneral(a,main):
+
+
+def reconstructEdgesGeneral_entropy(a,main):
   nvars = np.shape(a)[0]
   aR = np.einsum('zpqrijk->zqrijk',a)
   aL = np.einsum('zpqrijk->zqrijk',a*main.altarray0[None,:,None,None,None,None,None])
@@ -550,6 +602,79 @@ def reconstructEdgesGeneral(a,main):
 
   aF = np.einsum('zpqrijk->zpqijk',a)
   aB = np.einsum('zpqrijk->zpqijk',a*main.altarray2[None,None,None,:,None,None,None])
+
+#  uU = np.zeros((main.nvars,main.quadpoints,main.quadpoints,main.Npx,main.Npy,main.Npz))
+  # need to do 2D reconstruction to the gauss points on each face
+  tmp = np.tensordot(aR,main.w1,axes=([1],[0])) #reconstruct in y and z
+  tmp = np.tensordot(tmp,main.w2,axes=([1],[0]))
+  uR = entropy_to_conservative(np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2))
+  tmp = np.tensordot(aL,main.w1,axes=([1],[0]))
+  tmp = np.tensordot(tmp,main.w2,axes=([1],[0]))
+  uL = entropy_to_conservative(np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2))
+
+  tmp = np.tensordot(aU,main.w0,axes=([1],[0])) #reconstruct in x and z 
+  tmp = np.tensordot(tmp,main.w2,axes=([1],[0]))
+  uU = entropy_to_conservative(np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2))
+  tmp = np.tensordot(aD,main.w0,axes=([1],[0]))
+  tmp = np.tensordot(tmp,main.w2,axes=([1],[0]))
+  uD = entropy_to_conservative(np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2))
+
+  tmp = np.tensordot(aF,main.w0,axes=([1],[0])) #reconstruct in x and y 
+  tmp = np.tensordot(tmp,main.w1,axes=([1],[0]))
+  uF = entropy_to_conservative(np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2))
+  tmp = np.tensordot(aB,main.w0,axes=([1],[0]))
+  tmp = np.tensordot(tmp,main.w1,axes=([1],[0]))
+  uB = entropy_to_conservative(np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2))
+  return uR,uL,uU,uD,uF,uB
+
+
+def reconstructEdgeEdgesGeneral_entropy(main):
+  aL = np.einsum('zpqr...->zqr...',main.a.aL_edge)
+  aR = np.einsum('zpqr...->zqr...',main.a.aR_edge*main.altarray0[None,:,None,None,None,None])
+
+  aD = np.einsum('zpqr...->zpr...',main.a.aD_edge)
+  aU = np.einsum('zpqr...->zpr...',main.a.aU_edge*main.altarray1[None,None,:,None,None,None])
+
+  aB = np.einsum('zpqr...->zpq...',main.a.aB_edge)
+  aF = np.einsum('zpqr...->zpq...',main.a.aF_edge*main.altarray2[None,None,None,:,None,None])
+#  uU = np.zeros((main.nvars,main.quadpoints,main.quadpoints,main.Npx,main.Npy,main.Npz))
+  # need to do 2D reconstruction to the gauss points on each face
+  tmp = np.tensordot(aR,main.w1,axes=([1],[0])) #reconstruct in y and z
+  tmp = np.tensordot(tmp,main.w2,axes=([1],[0]))
+  uR = entropy_to_conservative(np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2))
+  tmp = np.tensordot(aL,main.w1,axes=([1],[0]))
+  tmp = np.tensordot(tmp,main.w2,axes=([1],[0]))
+  uL = entropy_to_conservative(np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2))
+
+  tmp = np.tensordot(aU,main.w0,axes=([1],[0])) #reconstruct in x and z 
+  tmp = np.tensordot(tmp,main.w2,axes=([1],[0]))
+  uU = entropy_to_conservative(np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2))
+  tmp = np.tensordot(aD,main.w0,axes=([1],[0]))
+  tmp = np.tensordot(tmp,main.w2,axes=([1],[0]))
+  uD = entropy_to_conservative(np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2))
+
+  tmp = np.tensordot(aF,main.w0,axes=([1],[0])) #reconstruct in x and y 
+  tmp = np.tensordot(tmp,main.w1,axes=([1],[0]))
+  uF = entropy_to_conservative(np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2))
+  tmp = np.tensordot(aB,main.w0,axes=([1],[0]))
+  tmp = np.tensordot(tmp,main.w1,axes=([1],[0]))
+  uB = entropy_to_conservative(np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2))
+  return uR,uL,uU,uD,uF,uB
+
+
+def reconstructEdgesGeneral(a,main):
+  nvars = np.shape(a)[0]
+  aR = np.einsum('zpqr...->zqr...',a)
+  #aL = np.einsum('zpqr...->zqr...',a*main.altarray0[None,:,None,None,None,None,None])
+  aL = np.tensordot(main.altarray0,a,axes=([0],[1]) )
+  
+  aU = np.einsum('zpqr...->zpr...',a)
+  #aD = np.einsum('zpqr...->zpr...',a*main.altarray1[None,None,:,None,None,None,None])
+  aD = np.tensordot(main.altarray1,a,axes=([0],[2]) )
+
+  aF = np.einsum('zpqr...->zpq...',a)
+#  aB = np.einsum('zpqr...->zpq...',a*main.altarray2[None,None,None,:,None,None,None])
+  aB = np.tensordot(main.altarray2,a,axes=([0],[3]) )
 
 #  uU = np.zeros((main.nvars,main.quadpoints,main.quadpoints,main.Npx,main.Npy,main.Npz))
   # need to do 2D reconstruction to the gauss points on each face

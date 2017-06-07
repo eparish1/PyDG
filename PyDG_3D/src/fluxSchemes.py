@@ -41,7 +41,6 @@ def inviscidFlux(main,eqns,fluxVar,var,args=None):
   fluxVar.fBS[:,:,:,:,:,1:: ] = fluxVar.fFS[:,:,:,:,:,0:-1] 
   fluxVar.fBS[:,:,:,:,:,0   ] = eqns.inviscidFlux(var.uB_edge,var.uB[:,:,:,:,:,0],nz)
 
-
 def inviscidFluxTwoArg(main,eqns,fluxVar,var,args):
   up = args[0]
   upR,upL,upU,upD,upF,upB = reconstructEdgesGeneral(up,main)

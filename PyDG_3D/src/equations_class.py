@@ -2,10 +2,11 @@ import numpy as np
 from mpi4py import MPI
 from navier_stokes import *
 from linear_advection import *
-from DG_functions import getRHS_IP,getRHS_INVISCID
+from DG_functions import getRHS
 class equations:
-  def __init__(self,eq_str,schemes):
+  def __init__(self,eq_str,schemes,turb_str):
     comm = MPI.COMM_WORLD
+    self.turb_str = turb_str
     mpi_rank = comm.Get_rank()
     iflux_str = schemes[0]
     vflux_str = schemes[1]
@@ -43,7 +44,7 @@ class equations:
         checkv = 1
         self.viscousFlux = centralFlux
       if (vflux_str == 'IP'):
-        self.getRHS = getRHS_IP
+        self.getRHS = getRHS
         self.evalViscousFluxX = evalViscousFluxXNS_IP
         self.evalViscousFluxY = evalViscousFluxYNS_IP
         self.evalViscousFluxZ = evalViscousFluxZNS_IP
@@ -96,7 +97,8 @@ class equations:
         checkv = 1
         self.viscousFlux = centralFlux
       if (vflux_str == 'IP'):
-        self.getRHS = getRHS_IP
+        self.viscous = True
+        self.getRHS = getRHS
         self.evalViscousFluxX = evalViscousFluxXNS_IP
         self.evalViscousFluxY = evalViscousFluxYNS_IP
         self.evalViscousFluxZ = evalViscousFluxZNS_IP
@@ -107,7 +109,8 @@ class equations:
         self.vflux_type = 'IP'
         checkv = 1
       if (vflux_str == 'Inviscid'):
-        self.getRHS = getRHS_INVISCID
+        self.viscous = False
+        self.getRHS = getRHS
         self.vflux_type = 'Inviscid'
         checkv = 1
       if (checkv == 0):
@@ -115,13 +118,14 @@ class equations:
         sys.exit() 
 
     if (eq_str == 'Linearized Navier-Stokes'):
-      self.getRHS = getRHS_INVISCID
+      self.getRHS = getRHS
       check_eq = 1
       self.nvars = 5
       self.nvisc_vars = 5
       self.evalFluxX = evalFluxXEulerLin 
       self.evalFluxY = evalFluxYEulerLin
       self.evalFluxZ = evalFluxZEulerLin
+      self.viscous = False
       ## select appopriate flux scheme
       checki = 0
       if (iflux_str == 'central'):
@@ -155,6 +159,7 @@ class equations:
       if (vflux_str == 'IP'):
         if (mpi_rank == 0): print('Error, viscous flux scheme ' + vflux_str + ' not yet implemented for ' + eq_str + '. Options are "INVISCID". PyDG quitting')
         sys.exit()
+        self.viscous = True
         self.evalViscousFluxX = evalViscousFluxXNS_IP
         self.evalViscousFluxY = evalViscousFluxYNS_IP
         self.evalViscousFluxZ = evalViscousFluxZNS_IP

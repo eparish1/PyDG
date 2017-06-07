@@ -120,12 +120,13 @@ if (mpi_rank == 0):
 dx =  (x[-1] - x[0])/Nel[0]
 t = 0
 if (mpi_rank == 0):
-  print('CFL = ' + str(1.*dt/(dx/order[0])))
+  print('dt*p/dx = ' + str(1.*dt*order[0]/dx))
+  print('dt*(p/dx)**2*mu = ' + str(dt*order[0]**2/dx**2*mu) )
 iteration = 0
-eqns = equations(eqn_str,schemes)
+eqns = equations(eqn_str,schemes,turb_str)
 main = variables(Nel,order,quadpoints,eqns,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,source,source_mag,shock_capturing)
 if (enriched):
-  eqnsEnriched = equations(enriched_eqn_str,enriched_schemes)
+  eqnsEnriched = equations(enriched_eqn_str,enriched_schemes,turb_str)
   mainEnriched = variables(Nel,order*enriched_ratio,quadpoints,eqnsEnriched,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,source,source_mag,shock_capturing)
 else:
   mainEnriched = main
@@ -144,7 +145,7 @@ if (main.mpi_rank == 0):
 
 
 t0 = time.time()
-while (main.t <= main.et - main.dt/2):
+while (main.t <= main.et + main.dt/2):
   if (main.iteration%main.save_freq == 0):
     reconstructU(main,main.a)
     uG = gatherSolSlab(main,eqns,main.a)

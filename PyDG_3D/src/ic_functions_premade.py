@@ -29,9 +29,9 @@ def TGVIC_W(x,y,z,gas):
 
 
 def TGVIC(x,y,z,gas):
-  Lx = x[-1] - x[0]
-  Ly = y[-1] - y[0]
-  Lz = z[-1] - z[0]
+  Lx = 2.*np.pi 
+  Ly = 2.*np.pi
+  Lz = 2.*np.pi
   Minf = 0.2
   nqx,nqy,nqz,Nelx,Nely,Nelz = np.shape(x)
   gamma = gas.gamma

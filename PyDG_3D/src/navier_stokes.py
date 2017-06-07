@@ -564,6 +564,114 @@ def getGsNS(u,main):
   return G11,G12,G13,G21,G22,G23,G31,G32,G33
 
 
+
+def getGsNSX_FAST(u,main,mu,V):
+  nvars = np.shape(u)[0]
+  gamma = 1.4
+  Pr = 0.72
+  fvG11 = np.zeros(np.shape(u))
+  fvG21 = np.zeros(np.shape(u))
+  fvG31 = np.zeros(np.shape(u))
+
+  v1 = u[1]/u[0]
+  v2 = u[2]/u[0]
+  v3 = u[3]/u[0]
+  E = u[4]/u[0]
+  vsqr = v1**2 + v2**2 + v3**2
+
+  mu_by_rho = mu/u[0]
+  fvG11[1] = 4./3.*mu_by_rho*(V[1] - v1*V[0])
+  fvG11[2] = mu_by_rho*(V[2] - v2*V[0])
+  fvG11[3] = mu_by_rho*(V[3] - v3*V[0])
+  fvG11[4] =  -(4./3.*v1**2 + v2**2 + v3**2 + gamma/Pr*(E - vsqr) )*V[0] + \
+            (4./3. - gamma/Pr)*v1*V[1] + (1. - gamma/Pr)*v2*V[2] + \
+            (1. - gamma/Pr)*v3*V[3] + gamma/Pr*V[4]
+  fvG11[4] *= mu_by_rho
+
+
+  fvG21[1] = mu_by_rho*(V[2] - v2*V[0])
+  fvG21[2] = 2./3.*mu_by_rho*(v1*V[0] - V[1])
+  fvG21[3] = 0
+  fvG21[4] = mu_by_rho*(v1*V[2] - 2./3.*v2*V[1] - 1./3.*v1*v2*V[0] )
+
+  fvG31[1] = mu_by_rho*(V[3] - v3*V[0])
+  fvG31[3] = 2./3.*mu_by_rho*(v1*V[0] - V[1])
+  fvG31[4] = mu_by_rho*(v1*V[3] - 2./3.*v3*V[1] - 1./3.*v1*v3*V[0])
+  return fvG11,fvG21,fvG31
+
+
+def getGsNSY_FAST(u,main,mu,V):
+  nvars = np.shape(u)[0]
+  gamma = 1.4
+  Pr = 0.72
+  fvG12 = np.zeros(np.shape(u))
+  fvG22 = np.zeros(np.shape(u))
+  fvG32 = np.zeros(np.shape(u))
+
+  v1 = u[1]/u[0]
+  v2 = u[2]/u[0]
+  v3 = u[3]/u[0]
+  E = u[4]/u[0]
+  vsqr = v1**2 + v2**2 + v3**2
+
+  mu_by_rho = mu/u[0]
+  fvG12[1] = 2./3.*mu_by_rho*(v2*V[0] - V[2])
+  fvG12[2] = mu_by_rho*(V[1] - v1*V[0])
+  fvG12[4] = mu_by_rho*(-2./3.*v1*V[2] + v2*V[1] - 1./3.*v1*v2*V[0])
+
+
+  fvG22[1] = mu_by_rho*(V[1] - v1*V[0])
+  fvG22[2] = 4./3.*mu_by_rho*(V[2] - v2*V[0])
+  fvG22[3] = mu_by_rho*(V[3] - v3*V[0])
+  fvG22[4] = -(v1**2 + 4./3.*v2**2 + v3**2 + gamma/Pr*(E - vsqr) )*V[0] + \
+             (1. - gamma/Pr)*v1*V[1] + (4./3. - gamma/Pr)*v2*V[2] + \
+             (1. - gamma/Pr)*v3*V[3] +  gamma/Pr*V[4]
+  fvG22[4] *= mu_by_rho
+
+  fvG32[2] = mu_by_rho*(V[3] - v3*V[0])
+  fvG32[3] = 2./3.*mu_by_rho*(v2*V[0] - V[2])
+  fvG32[4] = mu_by_rho*(v2*V[3] -2./3.*v3*V[2] - 1./3.*v2*v3*V[0])
+
+
+  return fvG12,fvG22,fvG32
+
+def getGsNSZ_FAST(u,main,mu,V):
+  nvars = np.shape(u)[0]
+  gamma = 1.4
+  Pr = 0.72
+  fvG13 = np.zeros(np.shape(u))
+  fvG23 = np.zeros(np.shape(u))
+  fvG33 = np.zeros(np.shape(u))
+
+  v1 = u[1]/u[0]
+  v2 = u[2]/u[0]
+  v3 = u[3]/u[0]
+  E = u[4]/u[0]
+  vsqr = v1**2 + v2**2 + v3**2
+
+  mu_by_rho = mu/u[0]
+  fvG13[1] = 2./3.*mu_by_rho*(v3*V[0] - V[3])
+  fvG13[3] = mu_by_rho*(V[1] - v1*V[0])
+  fvG13[4] = mu_by_rho*(-2./3.*v1*V[3] + v3*V[1] - 1./3.*v1*v3*V[0])
+
+  fvG23[2] = 2./3.*mu_by_rho*(v3*V[0] - V[3])
+  fvG23[3] = mu_by_rho*(V[2] - v2*V[0])
+  fvG23[4] = mu_by_rho*(-2./3.*v2*V[3] + v3*V[2] - 1./3.*v2*v3*V[0])
+
+
+  fvG33[1] = mu_by_rho*(V[1] - v1*V[0])
+  fvG33[2] = mu_by_rho*(V[2] - v2*V[0])
+  fvG33[3] = 4./3.*mu_by_rho*(V[3] - v3*V[0])
+ 
+  fvG33[4] = -(v1**2 + v2**2 + 4./3.*v3**2 + gamma/Pr*(E - vsqr) )*V[0] + \
+             (1. - gamma/Pr)*v1*V[1] + (1. - gamma/Pr)*v2*V[2] + \
+             (4./3. - gamma/Pr)*v3*V[3] + gamma/Pr*V[4]
+  fvG33[4] *= mu_by_rho
+
+  return fvG13,fvG23,fvG33
+
+
+
 def getGsNSX(u,main,mu):
   nvars = np.shape(u)[0]
   gamma = 1.4
