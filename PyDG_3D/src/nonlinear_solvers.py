@@ -51,7 +51,6 @@ def newtonSolver_MG(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadr
     mg_an.append( np.zeros(np.shape(mg_classes[i].a.a) ) )
     mg_b.append( np.zeros(np.size(mg_classes[i].RHS)) )
     mg_e.append(  np.zeros(np.size(mg_classes[i].RHS)) )
-  print(n_levels)
   def newtonHook(main,mg_classes,mg_Rn,mg_an):
     for i in range(0,n_levels):
       mg_classes[i].a.a[:] = main.a.a[:,0:main.order[0]/coarsen[i],0:main.order[1]/coarsen[i],0:main.order[2]/coarsen[i]]

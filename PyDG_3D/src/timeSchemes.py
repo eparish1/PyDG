@@ -62,7 +62,7 @@ def CrankNicolson(main,MZ,eqns,args):
     vr = np.reshape(v,np.shape(main.a.a))
     eps = 5.e-2
     main.a.a[:] = an + eps*vr
-    main.getRHS(main,main,eqns)
+    main.getRHS(main,MZ,eqns)
     R1 = np.zeros(np.shape(main.RHS))
     R1[:] = main.RHS[:]
     Av = vr - main.dt/2.*(R1 - Rn)/eps
