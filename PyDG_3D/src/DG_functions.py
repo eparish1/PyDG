@@ -14,24 +14,22 @@ import time
 
 def getFlux(main,MZ,eqns,args):
   # first reconstruct states
-  main.a.uR,main.a.uL,main.a.uU,main.a.uD,main.a.uF,main.a.uB = reconstructEdgesGeneral(main.a.a,main)
+  main.a.uR,main.a.uL,main.a.uU,main.a.uD,main.a.uF,main.a.uB = main.basis.reconstructEdgesGeneral(main.a.a,main)
   #main.a.uR_edge[:],main.a.uL_edge[:],main.a.uU_edge[:],main.a.uD_edge[:],main.a.uF_edge[:],main.a.uB_edge[:] = sendEdgesGeneralSlab(main.a.uL,main.a.uR,main.a.uD,main.a.uU,main.a.uB,main.a.uF,main)
   main.a.uR_edge,main.a.uL_edge,main.a.uU_edge,main.a.uD_edge,main.a.uF_edge,main.a.uB_edge = sendEdgesGeneralSlab(main.a.uL,main.a.uR,main.a.uD,main.a.uU,main.a.uB,main.a.uF,main)
   #main.a.aR_edge[:],main.a.aL_edge[:],main.a.aU_edge[:],main.a.aD_edge[:],main.a.aF_edge[:],main.a.aB_edge[:] = sendaEdgesGeneralSlab(main.a.a,main)
   #main.a.uR_edge[:],main.a.uL_edge[:],main.a.uU_edge[:],main.a.uD_edge[:],main.a.uF_edge[:],main.a.uB_edge[:] = reconstructEdgeEdgesGeneral(main)
   inviscidFluxGen(main,eqns,main.iFlux,main.a,args)
   # now we need to integrate along the boundary 
-  main.iFlux.fRI = faceIntegrateGlob(main,main.iFlux.fRS,MZ.w1,MZ.w2,MZ.weights1,MZ.weights2)
-  main.iFlux.fLI = faceIntegrateGlob(main,main.iFlux.fLS,MZ.w1,MZ.w2,MZ.weights1,MZ.weights2)
-  main.iFlux.fUI = faceIntegrateGlob(main,main.iFlux.fUS,MZ.w0,MZ.w2,MZ.weights0,MZ.weights2)
-  main.iFlux.fDI = faceIntegrateGlob(main,main.iFlux.fDS,MZ.w0,MZ.w2,MZ.weights0,MZ.weights2)
-  main.iFlux.fFI = faceIntegrateGlob(main,main.iFlux.fFS,MZ.w0,MZ.w1,MZ.weights0,MZ.weights1)
-  main.iFlux.fBI = faceIntegrateGlob(main,main.iFlux.fBS,MZ.w0,MZ.w1,MZ.weights0,MZ.weights1)
+  main.iFlux.fRI = main.basis.faceIntegrateGlob(main,main.iFlux.fRS,MZ.w1,MZ.w2,MZ.weights1,MZ.weights2)
+  main.iFlux.fLI = main.basis.faceIntegrateGlob(main,main.iFlux.fLS,MZ.w1,MZ.w2,MZ.weights1,MZ.weights2)
+  main.iFlux.fUI = main.basis.faceIntegrateGlob(main,main.iFlux.fUS,MZ.w0,MZ.w2,MZ.weights0,MZ.weights2)
+  main.iFlux.fDI = main.basis.faceIntegrateGlob(main,main.iFlux.fDS,MZ.w0,MZ.w2,MZ.weights0,MZ.weights2)
+  main.iFlux.fFI = main.basis.faceIntegrateGlob(main,main.iFlux.fFS,MZ.w0,MZ.w1,MZ.weights0,MZ.weights1)
+  main.iFlux.fBI = main.basis.faceIntegrateGlob(main,main.iFlux.fBS,MZ.w0,MZ.w1,MZ.weights0,MZ.weights1)
 
 
- 
-
-def getRHS(main,MZ,eqns,args=[]):
+def getRHS_reacting(main,MZ,eqns,args=[]):
   t0 = time.time()
   reconstructU(main,main.a)
   # evaluate inviscid flux
@@ -60,6 +58,56 @@ def getRHS(main,MZ,eqns,args=[]):
   v1ijk = volIntegrateGlob(main,main.iFlux.fx,main.wp0,main.w1,main.w2)*dxi[None]
   v2ijk = volIntegrateGlob(main,main.iFlux.fy,main.w0,main.wp1,main.w2)*dyi[None]
   v3ijk = volIntegrateGlob(main,main.iFlux.fz,main.w0,main.w1,main.wp2)*dzi[None]
+
+  tmp = v1ijk + v2ijk + v3ijk
+  tmp +=  (-main.iFlux.fRI[:,None,:,:] + main.iFlux.fLI[:,None,:,:]*main.altarray0[None,:,None,None,None,None,None])*dxi[None]
+  tmp +=  (-main.iFlux.fUI[:,:,None,:] + main.iFlux.fDI[:,:,None,:]*main.altarray1[None,None,:,None,None,None,None])*dyi[None]
+  tmp +=  (-main.iFlux.fFI[:,:,:,None] + main.iFlux.fBI[:,:,:,None]*main.altarray2[None,None,None,:,None,None,None])*dzi[None]
+  if (eqns.viscous):
+    tmp +=  (fvRIG11[:,None,:,:]*main.wpedge0[None,:,None,None,1,None,None,None] + fvRIG21[:,None,:,:] + fvRIG31[:,None,:,:]  - (fvLIG11[:,None,:,:]*main.wpedge0[None,:,None,None,0,None,None,None] + fvLIG21[:,None,:,:]*main.altarray0[None,:,None,None,None,None,None] + fvLIG31[:,None,:,:]*main.altarray0[None,:,None,None,None,None,None]) )*dxi[None]
+    tmp +=  (fvUIG12[:,:,None,:] + fvUIG22[:,:,None,:]*main.wpedge1[None,None,:,None,1,None,None,None] + fvUIG32[:,:,None,:]  - (fvDIG12[:,:,None,:]*main.altarray1[None,None,:,None,None,None,None] + fvDIG22[:,:,None,:]*main.wpedge1[None,None,:,None,0,None,None,None] + fvDIG32[:,:,None,:]*main.altarray1[None,None,:,None,None,None,None]) )*dyi[None]
+    tmp +=  (fvFIG13[:,:,:,None] + fvFIG23[:,:,:,None] + fvFIG33[:,:,:,None]*main.wpedge2[None,None,None,:,1,None,None,None]  - (fvBIG13[:,:,:,None]*main.altarray2[None,None,None,:,None,None,None] + fvBIG23[:,:,:,None]*main.altarray2[None,None,None,:,None,None,None] + fvBIG33[:,:,:,None]*main.wpedge2[None,None,None,:,0,None,None,None]) )*dzi[None] 
+    tmp +=  (fvR2I[:,None,:,:] - fvL2I[:,None,:,:]*main.altarray0[None,:,None,None,None,None,None])*dxi[None] + (fvU2I[:,:,None,:] - fvD2I[:,:,None,:]*main.altarray1[None,None,:,None,None,None,None])*dyi[None] + (fvF2I[:,:,:,None] - fvB2I[:,:,:,None]*main.altarray2[None,None,None,:,None,None,None])*dzi[None]
+ 
+  if (main.source):
+    force = np.zeros(np.shape(fvGX))
+    for i in range(0,main.nvars):
+      force[i] = main.source_mag[i]
+    tmp += volIntegrateGlob(main, force ,main.w0,main.w1,main.w2)*scale[None,:,:,:,None,None,None]
+
+  main.RHS = tmp
+  main.comm.Barrier()
+
+
+def getRHS(main,MZ,eqns,args=[]):
+  t0 = time.time()
+  main.basis.reconstructU(main,main.a)
+  # evaluate inviscid flux
+  getFlux(main,MZ,eqns,args)
+  ### Get interior vol terms
+  eqns.evalFluxX(main.a.u,main.iFlux.fx,args)
+  eqns.evalFluxY(main.a.u,main.iFlux.fy,args)
+  eqns.evalFluxZ(main.a.u,main.iFlux.fz,args)
+
+  t1 = time.time()
+  ord_arr0= np.linspace(0,main.order[0]-1,main.order[0])
+  ord_arr1= np.linspace(0,main.order[1]-1,main.order[1])
+  ord_arr2= np.linspace(0,main.order[2]-1,main.order[2])
+
+  scale =  (2.*ord_arr0[:,None,None] + 1.)*(2.*ord_arr1[None,:,None] + 1.)*(2.*ord_arr2[None,None,:]+1.)/8.
+  dxi = 2./main.dx2[None,None,None,:,None,None]*scale[:,:,:,None,None,None]
+  dyi = 2./main.dy2[None,None,None,None,:,None]*scale[:,:,:,None,None,None]
+  dzi = 2./main.dz2[None,None,None,None,None,:]*scale[:,:,:,None,None,None]
+
+  if (eqns.viscous):
+    fvGX,fvGY,fvGZ,fvRIG11,fvLIG11,fvRIG21,fvLIG21,fvRIG31,fvLIG31,fvUIG12,fvDIG12,fvUIG22,fvDIG22,fvUIG32,fvDIG32,fvFIG13,fvBIG13,fvFIG23,fvBIG23,fvFIG33,fvBIG33,fvR2I,fvL2I,fvU2I,fvD2I,fvF2I,fvB2I = getViscousFlux(main,eqns) ##takes roughly 20% of the 
+    main.iFlux.fx -= fvGX
+    main.iFlux.fy -= fvGY
+    main.iFlux.fz -= fvGZ
+
+  v1ijk = main.basis.volIntegrateGlob(main,main.iFlux.fx,main.wp0,main.w1,main.w2)*dxi[None]
+  v2ijk = main.basis.volIntegrateGlob(main,main.iFlux.fy,main.w0,main.wp1,main.w2)*dyi[None]
+  v3ijk = main.basis.volIntegrateGlob(main,main.iFlux.fz,main.w0,main.w1,main.wp2)*dzi[None]
 
   tmp = v1ijk + v2ijk + v3ijk
   tmp +=  (-main.iFlux.fRI[:,None,:,:] + main.iFlux.fLI[:,None,:,:]*main.altarray0[None,:,None,None,None,None,None])*dxi[None]
@@ -114,11 +162,11 @@ def getViscousFlux(main,eqns):
   Pr = 0.72
   a = main.a.a
 
-  main.a.Upx,main.a.Upy,main.a.Upz = diffU(main.a.a,main)
+  main.a.Upx,main.a.Upy,main.a.Upz = main.basis.diffU(main.a.a,main)
 
-  main.a.UxR,main.a.UxL,main.a.UxU,main.a.UxD,main.a.UxF,main.a.UxB = diffUX_edge(main.a.a,main)
-  main.a.UyR,main.a.UyL,main.a.UyU,main.a.UyD,main.a.UyF,main.a.UyB = diffUY_edge(main.a.a,main)
-  main.a.UzR,main.a.UzL,main.a.UzU,main.a.UzD,main.a.UzF,main.a.UzB = diffUZ_edge(main.a.a,main)
+  main.a.UxR,main.a.UxL,main.a.UxU,main.a.UxD,main.a.UxF,main.a.UxB = main.basis.diffUX_edge(main.a.a,main)
+  main.a.UyR,main.a.UyL,main.a.UyU,main.a.UyD,main.a.UyF,main.a.UyB = main.basis.diffUY_edge(main.a.a,main)
+  main.a.UzR,main.a.UzL,main.a.UzU,main.a.UzD,main.a.UzF,main.a.UzB = main.basis.diffUZ_edge(main.a.a,main)
   if (eqns.turb_str == 'Smagorinsky'):
     staticSmagorinsky(main)
 
@@ -157,33 +205,33 @@ def getViscousFlux(main,eqns):
   fvD2 = shatD - 6.*main.muD*3**2*jumpD/main.dy2[None,None,None,None,:,None]
   fvF2 = shatF - 6.*main.muF*3**2*jumpF/main.dz2[None,None,None,None,None,:]
   fvB2 = shatB - 6.*main.muB*3**2*jumpB/main.dz2[None,None,None,None,None,:]
-  fvRIG11 = faceIntegrateGlob(main,fvRG11,main.w1,main.w2,main.weights1,main.weights2) 
-  fvLIG11 = faceIntegrateGlob(main,fvLG11,main.w1,main.w2,main.weights1,main.weights2)  
-  fvRIG21 = faceIntegrateGlob(main,fvRG21,main.wp1,main.w2,main.weights1,main.weights2) 
-  fvLIG21 = faceIntegrateGlob(main,fvLG21,main.wp1,main.w2,main.weights1,main.weights2) 
-  fvRIG31 = faceIntegrateGlob(main,fvRG31,main.w1,main.wp2,main.weights1,main.weights2) 
-  fvLIG31 = faceIntegrateGlob(main,fvLG31,main.w1,main.wp2,main.weights1,main.weights2) 
+  fvRIG11 = main.basis.faceIntegrateGlob(main,fvRG11,main.w1,main.w2,main.weights1,main.weights2) 
+  fvLIG11 = main.basis.faceIntegrateGlob(main,fvLG11,main.w1,main.w2,main.weights1,main.weights2)  
+  fvRIG21 = main.basis.faceIntegrateGlob(main,fvRG21,main.wp1,main.w2,main.weights1,main.weights2) 
+  fvLIG21 = main.basis.faceIntegrateGlob(main,fvLG21,main.wp1,main.w2,main.weights1,main.weights2) 
+  fvRIG31 = main.basis.faceIntegrateGlob(main,fvRG31,main.w1,main.wp2,main.weights1,main.weights2) 
+  fvLIG31 = main.basis.faceIntegrateGlob(main,fvLG31,main.w1,main.wp2,main.weights1,main.weights2) 
 
-  fvUIG12 = faceIntegrateGlob(main,fvUG12,main.wp0,main.w2,main.weights0,main.weights2)  
-  fvDIG12 = faceIntegrateGlob(main,fvDG12,main.wp0,main.w2,main.weights0,main.weights2)  
-  fvUIG22 = faceIntegrateGlob(main,fvUG22,main.w0,main.w2,main.weights0,main.weights2)  
-  fvDIG22 = faceIntegrateGlob(main,fvDG22,main.w0,main.w2,main.weights0,main.weights2)  
-  fvUIG32 = faceIntegrateGlob(main,fvUG32,main.w0,main.wp2,main.weights0,main.weights2)  
-  fvDIG32 = faceIntegrateGlob(main,fvDG32,main.w0,main.wp2,main.weights0,main.weights2)  
+  fvUIG12 = main.basis.faceIntegrateGlob(main,fvUG12,main.wp0,main.w2,main.weights0,main.weights2)  
+  fvDIG12 = main.basis.faceIntegrateGlob(main,fvDG12,main.wp0,main.w2,main.weights0,main.weights2)  
+  fvUIG22 = main.basis.faceIntegrateGlob(main,fvUG22,main.w0,main.w2,main.weights0,main.weights2)  
+  fvDIG22 = main.basis.faceIntegrateGlob(main,fvDG22,main.w0,main.w2,main.weights0,main.weights2)  
+  fvUIG32 = main.basis.faceIntegrateGlob(main,fvUG32,main.w0,main.wp2,main.weights0,main.weights2)  
+  fvDIG32 = main.basis.faceIntegrateGlob(main,fvDG32,main.w0,main.wp2,main.weights0,main.weights2)  
 
-  fvFIG13 = faceIntegrateGlob(main,fvFG13,main.wp0,main.w1,main.weights0,main.weights1)   
-  fvBIG13 = faceIntegrateGlob(main,fvBG13,main.wp0,main.w1,main.weights0,main.weights1)  
-  fvFIG23 = faceIntegrateGlob(main,fvFG23,main.w0,main.wp1,main.weights0,main.weights1)  
-  fvBIG23 = faceIntegrateGlob(main,fvBG23,main.w0,main.wp1,main.weights0,main.weights1)  
-  fvFIG33 = faceIntegrateGlob(main,fvFG33,main.w0,main.w1,main.weights0,main.weights1)  
-  fvBIG33 = faceIntegrateGlob(main,fvBG33,main.w0,main.w1,main.weights0,main.weights1)  
+  fvFIG13 = main.basis.faceIntegrateGlob(main,fvFG13,main.wp0,main.w1,main.weights0,main.weights1)   
+  fvBIG13 = main.basis.faceIntegrateGlob(main,fvBG13,main.wp0,main.w1,main.weights0,main.weights1)  
+  fvFIG23 = main.basis.faceIntegrateGlob(main,fvFG23,main.w0,main.wp1,main.weights0,main.weights1)  
+  fvBIG23 = main.basis.faceIntegrateGlob(main,fvBG23,main.w0,main.wp1,main.weights0,main.weights1)  
+  fvFIG33 = main.basis.faceIntegrateGlob(main,fvFG33,main.w0,main.w1,main.weights0,main.weights1)  
+  fvBIG33 = main.basis.faceIntegrateGlob(main,fvBG33,main.w0,main.w1,main.weights0,main.weights1)  
 
-  fvR2I = faceIntegrateGlob(main,fvR2,main.w1,main.w2,main.weights1,main.weights2)    
-  fvL2I = faceIntegrateGlob(main,fvL2,main.w1,main.w2,main.weights1,main.weights2)  
-  fvU2I = faceIntegrateGlob(main,fvU2,main.w0,main.w2,main.weights0,main.weights2)  
-  fvD2I = faceIntegrateGlob(main,fvD2,main.w0,main.w2,main.weights0,main.weights2)  
-  fvF2I = faceIntegrateGlob(main,fvF2,main.w0,main.w1,main.weights0,main.weights1)
-  fvB2I = faceIntegrateGlob(main,fvB2,main.w0,main.w1,main.weights0,main.weights1)
+  fvR2I = main.basis.faceIntegrateGlob(main,fvR2,main.w1,main.w2,main.weights1,main.weights2)    
+  fvL2I = main.basis.faceIntegrateGlob(main,fvL2,main.w1,main.w2,main.weights1,main.weights2)  
+  fvU2I = main.basis.faceIntegrateGlob(main,fvU2,main.w0,main.w2,main.weights0,main.weights2)  
+  fvD2I = main.basis.faceIntegrateGlob(main,fvD2,main.w0,main.w2,main.weights0,main.weights2)  
+  fvF2I = main.basis.faceIntegrateGlob(main,fvF2,main.w0,main.w1,main.weights0,main.weights1)
+  fvB2I = main.basis.faceIntegrateGlob(main,fvB2,main.w0,main.w1,main.weights0,main.weights1)
   return fvGX,fvGY,fvGZ,fvRIG11,fvLIG11,fvRIG21,fvLIG21,fvRIG31,fvLIG31,fvUIG12,fvDIG12,fvUIG22,fvDIG22,fvUIG32,fvDIG32,fvFIG13,fvBIG13,fvFIG23,fvBIG23,fvFIG33,fvBIG33,fvR2I,fvL2I,fvU2I,fvD2I,fvF2I,fvB2I
 
 

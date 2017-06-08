@@ -4,13 +4,14 @@ import sys
 from mpi4py import MPI
 from init_Classes import *
 from solver_classes import *
-from DG_functions import reconstructU,volIntegrateGlob
+from DG_functions import reconstructU_tensordot as reconstructU
+from DG_functions import volIntegrateGlob_tensordot as volIntegrateGlob
 from MPI_functions import gatherSolSlab,gatherSolSpectral
 from timeSchemes import *#advanceSol,advanceSolImplicitMG,advanceSolImplicit,advanceSolImplicitPC
 import time
 from scipy import interpolate
 from scipy.interpolate import RegularGridInterpolator
-
+from basis_class import *
 def getGlobGrid2(x,y,z,zeta0,zeta1,zeta2):
 #  dx = x[1] - x[0]
 #  dy = y[1] - y[0]
@@ -112,6 +113,10 @@ else:
   if (mpi_rank == 0): print('shock_capturing not set, turned off by default' )
   shock_capturing = False
 
+if 'basis_functions_str' in globals():
+  pass
+else:
+  basis_functions_str = 'TensorDot'
 comm = MPI.COMM_WORLD
 num_processes = comm.Get_size()
 mpi_rank = comm.Get_rank()
@@ -137,8 +142,7 @@ getIC(main,IC_function,xG2[:,:,:,main.sx,main.sy,:],yG2[:,:,:,main.sx,main.sy,:]
 reconstructU(main,main.a)
 
 timescheme = timeschemes(time_integration,linear_solver_str,nonlinear_solver_str)
-
-np.savez('DGgrid',x=xG,y=yG,z=zG)
+main.basis = basis_class('Legendre',[basis_functions_str])
 if (main.mpi_rank == 0):
   if not os.path.exists('Solution'):
      os.makedirs('Solution')
