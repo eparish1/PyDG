@@ -41,31 +41,36 @@ def newtonSolver_MG(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadr
   mg_classes = []
   mg_Rn = []
   mg_an = []
-  eqns2 = equations('Navier-Stokes',('roe','Inviscid'))
+  #eqns2 = equations('Navier-Stokes',('roe','Inviscid'),'DNS')
   mg_b = []
   mg_e = []
   for i in range(0,n_levels):
-    mg_classes.append( variables(main.Nel,main.order/coarsen[i],main.quadpoints/(2*coarsen[i]),eqns2,main.mu,main.xG,main.yG,main.zG,main.t,main.et,main.dt,main.iteration,main.save_freq,'DNS',main.procx,main.procy) )
+    mg_classes.append( variables(main.Nel,main.order/coarsen[i],main.quadpoints/(2*coarsen[i]),eqns,main.mus,main.xG,main.yG,main.zG,main.t,main.et,main.dt,main.iteration,main.save_freq,'DNS',main.procx,main.procy,main.BCs,main.source,main.source_mag,main.shock_capturing) )
+    mg_classes[i].basis = main.basis
     mg_Rn.append( np.zeros(np.shape(mg_classes[i].RHS)) )
     mg_an.append( np.zeros(np.shape(mg_classes[i].a.a) ) )
     mg_b.append( np.zeros(np.size(mg_classes[i].RHS)) )
     mg_e.append(  np.zeros(np.size(mg_classes[i].RHS)) )
+  print(n_levels)
   def newtonHook(main,mg_classes,mg_Rn,mg_an):
     for i in range(0,n_levels):
       mg_classes[i].a.a[:] = main.a.a[:,0:main.order[0]/coarsen[i],0:main.order[1]/coarsen[i],0:main.order[2]/coarsen[i]]
-      mg_classes[i].getRHS(mg_classes[i],eqns2)
+      mg_classes[i].getRHS(mg_classes[i],mg_classes[i],eqns)
       mg_Rn[i][:] = mg_classes[i].RHS[:]
       mg_an[i][:] = mg_classes[i].a.a[:]
       mg_e[i][:] = 0. 
+
   def mv_resid(MF_Jacobian,args,main,v,b):
     return b - MF_Jacobian(v,args,main)
 
   Rstarn,Rn,Rstar_glob = unsteadyResidual(main.a.a)
+
   NLiter = 0
   an = np.zeros(np.shape(main.a0))
   an[:] = main.a0[:]
   Rstar_glob0 = Rstar_glob*1.
   old = np.zeros(np.shape(main.a.a))
+
   while (Rstar_glob >= 1e-8 and Rstar_glob/Rstar_glob0 > 1e-8):
     NLiter += 1
     ts = time.time()
