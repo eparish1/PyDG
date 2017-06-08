@@ -34,7 +34,7 @@ def ExplicitRK4(main,MZ,eqns,args=None):
   rk4const = np.array([1./4,1./3,1./2,1.])
   for i in range(0,4):
     main.rkstage = i
-    main.getRHS(main,MZ,eqns)  ## put RHS in a array since we don't need it
+    eqns.getRHS(main,MZ,eqns)  ## put RHS in a array since we don't need it
     main.a.a[:] = main.a0 + main.dt*rk4const[i]*(main.RHS[:])
   main.t += main.dt
   main.iteration += 1
@@ -44,12 +44,12 @@ def CrankNicolson(main,MZ,eqns,args):
   linear_solver = args[1]
   sparse_quadrature = args[2]
   main.a0[:] = main.a.a[:]
-  main.getRHS(main,MZ,eqns)
+  eqns.getRHS(main,MZ,eqns)
   R0 = np.zeros(np.shape(main.RHS))
   R0[:] = main.RHS[:]
   def unsteadyResidual(v):
     main.a.a[:] = np.reshape(v,np.shape(main.a.a))
-    main.getRHS(main,MZ,eqns)
+    eqns.getRHS(main,MZ,eqns)
     R1 = np.zeros(np.shape(main.RHS))
     R1[:] = main.RHS[:]
     Rstar = ( main.a.a[:] - main.a0 ) - 0.5*main.dt*(R0 + R1)
@@ -62,7 +62,7 @@ def CrankNicolson(main,MZ,eqns,args):
     vr = np.reshape(v,np.shape(main.a.a))
     eps = 5.e-2
     main.a.a[:] = an + eps*vr
-    main.getRHS(main,MZ,eqns)
+    eqns.getRHS(main,MZ,eqns)
     R1 = np.zeros(np.shape(main.RHS))
     R1[:] = main.RHS[:]
     Av = vr - main.dt/2.*(R1 - Rn)/eps
