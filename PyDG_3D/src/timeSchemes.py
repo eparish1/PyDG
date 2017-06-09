@@ -44,12 +44,12 @@ def CrankNicolson(main,MZ,eqns,args):
   linear_solver = args[1]
   sparse_quadrature = args[2]
   main.a0[:] = main.a.a[:]
-  eqns.getRHS(main,MZ,eqns)
+  eqns.getRHS(main,main,eqns)
   R0 = np.zeros(np.shape(main.RHS))
   R0[:] = main.RHS[:]
   def unsteadyResidual(v):
     main.a.a[:] = np.reshape(v,np.shape(main.a.a))
-    eqns.getRHS(main,MZ,eqns)
+    eqns.getRHS(main,main,eqns)
     R1 = np.zeros(np.shape(main.RHS))
     R1[:] = main.RHS[:]
     Rstar = ( main.a.a[:] - main.a0 ) - 0.5*main.dt*(R0 + R1)
@@ -62,7 +62,7 @@ def CrankNicolson(main,MZ,eqns,args):
     vr = np.reshape(v,np.shape(main.a.a))
     eps = 5.e-2
     main.a.a[:] = an + eps*vr
-    eqns.getRHS(main,MZ,eqns)
+    eqns.getRHS(main,main,eqns)
     R1 = np.zeros(np.shape(main.RHS))
     R1[:] = main.RHS[:]
     Av = vr - main.dt/2.*(R1 - Rn)/eps
