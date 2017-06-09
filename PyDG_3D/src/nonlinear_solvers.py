@@ -70,7 +70,7 @@ def newtonSolver_MG(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadr
   Rstar_glob0 = Rstar_glob*1.
   old = np.zeros(np.shape(main.a.a))
 
-  while (Rstar_glob >= 1e-8 and Rstar_glob/Rstar_glob0 > 1e-8):
+  while (Rstar_glob >= 1e-20 and Rstar_glob/Rstar_glob0 > 1e-8):
     NLiter += 1
     ts = time.time()
     old[:] = 0.
