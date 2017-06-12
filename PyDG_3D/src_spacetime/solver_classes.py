@@ -55,14 +55,26 @@ class nonlinearSolver:
       self.solve = newtonSolver_MG
       self.rtol=rtol
       self.printnorm = printnorm
+    if (SolverType == 'Newton_PC'):
+      self.solve = newtonSolver_PC2
+      self.rtol=rtol
+      self.printnorm = printnorm
 
 
 class linearSolver:
-  def __init__(self,SolverType='GMRes',tol=1e-8,maxiter_outer=1,maxiter=40,printnorm=0):
+  def __init__(self,SolverType='GMRes',tol=1e-8,maxiter_outer=1,maxiter=15,printnorm=0):
     comm = MPI.COMM_WORLD
     if (SolverType == 'GMRes'):
       if (comm.Get_rank() == 0): print('Linear solver set to ' + SolverType)
       self.solve = GMRes
+      self.tol=tol
+      self.maxiter_outer = maxiter_outer
+      self.maxiter = maxiter
+      self.printnorm = printnorm
+    if (SolverType == 'fGMRes'):
+      if (comm.Get_rank() == 0): print('Linear solver set to ' + SolverType)
+      self.solve = fGMRes
+      self.solvePC = GMRes
       self.tol=tol
       self.maxiter_outer = maxiter_outer
       self.maxiter = maxiter

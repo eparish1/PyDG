@@ -1,6 +1,7 @@
 import numpy as np
 import sys
 import time
+import matplotlib.pyplot as plt
 from init_Classes import variables,equations
 def newtonSolver(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadrature,eqns):
   if (sparse_quadrature):
@@ -22,13 +23,21 @@ def newtonSolver(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadratu
   NLiter = 0
   an = np.zeros(np.shape(main.a0))
   an[:] = main.a0[:]
-  Rstar_glob0 = Rstar_glob*1.
-  while (Rstar_glob >= 1e-20 and Rstar_glob/Rstar_glob0 > 1e-9):
+  Rstar_glob0 = Rstar_glob*1. 
+  old = np.zeros(np.shape(main.a.a))
+  while (Rstar_glob >= 1e-20 and Rstar_glob/Rstar_glob0 > 1e-8):
     NLiter += 1
     ts = time.time()
     newtonHook(main_coarse,main,Rn)
     MF_Jacobian_args = [an,Rn]
-    sol = linear_solver.solve(MF_Jacobian, -Rstarn.flatten(), np.zeros(np.size(main.a.a)),main_coarse,MF_Jacobian_args, linear_solver.tol,linear_solver.maxiter_outer,linear_solver.maxiter,False)
+    delta = 1
+#    if (Rstar_glob/Rstar_glob0 < 1e-4):
+#      delta = 2
+#`    if (Rstar_glob/Rstar_glob0 < 1e-5):
+#      delta = 2
+#    if (Rstar_glob/Rstar_glob0 < 1e-6):
+#      delta = 3
+    sol = linear_solver.solve(MF_Jacobian, -Rstarn.flatten(), old.flatten(),main_coarse,MF_Jacobian_args, linear_solver.tol,linear_solver.maxiter_outer,15*delta,False)
     main.a.a[:] = an[:] + np.reshape(sol,np.shape(main.a.a))
     an[:] = main.a.a[:]
     Rstarn,Rn,Rstar_glob = unsteadyResidual(main.a.a)
@@ -38,8 +47,12 @@ def newtonSolver(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadratu
 
 
 
+
+
+
+
 def newtonSolver_MG(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadrature,eqns):
-  n_levels = int(np.log(np.amax(main.order))/np.log(2)) 
+  n_levels = 2#int(np.log(np.amax(main.order))/np.log(2)) 
   coarsen = np.int32(2**np.linspace(0,n_levels-1,n_levels))
   mg_classes = []
   mg_Rn = []
@@ -107,6 +120,137 @@ def newtonSolver_MG(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadr
       sys.stdout.flush()
 
 
+
+
+
+
+
+
+
+
+
+
+
+def newtonSolver_PC2(unsteadyResidual,MF_Jacobian,MF_Jacobian_PC,main,linear_solver,sparse_quadrature,eqns):
+  def newtonHook(main,Rn):
+    eqns.getRHS(main,main,eqns)
+    Rn[:] = main.RHS[:]
+
+  def Minv(v,main,main2,MF_Jacobian_args,MF_Jacobian_args2,MF_Jacobian_PC):
+    sol = linear_solver.solvePC(MF_Jacobian_PC,v.flatten()*1.,np.zeros(np.size(v.flatten())),main,MF_Jacobian_args2, 1e-6,linear_solver.maxiter_outer,5,True)
+    return sol.flatten()
+
+
+  Rstarn,Rn,Rstar_glob = unsteadyResidual(main.a.a)
+  NLiter = 0
+  an = np.zeros(np.shape(main.a0))
+  an[:] = main.a0[:]
+  Rstar_glob0 = Rstar_glob*1.
+  while (Rstar_glob >= 1e-20 and Rstar_glob/Rstar_glob0 > 1e-9):
+    NLiter += 1
+    ts = time.time()
+    newtonHook(main,Rn)
+    MF_Jacobian_args = [an,Rn]
+    MF_Jacobian_args_coarse = [an,Rn]
+    delta = 1
+    sol = linear_solver.solve(MF_Jacobian,MF_Jacobian_PC, -Rstarn.flatten(), np.zeros(np.size(main.a.a)),main,MF_Jacobian_args,main,MF_Jacobian_args_coarse,Minv,linear_solver.tol,linear_solver.maxiter_outer,10,False)
+
+    main.a.a[:] = an[:] + np.reshape(sol,np.shape(main.a.a))
+    an[:] = main.a.a[:]
+
+    Rstarn,Rn,Rstar_glob = unsteadyResidual(main.a.a)
+    if (main.mpi_rank == 0):
+      sys.stdout.write('NL iteration = ' + str(NLiter) + '  NL residual = ' + str(Rstar_glob) + ' relative decrease = ' + str(Rstar_glob/Rstar_glob0) + ' Solve time = ' + str(time.time() - ts)  + '\n')
+      sys.stdout.flush()
+
+
+
+
+
+
+
+def newtonSolver_PC8(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadrature,eqns):
+  order_coarsen = np.fmax(main.order/2,1)
+#  order_coarsen[-1] = main.order[-1]
+  quadpoints_coarsen = np.fmax(main.quadpoints/2,1)
+  quadpoints_coarsen[-1] = main.quadpoints[-1]
+  main_coarse = variables(main.Nel,order_coarsen,quadpoints_coarsen,eqns,main.mus,main.xG,main.yG,main.zG,main.t,main.et,main.dt,main.iteration,main.save_freq,'DNS',main.procx,main.procy,main.BCs,main.source,main.source_mag,main.shock_capturing)
+  main_coarse.basis = main.basis
+  main_coarse.a.a[:] = main.a.a[:,0:main_coarse.order[0],0:main_coarse.order[1],0:main_coarse.order[2],0:main_coarse.order[3] ]
+  def newtonHook(main,main_coarse,Rn,Rnc):
+    eqns.getRHS(main,main,eqns)
+    Rn[:] = main.RHS[:]
+    eqns.getRHS(main_coarse,main_coarse,eqns)
+    Rnc[:] = main_coarse.RHS[:]
+
+  def Minv(v,main,main_coarse,MF_Jacobian_args,MF_Jacobian_args2):
+    def mv_resid(MF_Jacobian,args,main,v,b):
+      return b - MF_Jacobian(v,args,main)
+    coarse_order = np.shape(main_coarse.a.a)[1:5]
+    old = np.zeros(np.shape(main.a.a))
+    for i in range(0,1):
+      # solve on the fine mesh
+      sol = linear_solver.solvePC(MF_Jacobian ,v.flatten()*1.,old.flatten(),main,MF_Jacobian_args2, 1e-6,linear_solver.maxiter_outer,7,False)
+  
+      # restrict
+      R =  np.reshape( mv_resid(MF_Jacobian,MF_Jacobian_args2,main,sol,v.flatten()) , np.shape(main.a.a ) )
+      R_coarse = R[:,0:order_coarsen[0],0:order_coarsen[1],0:order_coarsen[2],0:order_coarsen[3]]
+      # solve for the error on the coarse mesh
+      e = linear_solver.solvePC(MF_Jacobian,R_coarse.flatten(), np.zeros(np.shape(R_coarse.flatten())),main_coarse,MF_Jacobian_args,1e-6,linear_solver.maxiter_outer,1,False)
+#  
+      old = np.zeros(np.shape(main.a.a))
+      old[:] = np.reshape(sol,np.shape(main.a.a))
+      old[:,0:order_coarsen[0],0:order_coarsen[1],0:order_coarsen[2],0:order_coarsen[3]] += np.reshape( e , np.shape(main_coarse.a.a) )
+  
+      # Run the final iterations on the fine mesh
+      sol = linear_solver.solvePC(MF_Jacobian, v.flatten(), old.flatten(),main,MF_Jacobian_args2, 1e-6,linear_solver.maxiter_outer,7,False)
+
+#    Minv_v = np.zeros(np.shape(main.a.a))
+#    Minv_v[:] = np.reshape(v,np.shape(main.a.a))
+#    tmp_coarse = Minv_v[:,0:coarse_order[0],0:coarse_order[1],0:coarse_order[2],0:coarse_order[3]]
+#    Minv_v2 = np.zeros(np.shape(main.a.a))
+#    Minv_v2[:] = Minv_v[:]
+#    tmp_coarse2 = np.zeros(np.shape(tmp_coarse))
+#    tmp_coarse2[:] = tmp_coarse[:]
+#    tmp_coarse = linear_solver.solvePC(MF_Jacobian, tmp_coarse2.flatten(), tmp_coarse2.flatten()*0.,main_coarse,MF_Jacobian_args, 1e-6,linear_solver.maxiter_outer,10,False)
+#    Minv_v[:,0:coarse_order[0],0:coarse_order[1],0:coarse_order[2],0:coarse_order[3]] = np.reshape(tmp_coarse[:],np.shape(main_coarse.a.a))
+#    sol = linear_solver.solvePC(MF_Jacobian, v2.flatten(), Minv_v.flatten()*1.,main,MF_Jacobian_args2, 1e-6,linear_solver.maxiter_outer,20,False)
+#
+# 
+#    plt.plot( np.reshape(tmp_coarse[:],np.shape(main_coarse.a.a))[0,:,0,0,0,0,0,0,0])
+#    plt.plot( np.reshape(tmp_coarse1[:],np.shape(main.a.a))[0,:,0,0,0,0,0,0,0])
+#    plt.pause(0.01)
+#    plt.clf()
+
+    return sol.flatten()
+
+
+  Rstarn,Rn,Rstar_glob = unsteadyResidual(main.a.a)
+  NLiter = 0
+  an = np.zeros(np.shape(main.a0))
+  an[:] = main.a0[:]
+  Rnc = np.zeros(np.shape(main_coarse.a0))
+  anc = np.zeros(np.shape(main_coarse.a0))
+  anc[:] = main.a0[:,0:main_coarse.order[0],0:main_coarse.order[1],0:main_coarse.order[2],0:main_coarse.order[3] ]
+  Rstar_glob0 = Rstar_glob*1.
+  while (Rstar_glob >= 1e-20 and Rstar_glob/Rstar_glob0 > 1e-9):
+    NLiter += 1
+    ts = time.time()
+    newtonHook(main,main_coarse,Rn,Rnc)
+    MF_Jacobian_args = [an,Rn]
+    MF_Jacobian_args_coarse = [anc,Rnc]
+    delta = 1
+
+    sol = linear_solver.solve(MF_Jacobian, -Rstarn.flatten(), np.zeros(np.size(main.a.a)),main,MF_Jacobian_args,main_coarse,MF_Jacobian_args_coarse,Minv,linear_solver.tol,linear_solver.maxiter_outer,10,False)
+    main.a.a[:] = an[:] + np.reshape(sol,np.shape(main.a.a))
+    an[:] = main.a.a[:]
+    anc[:] = an[:,0:main_coarse.order[0],0:main_coarse.order[1],0:main_coarse.order[2],0:main_coarse.order[3] ]
+    main_coarse.a.a[:] = main.a.a[:,0:main_coarse.order[0],0:main_coarse.order[1],0:main_coarse.order[2],0:main_coarse.order[3] ]
+
+    Rstarn,Rn,Rstar_glob = unsteadyResidual(main.a.a)
+    if (main.mpi_rank == 0):
+      sys.stdout.write('NL iteration = ' + str(NLiter) + '  NL residual = ' + str(Rstar_glob) + ' relative decrease = ' + str(Rstar_glob/Rstar_glob0) + ' Solve time = ' + str(time.time() - ts)  + '\n')
+      sys.stdout.flush()
 
 
 #### OUTDATED. USE FOR VALIDATION

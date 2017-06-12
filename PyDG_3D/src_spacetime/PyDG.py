@@ -132,7 +132,7 @@ if (mpi_rank == 0):
 dx =  (x[-1] - x[0])/Nel[0]
 t = 0
 if (mpi_rank == 0):
-  print('dt*p/dx = ' + str(1.*dt*order[0]/dx))
+  print('dt*p/(Nt*dx) = ' + str(1.*dt*order[0]/dx/order[-1]))
   print('dt*(p/dx)**2*mu = ' + str(dt*order[0]**2/dx**2*mu) )
 iteration = 0
 eqns = equations(eqn_str,schemes,turb_str)

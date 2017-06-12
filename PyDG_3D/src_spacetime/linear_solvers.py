@@ -74,6 +74,57 @@ def GMRes(Af, b, x0,main,args,tol=1e-9,maxiter_outer=1,maxiter=20,printnorm=0):
     return x[:]
 
 
+def fGMRes(Af,Af_PC, b, x0,main,args,main_coarse,args_coarse,Minv,tol=1e-9,maxiter_outer=1,maxiter=20,printnorm=0):
+    k_outer = 0
+    bnorm = globalNorm(b,main)
+    error = 1.
+    coarse_order = np.shape(main.a.a)[1:5]
+    while (k_outer < maxiter_outer and error >= tol):
+      r = b - Af(x0,args,main)
+      if (main.mpi_rank == 0 and printnorm==1):
+        print('Outer true norm = ' + str(np.linalg.norm(r)))
+      cs = np.zeros(maxiter) #should be the same on all procs
+      sn = np.zeros(maxiter) #same on all procs
+      e1 = np.zeros(np.size(b)) #should vary across procs
+      e1[0] = 1
+  
+      rnorm = globalNorm(r,main) #same across procs
+      Q = np.zeros((np.size(b),maxiter)) 
+      Z = np.zeros((np.size(b),maxiter)) 
+      #v = [0] * (nmax_iter)
+      Q[:,0] = r / rnorm ## The first index of Q is across all procs
+      H = np.zeros((maxiter + 1, maxiter)) ### this should be the same on all procs
+      beta = rnorm*e1
+      k = 0
+      while (k < maxiter - 1  and error >= tol):
+          Z[:,k] = Minv(Q[:,k],main,main_coarse,args_coarse,args,Af_PC)
+          Q[:,k+1] = Af(Z[:,k],args,main)
+          Arnoldi_fgmres(Af,H,Q,k,args,main)
+          apply_givens_rotation(H,cs,sn,k)
+          #update the residual vector
+          beta[k+1] = -sn[k]*beta[k]
+          beta[k] = cs[k]*beta[k]
+          error = abs(beta[k+1])/bnorm
+          if (main.mpi_rank == 0 and printnorm == 1):
+            sys.stdout.write('Outer iteration = ' + str(k_outer) + \
+            ' Iteration = ' + str(k) + '  GMRES error = ' + str(error) +  '\n')
+          k += 1
+      y = np.linalg.solve(H[0:k,0:k],beta[0:k]) 
+      Zy = np.dot(Z[:,0:k],y) 
+      x = x0 + Zy 
+      x0[:] = x[:]
+      k_outer += 1
+    return x[:]
+
+def Arnoldi_fgmres(Af,H,Q,k,args,main):
+    for i in range(0,k+1):
+        H[i, k] = globalSum(Q[:,i]*Q[:,k+1],main)
+        Q[:,k+1] = Q[:,k+1] - H[i, k] * Q[:,i]
+    H[k + 1, k] = globalNorm(Q[:,k+1],main)
+#    if (h[k + 1, k] != 0 and k != nmax_iter - 1):
+    Q[:,k + 1] = Q[:,k+1] / H[k + 1, k]
+
+
 def Arnoldi(Af,H,Q,k,args,main):
     Q[:,k+1] = Af(Q[:,k],args,main)
     for i in range(0,k+1):

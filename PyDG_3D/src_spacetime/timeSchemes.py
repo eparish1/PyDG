@@ -2,6 +2,7 @@ import numpy as np
 #import sys, petsc4py
 #petsc4py.init(sys.argv)
 #from petsc4py import PETSc
+import matplotlib.pyplot as plt
 from mpi4py import MPI
 import sys
 from init_Classes import variables,equations
@@ -68,23 +69,53 @@ def spaceTime(main,MZ,eqns,args=None):
     an = args[0]
     Rn = args[1]
     vr = np.reshape(v,np.shape(main.a.a))
-    eps = 5.e-2
+    eps = 5.e-3
     main.a.a[:] = an + eps*vr
-#    Rstar1,d,d = unsteadyResidual(main.a.a.flatten())
-#    Rstar2,d,d = unsteadyResidual(an.flatten())
-#    Av = 1./eps*(Rstar1 - Rstar2)
-#    print(np.linalg.norm(main.a.u))
     eqns.getRHS(main,main,eqns)
     R1 = np.zeros(np.shape(main.RHS))
     R1[:] = main.RHS[:]
     vr_phys = main.basis.reconstructUGeneral(main,vr)
-#    print(np.linalg.norm(main.a.u))
     volint_t = main.basis.volIntegrateGlob(main,vr_phys,main.w0,main.w1,main.w2,main.wp3)*scale[None,:,:,:,:,None,None,None,None]*2./main.dt
     uFuture,uPast = main.basis.reconstructEdgesGeneralTime(vr,main)
     futureFlux = main.basis.faceIntegrateGlob(main,uFuture,main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
     pastFlux   = main.basis.faceIntegrateGlob(main,main.a.uFuture  ,main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
     Av = volint_t - (futureFlux[:,:,:,:,None])*scale[None,:,:,:,:,None,None,None,None]*2./main.dt + \
          1./eps * (R1 - Rn) 
+    return Av.flatten()
+
+  def create_MF_Jacobian_PC(v,args,main):
+
+    vr = np.reshape(v,np.shape(main.a.a))
+    vr_phys = main.basis.reconstructUGeneral(main,vr)
+
+    ord_arr0= np.linspace(0,main.order[0]-1,main.order[0])
+    ord_arr1= np.linspace(0,main.order[1]-1,main.order[1])
+    ord_arr2= np.linspace(0,main.order[2]-1,main.order[2])
+    ord_arr3= np.linspace(0,main.order[3]-1,main.order[3])
+    scale =  (2.*ord_arr0[:,None,None,None] + 1.)*(2.*ord_arr1[None,:,None,None] + 1.)*(2.*ord_arr2[None,None,:,None]+1.)*(2.*ord_arr3[None,None,None,:] + 1. )/16.
+    eps = 5.e-3
+    an = args[0]
+    Rn = args[1]
+
+    main.a.a[:] = an[:] + vr[:]
+    main.basis.reconstructU(main,main.a)
+    # evaluate inviscid flux
+    eqns.evalFluxX(main.a.u,main.iFlux.fx,[])
+    eqns.evalFluxY(main.a.u,main.iFlux.fy,[])
+    eqns.evalFluxZ(main.a.u,main.iFlux.fz,[])
+  
+    dxi = 2./main.dx2[None,None,None,None,:,None,None,None]*scale[:,:,:,:,None,None,None,None]*np.ones(np.shape(main.a.a[0]))
+    dyi = 2./main.dy2[None,None,None,None,None,:,None,None]*scale[:,:,:,:,None,None,None,None]*np.ones(np.shape(main.a.a[0]))
+    dzi = 2./main.dz2[None,None,None,None,None,None,:,None]*scale[:,:,:,:,None,None,None,None]*np.ones(np.shape(main.a.a[0]))
+    v1ijk = main.basis.volIntegrateGlob(main,main.iFlux.fx,main.wp0,main.w1,main.w2,main.w3)*dxi[None]
+    v2ijk = main.basis.volIntegrateGlob(main,main.iFlux.fy,main.w0,main.wp1,main.w2,main.w3)*dyi[None]
+    v3ijk = main.basis.volIntegrateGlob(main,main.iFlux.fz,main.w0,main.w1,main.wp2,main.w3)*dzi[None]
+    R1 = v1ijk + v2ijk + v3ijk
+    volint_t = main.basis.volIntegrateGlob(main,vr_phys,main.w0,main.w1,main.w2,main.wp3)*scale[None,:,:,:,:,None,None,None,None]*2./main.dt
+    uFuture,uPast = main.basis.reconstructEdgesGeneralTime(vr,main)
+    futureFlux = main.basis.faceIntegrateGlob(main,uFuture,main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
+    pastFlux   = main.basis.faceIntegrateGlob(main,main.a.uFuture  ,main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
+    Av = R1#volint_t - (futureFlux[:,:,:,:,None])*scale[None,:,:,:,:,None,None,None,None]*2./main.dt 
     return Av.flatten()
 
 #  unsteadyResidual(main.a.a)
@@ -126,12 +157,26 @@ def CrankNicolson(main,MZ,eqns,args):
     an = args[0]
     Rn = args[1]
     vr = np.reshape(v,np.shape(main.a.a))
+
+
+#    eqnsLin = equations('Linearized Navier-Stokes',('central','Inviscid'),'DNS')
+#    main.a.a[:] = an[:]
+#    vr_phys = main.basis.reconstructUGeneral(main,vr)
+#    eqnsLin.getRHS(main,main,eqnsLin,[vr_phys])
+#    R2 = np.zeros(np.shape(main.RHS))
+#    R2[:] = main.RHS[:]
+#    Av2 = vr - main.dt/2.*R2
+
+
+
     eps = 5.e-2
     main.a.a[:] = an + eps*vr
     eqns.getRHS(main,main,eqns)
     R1 = np.zeros(np.shape(main.RHS))
     R1[:] = main.RHS[:]
     Av = vr - main.dt/2.*(R1 - Rn)/eps
+
+
     return Av.flatten()
 
   nonlinear_solver.solve(unsteadyResidual, create_MF_Jacobian,main,linear_solver,sparse_quadrature,eqns)

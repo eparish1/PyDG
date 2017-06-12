@@ -71,7 +71,7 @@ def inviscidFluxGen(main,eqns,fluxVar,var,args):
   argsR,argsL,argsU,argsD,argsF,argsB = [],[],[],[],[],[]
   argsR_edge,argsL_edge,argsU_edge,argsD_edge,argsF_edge,argsB_edge = [],[],[],[],[],[]
   for i in range(0,nargs):
-    tmpR,tmpL,tmpU,tmpD,tmpF,tmpB = reconstructEdgesGeneral(args[i],main)
+    tmpR,tmpL,tmpU,tmpD,tmpF,tmpB = main.basis.reconstructEdgesGeneral(args[i],main)
     tmpR_edge,tmpL_edge,tmpU_edge,tmpD_edge,tmpF_edge,tmpB_edge = sendEdgesGeneralSlab(tmpL,tmpR,tmpD,tmpU,tmpB,tmpF,main)
     argsR.append(tmpR)
     argsL.append(tmpL)
