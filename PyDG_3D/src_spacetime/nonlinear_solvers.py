@@ -33,12 +33,12 @@ def newtonSolver(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadratu
     delta = 1
 #    if (Rstar_glob/Rstar_glob0 < 1e-4):
 #      delta = 2
-#`    if (Rstar_glob/Rstar_glob0 < 1e-5):
-#      delta = 2
+#    if (Rstar_glob/Rstar_glob0 < 1e-5):
+#      delta = 3
 #    if (Rstar_glob/Rstar_glob0 < 1e-6):
 #      delta = 3
     sol = linear_solver.solve(MF_Jacobian, -Rstarn.flatten(), old.flatten(),main_coarse,MF_Jacobian_args, linear_solver.tol,linear_solver.maxiter_outer,15*delta,False)
-    main.a.a[:] = an[:] + np.reshape(sol,np.shape(main.a.a))
+    main.a.a[:] = an[:] + 1.0*np.reshape(sol,np.shape(main.a.a))
     an[:] = main.a.a[:]
     Rstarn,Rn,Rstar_glob = unsteadyResidual(main.a.a)
     if (main.mpi_rank == 0):
@@ -52,7 +52,7 @@ def newtonSolver(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadratu
 
 
 def newtonSolver_MG(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadrature,eqns):
-  n_levels = 2#int(np.log(np.amax(main.order))/np.log(2)) 
+  n_levels = 2#int(np.log(np.amax(main.order))/np.log(2))  + 1
   coarsen = np.int32(2**np.linspace(0,n_levels-1,n_levels))
   mg_classes = []
   mg_Rn = []
@@ -112,7 +112,11 @@ def newtonSolver_MG(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadr
         MF_Jacobian_args = [mg_an[j],mg_Rn[j]]
         mg_e[j][:] = linear_solver.solve(MF_Jacobian,mg_b[j].flatten(),etmp.flatten(),mg_classes[j],MF_Jacobian_args,tol=1e-6,maxiter_outer=1,maxiter=10,printnorm=0)
 
-    main.a.a[:] = an[:] + np.reshape(mg_e[0],np.shape(main.a.a))
+    alpha = 1. 
+    main.a.a[:] = an[:] + alpha*np.reshape(mg_e[0],np.shape(main.a.a))
+    Rstar_glob_p = Rstar_glob*1.
+    Rstarn,Rn,Rstar_glob = unsteadyResidual(main.a.a)
+#    if (Rstar_glob/Rstar_glob_p <
     an[:] = main.a.a[:]
     Rstarn,Rn,Rstar_glob = unsteadyResidual(main.a.a)
     if (main.mpi_rank == 0):
@@ -122,38 +126,40 @@ def newtonSolver_MG(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadr
 
 
 
-
-
-
-
-
-
-
-
-
-def newtonSolver_PC2(unsteadyResidual,MF_Jacobian,MF_Jacobian_PC,main,linear_solver,sparse_quadrature,eqns):
-  def newtonHook(main,Rn):
-    eqns.getRHS(main,main,eqns)
-    Rn[:] = main.RHS[:]
-
-  def Minv(v,main,main2,MF_Jacobian_args,MF_Jacobian_args2,MF_Jacobian_PC):
-    sol = linear_solver.solvePC(MF_Jacobian_PC,v.flatten()*1.,np.zeros(np.size(v.flatten())),main,MF_Jacobian_args2, 1e-6,linear_solver.maxiter_outer,5,True)
-    return sol.flatten()
-
-
+def newtonSolver_PC2(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadrature,eqns):
+  if (sparse_quadrature):
+    coarsen = 2
+    quadpoints_coarsen = np.fmax(main.quadpoints/(coarsen),1)
+    quadpoints_coarsen[-1] = main.quadpoints[-1]
+    main_coarse = variables(main.Nel,main.order,quadpoints_coarsen,eqns,main.mus,main.xG,main.yG,main.zG,main.t,main.et,main.dt,main.iteration,main.save_freq,'DNS',main.procx,main.procy,main.BCs,main.source,main.source_mag,main.shock_capturing)
+    main_coarse.basis = main.basis
+    main_coarse.a.a[:] = main.a.a[:]
+    def newtonHook(main_coarse,main,Rn):
+      main_coarse.a.a[:] = main.a.a[:]
+      main_coarse.getRHS(main_coarse,main_coarse,eqns)
+      Rn[:] = main_coarse.RHS[:]
+  else: 
+    main_coarse = main
+    def newtonHook(main_coarse,main,Rn):
+       pass
   Rstarn,Rn,Rstar_glob = unsteadyResidual(main.a.a)
   NLiter = 0
   an = np.zeros(np.shape(main.a0))
   an[:] = main.a0[:]
-  Rstar_glob0 = Rstar_glob*1.
+  Rstar_glob0 = Rstar_glob*1. 
+  old = np.zeros(np.shape(main.a.a))
+
+  def Minv(v,main,MF_Jacobian,MF_Jacobian_args,k):
+    sol = linear_solver.solvePC(MF_Jacobian,v.flatten()*1.,v.flatten()*0.,main,MF_Jacobian_args, 1e-6,linear_solver.maxiter_outer,5,False)
+    return sol.flatten()
+
   while (Rstar_glob >= 1e-20 and Rstar_glob/Rstar_glob0 > 1e-9):
     NLiter += 1
     ts = time.time()
-    newtonHook(main,Rn)
+    newtonHook(main_coarse,main,Rn)
     MF_Jacobian_args = [an,Rn]
-    MF_Jacobian_args_coarse = [an,Rn]
     delta = 1
-    sol = linear_solver.solve(MF_Jacobian,MF_Jacobian_PC, -Rstarn.flatten(), np.zeros(np.size(main.a.a)),main,MF_Jacobian_args,main,MF_Jacobian_args_coarse,Minv,linear_solver.tol,linear_solver.maxiter_outer,10,False)
+    sol = linear_solver.solve(MF_Jacobian,-Rstarn.flatten(), np.zeros(np.size(main_coarse.a.a)),main_coarse,MF_Jacobian_args,Minv,linear_solver.tol,linear_solver.maxiter_outer,10,False)
 
     main.a.a[:] = an[:] + np.reshape(sol,np.shape(main.a.a))
     an[:] = main.a.a[:]

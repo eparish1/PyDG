@@ -74,7 +74,7 @@ def GMRes(Af, b, x0,main,args,tol=1e-9,maxiter_outer=1,maxiter=20,printnorm=0):
     return x[:]
 
 
-def fGMRes(Af,Af_PC, b, x0,main,args,main_coarse,args_coarse,Minv,tol=1e-9,maxiter_outer=1,maxiter=20,printnorm=0):
+def fGMRes(Af, b, x0,main,args,Minv,tol=1e-9,maxiter_outer=1,maxiter=20,printnorm=0):
     k_outer = 0
     bnorm = globalNorm(b,main)
     error = 1.
@@ -97,7 +97,7 @@ def fGMRes(Af,Af_PC, b, x0,main,args,main_coarse,args_coarse,Minv,tol=1e-9,maxit
       beta = rnorm*e1
       k = 0
       while (k < maxiter - 1  and error >= tol):
-          Z[:,k] = Minv(Q[:,k],main,main_coarse,args_coarse,args,Af_PC)
+          Z[:,k] = Minv(Q[:,k],main,Af,args,k)
           Q[:,k+1] = Af(Z[:,k],args,main)
           Arnoldi_fgmres(Af,H,Q,k,args,main)
           apply_givens_rotation(H,cs,sn,k)

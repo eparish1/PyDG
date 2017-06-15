@@ -174,7 +174,7 @@ def sendEdgesGeneralSlab_Derivs(fL,fR,fD,fU,fB,fF,main):
 
 def gatherSolSlab(main,eqns,var):
   if (main.mpi_rank == 0):
-    uG = np.zeros((var.nvars,var.quadpoints[0],var.quadpoints[1],var.quadpoints[2],var.quadpoints[3],main.Nel[0],main.Nel[1],main.Nel[2],1))
+    uG = np.zeros((var.nvars,var.quadpoints[0],var.quadpoints[1],var.quadpoints[2],var.quadpoints[3],main.Nel[0],main.Nel[1],main.Nel[2],main.Nel[3]))
     uG[:,:,:,:,:,0:main.Npx,0:main.Npy,:] = var.u[:]
     for i in range(1,main.num_processes):
       loc_rank = i
@@ -193,7 +193,7 @@ def gatherSolSlab(main,eqns,var):
 
 def gatherSolSpectral(a,main):
   if (main.mpi_rank == 0):
-    aG = np.zeros((main.nvars,main.order[0],main.order[1],main.order[2],main.order[3],main.Nel[0],main.Nel[1],main.Nel[2],1))
+    aG = np.zeros((main.nvars,main.order[0],main.order[1],main.order[2],main.order[3],main.Nel[0],main.Nel[1],main.Nel[2],main.Nel[3]))
     aG[:,:,:,:,:,0:main.Npx,0:main.Npy,:] = a[:]
     for i in range(1,main.num_processes):
       loc_rank = i
@@ -203,7 +203,7 @@ def gatherSolSpectral(a,main):
       xR = int(((loc_rank%main.procx) +1)*main.Npx)
       yD = int(loc_rank)/int(main.procx)*main.Npy
       yU = (int(loc_rank)/int(main.procx) + 1)*main.Npy
-      aG[:,:,:,:,:,xL:xR,yD:yU,:] = np.reshape(data,(main.nvars,main.order[0],main.order[1],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,1))
+      aG[:,:,:,:,:,xL:xR,yD:yU,:] = np.reshape(data,(main.nvars,main.order[0],main.order[1],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
     return aG
   else:
     main.comm.Send(a.flatten(),dest=0,tag=main.mpi_rank)

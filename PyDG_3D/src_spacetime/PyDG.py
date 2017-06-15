@@ -73,7 +73,7 @@ def getGlobU(u):
   return uG
 
 
-def getIC(main,f,x,y,z,zeta3):
+def getIC(main,f,x,y,z,zeta3,Npt):
   ## First perform integration in x
   nt = np.size(zeta3)
   ord_arrx= np.linspace(0,order[0]-1,order[0])
@@ -84,9 +84,10 @@ def getIC(main,f,x,y,z,zeta3):
 
   U = np.zeros(np.shape(main.a.u))
   U[:,:,:,:,0,:,:,:,0] = f(x,y,z,main.gas)
-  for i in range(1,nt):
-    U[:,:,:,:,i,:,:,:,0] =  U[:,:,:,:,0,:,:,:,0]  
-  main.a.uFuture[:,:,:,:,:,:,:,0] = U[:,:,:,:,0,:,:,:,0] 
+  for i in range(0,nt):
+    for j in range(0,Npt):
+      U[:,:,:,:,i,:,:,:,j] =  U[:,:,:,:,0,:,:,:,0]  
+      main.a.uFuture[:,:,:,:,:,:,:,j] = U[:,:,:,:,0,:,:,:,0] 
   main.a.a[0:5] = volIntegrateGlob(main,U,main.w0,main.w1,main.w2,main.w3)*scale[None,:,:,:,:,None,None,None,None]
 
 
@@ -145,7 +146,7 @@ else:
 xG,yG,zG = getGlobGrid(x,y,z,main.zeta0,main.zeta1,main.zeta2)
 xG2,yG2,zG2 = getGlobGrid2(x,y,z,main.zeta0,main.zeta1,main.zeta2)
 
-getIC(main,IC_function,xG2[:,:,:,main.sx,main.sy,:],yG2[:,:,:,main.sx,main.sy,:],zG2[:,:,:,main.sx,main.sy,:],main.zeta3)
+getIC(main,IC_function,xG2[:,:,:,main.sx,main.sy,:],yG2[:,:,:,main.sx,main.sy,:],zG2[:,:,:,main.sx,main.sy,:],main.zeta3,main.Npt)
 reconstructU(main,main.a)
 
 timescheme = timeschemes(time_integration,linear_solver_str,nonlinear_solver_str)
