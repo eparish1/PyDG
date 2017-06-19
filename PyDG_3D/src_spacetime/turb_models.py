@@ -26,10 +26,13 @@ def DNS(main,MZ,eqns):
 def tauModelFD(main,MZ,eqns):
     ### EVAL RESIDUAL AND DO MZ STUFF
     filtarray = np.zeros(np.shape(MZ.a.a))
-    filtarray[:,0:main.order[0],0:main.order[1],0:main.order[2],:,:,:] = 1.
+    filtarray[:,0:main.order[0],0:main.order[1],0:main.order[2]] = 1.
     eps = 1.e-5
     MZ.a.a[:] = 0.
     MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2]] = main.a.a[:]
+    eqns.getRHS(main,main,eqns)
+    print('here')
+
     eqns.getRHS(MZ,MZ,eqns)
     RHS1 = np.zeros(np.shape(MZ.RHS))
     RHS1[:] = MZ.RHS[:]
@@ -51,7 +54,7 @@ def tauModelFD(main,MZ,eqns):
 
 def FM1Linearized(main,MZ,eqns):
    filtarray = np.zeros(np.shape(MZ.a.a))
-   filtarray[:,0:main.order[0],0:main.order[1],0:main.order[2],:,:,:] = 1.
+   filtarray[:,0:main.order[0],0:main.order[1],0:main.order[2]] = 1.
    MZ.a.a[:] = 0.  #zero out state variable in MZ class and assign it to be that of the main class
    MZ.a.a[0:5,0:main.order[0],0:main.order[1],0:main.order[2]] = main.a.a[0:5]
    eqns.getRHS(MZ,MZ,eqns) #compute the residual in an enriched space
@@ -83,11 +86,12 @@ def tauModelLinearized(main,MZ,eqns):
    RHS1f = np.zeros(np.shape(MZ.RHS))
    RHS1[:] = MZ.RHS[:]
    RHS1f[:] = RHS1[:] - RHS1[:]*filtarray
+   RHS1f_phys = main.basis.reconstructUGeneral(MZ,RHS1f)
    eqnsLin = equations('Linearized Navier-Stokes',('central','Inviscid'),'DNS' )
    # now we need to compute the linearized RHS
    MZ.a.a[:] = 0.  #zero out state variable in MZ class and assign it to be that of the main class
    MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2]] = main.a.a[:]
-   eqnsLin.getRHS(MZ,MZ,eqnsLin,[RHS1f]) ## this is PLQLu
+   eqnsLin.getRHS(MZ,MZ,eqnsLin,[RHS1f],[RHS1f_phys]) ## this is PLQLu
    PLQLU = MZ.RHS[:,0:main.order[0],0:main.order[1],0:main.order[2]]
    main.RHS[:] =  RHS1[:,0:main.order[0],0:main.order[1],0:main.order[2]] + main.dx/MZ.order[0]**2*PLQLU
    main.comm.Barrier()

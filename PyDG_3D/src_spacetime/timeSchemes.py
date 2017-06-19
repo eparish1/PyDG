@@ -136,7 +136,7 @@ def ExplicitRK4(main,MZ,eqns,args=None):
   rk4const = np.array([1./4,1./3,1./2,1.])
   for i in range(0,4):
     main.rkstage = i
-    eqns.getRHS(main,MZ,eqns)  ## put RHS in a array since we don't need it
+    main.getRHS(main,MZ,eqns)  ## put RHS in a array since we don't need it
     main.a.a[:] = main.a0 + main.dt*rk4const[i]*(main.RHS[:])
   main.t += main.dt
   main.iteration += 1

@@ -103,7 +103,7 @@ else:
 if 'enriched_ratio' in globals():
   pass
 else:
-  enriched_ratio = 2
+  enriched_ratio = np.array([2,2,2,1])
 if 'enriched' in globals():
   pass
 else:
@@ -151,6 +151,7 @@ reconstructU(main,main.a)
 
 timescheme = timeschemes(time_integration,linear_solver_str,nonlinear_solver_str)
 main.basis = basis_class('Legendre',[basis_functions_str])
+mainEnriched.basis = main.basis
 if (main.mpi_rank == 0):
   if not os.path.exists('Solution'):
      os.makedirs('Solution')
