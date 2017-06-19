@@ -149,12 +149,12 @@ def getViscousFlux(main,eqns):
 
   shatR,shatL,shatU,shatD,shatF,shatB = centralFluxGeneral(fvxR,fvxL,fvyU,fvyD,fvzF,fvzB,fvxR_edge,fvxL_edge,fvyU_edge,fvyD_edge,fvzF_edge,fvzB_edge)
   jumpR,jumpL,jumpU,jumpD,jumpF,jumpB = computeJump(main.a.uR,main.a.uL,main.a.uU,main.a.uD,main.a.uF,main.a.uB,main.a.uR_edge,main.a.uL_edge,main.a.uU_edge,main.a.uD_edge,main.a.uF_edge,main.a.uB_edge)
-  fvR2 = shatR - 6.*main.muR*main.order[0]**2*jumpR/main.dx2[None,None,None,None,:,None,None,None]
-  fvL2 = shatL - 6.*main.muL*main.order[0]**2*jumpL/main.dx2[None,None,None,None,:,None,None,None]
-  fvU2 = shatU - 6.*main.muU*main.order[0]**2*jumpU/main.dy2[None,None,None,None,None,:,None,None]
-  fvD2 = shatD - 6.*main.muD*main.order[0]**2*jumpD/main.dy2[None,None,None,None,None,:,None,None]
-  fvF2 = shatF - 6.*main.muF*main.order[0]**2*jumpF/main.dz2[None,None,None,None,None,None,:,None]
-  fvB2 = shatB - 6.*main.muB*main.order[0]**2*jumpB/main.dz2[None,None,None,None,None,None,:,None]
+  fvR2 = shatR - 6.*main.muR*3**2*jumpR/main.dx2[None,None,None,None,:,None,None,None]
+  fvL2 = shatL - 6.*main.muL*3**2*jumpL/main.dx2[None,None,None,None,:,None,None,None]
+  fvU2 = shatU - 6.*main.muU*3**2*jumpU/main.dy2[None,None,None,None,None,:,None,None]
+  fvD2 = shatD - 6.*main.muD*3**2*jumpD/main.dy2[None,None,None,None,None,:,None,None]
+  fvF2 = shatF - 6.*main.muF*3**2*jumpF/main.dz2[None,None,None,None,None,None,:,None]
+  fvB2 = shatB - 6.*main.muB*3**2*jumpB/main.dz2[None,None,None,None,None,None,:,None]
   fvRIG11 = main.basis.faceIntegrateGlob(main,fvRG11,main.w1,main.w2,main.w3,main.weights1,main.weights2,main.weights3) 
   fvLIG11 = main.basis.faceIntegrateGlob(main,fvLG11,main.w1,main.w2,main.w3,main.weights1,main.weights2,main.weights3)  
   fvRIG21 = main.basis.faceIntegrateGlob(main,fvRG21,main.wp1,main.w2,main.w3,main.weights1,main.weights2,main.weights3) 
