@@ -32,7 +32,7 @@ def TGVIC(x,y,z,gas):
   Lx = 2.*np.pi 
   Ly = 2.*np.pi
   Lz = 2.*np.pi
-  Minf = 0.1
+  Minf = 0.2
   nqx,nqy,nqz,Nelx,Nely,Nelz = np.shape(x)
   gamma = gas.gamma
   T0 = 1./gamma
