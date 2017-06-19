@@ -29,6 +29,20 @@ def globalSum(r,main):
 
 
 
+def rungeKutta(Af, b, x0,main,args,tol=1e-9,maxiter_outer=1,maxiter=20,printnorm=0):
+     dt = 0.005
+     r = b - Af(x0,args,main)
+     rnorm = globalNorm(r,main) #same across procs
+     iteration = 0
+     while( rnorm > 1e-9 and iteration <= 8):
+       r = b - Af(x0,args,main)
+       x0[:] = x0[:] - dt*r
+       iteration += 1
+       rnorm = globalNorm(r,main) 
+       if (main.mpi_rank == 0 and printnorm == 1):
+         sys.stdout.write(' Iteration = ' + str(iteration) + ' Runge Kutta error = ' + str(rnorm) +  '\n')
+     return x0
+
 def GMRes(Af, b, x0,main,args,tol=1e-9,maxiter_outer=1,maxiter=20,printnorm=0):
     k_outer = 0
     bnorm = globalNorm(b,main)

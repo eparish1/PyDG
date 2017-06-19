@@ -59,6 +59,10 @@ class nonlinearSolver:
       self.solve = newtonSolver_PC2
       self.rtol=rtol
       self.printnorm = printnorm
+    if (SolverType == 'pseudoTime'):
+      self.solve = psuedoTimeSolver
+      self.rtol=rtol
+      self.printnorm = printnorm
 
 
 class linearSolver:
@@ -74,9 +78,16 @@ class linearSolver:
     if (SolverType == 'fGMRes'):
       if (comm.Get_rank() == 0): print('Linear solver set to ' + SolverType)
       self.solve = fGMRes
-      self.solvePC = GMRes
+      self.solvePC = GMRes 
       self.tol=tol
       self.maxiter_outer = maxiter_outer
       self.maxiter = maxiter
       self.printnorm = printnorm
+    if (SolverType == 'RungeKutta'):
+      if (comm.Get_rank() == 0): print('Linear solver set to ' + SolverType)
+      self.solve = rungeKutta
+      self.solvePC = rungeKutta
+      self.tol=tol
+      self.maxiter_outer = maxiter_outer
+      self.maxiter = maxiter
 

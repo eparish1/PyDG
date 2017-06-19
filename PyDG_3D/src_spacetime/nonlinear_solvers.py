@@ -46,6 +46,29 @@ def newtonSolver(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadratu
       sys.stdout.flush()
 
 
+def psuedoTimeSolver(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadrature,eqns):
+  NLiter = 0
+  tau = 0.05
+  Rstarn,Rn,Rstar_glob = unsteadyResidual(main.a.a)
+  Rstar_glob0 = Rstar_glob*1. 
+  rk4const = np.array([1./4,1./3,1./2,1.])
+  a0 = np.zeros(np.shape(main.a.a))
+  Rstarn,Rn,Rstar_glob_old = unsteadyResidual(main.a.a) 
+
+  while (Rstar_glob >= 1e-20 and Rstar_glob/Rstar_glob0 > 1e-8):
+    NLiter += 1
+    ts = time.time()
+    a0[:] = main.a.a[:]
+#    for k in range(0,4):
+    Rstarn,Rn,Rstar_glob = unsteadyResidual(main.a.a) 
+    tau = tau*np.fmin(Rstar_glob_old/Rstar_glob,1.0)
+    print('tau = ' + str(tau))
+#    main.a.a[:] = a0[:] + tau*Rstarn*rk4const[k]
+    main.a.a[:] = a0[:] + tau*Rstarn
+    Rstar_glob_old = Rstar_glob*1.
+    if (main.mpi_rank == 0):
+      sys.stdout.write('NL iteration = ' + str(NLiter) + '  NL residual = ' + str(Rstar_glob) + ' relative decrease = ' + str(Rstar_glob/Rstar_glob0) + ' Solve time = ' + str(time.time() - ts)  + '\n')
+      sys.stdout.flush()
 
 
 
