@@ -73,7 +73,7 @@ def getRHS(main,MZ,eqns,args=[],args_phys=[]):
     force = np.zeros(np.shape(fvGX))
     for i in range(0,main.nvars):
       force[i] = main.source_mag[i]*main.a.u[i]
-    tmp += volIntegrateGlob(main, force ,main.w0,main.w1,main.w2,main.w3)*scale[None,:,:,:,None,None,None]
+    tmp += main.basis.volIntegrateGlob(main, force ,main.w0,main.w1,main.w2,main.w3)*scale[None,:,:,:,None,None,None]
 
   main.RHS = tmp
   main.comm.Barrier()
