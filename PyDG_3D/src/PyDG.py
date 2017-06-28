@@ -132,7 +132,7 @@ eqns = equations(eqn_str,schemes,turb_str)
 main = variables(Nel,order,quadpoints,eqns,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,source,source_mag,shock_capturing)
 if (enriched):
   eqnsEnriched = equations(enriched_eqn_str,enriched_schemes,turb_str)
-  mainEnriched = variables(Nel,order*enriched_ratio,quadpoints,eqnsEnriched,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,source,source_mag,shock_capturing)
+  mainEnriched = variables(Nel,order*enriched_ratio,quadpoints*enriched_ratio,eqnsEnriched,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,source,source_mag,shock_capturing)
 else:
   mainEnriched = main
 xG,yG,zG = getGlobGrid(x,y,z,main.zeta0,main.zeta1,main.zeta2)
@@ -143,6 +143,7 @@ reconstructU(main,main.a)
 
 timescheme = timeschemes(time_integration,linear_solver_str,nonlinear_solver_str)
 main.basis = basis_class('Legendre',[basis_functions_str])
+mainEnriched.basis = main.basis
 if (main.mpi_rank == 0):
   if not os.path.exists('Solution'):
      os.makedirs('Solution')

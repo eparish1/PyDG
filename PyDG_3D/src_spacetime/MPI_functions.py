@@ -161,9 +161,9 @@ def sendEdgesGeneralSlab_Derivs(fL,fR,fD,fU,fB,fF,main):
 
     ### Boundary conditions. Overright uU and uD if we are on a boundary. 
     if (main.BC_rank[1] and main.topBC.BC_type != 'periodic'): 
-      uU[:] = fU[:,:,:,:,-1,:]
+      uU[:] = fU[:,:,:,:,:,-1,:]
     if (main.BC_rank[3] and main.bottomBC.BC_type != 'periodic'):
-      uD[:] = fD[:,:,:,:,0,:]
+      uD[:] = fD[:,:,:,:,:,0,:]
 
     
   uF[:] = fB[:,:,:,:,:,:,0]

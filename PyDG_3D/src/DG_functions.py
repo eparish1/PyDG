@@ -79,15 +79,15 @@ def getRHS_reacting(main,MZ,eqns,args=[]):
   main.comm.Barrier()
 
 
-def getRHS(main,MZ,eqns,args=[]):
+def getRHS(main,MZ,eqns,args=[],args_phys=[]):
   t0 = time.time()
   main.basis.reconstructU(main,main.a)
   # evaluate inviscid flux
   getFlux(main,MZ,eqns,args)
   ### Get interior vol terms
-  eqns.evalFluxX(main.a.u,main.iFlux.fx,args)
-  eqns.evalFluxY(main.a.u,main.iFlux.fy,args)
-  eqns.evalFluxZ(main.a.u,main.iFlux.fz,args)
+  eqns.evalFluxX(main.a.u,main.iFlux.fx,args_phys)
+  eqns.evalFluxY(main.a.u,main.iFlux.fy,args_phys)
+  eqns.evalFluxZ(main.a.u,main.iFlux.fz,args_phys)
 
   t1 = time.time()
   ord_arr0= np.linspace(0,main.order[0]-1,main.order[0])

@@ -18,7 +18,15 @@ class timeschemes:
       self.advanceSol = spaceTime 
       self.linear_solver = linearSolver(lsolver_str)
       self.nonlinear_solver = nonlinearSolver(nlsolver_str)
-      self.sparse_quadrature = True
+      self.sparse_quadrature = False
+      self.args = [self.nonlinear_solver,self.linear_solver,self.sparse_quadrature]
+
+    if (time_str == 'SteadyState'):
+      check_t = 0
+      self.advanceSol = SteadyState
+      self.linear_solver = linearSolver(lsolver_str)
+      self.nonlinear_solver = nonlinearSolver(nlsolver_str)
+      self.sparse_quadrature = False
       self.args = [self.nonlinear_solver,self.linear_solver,self.sparse_quadrature]
 
     if (time_str == 'CrankNicolson'):

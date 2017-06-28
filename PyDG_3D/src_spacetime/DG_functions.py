@@ -4,7 +4,9 @@ from navier_stokes import evalViscousFluxZNS_IP
 from navier_stokes import evalViscousFluxYNS_IP
 from navier_stokes import evalViscousFluxXNS_IP
 from navier_stokes import getGsNSX_FAST,getGsNSY_FAST,getGsNSZ_FAST
+from eos_functions import *
 from tensor_products import *
+from chemistry_values import *
 import matplotlib.pyplot as plt
 from smagorinsky import *
 import time
@@ -35,9 +37,9 @@ def getRHS(main,MZ,eqns,args=[],args_phys=[]):
   # evaluate inviscid flux
   getFlux(main,MZ,eqns,args)
   ### Get interior vol terms
-  eqns.evalFluxX(main.a.u,main.iFlux.fx,args_phys)
-  eqns.evalFluxY(main.a.u,main.iFlux.fy,args_phys)
-  eqns.evalFluxZ(main.a.u,main.iFlux.fz,args_phys)
+  eqns.evalFluxX(main,main.a.u,main.iFlux.fx,args_phys)
+  eqns.evalFluxY(main,main.a.u,main.iFlux.fy,args_phys)
+  eqns.evalFluxZ(main,main.a.u,main.iFlux.fz,args_phys)
 
   t1 = time.time()
   ord_arr0= np.linspace(0,main.order[0]-1,main.order[0])
@@ -50,7 +52,7 @@ def getRHS(main,MZ,eqns,args=[],args_phys=[]):
   dyi = 2./main.dy2[None,None,None,None,None,:,None,None]*scale[:,:,:,:,None,None,None,None]*np.ones(np.shape(main.a.a[0]))
   dzi = 2./main.dz2[None,None,None,None,None,None,:,None]*scale[:,:,:,:,None,None,None,None]*np.ones(np.shape(main.a.a[0]))
   if (eqns.viscous):
-    fvGX,fvGY,fvGZ,fvRIG11,fvLIG11,fvRIG21,fvLIG21,fvRIG31,fvLIG31,fvUIG12,fvDIG12,fvUIG22,fvDIG22,fvUIG32,fvDIG32,fvFIG13,fvBIG13,fvFIG23,fvBIG23,fvFIG33,fvBIG33,fvR2I,fvL2I,fvU2I,fvD2I,fvF2I,fvB2I = getViscousFlux(main,eqns) ##takes roughly 20% of the 
+    fvGX,fvGY,fvGZ,fvRIG11,fvLIG11,fvRIG21,fvLIG21,fvRIG31,fvLIG31,fvUIG12,fvDIG12,fvUIG22,fvDIG22,fvUIG32,fvDIG32,fvFIG13,fvBIG13,fvFIG23,fvBIG23,fvFIG33,fvBIG33,fvR2I,fvL2I,fvU2I,fvD2I,fvF2I,fvB2I = getViscousFlux(main,eqns) ##takes roughly 20% of the
     main.iFlux.fx -= fvGX
     main.iFlux.fy -= fvGY
     main.iFlux.fz -= fvGZ
@@ -68,12 +70,14 @@ def getRHS(main,MZ,eqns,args=[],args_phys=[]):
     tmp +=  (fvUIG12[:,:,None,:] + fvUIG22[:,:,None,:]*main.wpedge1[None,None,:,None,1,None,None,None,None,None] + fvUIG32[:,:,None,:]  - (fvDIG12[:,:,None,:]*main.altarray1[None,None,:,None,None,None,None,None,None] + fvDIG22[:,:,None,:]*main.wpedge1[None,None,:,None,0,None,None,None,None,None] + fvDIG32[:,:,None,:]*main.altarray1[None,None,:,None,None,None,None,None,None]) )*dyi[None]
     tmp +=  (fvFIG13[:,:,:,None] + fvFIG23[:,:,:,None] + fvFIG33[:,:,:,None]*main.wpedge2[None,None,None,:,1,None,None,None,None,None]  - (fvBIG13[:,:,:,None]*main.altarray2[None,None,None,:,None,None,None,None,None] + fvBIG23[:,:,:,None]*main.altarray2[None,None,None,:,None,None,None,None,None] + fvBIG33[:,:,:,None]*main.wpedge2[None,None,None,:,0,None,None,None,None,None]) )*dzi[None]
     tmp +=  (fvR2I[:,None,:,:] - fvL2I[:,None,:,:]*main.altarray0[None,:,None,None,None,None,None,None,None])*dxi[None] + (fvU2I[:,:,None,:] - fvD2I[:,:,None,:]*main.altarray1[None,None,:,None,None,None,None,None,None])*dyi[None] + (fvF2I[:,:,:,None] - fvB2I[:,:,:,None]*main.altarray2[None,None,None,:,None,None,None,None,None])*dzi[None]
- 
+
+
   if (main.source):
     force = np.zeros(np.shape(fvGX))
+    #main.source_hook(main,force)
     for i in range(0,main.nvars):
-      force[i] = main.source_mag[i]*main.a.u[i]
-    tmp += main.basis.volIntegrateGlob(main, force ,main.w0,main.w1,main.w2,main.w3)*scale[None,:,:,:,None,None,None,None]
+      force[i] = main.source_mag[i]#*main.a.u[i]
+    tmp += main.basis.volIntegrateGlob(main, force ,main.w0,main.w1,main.w2,main.w3)*scale[None,:,:,:,:,None,None,None,None]
 
   main.RHS = tmp
   main.comm.Barrier()
@@ -121,19 +125,20 @@ def getViscousFlux(main,eqns):
   if (eqns.turb_str == 'Smagorinsky'):
   #  staticSmagorinsky(main)
     computeDynSmagViscosity(main,main.a.Upx,main.a.Upy,main.a.Upz,main.mu0,main.a.u)
+  if (main.reacting):
+    main.mu[1::] = computeDiffusionConstants(main.a.u[5::]/main.a.u[0],main.a.u,main)
   fvGX = eqns.evalViscousFluxX(main,main.a.u,main.a.Upx,main.a.Upy,main.a.Upz,main.mu)
   fvGY = eqns.evalViscousFluxY(main,main.a.u,main.a.Upx,main.a.Upy,main.a.Upz,main.mu)
   fvGZ = eqns.evalViscousFluxZ(main,main.a.u,main.a.Upx,main.a.Upy,main.a.Upz,main.mu)
   uhatR,uhatL,uhatU,uhatD,uhatF,uhatB = centralFluxGeneral(main.a.uR,main.a.uL,main.a.uU,main.a.uD,main.a.uF,main.a.uB,main.a.uR_edge,main.a.uL_edge,main.a.uU_edge,main.a.uD_edge,main.a.uF_edge,main.a.uB_edge)
- 
-  fvRG11,fvRG21,fvRG31 = getGsNSX_FAST(main.a.uR,main,main.muR,main.a.uR - uhatR)
-  fvLG11,fvLG21,fvLG31 = getGsNSX_FAST(main.a.uL,main,main.muL,main.a.uL - uhatL)
+  fvRG11,fvRG21,fvRG31 = eqns.getGsX(main.a.uR,main,main.muR,main.a.uR - uhatR)
+  fvLG11,fvLG21,fvLG31 = eqns.getGsX(main.a.uL,main,main.muL,main.a.uL - uhatL)
 
-  fvUG12,fvUG22,fvUG32 = getGsNSY_FAST(main.a.uU,main,main.muU,main.a.uU-uhatU)
-  fvDG12,fvDG22,fvDG32 = getGsNSY_FAST(main.a.uD,main,main.muD,main.a.uD-uhatD)
+  fvUG12,fvUG22,fvUG32 = eqns.getGsY(main.a.uU,main,main.muU,main.a.uU-uhatU)
+  fvDG12,fvDG22,fvDG32 = eqns.getGsY(main.a.uD,main,main.muD,main.a.uD-uhatD)
 
-  fvFG13,fvFG23,fvFG33 = getGsNSZ_FAST(main.a.uF,main,main.muF,main.a.uF-uhatF)
-  fvBG13,fvBG23,fvBG33 = getGsNSZ_FAST(main.a.uB,main,main.muB,main.a.uB-uhatB)
+  fvFG13,fvFG23,fvFG33 = eqns.getGsZ(main.a.uF,main,main.muF,main.a.uF-uhatF)
+  fvBG13,fvBG23,fvBG33 = eqns.getGsZ(main.a.uB,main,main.muB,main.a.uB-uhatB)
 
 
   fvxR = eqns.evalViscousFluxX(main,main.a.uR,main.a.UxR,main.a.UyR,main.a.UzR,main.muR)
@@ -149,12 +154,12 @@ def getViscousFlux(main,eqns):
 
   shatR,shatL,shatU,shatD,shatF,shatB = centralFluxGeneral(fvxR,fvxL,fvyU,fvyD,fvzF,fvzB,fvxR_edge,fvxL_edge,fvyU_edge,fvyD_edge,fvzF_edge,fvzB_edge)
   jumpR,jumpL,jumpU,jumpD,jumpF,jumpB = computeJump(main.a.uR,main.a.uL,main.a.uU,main.a.uD,main.a.uF,main.a.uB,main.a.uR_edge,main.a.uL_edge,main.a.uU_edge,main.a.uD_edge,main.a.uF_edge,main.a.uB_edge)
-  fvR2 = shatR - 6.*main.muR*3**2*jumpR/main.dx2[None,None,None,None,:,None,None,None]
-  fvL2 = shatL - 6.*main.muL*3**2*jumpL/main.dx2[None,None,None,None,:,None,None,None]
-  fvU2 = shatU - 6.*main.muU*3**2*jumpU/main.dy2[None,None,None,None,None,:,None,None]
-  fvD2 = shatD - 6.*main.muD*3**2*jumpD/main.dy2[None,None,None,None,None,:,None,None]
-  fvF2 = shatF - 6.*main.muF*3**2*jumpF/main.dz2[None,None,None,None,None,None,:,None]
-  fvB2 = shatB - 6.*main.muB*3**2*jumpB/main.dz2[None,None,None,None,None,None,:,None]
+  fvR2 = shatR - 1.*main.muR[0]*main.order[0]**2*jumpR/main.dx2[None,None,None,None,:,None,None,None]
+  fvL2 = shatL - 1.*main.muL[0]*main.order[0]**2*jumpL/main.dx2[None,None,None,None,:,None,None,None]
+  fvU2 = shatU - 1.*main.muU[0]*main.order[0]**2*jumpU/main.dy2[None,None,None,None,None,:,None,None]
+  fvD2 = shatD - 1.*main.muD[0]*main.order[0]**2*jumpD/main.dy2[None,None,None,None,None,:,None,None]
+  fvF2 = shatF - 1.*main.muF[0]*main.order[0]**2*jumpF/main.dz2[None,None,None,None,None,None,:,None]
+  fvB2 = shatB - 1.*main.muB[0]*main.order[0]**2*jumpB/main.dz2[None,None,None,None,None,None,:,None]
   fvRIG11 = main.basis.faceIntegrateGlob(main,fvRG11,main.w1,main.w2,main.w3,main.weights1,main.weights2,main.weights3) 
   fvLIG11 = main.basis.faceIntegrateGlob(main,fvLG11,main.w1,main.w2,main.w3,main.weights1,main.weights2,main.weights3)  
   fvRIG21 = main.basis.faceIntegrateGlob(main,fvRG21,main.wp1,main.w2,main.w3,main.weights1,main.weights2,main.weights3) 
@@ -183,6 +188,33 @@ def getViscousFlux(main,eqns):
   fvF2I = main.basis.faceIntegrateGlob(main,fvF2,main.w0,main.w1,main.w3,main.weights0,main.weights1,main.weights3)
   fvB2I = main.basis.faceIntegrateGlob(main,fvB2,main.w0,main.w1,main.w3,main.weights0,main.weights1,main.weights3)
   return fvGX,fvGY,fvGZ,fvRIG11,fvLIG11,fvRIG21,fvLIG21,fvRIG31,fvLIG31,fvUIG12,fvDIG12,fvUIG22,fvDIG22,fvUIG32,fvDIG32,fvFIG13,fvBIG13,fvFIG23,fvBIG23,fvFIG33,fvBIG33,fvR2I,fvL2I,fvU2I,fvD2I,fvF2I,fvB2I
+
+
+def computeDiffusionConstants(Yk,u,main):
+  Ykshape = np.shape(Yk)
+  n_species = Ykshape[0]
+  Djkshape = np.append(n_species,Ykshape)
+  Dk = np.zeros( np.shape(Yk) )
+  Djk = np.zeros(Djkshape)
+  ## compute diffusion constants for the Hisrchfelder and Curtis approximation
+  # Y is the mass fraction. W is the molecular weight. X is mole fraction
+  winv =  np.einsum('i...,ijk...->jk...',1./main.W,u[5::]) #compute inverse of mean molecular weight
+  #Xk = 1./winv*Yk/main.W #compute the molar fraction
+  Xk =  np.einsum('i...,ijk...->jk...',1./main.W,1./winv*Yk) #compute inverse of mean molecular weight
+  p,T = computePressure_and_Temperature(main,u)
+  for i in range(0,n_species):
+    for j in range(0,n_species):
+      Djk[i,j] =  computeDAB_Fuller(main.W[i],main.W[j],p,T,main.D_Vols[i],main.D_Vols[j])
+
+  for i in range(0,n_species):
+    Dk[i] = 1. - Yk[i]
+    Dk_den = 0.
+    for j in range(0,n_species):
+      if (i != j):
+        Dk_den += Xk[j]/Djk[i,j]
+    Dk[i] /= Dk_den
+  print(np.linalg.norm(Dk))
+  return Dk
 
 
 

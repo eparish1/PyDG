@@ -118,6 +118,11 @@ class boundaryConditions:
       self.BC_type = BC_type
       self.applyBC = adiabaticwall_bc
       self.args = BC_args
+    if (BC_type == 'dirichlet'):
+      check = 1
+      self.BC_type = BC_type
+      self.applyBC = dirichlet_bc
+      self.args = BC_args
 
     if (check == 0):
       if (mpi_rank == 0): print('BC type ' + BC_type + ' not found. PyDG quitting')
@@ -168,7 +173,7 @@ class variables:
     self.altarray3 = (-np.ones(self.order[3]))**(np.linspace(0,self.order[3]-1,self.order[3]))
 
     self.gas = gasClass() 
-
+    self.reacting = False
     ## Initialize BCs
     self.BCs = BCs
     self.rightBC = boundaryConditions(BCs[0],BCs[1])
@@ -200,20 +205,20 @@ class variables:
     self.a = variable(eqns.nvars,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz,self.Npt)
     self.iFlux = fluxvariable(eqns.nvars,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz,self.Npt)
     self.mus = mu
-    self.mu = np.ones(np.shape( self.a.u[0]))*self.mus
-    self.muR = np.ones(np.shape( self.a.uR[0]))*self.mus
-    self.muL = np.ones(np.shape( self.a.uL[0]))*self.mus
-    self.muU = np.ones(np.shape( self.a.uU[0]))*self.mus
-    self.muD = np.ones(np.shape( self.a.uD[0]))*self.mus
-    self.muF = np.ones(np.shape( self.a.uF[0]))*self.mus
-    self.muB = np.ones(np.shape( self.a.uB[0]))*self.mus
-    self.mu0 = np.ones(np.shape( self.a.u[0]))*self.mus
-    self.mu0R = np.ones(np.shape( self.a.uR[0]))*self.mus
-    self.mu0L = np.ones(np.shape( self.a.uL[0]))*self.mus
-    self.mu0U = np.ones(np.shape( self.a.uU[0]))*self.mus
-    self.mu0D = np.ones(np.shape( self.a.uD[0]))*self.mus
-    self.mu0F = np.ones(np.shape( self.a.uF[0]))*self.mus
-    self.mu0B = np.ones(np.shape( self.a.uB[0]))*self.mus
+    self.mu = np.ones(np.append( eqns.nmus, np.shape( self.a.u[0])))*self.mus
+    self.muR = np.ones(np.append( eqns.nmus, np.shape( self.a.uR[0])))*self.mus
+    self.muL = np.ones(np.append( eqns.nmus, np.shape( self.a.uL[0])))*self.mus
+    self.muU = np.ones(np.append( eqns.nmus, np.shape( self.a.uU[0])))*self.mus
+    self.muD = np.ones(np.append( eqns.nmus, np.shape( self.a.uD[0])))*self.mus
+    self.muF = np.ones(np.append( eqns.nmus, np.shape( self.a.uF[0])))*self.mus
+    self.muB = np.ones(np.append( eqns.nmus, np.shape( self.a.uB[0])))*self.mus
+    self.mu0 = np.ones(np.append( eqns.nmus, np.shape( self.a.u[0] )))*self.mus
+    self.mu0R =np.ones(np.append( eqns.nmus, np.shape( self.a.uR[0])))*self.mus
+    self.mu0L =np.ones(np.append( eqns.nmus, np.shape( self.a.uL[0])))*self.mus
+    self.mu0U =np.ones(np.append( eqns.nmus, np.shape( self.a.uU[0])))*self.mus
+    self.mu0D =np.ones(np.append( eqns.nmus, np.shape( self.a.uD[0])))*self.mus
+    self.mu0F =np.ones(np.append( eqns.nmus, np.shape( self.a.uF[0])))*self.mus
+    self.mu0B =np.ones(np.append( eqns.nmus, np.shape( self.a.uB[0])))*self.mus
 
     self.getFlux = getFlux
     self.RHS = np.zeros((eqns.nvars,self.order[0],self.order[1],self.order[2],self.order[3],self.Npx,self.Npy,self.Npz,self.Npt))
@@ -235,8 +240,8 @@ class variables:
       if (self.mpi_rank == 0): print('Using Smagorinsky Model')
     if (check == 0):
       self.getRHS = DNS
-      if (self.mpi_rank == 0):
-         print('Error, turb model ' + turb_str + 'not found. Setting to DNS')
+#      if (self.mpi_rank == 0):
+#         print('Error, turb model ' + turb_str + 'not found. Setting to DNS')
     else:
       if (self.mpi_rank == 0):
          print('Using turb model ' + turb_str)

@@ -83,6 +83,7 @@ def tauModelLinearized(main,MZ,eqns):
    RHS1f = np.zeros(np.shape(MZ.RHS))
    RHS1[:] = MZ.RHS[:]
    RHS1f[:] = RHS1[:] - RHS1[:]*filtarray
+   #print(np.shape(RHS1f))
    eqnsLin = equations('Linearized Navier-Stokes',('central','Inviscid'),'DNS' )
    # now we need to compute the linearized RHS
    MZ.a.a[:] = 0.  #zero out state variable in MZ class and assign it to be that of the main class
@@ -102,7 +103,7 @@ def validateLinearized(main,MZ,eqns):
     filtarray[:,0:main.order[0],0:main.order[1],0:main.order[2],:,:,:] = 1.
     MZ.a.a[:] = 0.  #zero out state variable in MZ class and assign it to be that of the main class
     MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2]] = main.a.a[:]
-    eqnsLin = equations('Linearized Navier-Stokes',('central','Inviscid') )
+    eqnsLin = equations('Linearized Navier-Stokes',('central','Inviscid') ,'DNS')
     eqnsLin.getRHS(MZ,MZ,eqns) #compute the residual in an enriched space
     RHSLin = np.zeros(np.shape(MZ.RHS))
     RHSLin[:] = MZ.RHS[:]
@@ -135,18 +136,47 @@ def tauModelValidateLinearized(main,MZ,eqns):
     RHS1f = np.zeros(np.shape(MZ.RHS))
     RHS1[:] = MZ.RHS[:]
     RHS1f[:] = RHS1[:] - RHS1[:]*filtarray
-    Z = reconstructUGeneral(main,main.a.a)
-    eqnsLin = equations('Linearized Navier-Stokes',('central','Inviscid') )
+    RHS1f_phys = main.basis.reconstructUGeneral(MZ,RHS1f)
+    #print(np.shape(RHS1f))
+    eqnsLin = equations('Linearized Navier-Stokes',('central','Inviscid'),'DNS' )
     # now we need to compute the linearized RHS
     MZ.a.a[:] = 0.  #zero out state variable in MZ class and assign it to be that of the main class
     MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2]] = main.a.a[:]
-    eqnsLin.getRHS(MZ,main,eqnsLin,[RHS1f]) ## this is PLQLu
-    PLQLULin = np.zeros(np.shape(MZ.RHS[:,0:main.order[0],0:main.order[1],0:main.order[2]]))
-    PLQLULin[:] = MZ.RHS[:,0:main.order[0],0:main.order[1],0:main.order[2]]
+    eqnsLin.getRHS(MZ,MZ,eqnsLin,[RHS1f],[RHS1f_phys]) ## this is PLQLu
+    PLQLULin = MZ.RHS[:,0:main.order[0],0:main.order[1],0:main.order[2]]
+
+
+
+
+
+#    filtarray = np.zeros(np.shape(MZ.a.a))
+#    filtarray[:,0:main.order[0],0:main.order[1],0:main.order[2],:,:,:] = 1.
+#    MZ.a.a[:] = 0.  #zero out state variable in MZ class and assign it to be that of the main class
+#    MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2]] = main.a.a[:]
+#    eqns.getRHS(MZ,MZ,eqns) #compute the residual in an enriched space
+#    RHS1 = np.zeros(np.shape(MZ.RHS))
+#    RHS1f = np.zeros(np.shape(MZ.RHS))
+#    RHS1[:] = MZ.RHS[:]
+#    RHS1f[:] = RHS1[:] - RHS1[:]*filtarray
+##    Z = main.basis.reconstructUGeneral(main,main.a.a)
+#    eqnsLin = equations('Linearized Navier-Stokes',('central','Inviscid') ,'DNS')
+#    # now we need to compute the linearized RHS
+#    MZ.a.a[:] = 0.  #zero out state variable in MZ class and assign it to be that of the main class
+#    MZ.a.a[0:5,0:main.order[0],0:main.order[1],0:main.order[2]] = main.a.a[0:5]
+#    print(np.shape(RHS1f))
+#    eqnsLin.getRHS(MZ,main,eqnsLin,[RHS1f]) ## this is PLQLu
+#    PLQLUlin = MZ.RHS[:,0:main.order[0],0:main.order[1],0:main.order[2]]
+
+#    MZ.a.a[:] = 0.  #zero out state variable in MZ class and assign it to be that of the main class
+#    MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2]] = main.a.a[:]
+#    print('here')
+#    print(np.shape(RHS1f))
+#    eqnsLin.getRHS(MZ,main,eqnsLin,[RHS1f]) ## this is PLQLu
+#    PLQLULin = np.zeros(np.shape(MZ.RHS[:,0:main.order[0],0:main.order[1],0:main.order[2]]))
+#    PLQLULin[:] = MZ.RHS[:,0:main.order[0],0:main.order[1],0:main.order[2]]
 
 #    print(np.linalg.norm(PLQLU[0]))
-
-    eps = 1.e-5
+    eps = 1.e-2
     MZ.a.a[:] = 0.
     MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2]] = main.a.a[:]
     eqns.getRHS(MZ,MZ,eqns)
@@ -171,8 +201,8 @@ def tauModelValidateLinearized(main,MZ,eqns):
     main.RHS[:] =  RHS1[:,0:main.order[0],0:main.order[1],0:main.order[2]] #+ 0.0001*MZ.RHS[:,0:main.order[0],0:main.order[1],0:main.order[2]]
 
     plt.clf()
-    plt.plot(PLQLULin[4,1,0,0,:,0,0])
-    plt.plot( PLQLUFD[4,1,0,0,:,0,0],'o')
+    plt.plot(PLQLULin[4,:,0,0,0,0,0])
+    plt.plot( PLQLUFD[4,:,0,0,0,0,0],'o')
     plt.pause(0.001)
     main.comm.Barrier()
 

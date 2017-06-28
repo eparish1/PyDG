@@ -25,7 +25,10 @@ def newtonSolver(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadratu
   an[:] = main.a0[:]
   Rstar_glob0 = Rstar_glob*1. 
   old = np.zeros(np.shape(main.a.a))
-  while (Rstar_glob >= 1e-20 and Rstar_glob/Rstar_glob0 > 1e-8):
+  resid_hist = np.zeros(0)
+  t_hist = np.zeros(0)
+  tnls = time.time()
+  while (Rstar_glob >= 1e-7 or Rstar_glob/Rstar_glob0 > 1e-7):
     NLiter += 1
     ts = time.time()
     newtonHook(main_coarse,main,Rn)
@@ -37,45 +40,58 @@ def newtonSolver(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadratu
 #      delta = 3
 #    if (Rstar_glob/Rstar_glob0 < 1e-6):
 #      delta = 3
-    sol = linear_solver.solve(MF_Jacobian, -Rstarn.flatten(), old.flatten(),main_coarse,MF_Jacobian_args, linear_solver.tol,linear_solver.maxiter_outer,15*delta,False)
+    sol = linear_solver.solve(MF_Jacobian, -Rstarn.flatten(), old.flatten(),main_coarse,MF_Jacobian_args,np.fmin(Rstar_glob,0.1),linear_solver.maxiter_outer,10000*delta,True)
     main.a.a[:] = an[:] + 1.0*np.reshape(sol,np.shape(main.a.a))
     an[:] = main.a.a[:]
     Rstarn,Rn,Rstar_glob = unsteadyResidual(main.a.a)
+    resid_hist = np.append(resid_hist,Rstar_glob)
+    t_hist = np.append(t_hist,time.time() - tnls)
     if (main.mpi_rank == 0):
       sys.stdout.write('NL iteration = ' + str(NLiter) + '  NL residual = ' + str(Rstar_glob) + ' relative decrease = ' + str(Rstar_glob/Rstar_glob0) + ' Solve time = ' + str(time.time() - ts)  + '\n')
       sys.stdout.flush()
+  np.savez('resid_history',resid=resid_hist,t=t_hist)
 
 
 def psuedoTimeSolver(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadrature,eqns):
   NLiter = 0
-  tau = 0.05
+  tau = 0.0002
   Rstarn,Rn,Rstar_glob = unsteadyResidual(main.a.a)
   Rstar_glob0 = Rstar_glob*1. 
-  rk4const = np.array([1./4,1./3,1./2,1.])
+#  rk4const = np.array([1./4,1./3,1./2,1.])
+#  rk4const = np.array([0.15,0.4,1.0])
+  rk4const = np.array([0.15,1.0])
+
   a0 = np.zeros(np.shape(main.a.a))
   Rstarn,Rn,Rstar_glob_old = unsteadyResidual(main.a.a) 
-
+  save_freq = 10
+  tnls = time.time()
+  resid_hist = np.zeros(0)
+  t_hist = np.zeros(0)
   while (Rstar_glob >= 1e-20 and Rstar_glob/Rstar_glob0 > 1e-8):
     NLiter += 1
     ts = time.time()
     a0[:] = main.a.a[:]
-#    for k in range(0,4):
-    Rstarn,Rn,Rstar_glob = unsteadyResidual(main.a.a) 
-    tau = tau*np.fmin(Rstar_glob_old/Rstar_glob,1.0)
-    print('tau = ' + str(tau))
-#    main.a.a[:] = a0[:] + tau*Rstarn*rk4const[k]
-    main.a.a[:] = a0[:] + tau*Rstarn
-    Rstar_glob_old = Rstar_glob*1.
-    if (main.mpi_rank == 0):
-      sys.stdout.write('NL iteration = ' + str(NLiter) + '  NL residual = ' + str(Rstar_glob) + ' relative decrease = ' + str(Rstar_glob/Rstar_glob0) + ' Solve time = ' + str(time.time() - ts)  + '\n')
-      sys.stdout.flush()
+    tau = tau*np.fmin(Rstar_glob_old/Rstar_glob,1.005)
 
+    for k in range(0,np.size(rk4const)):
+      Rstarn,Rn,Rstar_glob = unsteadyResidual(main.a.a) 
+      #print('tau = ' + str(tau))
+      main.a.a[:] = a0[:] + tau*Rstarn*rk4const[k]
+  #    main.a.a[:] = a0[:] + tau*Rstarn
+      Rstar_glob_old = Rstar_glob*1.
+    resid_hist = np.append(resid_hist,Rstar_glob)
+    t_hist = np.append(t_hist,time.time() - tnls)
+    if (main.mpi_rank == 0 and NLiter%save_freq == 0):
+      sys.stdout.write('NL iteration = ' + str(NLiter) + '  NL residual = ' + str(Rstar_glob) + ' relative decrease = ' + str(Rstar_glob/Rstar_glob0) + ' Solve time = ' + str(time.time() - tnls)  + '\n')
+      sys.stdout.write('tau = ' + str(tau)  + '\n')
+      sys.stdout.flush()
+    np.savez('resid_history',resid=resid_hist,t=t_hist)
 
 
 
 
 def newtonSolver_MG(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadrature,eqns):
-  n_levels = 2#int(np.log(np.amax(main.order))/np.log(2))  + 1
+  n_levels = int( np.log(np.amax(main.order))/np.log(2))  + 1
   coarsen = np.int32(2**np.linspace(0,n_levels-1,n_levels))
   mg_classes = []
   mg_Rn = []
@@ -85,7 +101,7 @@ def newtonSolver_MG(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadr
   mg_e = []
   for i in range(0,n_levels):
     order_coarsen = np.int32(np.fmax(main.order/coarsen[i],1))
-    quadpoints_coarsen = np.int32(np.fmax(main.quadpoints/(2.*coarsen[i]),1))
+    quadpoints_coarsen = np.int32(np.fmax(main.quadpoints/(coarsen[i]),1))
     order_coarsen[-1] = main.order[-1]
     quadpoints_coarsen[-1] = main.quadpoints[-1]
     mg_classes.append( variables(main.Nel,order_coarsen,quadpoints_coarsen,eqns,main.mus,main.xG,main.yG,main.zG,main.t,main.et,main.dt,main.iteration,main.save_freq,'DNS',main.procx,main.procy,main.BCs,main.source,main.source_mag,main.shock_capturing) )
@@ -112,7 +128,11 @@ def newtonSolver_MG(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadr
   an[:] = main.a0[:]
   Rstar_glob0 = Rstar_glob*1.
   old = np.zeros(np.shape(main.a.a))
-  while (Rstar_glob >= 1e-20 and Rstar_glob/Rstar_glob0 > 1e-8):
+  tnls = time.time()
+  resid_hist = np.zeros(0)
+  t_hist = np.zeros(0)
+
+  while (Rstar_glob >= 1e-6 or Rstar_glob/Rstar_glob0 > 1e-6):
     NLiter += 1
     ts = time.time()
     old[:] = 0.
@@ -134,7 +154,7 @@ def newtonSolver_MG(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadr
         etmp[:,0:order_coarsen[0],0:order_coarsen[1],0:order_coarsen[2],0:order_coarsen[3]] += np.reshape(mg_e[j+1],np.shape(mg_classes[j+1].a.a))
         MF_Jacobian_args = [mg_an[j],mg_Rn[j]]
         mg_e[j][:] = linear_solver.solve(MF_Jacobian,mg_b[j].flatten(),etmp.flatten(),mg_classes[j],MF_Jacobian_args,tol=1e-6,maxiter_outer=1,maxiter=10,printnorm=0)
-
+        #mg_e[j][:] = etmp.flatten()
     alpha = 1. 
     main.a.a[:] = an[:] + alpha*np.reshape(mg_e[0],np.shape(main.a.a))
     Rstar_glob_p = Rstar_glob*1.
@@ -142,10 +162,13 @@ def newtonSolver_MG(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadr
 #    if (Rstar_glob/Rstar_glob_p <
     an[:] = main.a.a[:]
     Rstarn,Rn,Rstar_glob = unsteadyResidual(main.a.a)
+    resid_hist = np.append(resid_hist,Rstar_glob)
+    t_hist = np.append(t_hist,time.time() - tnls)
+
     if (main.mpi_rank == 0):
       sys.stdout.write('NL iteration = ' + str(NLiter) + '  NL residual = ' + str(Rstar_glob) + ' relative decrease = ' + str(Rstar_glob/Rstar_glob0) + ' Solve time = ' + str(time.time() - ts)  + '\n')
       sys.stdout.flush()
-
+  np.savez('resid_history',resid=resid_hist,t=t_hist)
 
 
 

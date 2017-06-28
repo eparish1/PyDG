@@ -31,7 +31,6 @@ def tauModelFD(main,MZ,eqns):
     MZ.a.a[:] = 0.
     MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2]] = main.a.a[:]
     eqns.getRHS(main,main,eqns)
-    print('here')
 
     eqns.getRHS(MZ,MZ,eqns)
     RHS1 = np.zeros(np.shape(MZ.RHS))

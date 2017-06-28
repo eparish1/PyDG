@@ -91,52 +91,52 @@ def inviscidFluxGen(main,eqns,fluxVar,var,args):
   for i in range(0,nargs):
     fluxArgs.append(argsR[i][:,:,:,:,0:-1,:,:])
     fluxArgs.append(argsL[i][:,:,:,:,1::,:,: ])
-  fluxVar.fRS[:,:,:,:,0:-1,:,:] = eqns.inviscidFlux(var.uR[:,:,:,:,0:-1,:,:],var.uL[:,:,:,:,1::,:,:],nx,fluxArgs)
+  fluxVar.fRS[:,:,:,:,0:-1,:,:] = eqns.inviscidFlux(main,var.uR[:,:,:,:,0:-1,:,:],var.uL[:,:,:,:,1::,:,:],nx,fluxArgs)
   fluxArgs = []
 
   for i in range(0,nargs):
     fluxArgs.append(argsR[i][:,:,:,:,-1,:,:])
     fluxArgs.append(argsR_edge[i])
 
-  fluxVar.fRS[:,:,:,:,  -1,:,:] = eqns.inviscidFlux(var.uR[:,:,:,:,  -1,:,:],var.uR_edge,nx,fluxArgs)
+  fluxVar.fRS[:,:,:,:,  -1,:,:] = eqns.inviscidFlux(main,var.uR[:,:,:,:,  -1,:,:],var.uR_edge,nx,fluxArgs)
   fluxVar.fLS[:,:,:,:,1:: ,:,:] = fluxVar.fRS[:,:,:,:,0:-1,:,:] ##same as the right flux but shifted one
   fluxArgs = []
   for i in range(0,nargs):
     fluxArgs.append(argsL_edge[i])
     fluxArgs.append(argsL[i][:,:,:,:,0,:,:])
-  fluxVar.fLS[:,:,:,:,0   ,:,:] = eqns.inviscidFlux(var.uL_edge,var.uL[:,:,:,:,0,:,:],nx,fluxArgs)
+  fluxVar.fLS[:,:,:,:,0   ,:,:] = eqns.inviscidFlux(main,var.uL_edge,var.uL[:,:,:,:,0,:,:],nx,fluxArgs)
   ## Get the up and down fluxes
   fluxArgs = []
   for i in range(0,nargs):
     fluxArgs.append(argsU[i][:,:,:,:,:,0:-1,:])
     fluxArgs.append(argsD[i][:,:,:,:,:,1::,:])
-  fluxVar.fUS[:,:,:,:,:,0:-1,:] = eqns.inviscidFlux(var.uU[:,:,:,:,:,0:-1,:],var.uD[:,:,:,:,:,1::,:],ny,fluxArgs)
+  fluxVar.fUS[:,:,:,:,:,0:-1,:] = eqns.inviscidFlux(main,var.uU[:,:,:,:,:,0:-1,:],var.uD[:,:,:,:,:,1::,:],ny,fluxArgs)
   fluxArgs = []
   for i in range(0,nargs):
     fluxArgs.append(argsU[i][:,:,:,:,:,  -1,:])
     fluxArgs.append(argsU_edge[i])
-  fluxVar.fUS[:,:,:,:,:,  -1,:] = eqns.inviscidFlux(var.uU[:,:,:,:,:,  -1,:],var.uU_edge,ny,fluxArgs)
+  fluxVar.fUS[:,:,:,:,:,  -1,:] = eqns.inviscidFlux(main,var.uU[:,:,:,:,:,  -1,:],var.uU_edge,ny,fluxArgs)
   fluxVar.fDS[:,:,:,:,:,1:: ,:] = fluxVar.fUS[:,:,:,:,:,0:-1,:] 
   fluxArgs = []
   for i in range(0,nargs):
     fluxArgs.append(argsD_edge[i])
     fluxArgs.append(argsD[i][:,:,:,:,:,0,:])
-  fluxVar.fDS[:,:,:,:,:,0   ,:] = eqns.inviscidFlux(var.uD_edge,var.uD[:,:,:,:,:,0,:],ny,fluxArgs)
+  fluxVar.fDS[:,:,:,:,:,0   ,:] = eqns.inviscidFlux(main,var.uD_edge,var.uD[:,:,:,:,:,0,:],ny,fluxArgs)
   ## Get the front and back fluxes
   fluxArgs = []
   for i in range(0,nargs):
     fluxArgs.append(argsF[i][:,:,:,:,:,:,0:-1])
     fluxArgs.append(argsB[i][:,:,:,:,:,:,1::])
-  fluxVar.fFS[:,:,:,:,:,:,0:-1] = eqns.inviscidFlux(var.uF[:,:,:,:,:,:,0:-1],var.uB[:,:,:,:,:,:,1::],nz,fluxArgs)
+  fluxVar.fFS[:,:,:,:,:,:,0:-1] = eqns.inviscidFlux(main,var.uF[:,:,:,:,:,:,0:-1],var.uB[:,:,:,:,:,:,1::],nz,fluxArgs)
   fluxArgs = []
   for i in range(0,nargs):
     fluxArgs.append(argsF[i][:,:,:,:,:,:,-1])
     fluxArgs.append(argsF_edge[i])
-  fluxVar.fFS[:,:,:,:,:,:,  -1] = eqns.inviscidFlux(var.uF[:,:,:,:,:,:,  -1],var.uF_edge,nz,fluxArgs)
+  fluxVar.fFS[:,:,:,:,:,:,  -1] = eqns.inviscidFlux(main,var.uF[:,:,:,:,:,:,  -1],var.uF_edge,nz,fluxArgs)
   fluxVar.fBS[:,:,:,:,:,:,1:: ] = fluxVar.fFS[:,:,:,:,:,:,0:-1] 
   fluxArgs = []
   for i in range(0,nargs):
     fluxArgs.append(argsB_edge[i])
     fluxArgs.append(argsB[i][:,:,:,:,:,:,0])
-  fluxVar.fBS[:,:,:,:,:,:,0   ] = eqns.inviscidFlux(var.uB_edge,var.uB[:,:,:,:,:,:,0],nz,fluxArgs)
+  fluxVar.fBS[:,:,:,:,:,:,0   ] = eqns.inviscidFlux(main,var.uB_edge,var.uB[:,:,:,:,:,:,0],nz,fluxArgs)
 

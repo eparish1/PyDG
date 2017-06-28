@@ -4,59 +4,73 @@ import numpy as np
 ## Flux information for linear advection, advection diffusion, and pure diffusion
 
 ######  ====== Pure Diffusion ==== ###########
-def evalFluxXD(u,f):
-  f[0] = u[0]*0.
-
-def evalFluxYD(u,f):
+def evalFluxD(u,f,args):
   f[0] = u[0]*0.
 
 
 ######  ====== Linear advection fluxes and eigen values ==== ###########
-def evalFluxXLA(u,f):
+def evalFluxXLA(u,f,args):
   f[0] = u[0]
 
-def evalFluxYLA(u,f):
+def evalFluxYLA(u,f,args):
   f[0] = u[0]
 
-def evalFluxZLA(u,f):
+def evalFluxZLA(u,f,args):
   f[0] = u[0]
 
 
 
 #### ================ Flux schemes for the faces ========= ###########
-def linearAdvectionCentralFlux(UL,UR,n):
+def linearAdvectionCentralFlux(UL,UR,n,args=None):
   F = np.zeros(np.shape(UL))
-  F[0] = 0.5*(UR[0] + UL[0])
+  #F[0] = 0.5*(UR[0] + UL[0])
+  F[0] = UL[0]
+
   return F
 
 
 ### diffusion
-def getGsLA(u,main):
+def getGsD_X(u,main,mu,V):
   nvars = np.shape(u)[0]
-  gamma = 1.4
-  Pr = 0.72
-  ashape = np.array(np.shape(u[0]))
-  ashape = np.insert(ashape,0,nvars)
-  ashape = np.insert(ashape,0,nvars)
-  G11 = np.zeros(ashape)
-  G12 = np.zeros(ashape)
-  G21 = np.zeros(ashape)
-  G22 = np.zeros(ashape)
-  G11[0] = 1.
-  G22[0] = 1.
-  G11 = G11*main.mu
-  G12 = G12*main.mu
-  G21 = G21*main.mu
-  G22 = G22*main.mu
-  return G11,G12,G21,G22
+  fvG11 = np.zeros(np.shape(u))
+  fvG21 = np.zeros(np.shape(u))
+  fvG31 = np.zeros(np.shape(u))
+  fvG11[0] = mu*V[0]
+  return fvG11,fvG21,fvG31
 
-def evalViscousFluxXLA_IP(main,u,Ux,Uy):
+def getGsD_Y(u,main,mu,V):
+  nvars = np.shape(u)[0]
+  fvG12 = np.zeros(np.shape(u))
+  fvG22 = np.zeros(np.shape(u))
+  fvG32 = np.zeros(np.shape(u))
+  fvG22[0] = mu*V[0]
+  return fvG12,fvG22,fvG32
+
+def getGsD_Z(u,main,mu,V):
+  nvars = np.shape(u)[0]
+  fvG13 = np.zeros(np.shape(u))
+  fvG23 = np.zeros(np.shape(u))
+  fvG33 = np.zeros(np.shape(u))
+  fvG33[0] = mu*V[0]
+  return fvG13,fvG23,fvG33
+
+def diffusionCentralFlux(UL,UR,n,args=None):
+  f = np.zeros(np.shape(UL))
+  return f
+
+def evalViscousFluxXLA_IP(main,u,Ux,Uy,Uz,mu):
   fx = np.zeros(np.shape(u))
-  fx[0] = main.mu*Ux[0]
+  fx[0] = mu*Ux[0]
   return fx
 
-def evalViscousFluxYLA_IP(main,u,Ux,Uy):
+def evalViscousFluxYLA_IP(main,u,Ux,Uy,Uz,mu):
   fy = np.zeros(np.shape(u))
-  fy[0] = main.mu*Uy[0]
+  fy[0] = mu*Uy[0]
   return fy
+
+def evalViscousFluxZLA_IP(main,u,Ux,Uy,Uz,mu):
+  fz = np.zeros(np.shape(u))
+  fz[0] = mu*Uz[0]
+  return fz
+
 

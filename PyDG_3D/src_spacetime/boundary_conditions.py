@@ -1,5 +1,9 @@
 import numpy as np
 
+def dirichlet_bc(Ue,UBC,args,gas):
+  UBC[0] = args[0] 
+  return UBC
+
 def periodic_bc(Ue,UBC,args,gas):
    return UBC 
 

@@ -30,30 +30,44 @@ def globalSum(r,main):
 
 
 def rungeKutta(Af, b, x0,main,args,tol=1e-9,maxiter_outer=1,maxiter=20,printnorm=0):
-     dt = 0.005
+     dt = 0.0001
      r = b - Af(x0,args,main)
      rnorm = globalNorm(r,main) #same across procs
      iteration = 0
-     while( rnorm > 1e-9 and iteration <= 8):
-       r = b - Af(x0,args,main)
-       x0[:] = x0[:] - dt*r
+     rk4const = np.array([0.15,1.0])
+     a0 = np.zeros(np.shape(x0))
+     a = np.zeros(np.shape(x0))
+     a0[:] = x0[:]
+     a[:] = x0[:]
+     print_freq = 5
+     while( rnorm > 1e-9 and iteration <= 50):
+       a0[:] = a[:]
+
+       for i in range(0,np.size(rk4const) ):
+         r = b - Af(a,args,main)
+         rnorm_old = rnorm*1.
+         rnorm = globalNorm(r,main) 
+         dt = dt*np.fmin(rnorm_old/rnorm,1.001)
+         #dt = dt*rnorm_old/rnorm
+         a[:] = a0[:] - dt*rk4const[i]*r
        iteration += 1
-       rnorm = globalNorm(r,main) 
-       if (main.mpi_rank == 0 and printnorm == 1):
-         sys.stdout.write(' Iteration = ' + str(iteration) + ' Runge Kutta error = ' + str(rnorm) +  '\n')
-     return x0
+       if (main.mpi_rank == 0 and iteration%print_freq == 0):# and printnorm == 1):
+         sys.stdout.write(' Iteration = ' + str(iteration) + ' Runge Kutta error = ' + str(rnorm) + ' tau = ' + str(dt) +  '\n')
+     sys.stdout.write(' ================================== ' +  '\n')
+     return a
 
 def GMRes(Af, b, x0,main,args,tol=1e-9,maxiter_outer=1,maxiter=20,printnorm=0):
     k_outer = 0
     bnorm = globalNorm(b,main)
-    error = 1.
+    error = 10.
     while (k_outer < maxiter_outer and error >= tol):
       r = b - Af(x0,args,main)
       if (main.mpi_rank == 0 and printnorm==1):
         print('Outer true norm = ' + str(np.linalg.norm(r)))
       cs = np.zeros(maxiter) #should be the same on all procs
       sn = np.zeros(maxiter) #same on all procs
-      e1 = np.zeros(np.size(b)) #should vary across procs
+#      e1 = np.zeros(np.size(b)) #should vary across procs
+      e1 = np.zeros(maxiter+1)
       e1[0] = 1
   
       rnorm = globalNorm(r,main) #same across procs
@@ -62,6 +76,7 @@ def GMRes(Af, b, x0,main,args,tol=1e-9,maxiter_outer=1,maxiter=20,printnorm=0):
       Q[:,0] = r / rnorm ## The first index of Q is across all procs
       H = np.zeros((maxiter + 1, maxiter)) ### this should be the same on all procs
       beta = rnorm*e1
+
       k = 0
       while (k < maxiter - 1  and error >= tol):
   #    for k in range(0,nmax_iter-1):

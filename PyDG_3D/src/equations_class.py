@@ -1,4 +1,5 @@
 import numpy as np
+import sys
 from mpi4py import MPI
 from navier_stokes import *
 from linear_advection import *

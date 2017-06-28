@@ -219,7 +219,8 @@ class variables:
     self.turb_str = turb_str
     check = 0
     if (turb_str == 'tau-model'):
-      self.getRHS = tauModelLinearized
+      #self.getRHS = tauModelLinearized
+      self.getRHS = tauModelValidateLinearized
       check = 1
     if (turb_str == 'tau-modelFD'):
       self.getRHS = tauModelFD

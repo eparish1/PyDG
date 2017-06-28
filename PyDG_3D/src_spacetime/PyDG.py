@@ -7,6 +7,7 @@ from solver_classes import *
 from DG_functions import reconstructU_tensordot as reconstructU
 from DG_functions import volIntegrateGlob_tensordot as volIntegrateGlob
 from MPI_functions import gatherSolSlab,gatherSolSpectral
+from init_reacting_additions import *
 from timeSchemes import *#advanceSol,advanceSolImplicitMG,advanceSolImplicit,advanceSolImplicitPC
 import time
 from scipy import interpolate
@@ -88,7 +89,7 @@ def getIC(main,f,x,y,z,zeta3,Npt):
     for j in range(0,Npt):
       U[:,:,:,:,i,:,:,:,j] =  U[:,:,:,:,0,:,:,:,0]  
       main.a.uFuture[:,:,:,:,:,:,:,j] = U[:,:,:,:,0,:,:,:,0] 
-  main.a.a[0:5] = volIntegrateGlob(main,U,main.w0,main.w1,main.w2,main.w3)*scale[None,:,:,:,:,None,None,None,None]
+  main.a.a[:] = volIntegrateGlob(main,U,main.w0,main.w1,main.w2,main.w3)*scale[None,:,:,:,:,None,None,None,None]
 
 
 comm = MPI.COMM_WORLD
@@ -103,7 +104,8 @@ else:
 if 'enriched_ratio' in globals():
   pass
 else:
-  enriched_ratio = np.array([2,2,2,1])
+#  enriched_ratio = np.array([2,2,2,1])
+  enriched_ratio = np.array([(order[0]+1.)/order[0],(order[1]+1.)/order[1],(order[2]+1.)/order[2],1])
 if 'enriched' in globals():
   pass
 else:
@@ -138,9 +140,12 @@ if (mpi_rank == 0):
 iteration = 0
 eqns = equations(eqn_str,schemes,turb_str)
 main = variables(Nel,order,quadpoints,eqns,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,source,source_mag,shock_capturing)
+
+if (eqn_str[0:-2] == 'Navier-Stokes Reacting'):
+  main = add_reacting_to_main(main,mol_str)
 if (enriched):
   eqnsEnriched = equations(enriched_eqn_str,enriched_schemes,turb_str)
-  mainEnriched = variables(Nel,order*enriched_ratio,quadpoints*enriched_ratio,eqnsEnriched,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,source,source_mag,shock_capturing)
+  mainEnriched = variables(Nel,np.int64(order*enriched_ratio),quadpoints,eqnsEnriched,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,source,source_mag,shock_capturing)
 else:
   mainEnriched = main
 xG,yG,zG = getGlobGrid(x,y,z,main.zeta0,main.zeta1,main.zeta2)
@@ -152,6 +157,7 @@ reconstructU(main,main.a)
 timescheme = timeschemes(time_integration,linear_solver_str,nonlinear_solver_str)
 main.basis = basis_class('Legendre',[basis_functions_str])
 mainEnriched.basis = main.basis
+#main.source_hook = source_hook
 if (main.mpi_rank == 0):
   if not os.path.exists('Solution'):
      os.makedirs('Solution')
