@@ -203,7 +203,12 @@ class variables:
 
     self.a0 = np.zeros((eqns.nvars,self.order[0],self.order[1],self.order[2],self.order[3],self.Npx,self.Npy,self.Npz,self.Npt))
     self.a = variable(eqns.nvars,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz,self.Npt)
+    self.b = variable(3,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz,self.Npt)
+
     self.iFlux = fluxvariable(eqns.nvars,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz,self.Npt)
+    self.vFlux = fluxvariable(3,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz,self.Npt)
+    self.vFlux2 = fluxvariable(eqns.nvars,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz,self.Npt)
+
     self.mus = mu
     self.mu = np.ones(np.append( eqns.nmus, np.shape( self.a.u[0])))*self.mus
     self.muR = np.ones(np.append( eqns.nmus, np.shape( self.a.uR[0])))*self.mus

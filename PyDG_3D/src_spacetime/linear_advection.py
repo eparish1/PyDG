@@ -4,7 +4,7 @@ import numpy as np
 ## Flux information for linear advection, advection diffusion, and pure diffusion
 
 ######  ====== Pure Diffusion ==== ###########
-def evalFluxD(u,f,args):
+def evalFluxD(main,u,f,args):
   f[0] = u[0]*0.
 
 
@@ -31,7 +31,7 @@ def evalTauFluxXD_BR1(tau,u,fvX):
 def evalTauFluxYD_BR1(tau,u,fvY):
   fvY[0] = tau[1]
 
-def evalTauFluxYD_BR1(tau,u,fvZ):
+def evalTauFluxZD_BR1(tau,u,fvZ):
   fvZ[0] = tau[2]
 
 
@@ -52,24 +52,14 @@ def evalViscousFluxZD_BR1(u,fv):
   fv[2] = u[0]
 
 
-def evalTauFluxXD_BR1(tau,u,fvX):
-  fvX[0] = tau[0]
-
-def evalTauFluxYD_BR1(tau,u,fvY):
-  fvY[0] = tau[1]
-
-def evalTauFluxYD_BR1(tau,u,fvZ):
-  fvZ[0] = tau[2]
-
-
 ######  ====== Linear advection fluxes and eigen values ==== ###########
-def evalFluxXLA(u,f,args):
+def evalFluxXLA(main,u,f,args):
   f[0] = u[0]
 
-def evalFluxYLA(u,f,args):
+def evalFluxYLA(main,u,f,args):
   f[0] = u[0]
 
-def evalFluxZLA(u,f,args):
+def evalFluxZLA(main,u,f,args):
   f[0] = u[0]
 
 
@@ -108,7 +98,7 @@ def getGsD_Z(u,main,mu,V):
   fvG33[0] = mu*V[0]
   return fvG13,fvG23,fvG33
 
-def diffusionCentralFlux(UL,UR,n,args=None):
+def diffusionCentralFlux(main,UL,UR,n,args=None):
   f = np.zeros(np.shape(UL))
   return f
 

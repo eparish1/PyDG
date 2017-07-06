@@ -11,22 +11,30 @@ import matplotlib.pyplot as plt
 from smagorinsky import *
 import time
 
-def getViscousFluxes(main,eqns,schemes):
+def getViscousFluxes_BR1(main,MZ,eqns):
   eqns.evalViscousFluxX(main.a.u,main.vFlux.fx)
   eqns.evalViscousFluxY(main.a.u,main.vFlux.fy)
+  eqns.evalViscousFluxZ(main.a.u,main.vFlux.fz)
   # first reconstruct states
+
   eqns.evalViscousFluxX(main.a.uR,main.vFlux.fR)
   eqns.evalViscousFluxX(main.a.uL,main.vFlux.fL)
   eqns.evalViscousFluxY(main.a.uU,main.vFlux.fU)
   eqns.evalViscousFluxY(main.a.uD,main.vFlux.fD)
+  eqns.evalViscousFluxZ(main.a.uF,main.vFlux.fF)
+  eqns.evalViscousFluxZ(main.a.uB,main.vFlux.fB)
 
-  eqns.evalViscousFluxZ(main.a.uU,main.vFlux.fU)
-  eqns.evalViscousFluxZ(main.a.uD,main.vFlux.fD)
 
+  eqns.evalViscousFluxX(main.a.uR_edge,main.vFlux.fR_edge)
+  eqns.evalViscousFluxX(main.a.uL_edge,main.vFlux.fL_edge)
   eqns.evalViscousFluxY(main.a.uU_edge,main.vFlux.fU_edge)
   eqns.evalViscousFluxY(main.a.uD_edge,main.vFlux.fD_edge)
+  eqns.evalViscousFluxZ(main.a.uF_edge,main.vFlux.fF_edge)
+  eqns.evalViscousFluxZ(main.a.uB_edge,main.vFlux.fB_edge)
+
   # now construct star state
-  schemes.viscousFlux(main,eqns,schemes,main.vFlux,main.b)
+
+  main.vFlux.fRS[:],main.vFlux.fLS[:],main.vFlux.fUS[:],main.vFlux.fDS[:],main.vFlux.fFS[:],main.vFlux.fBS[:] = centralFluxGeneral(main.vFlux.fR,main.vFlux.fL,main.vFlux.fU,main.vFlux.fD,main.vFlux.fF,main.vFlux.fB,main.vFlux.fR_edge,main.vFlux.fL_edge,main.vFlux.fU_edge,main.vFlux.fD_edge,main.vFlux.fF_edge,main.vFlux.fB_edge)
   # now we need to integrate along the boundary 
   main.vFlux.fRI = main.basis.faceIntegrateGlob(main,main.vFlux.fRS,MZ.w1,MZ.w2,MZ.w3,MZ.weights1,MZ.weights2,MZ.weights3)
   main.vFlux.fLI = main.basis.faceIntegrateGlob(main,main.vFlux.fLS,MZ.w1,MZ.w2,MZ.w3,MZ.weights1,MZ.weights2,MZ.weights3)
@@ -36,38 +44,48 @@ def getViscousFluxes(main,eqns,schemes):
   main.vFlux.fBI = main.basis.faceIntegrateGlob(main,main.vFlux.fBS,MZ.w0,MZ.w1,MZ.w3,MZ.weights0,MZ.weights1,MZ.weights3)
 
 
-def solveb(main,eqns,schemes):
+def solveb(main,MZ,eqns,dxi,dyi,dzi):
   ##first do quadrature
-  getViscousFluxes(main,eqns,schemes)
+  getViscousFluxes_BR1(main,MZ,eqns)
 
-  v1ijk = main.basis.volIntegrateGlob(main,main.iFlux.fx,main.wp0,main.w1,main.w2,main.w3)*dxi[None]
-  v2ijk = main.basis.volIntegrateGlob(main,main.iFlux.fy,main.w0,main.wp1,main.w2,main.w3)*dyi[None]
-  v3ijk = main.basis.volIntegrateGlob(main,main.iFlux.fz,main.w0,main.w1,main.wp2,main.w3)*dzi[None]
+  v1ijk = main.basis.volIntegrateGlob(main,main.vFlux.fx,main.wp0,main.w1,main.w2,main.w3)*dxi[None]
+  v2ijk = main.basis.volIntegrateGlob(main,main.vFlux.fy,main.w0,main.wp1,main.w2,main.w3)*dyi[None]
+  v3ijk = main.basis.volIntegrateGlob(main,main.vFlux.fz,main.w0,main.w1,main.wp2,main.w3)*dzi[None]
   tmp = -v1ijk - v2ijk - v3ijk
   tmp +=  (main.vFlux.fRI[:,None,:,:] - main.vFlux.fLI[:,None,:,:]*main.altarray0[None,:,None,None,None,None,None,None,None])*dxi[None]
   tmp +=  (main.vFlux.fUI[:,:,None,:] - main.vFlux.fDI[:,:,None,:]*main.altarray1[None,None,:,None,None,None,None,None,None])*dyi[None]
   tmp +=  (main.vFlux.fFI[:,:,:,None] - main.vFlux.fBI[:,:,:,None]*main.altarray2[None,None,None,:,None,None,None,None,None])*dzi[None]
+  main.b.a[:] = tmp[:]
+
   ## Now reconstruct tau and get edge states for later flux computations
-  reconstructU(main,main.b)
-  reconstructEdges(main,main.b)
-  sendEdges(main,main.b)
+  main.basis.reconstructU(main,main.b)
+  main.b.uR[:],main.b.uL[:],main.b.uU[:],main.b.uD[:],main.b.uF[:],main.b.uB[:] = main.basis.reconstructEdgesGeneral(main.b.a,main)
+  main.b.uR_edge[:],main.b.uL_edge[:],main.b.uU_edge[:],main.b.uD_edge[:],main.b.uF_edge[:],main.b.uB_edge[:] = sendEdgesGeneralSlab_Derivs(main.b.uL,main.b.uR,main.b.uD,main.b.uU,main.b.uB,main.b.uF,main)
   eqns.evalTauFluxX(main.b.uR,main.a.uR,main.vFlux2.fR)
   eqns.evalTauFluxX(main.b.uL,main.a.uL,main.vFlux2.fL)
   eqns.evalTauFluxY(main.b.uU,main.a.uU,main.vFlux2.fU)
   eqns.evalTauFluxY(main.b.uD,main.a.uD,main.vFlux2.fD)
-  eqns.evalTauFluxZ(main.b.uU,main.a.uU,main.vFlux2.fF)
-  eqns.evalTauFluxZ(main.b.uD,main.a.uD,main.vFlux2.fB)
+  eqns.evalTauFluxZ(main.b.uF,main.a.uF,main.vFlux2.fF)
+  eqns.evalTauFluxZ(main.b.uB,main.a.uB,main.vFlux2.fB)
 
+  eqns.evalTauFluxX(main.b.uR_edge,main.a.uR_edge,main.vFlux2.fR_edge)
+  eqns.evalTauFluxX(main.b.uL_edge,main.a.uL_edge,main.vFlux2.fL_edge)
   eqns.evalTauFluxY(main.b.uU_edge,main.a.uU_edge,main.vFlux2.fU_edge)
   eqns.evalTauFluxY(main.b.uD_edge,main.a.uD_edge,main.vFlux2.fD_edge)
+  eqns.evalTauFluxZ(main.b.uF_edge,main.a.uF_edge,main.vFlux2.fF_edge)
+  eqns.evalTauFluxZ(main.b.uB_edge,main.a.uB_edge,main.vFlux2.fB_edge)
+  main.vFlux2.fRS[:],main.vFlux2.fLS[:],main.vFlux2.fUS[:],main.vFlux2.fDS[:],main.vFlux2.fFS[:],main.vFlux2.fBS[:] = centralFluxGeneral(main.vFlux2.fR,main.vFlux2.fL,main.vFlux2.fU,main.vFlux2.fD,main.vFlux2.fF,main.vFlux2.fB,main.vFlux2.fR_edge,main.vFlux2.fL_edge,main.vFlux2.fU_edge,main.vFlux2.fD_edge,main.vFlux2.fF_edge,main.vFlux2.fB_edge)
+
   eqns.evalTauFluxX(main.b.u,main.a.u,main.vFlux2.fx)
   eqns.evalTauFluxY(main.b.u,main.a.u,main.vFlux2.fy)
-  schemes.viscousFlux(main,eqns,schemes,main.vFlux2,main.b)
-  for i in range(0,main.order):
-     main.vFlux2.fRI[:,i] = faceIntegrate(main.weights,main.w[i],main.vFlux2.fRS)
-     main.vFlux2.fLI[:,i] = faceIntegrate(main.weights,main.w[i],main.vFlux2.fLS)
-     main.vFlux2.fUI[:,i] = faceIntegrate(main.weights,main.w[i],main.vFlux2.fUS)
-     main.vFlux2.fDI[:,i] = faceIntegrate(main.weights,main.w[i],main.vFlux2.fDS)
+  eqns.evalTauFluxZ(main.b.u,main.a.u,main.vFlux2.fz)
+
+  main.vFlux2.fRI = main.basis.faceIntegrateGlob(main,main.vFlux2.fRS,MZ.w1,MZ.w2,MZ.w3,MZ.weights1,MZ.weights2,MZ.weights3)
+  main.vFlux2.fLI = main.basis.faceIntegrateGlob(main,main.vFlux2.fLS,MZ.w1,MZ.w2,MZ.w3,MZ.weights1,MZ.weights2,MZ.weights3)
+  main.vFlux2.fUI = main.basis.faceIntegrateGlob(main,main.vFlux2.fUS,MZ.w0,MZ.w2,MZ.w3,MZ.weights0,MZ.weights2,MZ.weights3)
+  main.vFlux2.fDI = main.basis.faceIntegrateGlob(main,main.vFlux2.fDS,MZ.w0,MZ.w2,MZ.w3,MZ.weights0,MZ.weights2,MZ.weights3)
+  main.vFlux2.fFI = main.basis.faceIntegrateGlob(main,main.vFlux2.fFS,MZ.w0,MZ.w1,MZ.w3,MZ.weights0,MZ.weights1,MZ.weights3)
+  main.vFlux2.fBI = main.basis.faceIntegrateGlob(main,main.vFlux2.fBS,MZ.w0,MZ.w1,MZ.w3,MZ.weights0,MZ.weights1,MZ.weights3)
 
 
 
@@ -88,6 +106,51 @@ def getFlux(main,MZ,eqns,args):
   main.iFlux.fDI = main.basis.faceIntegrateGlob(main,main.iFlux.fDS,MZ.w0,MZ.w2,MZ.w3,MZ.weights0,MZ.weights2,MZ.weights3)
   main.iFlux.fFI = main.basis.faceIntegrateGlob(main,main.iFlux.fFS,MZ.w0,MZ.w1,MZ.w3,MZ.weights0,MZ.weights1,MZ.weights3)
   main.iFlux.fBI = main.basis.faceIntegrateGlob(main,main.iFlux.fBS,MZ.w0,MZ.w1,MZ.w3,MZ.weights0,MZ.weights1,MZ.weights3)
+
+
+def getRHS_BR1(main,MZ,eqns,args=[],args_phys=[]):
+  t0 = time.time()
+  main.basis.reconstructU(main,main.a)
+  # evaluate inviscid flux
+  getFlux(main,MZ,eqns,args)
+  ### Get interior vol terms
+  eqns.evalFluxX(main,main.a.u,main.iFlux.fx,args_phys)
+  eqns.evalFluxY(main,main.a.u,main.iFlux.fy,args_phys)
+  eqns.evalFluxZ(main,main.a.u,main.iFlux.fz,args_phys)
+
+  t1 = time.time()
+  ord_arr0= np.linspace(0,main.order[0]-1,main.order[0])
+  ord_arr1= np.linspace(0,main.order[1]-1,main.order[1])
+  ord_arr2= np.linspace(0,main.order[2]-1,main.order[2])
+  ord_arr3= np.linspace(0,main.order[3]-1,main.order[3])
+
+  scale =  (2.*ord_arr0[:,None,None,None] + 1.)*(2.*ord_arr1[None,:,None,None] + 1.)*(2.*ord_arr2[None,None,:,None]+1.)*(2.*ord_arr3[None,None,None,:] + 1.)/16.
+  dxi = 2./main.dx2[None,None,None,None,:,None,None,None]*scale[:,:,:,:,None,None,None,None]*np.ones(np.shape(main.a.a[0]))
+  dyi = 2./main.dy2[None,None,None,None,None,:,None,None]*scale[:,:,:,:,None,None,None,None]*np.ones(np.shape(main.a.a[0]))
+  dzi = 2./main.dz2[None,None,None,None,None,None,:,None]*scale[:,:,:,:,None,None,None,None]*np.ones(np.shape(main.a.a[0]))
+  solveb(main,MZ,eqns,dxi,dyi,dzi) 
+
+  main.iFlux.fx -= main.vFlux2.fx
+  main.iFlux.fy -= main.vFlux2.fy
+  main.iFlux.fz -= main.vFlux2.fz
+  v1ijk = main.basis.volIntegrateGlob(main,main.iFlux.fx,main.wp0,main.w1,main.w2,main.w3)*dxi[None]
+  v2ijk = main.basis.volIntegrateGlob(main,main.iFlux.fy,main.w0,main.wp1,main.w2,main.w3)*dyi[None]
+  v3ijk = main.basis.volIntegrateGlob(main,main.iFlux.fz,main.w0,main.w1,main.wp2,main.w3)*dzi[None]
+  tmp = v1ijk + v2ijk + v3ijk
+  tmp +=  (-main.iFlux.fRI[:,None,:,:] + main.iFlux.fLI[:,None,:,:]*main.altarray0[None,:,None,None,None,None,None,None,None])*dxi[None]
+  tmp +=  (-main.iFlux.fUI[:,:,None,:] + main.iFlux.fDI[:,:,None,:]*main.altarray1[None,None,:,None,None,None,None,None,None])*dyi[None]
+  tmp +=  (-main.iFlux.fFI[:,:,:,None] + main.iFlux.fBI[:,:,:,None]*main.altarray2[None,None,None,:,None,None,None,None,None])*dzi[None]
+  tmp +=  (main.vFlux2.fRI[:,None,:,:] - main.vFlux2.fLI[:,None,:,:]*main.altarray0[None,:,None,None,None,None,None,None,None])*dxi[None]
+  tmp +=  (main.vFlux2.fUI[:,:,None,:] - main.vFlux2.fDI[:,:,None,:]*main.altarray1[None,None,:,None,None,None,None,None,None])*dyi[None]
+  tmp +=  (main.vFlux2.fFI[:,:,:,None] - main.vFlux2.fBI[:,:,:,None]*main.altarray2[None,None,None,:,None,None,None,None,None])*dzi[None]
+  if (main.source):
+    force = np.zeros(np.shape(main.iFlux.fx))
+    for i in range(0,main.nvars):
+      force[i] = main.source_mag[i]#*main.a.u[i]
+    tmp += main.basis.volIntegrateGlob(main, force ,main.w0,main.w1,main.w2,main.w3)*scale[None,:,:,:,:,None,None,None,None]
+
+  main.RHS = tmp
+  main.comm.Barrier()
 
 
 def getRHS(main,MZ,eqns,args=[],args_phys=[]):

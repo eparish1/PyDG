@@ -5,10 +5,11 @@ from navier_stokes import *
 from navier_stokes_reacting import *
 
 from linear_advection import *
-from DG_functions import getRHS
+from DG_functions import getRHS,getRHS_BR1
 class equations:
   def __init__(self,eq_str,schemes,turb_str):
     comm = MPI.COMM_WORLD
+    self.nmus = 1
     self.turb_str = turb_str
     mpi_rank = comm.Get_rank()
     iflux_str = schemes[0]
@@ -284,10 +285,15 @@ class equations:
         self.getGsZ = getGsD_Z
 
       if (vflux_str == 'BR1'):
-        self.evalViscousFluxX = evalViscousFluxXLA_BR1
-        self.evalViscousFluxY = evalViscousFluxYLA_BR1
-        self.evalTauFluxX = evalTauFluxXLA_BR1
-        self.evalTauFluxY = evalTauFluxYLA_BR1
+        self.getRHS = getRHS_BR1
+        self.evalViscousFluxX = evalViscousFluxXD_BR1
+        self.evalViscousFluxY = evalViscousFluxYD_BR1
+        self.evalViscousFluxZ = evalViscousFluxZD_BR1
+
+        self.evalTauFluxX = evalTauFluxXD_BR1
+        self.evalTauFluxY = evalTauFluxYD_BR1
+        self.evalTauFluxZ = evalTauFluxZD_BR1
+
     if (check_eq == 0):
        if (mpi_rank == 0): print('Equation set ' + str(eq_str) + ' is not valid, PyDG quitting')
        sys.exit()
