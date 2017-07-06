@@ -35,6 +35,33 @@ def evalTauFluxYD_BR1(tau,u,fvZ):
   fvZ[0] = tau[2]
 
 
+### Pure Diffusion Viscous Fluxes
+def evalViscousFluxXD_BR1(u,fv):
+  fv[0] = u[0]
+  fv[1] = 0.
+  fv[2] = 0.
+#
+def evalViscousFluxYD_BR1(u,fv):
+  fv[0] = 0.
+  fv[1] = u[0]
+  fv[2] = 0.
+
+def evalViscousFluxZD_BR1(u,fv):
+  fv[0] = 0.
+  fv[1] = 0.
+  fv[2] = u[0]
+
+
+def evalTauFluxXD_BR1(tau,u,fvX):
+  fvX[0] = tau[0]
+
+def evalTauFluxYD_BR1(tau,u,fvY):
+  fvY[0] = tau[1]
+
+def evalTauFluxYD_BR1(tau,u,fvZ):
+  fvZ[0] = tau[2]
+
+
 ######  ====== Linear advection fluxes and eigen values ==== ###########
 def evalFluxXLA(u,f,args):
   f[0] = u[0]
