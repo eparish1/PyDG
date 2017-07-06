@@ -9,6 +9,65 @@ import matplotlib.pyplot as plt
 from smagorinsky import *
 import time
 
+def getViscousFluxes(main,eqns,schemes):
+  eqns.evalViscousFluxX(main.a.u,main.vFlux.fx)
+  eqns.evalViscousFluxY(main.a.u,main.vFlux.fy)
+  # first reconstruct states
+  eqns.evalViscousFluxX(main.a.uR,main.vFlux.fR)
+  eqns.evalViscousFluxX(main.a.uL,main.vFlux.fL)
+  eqns.evalViscousFluxY(main.a.uU,main.vFlux.fU)
+  eqns.evalViscousFluxY(main.a.uD,main.vFlux.fD)
+
+  eqns.evalViscousFluxZ(main.a.uU,main.vFlux.fU)
+  eqns.evalViscousFluxZ(main.a.uD,main.vFlux.fD)
+
+  eqns.evalViscousFluxY(main.a.uU_edge,main.vFlux.fU_edge)
+  eqns.evalViscousFluxY(main.a.uD_edge,main.vFlux.fD_edge)
+  # now construct star state
+  schemes.viscousFlux(main,eqns,schemes,main.vFlux,main.b)
+  # now we need to integrate along the boundary 
+  main.vFlux.fRI = main.basis.faceIntegrateGlob(main,main.vFlux.fRS,MZ.w1,MZ.w2,MZ.w3,MZ.weights1,MZ.weights2,MZ.weights3)
+  main.vFlux.fLI = main.basis.faceIntegrateGlob(main,main.vFlux.fLS,MZ.w1,MZ.w2,MZ.w3,MZ.weights1,MZ.weights2,MZ.weights3)
+  main.vFlux.fUI = main.basis.faceIntegrateGlob(main,main.vFlux.fUS,MZ.w0,MZ.w2,MZ.w3,MZ.weights0,MZ.weights2,MZ.weights3)
+  main.vFlux.fDI = main.basis.faceIntegrateGlob(main,main.vFlux.fDS,MZ.w0,MZ.w2,MZ.w3,MZ.weights0,MZ.weights2,MZ.weights3)
+  main.vFlux.fFI = main.basis.faceIntegrateGlob(main,main.vFlux.fFS,MZ.w0,MZ.w1,MZ.w3,MZ.weights0,MZ.weights1,MZ.weights3)
+  main.vFlux.fBI = main.basis.faceIntegrateGlob(main,main.vFlux.fBS,MZ.w0,MZ.w1,MZ.w3,MZ.weights0,MZ.weights1,MZ.weights3)
+
+
+def solveb(main,eqns,schemes):
+  ##first do quadrature
+  getViscousFluxes(main,eqns,schemes)
+
+  v1ijk = main.basis.volIntegrateGlob(main,main.iFlux.fx,main.wp0,main.w1,main.w2,main.w3)*dxi[None]
+  v2ijk = main.basis.volIntegrateGlob(main,main.iFlux.fy,main.w0,main.wp1,main.w2,main.w3)*dyi[None]
+  v3ijk = main.basis.volIntegrateGlob(main,main.iFlux.fz,main.w0,main.w1,main.wp2,main.w3)*dzi[None]
+  tmp = -v1ijk - v2ijk - v3ijk
+  tmp +=  (main.vFlux.fRI[:,None,:,:] - main.vFlux.fLI[:,None,:,:]*main.altarray0[None,:,None,None,None,None,None,None,None])*dxi[None]
+  tmp +=  (main.vFlux.fUI[:,:,None,:] - main.vFlux.fDI[:,:,None,:]*main.altarray1[None,None,:,None,None,None,None,None,None])*dyi[None]
+  tmp +=  (main.vFlux.fFI[:,:,:,None] - main.vFlux.fBI[:,:,:,None]*main.altarray2[None,None,None,:,None,None,None,None,None])*dzi[None]
+  ## Now reconstruct tau and get edge states for later flux computations
+  reconstructU(main,main.b)
+  reconstructEdges(main,main.b)
+  sendEdges(main,main.b)
+  eqns.evalTauFluxX(main.b.uR,main.a.uR,main.vFlux2.fR)
+  eqns.evalTauFluxX(main.b.uL,main.a.uL,main.vFlux2.fL)
+  eqns.evalTauFluxY(main.b.uU,main.a.uU,main.vFlux2.fU)
+  eqns.evalTauFluxY(main.b.uD,main.a.uD,main.vFlux2.fD)
+  eqns.evalTauFluxZ(main.b.uU,main.a.uU,main.vFlux2.fF)
+  eqns.evalTauFluxZ(main.b.uD,main.a.uD,main.vFlux2.fB)
+
+  eqns.evalTauFluxY(main.b.uU_edge,main.a.uU_edge,main.vFlux2.fU_edge)
+  eqns.evalTauFluxY(main.b.uD_edge,main.a.uD_edge,main.vFlux2.fD_edge)
+  eqns.evalTauFluxX(main.b.u,main.a.u,main.vFlux2.fx)
+  eqns.evalTauFluxY(main.b.u,main.a.u,main.vFlux2.fy)
+  schemes.viscousFlux(main,eqns,schemes,main.vFlux2,main.b)
+  for i in range(0,main.order):
+     main.vFlux2.fRI[:,i] = faceIntegrate(main.weights,main.w[i],main.vFlux2.fRS)
+     main.vFlux2.fLI[:,i] = faceIntegrate(main.weights,main.w[i],main.vFlux2.fLS)
+     main.vFlux2.fUI[:,i] = faceIntegrate(main.weights,main.w[i],main.vFlux2.fUS)
+     main.vFlux2.fDI[:,i] = faceIntegrate(main.weights,main.w[i],main.vFlux2.fDS)
+
+
 
 
 
