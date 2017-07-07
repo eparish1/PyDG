@@ -173,6 +173,9 @@ class variables:
     self.altarray3 = (-np.ones(self.order[3]))**(np.linspace(0,self.order[3]-1,self.order[3]))
 
     self.gas = gasClass() 
+    self.Cv = self.gas.Cv
+    self.Cp = self.gas.Cp
+
     self.reacting = False
     ## Initialize BCs
     self.BCs = BCs
@@ -203,10 +206,10 @@ class variables:
 
     self.a0 = np.zeros((eqns.nvars,self.order[0],self.order[1],self.order[2],self.order[3],self.Npx,self.Npy,self.Npz,self.Npt))
     self.a = variable(eqns.nvars,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz,self.Npt)
-    self.b = variable(3,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz,self.Npt)
+    self.b = variable(eqns.nvisc_vars,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz,self.Npt)
 
     self.iFlux = fluxvariable(eqns.nvars,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz,self.Npt)
-    self.vFlux = fluxvariable(3,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz,self.Npt)
+    self.vFlux = fluxvariable(eqns.nvisc_vars,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz,self.Npt)
     self.vFlux2 = fluxvariable(eqns.nvars,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz,self.Npt)
 
     self.mus = mu

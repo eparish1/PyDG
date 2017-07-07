@@ -124,7 +124,7 @@ class equations:
       self.eq_str = eq_str
       check_eq = 1
       self.nvars = 5
-      self.nvisc_vars = 5
+      self.nvisc_vars = 9
       self.evalFluxX = evalFluxXEuler 
       self.evalFluxY = evalFluxYEuler
       self.evalFluxZ = evalFluxZEuler
@@ -144,15 +144,17 @@ class equations:
         sys.exit()
       checkv = 0 
       if (vflux_str == 'BR1'):
-        print('Error, BR1 not completed for 3D. PyDG quitting')
-        sys.exit()
+        #print('Error, BR1 not completed for 3D. PyDG quitting')
+        #sys.exit()
+        self.getRHS = getRHS_BR1
         self.evalViscousFluxX = evalViscousFluxXNS_BR1
         self.evalViscousFluxY = evalViscousFluxYNS_BR1
+        self.evalViscousFluxZ = evalViscousFluxZNS_BR1
         self.evalTauFluxX = evalTauFluxXNS_BR1
         self.evalTauFluxY = evalTauFluxYNS_BR1
+        self.evalTauFluxZ = evalTauFluxZNS_BR1
         self.vflux_type = 'BR1'
         checkv = 1
-        self.viscousFlux = centralFlux
       if (vflux_str == 'IP'):
         self.viscous = True
         self.getRHS = getRHS
@@ -269,7 +271,7 @@ class equations:
       self.getRHS = getRHS 
       self.inviscidFlux = diffusionCentralFlux
       self.nvars = 1
-      self.nvisc_vars = 2
+      self.nvisc_vars = 3
       self.evalFluxX = evalFluxD
       self.evalFluxY = evalFluxD
       self.evalFluxZ = evalFluxD

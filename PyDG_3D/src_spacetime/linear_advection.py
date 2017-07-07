@@ -25,14 +25,14 @@ def evalViscousFluxZD_BR1(u,fv):
   fv[2] = u[0]
 
 
-def evalTauFluxXD_BR1(tau,u,fvX):
-  fvX[0] = tau[0]
+def evalTauFluxXD_BR1(tau,u,fvX,mu):
+  fvX[0] = mu*tau[0]
 
-def evalTauFluxYD_BR1(tau,u,fvY):
-  fvY[0] = tau[1]
+def evalTauFluxYD_BR1(tau,u,fvY,mu):
+  fvY[0] = mu*tau[1]
 
-def evalTauFluxZD_BR1(tau,u,fvZ):
-  fvZ[0] = tau[2]
+def evalTauFluxZD_BR1(tau,u,fvZ,mu):
+  fvZ[0] = mu*tau[2]
 
 
 ### Pure Diffusion Viscous Fluxes

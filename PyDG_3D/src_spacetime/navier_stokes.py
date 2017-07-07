@@ -888,7 +888,7 @@ def evalViscousFluxZNS_IP(main,u,Ux,Uy,Uz,mu):
 ### Diffusion fluxes for BR1
 
 ### viscous fluxes
-def evalViscousFluxXNS(U,fv):
+def evalViscousFluxXNS_BR1(main,U,fv):
   u = U[1]/U[0]
   v = U[2]/U[0]
   w = U[3]/U[0]
@@ -898,16 +898,12 @@ def evalViscousFluxXNS(U,fv):
   fv[3] = v         #tau12 = (du/dy + dv/dx)
   fv[4] = w         #tau13 = (du/dz + dw/dx)
   fv[5] = 0.           #tau23 = (dv/dz + dw/dy)
-#  fv[1] = u[2]        #tau12 = (du/dy + dv/dx)
-#  fv[2] = u[3]        #tau13 = (du/dz + dw/dx)
-#  fv[3] = u[2]#u[2]   #tau21 = (dv/dx + du/dy)
-#  fv[4] = -2./3.*u[1] #tau22 = (dv/dy + dv/dy - 2/3 (du/dx + dv/dy + dw/dZ) )
-#  fv[5] = 0           #tau23 = (dv/dz + dw/dy)
-#  fv[6] = u[3]        #tau31 = (dw/dx + du/dz)
-#  fv[7] = 0           #tau32 = (dw/dy + dv/dz) 
-#  fv[8] = -2./3.*u[1] #tau33 = (dw/dz + dw/dz - 2/3 (du/dx + dv/dy + dw/dz) )
+  T = (U[4]/U[0] - 0.5*( u**2 + v**2 + w**2 ) ) #kinda a psuedo tmp, should divide by Cv but it's constant so this is taken care of in the tauFlux with gamma
+  fv[6] = T
+  fv[7] = 0.
+  fv[8] = 0.
 #
-def evalViscousFluxYNS(u,fv):
+def evalViscousFluxYNS_BR1(main,U,fv):
   u = U[1]/U[0]
   v = U[2]/U[0]
   w = U[3]/U[0]
@@ -917,8 +913,12 @@ def evalViscousFluxYNS(u,fv):
   fv[3] = u        #tau12 = (du/dy + dv/dx)
   fv[4] = 0            #tau13 = (du/dz + dw/dx)
   fv[5] = w         #tau23 = (dv/dz + dw/dy)
+  fv[6] = 0.
+  T = (U[4]/U[0] - 0.5*( u**2 + v**2 + w**2 ) )
+  fv[7] = T
+  fv[8] = 0.
 
-def evalViscousFluxZNS(u,fv):
+def evalViscousFluxZNS_BR1(main,U,fv):
   u = U[1]/U[0]
   v = U[2]/U[0]
   w = U[3]/U[0]
@@ -928,26 +928,35 @@ def evalViscousFluxZNS(u,fv):
   fv[3] = 0.           #tau12 = (du/dy + dv/dx)
   fv[4] = u         #tau13 = (du/dz + dw/dx)
   fv[5] = v        #tau23 = (dv/dz + dw/dy)
+  T = (U[4]/U[0] - 0.5*( u**2 + v**2 + w**2 ) )
+  fv[6] = 0.
+  fv[7] = 0.
+  fv[8] = T
 
-
-def evalTauFluxXNS(tau,u,fvX):
+def evalTauFluxXNS_BR1(main,tau,u,fvX,mu):
+  Pr = 0.72
+  gamma = 1.4
   fvX[0] = 0.
-  fvX[1] = tau[0] #tau11
-  fvX[2] = tau[3] #tau21
-  fvX[3] = tau[4] #tau31
-  fvX[4] = tau[0]*u[1]/u[0] + tau[3]*u[2]/u[0] + tau[4]*u[3]/u[0]
+  fvX[1] = mu*tau[0] #tau11
+  fvX[2] = mu*tau[3] #tau21
+  fvX[3] = mu*tau[4] #tau31
+  fvX[4] = mu*(tau[0]*u[1]/u[0] + tau[3]*u[2]/u[0] + tau[4]*u[3]/u[0] + gamma/Pr*tau[6] )
 
-def evalTauFluxYNS(tau,u,fvY):
+def evalTauFluxYNS_BR1(main,tau,u,fvY,mu):
+  Pr = 0.72
+  gamma = 1.4
   fvY[0] = 0.
-  fvY[1] = tau[3] #tau21
-  fvY[2] = tau[1] #tau22
-  fvY[3] = tau[5] #tau23
-  fvY[4] = tau[3]*u[1]/u[0] + tau[1]*u[2]/u[0] + tau[5]*u[3]/u[0]
+  fvY[1] = mu*tau[3] #tau21
+  fvY[2] = mu*tau[1] #tau22
+  fvY[3] = mu*tau[5] #tau23
+  fvY[4] = mu*(tau[3]*u[1]/u[0] + tau[1]*u[2]/u[0] + tau[5]*u[3]/u[0] + gamma/Pr*tau[7])
 
-def evalTauFluxZNS(tau,u,fvZ):
+def evalTauFluxZNS_BR1(main,tau,u,fvZ,mu):
+  Pr = 0.72
+  gamma = 1.4
   fvZ[0] = 0.
-  fvZ[1] = tau[4] #tau31
-  fvZ[2] = tau[5] #tau32
-  fvZ[3] = tau[2] #tau33
-  fvZ[4] = tau[4]*u[1]/u[0] + tau[5]*u[2]/u[0] + tau[2]*u[3]/u[0]
+  fvZ[1] = mu*tau[4] #tau31
+  fvZ[2] = mu*tau[5] #tau32
+  fvZ[3] = mu*tau[2] #tau33
+  fvZ[4] = mu*(tau[4]*u[1]/u[0] + tau[5]*u[2]/u[0] + tau[2]*u[3]/u[0] + gamma/Pr*tau[8])
 

@@ -40,7 +40,7 @@ def newtonSolver(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadratu
 #      delta = 3
 #    if (Rstar_glob/Rstar_glob0 < 1e-6):
 #      delta = 3
-    sol = linear_solver.solve(MF_Jacobian, -Rstarn.flatten(), old.flatten(),main_coarse,MF_Jacobian_args,np.fmin(Rstar_glob,0.1),linear_solver.maxiter_outer,10000*delta,False)
+    sol = linear_solver.solve(MF_Jacobian, -Rstarn.flatten(), old.flatten(),main_coarse,MF_Jacobian_args,np.fmin(Rstar_glob,0.1),linear_solver.maxiter_outer,100*delta,False)
     main.a.a[:] = an[:] + 1.0*np.reshape(sol,np.shape(main.a.a))
     an[:] = main.a.a[:]
     Rstarn,Rn,Rstar_glob = unsteadyResidual(main.a.a)

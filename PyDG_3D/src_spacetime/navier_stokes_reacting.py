@@ -555,3 +555,100 @@ def evalViscousFluxZNS_IP_reacting(main,u,Ux,Uy,Uz,mu):
   for i in range(0,main.nspecies):
     fz[5+i] = mu[i+1]*(Uz[5+i] - u[5+i]/u[0]*Uz[0])
   return fz
+
+
+### Diffusion fluxes for BR1
+
+### viscous fluxes
+def evalViscousFluxXNS_BR1_reacting(main,U,fv):
+  u = U[1]/U[0]
+  v = U[2]/U[0]
+  w = U[3]/U[0]
+  fv[0] =  4./3.*u  #tau11 = (du/dx + du/dx - 2/3 (du/dx + dv/dy + dw/dz) ) 
+  fv[1] = -2./3.*u  #tau22 = (dv/dy + dv/dy - 2/3 (du/dx + dv/dy + dw/dZ) )
+  fv[2] = -2./3.*u  #tau33 = (dw/dz + dw/dz - 2/3 (du/dx + dv/dy + dw/dz) )
+  fv[3] = v         #tau12 = (du/dy + dv/dx)
+  fv[4] = w         #tau13 = (du/dz + dw/dx)
+  fv[5] = 0.           #tau23 = (dv/dz + dw/dy)
+  p,T = computePressure_and_Temperature(main,U)
+  #T = (U[4]/U[0] - 0.5*( u**2 + v**2 + w**2 ) ) #kinda a psuedo tmp, should divide by Cv but it's constant so this is taken care of in the tauFlux with gamma
+  fv[6] = T
+  fv[7] = 0.
+  fv[8] = 0.
+  fv[9::3] = U[5::3]/U[None,0] 
+  fv[10::3] = 0.
+  fv[11::3] = 0.
+
+#
+def evalViscousFluxYNS_BR1_reacting(main,U,fv):
+  u = U[1]/U[0]
+  v = U[2]/U[0]
+  w = U[3]/U[0]
+  fv[0] = -2./3.*v  #tau11 = (du/dx + du/dx - 2/3 (du/dx + dv/dy + dw/dz) ) 
+  fv[1] =  4./3.*v  #tau22 = (dv/dy + dv/dy - 2/3 (du/dx + dv/dy + dw/dZ) )
+  fv[2] = -2./3.*v  #tau33 = (dw/dz + dw/dz - 2/3 (du/dx + dv/dy + dw/dz) )
+  fv[3] = u        #tau12 = (du/dy + dv/dx)
+  fv[4] = 0            #tau13 = (du/dz + dw/dx)
+  fv[5] = w         #tau23 = (dv/dz + dw/dy)
+  fv[6] = 0.
+  p,T = computePressure_and_Temperature(main,U)
+  #T = (U[4]/U[0] - 0.5*( u**2 + v**2 + w**2 ) )
+  fv[7] = T
+  fv[8] = 0.
+  fv[9::3] = 0. 
+  fv[10::3] = U[5::3]/U[None,0]
+  fv[11::3] = 0.
+
+def evalViscousFluxZNS_BR1_reacting(main,U,fv):
+  u = U[1]/U[0]
+  v = U[2]/U[0]
+  w = U[3]/U[0]
+  fv[0] = -2./3.*w  #tau11 = (du/dx + du/dx - 2/3 (du/dx + dv/dy + dw/dz) ) 
+  fv[1] = -2./3.*w  #tau22 = (dv/dy + dv/dy - 2/3 (du/dx + dv/dy + dw/dZ) )
+  fv[2] =  4./3.*w  #tau33 = (dw/dz + dw/dz - 2/3 (du/dx + dv/dy + dw/dz) )
+  fv[3] = 0.           #tau12 = (du/dy + dv/dx)
+  fv[4] = u         #tau13 = (du/dz + dw/dx)
+  fv[5] = v        #tau23 = (dv/dz + dw/dy)
+  p,T = computePressure_and_Temperature(main,U)
+#  T = (U[4]/U[0] - 0.5*( u**2 + v**2 + w**2 ) )
+  fv[6] = 0.
+  fv[7] = 0.
+  fv[8] = T
+  fv[9::3] = 0. 
+  fv[10::3] = 0.
+  fv[11::3] = U[5::3]/U[None,0]
+
+
+
+
+
+def evalTauFluxXNS_BR1_reacting(main,tau,u,fvX,mu):
+  Pr = 0.72
+  gamma = 1.4
+  fvX[0] = 0.
+  fvX[1] = mu*tau[0] #tau11
+  fvX[2] = mu*tau[3] #tau21
+  fvX[3] = mu*tau[4] #tau31
+  fvX[4] = mu*(tau[0]*u[1]/u[0] + tau[3]*u[2]/u[0] + tau[4]*u[3]/u[0] + main.Cp/Pr*tau[6] )
+  fvY[5::] = u[None,0]*D*tau[9::3]
+
+def evalTauFluxYNS_BR1_reacting(main,tau,u,fvY,mu):
+  Pr = 0.72
+  gamma = 1.4
+  fvY[0] = 0.
+  fvY[1] = mu*tau[3] #tau21
+  fvY[2] = mu*tau[1] #tau22
+  fvY[3] = mu*tau[5] #tau23
+  fvY[4] = mu*(tau[3]*u[1]/u[0] + tau[1]*u[2]/u[0] + tau[5]*u[3]/u[0] + main.Cp/Pr*tau[7])
+  fvY[5::] = u[None,0]*D*tau[10::3]
+
+def evalTauFluxZNS_BR1_reacting(main,tau,u,fvZ,mu):
+  Pr = 0.72
+  gamma = 1.4
+  fvZ[0] = 0.
+  fvZ[1] = mu*tau[4] #tau31
+  fvZ[2] = mu*tau[5] #tau32
+  fvZ[3] = mu*tau[2] #tau33
+  fvZ[4] = mu*(tau[4]*u[1]/u[0] + tau[5]*u[2]/u[0] + tau[2]*u[3]/u[0] + main.Cp/Pr*tau[8])
+  fvY[5::] = u[None,0]*D*tau[11::3]
+
