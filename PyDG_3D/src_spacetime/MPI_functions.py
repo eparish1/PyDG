@@ -55,8 +55,8 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main):
   if (main.rank_connect[0] == main.mpi_rank and main.rank_connect[1] == main.mpi_rank):
     uR[:] = fL[:,:,:,:,0, :,:]
     uL[:] = fR[:,:,:,:,-1,:,:]
-    uR[:] = main.rightBC.applyBC(fR[:,:,:,:,-1,:,:],uR,main.rightBC.args,main.gas)
-    uL[:] = main.leftBC.applyBC(fL[:,:,:,:,0 ,:,:],uL,main.leftBC.args,main.gas)
+    uR[:] = main.rightBC.applyBC(fR[:,:,:,:,-1,:,:],uR,main.rightBC.args,main)
+    uL[:] = main.leftBC.applyBC(fL[:,:,:,:,0 ,:,:],uL,main.leftBC.args,main)
   else:
     ## Send right and left fluxes
 
@@ -72,16 +72,16 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main):
 
     ### Boundary conditions. Overright uL and uR if we are on a boundary. 
     if (main.BC_rank[0]):
-      uR[:] = main.rightBC.applyBC(fR[:,:,:,:,-1,:,:],uR,main.rightBC.args,main.gas)
+      uR[:] = main.rightBC.applyBC(fR[:,:,:,:,-1,:,:],uR,main.rightBC.args,main)
     if (main.BC_rank[2]):
-      uL[:] = main.leftBC.applyBC(fL[:,:,:,:,0 ,:,:],uL,main.leftBC.args,main.gas)
+      uL[:] = main.leftBC.applyBC(fL[:,:,:,:,0 ,:,:],uL,main.leftBC.args,main)
 
 
   if (main.rank_connect[2] == main.mpi_rank and main.rank_connect[3] == main.mpi_rank):
     uU[:] = fD[:,:,:,:,:,0 ,:]
     uD[:] = fU[:,:,:,:,:,-1,:]
-    uU[:] = main.topBC.applyBC(fU[:,:,:,:,:,-1,:],uU,main.topBC.args,main.gas)
-    uD[:] = main.bottomBC.applyBC(fD[:,:,:,:,:,0,:],uD,main.bottomBC.args,main.gas)
+    uU[:] = main.topBC.applyBC(fU[:,:,:,:,:,-1,:],uU,main.topBC.args,main)
+    uD[:] = main.bottomBC.applyBC(fD[:,:,:,:,:,0,:],uD,main.bottomBC.args,main)
 
   else:
     ## Send up and down fluxes
@@ -96,9 +96,9 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main):
 
     ### Boundary conditions. Overright uU and uD if we are on a boundary. 
     if (main.BC_rank[1]):
-      uU[:] = main.topBC.applyBC(fU[:,:,:,:,:,-1,:],uU,main.topBC.args,main.gas)
+      uU[:] = main.topBC.applyBC(fU[:,:,:,:,:,-1,:],uU,main.topBC.args,main)
     if (main.BC_rank[3]):
-      uD[:] = main.bottomBC.applyBC(fD[:,:,:,:,:,0,:],uD,main.bottomBC.args,main.gas)
+      uD[:] = main.bottomBC.applyBC(fD[:,:,:,:,:,0,:],uD,main.bottomBC.args,main)
 
     
   uF[:] = fB[:,:,:,:,:,:,0]

@@ -20,6 +20,7 @@ def getMolecularWeight(mol_str):
   Na = 22.9897
   Air = 28.97
   H2 = 2.*H
+  H2O = 2*H + O
   CO = C + O
   CH = C + H
   CH4 = C + 4.*H
@@ -82,6 +83,7 @@ def getEnthalpyOfFormation(mol_str):
   C8H18 = -1829.
   CO2 = -8943.
   H2O = -13435.
+  CO = -1110.5
   O2 = 0.
   H2 = 0.
   N2 = 00.
@@ -172,7 +174,7 @@ def getConstantCps(mol_str):
   CH4 = 2.22
   CO = 1.02
   CO2 = 0.844
-  H20 = 1.93
+  H2O = 1.93
   N2 = 1.04
   for i in range(0,np.size(mol_str)):
     if mol_str[i] in locals():

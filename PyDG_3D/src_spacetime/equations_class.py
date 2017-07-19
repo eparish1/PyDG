@@ -11,6 +11,7 @@ class equations:
     comm = MPI.COMM_WORLD
     self.nmus = 1
     self.turb_str = turb_str
+    self.eq_str = eq_str
     mpi_rank = comm.Get_rank()
     iflux_str = schemes[0]
     vflux_str = schemes[1]
@@ -74,6 +75,7 @@ class equations:
       self.eq_str = eq_str
       check_eq = 1
       self.nvars = 5 + nscalars
+      self.nvisc_vars = 9 + nscalars*3
       self.evalFluxX = evalFluxXEuler_reacting 
       self.evalFluxY = evalFluxYEuler_reacting
       self.evalFluxZ = evalFluxZEuler_reacting
@@ -93,10 +95,17 @@ class equations:
         sys.exit()
       checkv = 0 
       if (vflux_str == 'BR1'):
-        print('Error, BR1 not completed for 3D. PyDG quitting')
-        sys.exit()
+#        print('Error, BR1 not completed for 3D. PyDG quitting')
+#        sys.exit()
+        self.getRHS = getRHS_BR1
+        self.evalViscousFluxX = evalViscousFluxXNS_BR1_reacting
+        self.evalViscousFluxY = evalViscousFluxYNS_BR1_reacting
+        self.evalViscousFluxZ = evalViscousFluxZNS_BR1_reacting
+        self.evalTauFluxX = evalTauFluxXNS_BR1_reacting
+        self.evalTauFluxY = evalTauFluxYNS_BR1_reacting
+        self.evalTauFluxZ = evalTauFluxZNS_BR1_reacting
+        self.vflux_type = 'BR1'
         checkv = 1
-        self.viscousFlux = centralFlux
       if (vflux_str == 'IP'):
         self.viscous = True
         self.getRHS = getRHS

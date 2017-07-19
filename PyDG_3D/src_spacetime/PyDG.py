@@ -84,7 +84,7 @@ def getIC(main,f,x,y,z,zeta3,Npt):
   scale =  (2.*ord_arrx[:,None,None,None] + 1.)*(2.*ord_arry[None,:,None,None] + 1.)*(2.*ord_arrz[None,None,:,None] + 1.)*(2.*ord_arrt[None,None,None,:] + 1.)/16.
 
   U = np.zeros(np.shape(main.a.u))
-  U[:,:,:,:,0,:,:,:,0] = f(x,y,z,main.gas)
+  U[:,:,:,:,0,:,:,:,0] = f(x,y,z,main)
   for i in range(0,nt):
     for j in range(0,Npt):
       U[:,:,:,:,i,:,:,:,j] =  U[:,:,:,:,0,:,:,:,0]  
@@ -179,6 +179,7 @@ while (main.t <= main.et + main.dt/2):
       sys.stdout.flush()
 
   timescheme.advanceSol(main,mainEnriched,eqns,timescheme.args)
+
   #advanceSolImplicit_MG(main,main,eqns)
 reconstructU(main,main.a)
 uG = gatherSolSlab(main,eqns,main.a)

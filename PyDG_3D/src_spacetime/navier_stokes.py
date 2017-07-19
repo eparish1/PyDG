@@ -109,7 +109,7 @@ def evalFluxZEulerLin(main,U0,f,args):
 #== rusanov flux
 #== Roe flux
 
-def eulerCentralFlux(main,UL,UR,n,args=None):
+def eulerCentralFlux(main,UL,UR,cgas,n,args=None):
 # PURPOSE: This function calculates the flux for the Euler equations
 # using the Roe flux function
 #
@@ -172,7 +172,7 @@ def eulerCentralFlux(main,UL,UR,n,args=None):
   return F
 
 
-def eulerCentralFluxLinearized(main,U0L,U0R,n,args):
+def eulerCentralFluxLinearized(main,U0L,U0R,cgas,n,args):
   gamma = 1.4
   upL = args[0]
   upR = args[1]
@@ -222,7 +222,7 @@ def eulerCentralFluxLinearized(main,U0L,U0R,n,args):
   return F
 
 
-def rusanovFlux(main,UL,UR,n,args=None):
+def rusanovFlux(main,UL,UR,cgas,n,args=None):
 # PURPOSE: This function calculates the flux for the Euler equations
 # using the Roe flux function
 #
@@ -317,7 +317,7 @@ def rusanovFlux(main,UL,UR,n,args=None):
                
   
 
-def kfid_roeflux(main,UL,UR,n,args=None):
+def kfid_roeflux(main,UL,UR,cgas,n,args=None):
 # PURPOSE: This function calculates the flux for the Euler equations
 # using the Roe flux function
 #
@@ -888,7 +888,7 @@ def evalViscousFluxZNS_IP(main,u,Ux,Uy,Uz,mu):
 ### Diffusion fluxes for BR1
 
 ### viscous fluxes
-def evalViscousFluxXNS_BR1(main,U,fv):
+def evalViscousFluxXNS_BR1(main,U,fv,cgas):
   u = U[1]/U[0]
   v = U[2]/U[0]
   w = U[3]/U[0]
@@ -903,7 +903,7 @@ def evalViscousFluxXNS_BR1(main,U,fv):
   fv[7] = 0.
   fv[8] = 0.
 #
-def evalViscousFluxYNS_BR1(main,U,fv):
+def evalViscousFluxYNS_BR1(main,U,fv,cgas):
   u = U[1]/U[0]
   v = U[2]/U[0]
   w = U[3]/U[0]
@@ -918,7 +918,7 @@ def evalViscousFluxYNS_BR1(main,U,fv):
   fv[7] = T
   fv[8] = 0.
 
-def evalViscousFluxZNS_BR1(main,U,fv):
+def evalViscousFluxZNS_BR1(main,U,fv,cgas):
   u = U[1]/U[0]
   v = U[2]/U[0]
   w = U[3]/U[0]
@@ -933,7 +933,7 @@ def evalViscousFluxZNS_BR1(main,U,fv):
   fv[7] = 0.
   fv[8] = T
 
-def evalTauFluxXNS_BR1(main,tau,u,fvX,mu):
+def evalTauFluxXNS_BR1(main,tau,u,fvX,mu,cgas):
   Pr = 0.72
   gamma = 1.4
   fvX[0] = 0.
@@ -942,7 +942,7 @@ def evalTauFluxXNS_BR1(main,tau,u,fvX,mu):
   fvX[3] = mu*tau[4] #tau31
   fvX[4] = mu*(tau[0]*u[1]/u[0] + tau[3]*u[2]/u[0] + tau[4]*u[3]/u[0] + gamma/Pr*tau[6] )
 
-def evalTauFluxYNS_BR1(main,tau,u,fvY,mu):
+def evalTauFluxYNS_BR1(main,tau,u,fvY,mu,cgas):
   Pr = 0.72
   gamma = 1.4
   fvY[0] = 0.
@@ -951,7 +951,7 @@ def evalTauFluxYNS_BR1(main,tau,u,fvY,mu):
   fvY[3] = mu*tau[5] #tau23
   fvY[4] = mu*(tau[3]*u[1]/u[0] + tau[1]*u[2]/u[0] + tau[5]*u[3]/u[0] + gamma/Pr*tau[7])
 
-def evalTauFluxZNS_BR1(main,tau,u,fvZ,mu):
+def evalTauFluxZNS_BR1(main,tau,u,fvZ,mu,cgas):
   Pr = 0.72
   gamma = 1.4
   fvZ[0] = 0.

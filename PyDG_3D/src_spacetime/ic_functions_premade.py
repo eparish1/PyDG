@@ -1,13 +1,13 @@
 import numpy as np
-def TGVIC_W(x,y,z,gas):
+def TGVIC_W(x,y,z,main):
   Lx = x[-1] - x[0]
   Ly = y[-1] - y[0]
   Lz = z[-1] - z[0]
   Minf = 0.2
   nqx,nqy,nqz,Nelx,Nely,Nelz = np.shape(x)
-  gamma = gas.gamma
+  gamma = main.gas.gamma
   T0 = 1./gamma
-  R = gas.R #1
+  R = main.gas.R #1
   rho = 1.
   p0 = rho*R*T0
   a = np.sqrt(gamma*R*T0) 
@@ -28,15 +28,15 @@ def TGVIC_W(x,y,z,gas):
   return q
 
 
-def TGVIC(x,y,z,gas):
+def TGVIC(x,y,z,main):
   Lx = 2.*np.pi 
   Ly = 2.*np.pi
   Lz = 2.*np.pi
   Minf = 0.2
   nqx,nqy,nqz,Nelx,Nely,Nelz = np.shape(x)
-  gamma = gas.gamma
+  gamma = main.gas.gamma
   T0 = 1./gamma
-  R = gas.R #1
+  R = main.gas.R #1
   rho = 1.
   p0 = rho*R*T0
   a = np.sqrt(gamma*R*T0) 
@@ -57,11 +57,11 @@ def TGVIC(x,y,z,gas):
   return q
 
 
-def shocktubeIC(x,y,z,gas):
+def shocktubeIC(x,y,z,main):
   nqx,nqy,nqz,Nelx,Nely,Nelz = np.shape(x)
   q = np.zeros((5,nqx,nqy,nqz,Nelx,Nely,Nelz))
-  gamma = gas.gamma 
-  Cv = gas.Cv
+  gamma = main.gas.gamma 
+  Cv = main.gas.Cv
   Cp = Cv*gamma
   R = Cp - Cv
   p = np.zeros((nqx,nqy,nqz,Nelx,Nely,Nelz))
@@ -88,11 +88,11 @@ def shocktubeIC(x,y,z,gas):
 
 
 
-def zeroFSIC(x,y,z,gas):
+def zeroFSIC(x,y,z,main):
   nqx,nqy,nqz,Nelx,Nely,Nelz = np.shape(x)
   q = np.zeros((5,nqx,nqy,nqz,Nelx,Nely,Nelz))
-  gamma = gas.gamma 
-  Cv = gas.Cv
+  gamma = main.gas.gamma 
+  Cv = main.gas.Cv
   Cp = Cv*gamma
   R = Cp - Cv
   T = np.zeros((nqx,nqy,nqz,Nelx,Nely,Nelz))
@@ -111,13 +111,13 @@ def zeroFSIC(x,y,z,gas):
   q[4] = rho*E
   return q
 
-def vortexICS(x,y,z,gas):
+def vortexICS(x,y,z,main):
   nqx,nqy,nqz,Nelx,Nely,Nelz = np.shape(x)
   q = np.zeros((5,nqx,nqy,nqz,Nelx,Nely,Nelz))
-  gamma = gas.gamma
+  gamma = main.gas.gamma
   y0 = 5.
   x0 = 5.
-  Cv = gas.Cv
+  Cv = main.gas.Cv
   Cp = Cv*gamma
   R = Cp - Cv
   T = np.zeros((nqx,nqy,nqz,Nelx,Nely,Nelz))

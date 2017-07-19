@@ -123,6 +123,11 @@ class boundaryConditions:
       self.BC_type = BC_type
       self.applyBC = dirichlet_bc
       self.args = BC_args
+    if (BC_type[0:6] == 'custom'):
+      check = 1
+      self.BC_type = BC_type 
+      self.applyBC = globals()[BC_type]
+      self.args = BC_args
 
     if (check == 0):
       if (mpi_rank == 0): print('BC type ' + BC_type + ' not found. PyDG quitting')
@@ -134,6 +139,7 @@ class boundaryConditions:
 class variables:
   def __init__(self,Nel,order,quadpoints,eqns,mu,xG,yG,zG,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,source,source_mag,shock_capturing):
     ## DG scheme information
+    self.eq_str = eqns.eq_str
     self.Nel = Nel
     self.order = order
     self.quadpoints = quadpoints 
@@ -183,6 +189,30 @@ class variables:
     self.topBC = boundaryConditions(BCs[2],BCs[3])
     self.leftBC = boundaryConditions(BCs[4],BCs[5])
     self.bottomBC = boundaryConditions(BCs[6],BCs[7])
+
+    self.cgas = False 
+    self.cgas_field = False 
+    self.cgas_field_LR = False
+    self.cgas_field_L = False
+    self.cgas_field_R = False
+    self.cgas_field_UD = False
+    self.cgas_field_U =  False
+    self.cgas_field_D = False 
+    self.cgas_field_FB = False 
+    self.cgas_field_F = False
+    self.cgas_field_B = False 
+
+
+    self.cgas_field_L_edge = False 
+    self.cgas_field_R_edge = False 
+    self.cgas_field_D_edge = False 
+    self.cgas_field_U_edge = False 
+    self.cgas_field_B_edge = False 
+    self.cgas_field_F_edge = False 
+
+
+
+
 
     ## Sources
     self.source = source
