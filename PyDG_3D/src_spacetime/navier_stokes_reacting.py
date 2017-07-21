@@ -218,7 +218,7 @@ def rusanovFlux_reacting(main,UL,UR,cgas_field,n,args=None):
   for i in range(0,np.shape(UL)[0]-5):
     FL[5+i] = UL[5+i]*unL
     FR[5+i] = UR[5+i]*unL
-    F[5+i]    = 0.5*(FL[5+i] + FR[5+i]) - 0.5*ucp*(UR[5+i] - UL[5+i])
+    F[5+i]    = 0.5*(FL[5+i] + FR[5+i]) - 0.5*smax*(UR[5+i] - UL[5+i])
   return F
                
   
@@ -636,7 +636,7 @@ def evalTauFluxXNS_BR1_reacting(main,tau,u,fvX,mu,cgas_field):
   sh = np.shape(u)[0] - 5
   sh = np.append(sh, np.shape(u[0]) )
   partial_enthalpies = np.reshape(cgas_field.partial_molar_enthalpies*cgas_field.molecular_weights[None,:],sh)
-  q =  kappa*tau[6] + D*u[0]*np.sum(partial_enthalpies*tau[9::3],axis=0)
+  q =  kappa*tau[6] + D*u[0]*np.sum(partial_enthalpies*tau[9::3],axis=0)*0.
   fvX[4] = mu*(tau[0]*u[1]/u[0] + tau[3]*u[2]/u[0] + tau[4]*u[3]/u[0]) + q
   fvX[5::] = u[None,0]*D*tau[9::3]
 
@@ -654,7 +654,7 @@ def evalTauFluxYNS_BR1_reacting(main,tau,u,fvY,mu,cgas_field):
   sh = np.shape(u)[0] - 5
   sh = np.append(sh, np.shape(u[0]) )
   partial_enthalpies = np.reshape(cgas_field.partial_molar_enthalpies*cgas_field.molecular_weights[None,:],sh)
-  q =  kappa*tau[7] + D*u[0]*np.sum(partial_enthalpies*tau[10::3],axis=0)
+  q =  kappa*tau[7] + D*u[0]*np.sum(partial_enthalpies*tau[10::3],axis=0)*0.
   fvY[4] = mu*(tau[3]*u[1]/u[0] + tau[1]*u[2]/u[0] + tau[5]*u[3]/u[0]) + q
   fvY[5::] = u[None,0]*D*tau[10::3]
 
@@ -672,7 +672,7 @@ def evalTauFluxZNS_BR1_reacting(main,tau,u,fvZ,mu,cgas_field):
   sh = np.shape(u)[0] - 5
   sh = np.append(sh, np.shape(u[0]) )
   partial_enthalpies = np.reshape(cgas_field.partial_molar_enthalpies*cgas_field.molecular_weights[None,:],sh)
-  q =  kappa*tau[8] + D*u[0]*np.sum(partial_enthalpies*tau[11::3],axis=0)
+  q =  kappa*tau[8] + D*u[0]*np.sum(partial_enthalpies*tau[11::3],axis=0)*0.
   fvZ[4] = mu*(tau[4]*u[1]/u[0] + tau[5]*u[2]/u[0] + tau[2]*u[3]/u[0]) + q
   fvZ[5::] = u[None,0]*D*tau[11::3]
 
