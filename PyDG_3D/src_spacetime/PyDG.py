@@ -164,6 +164,11 @@ if (main.mpi_rank == 0):
   np.savez('DGgrid',x=xG,y=yG,z=zG)
 
 t0 = time.time()
+#main.a.a[:,1::,:] = 0.
+#main.a.a[:,:,1::] = 0.
+tsave = np.empty(0)
+Tsave = np.empty(0)
+#print(np.amax(main.a.a[0,1::,1::]))
 while (main.t <= main.et + main.dt/2):
   if (main.iteration%main.save_freq == 0):
     reconstructU(main,main.a)
@@ -179,7 +184,8 @@ while (main.t <= main.et + main.dt/2):
       sys.stdout.flush()
 
   timescheme.advanceSol(main,mainEnriched,eqns,timescheme.args)
-
+  tsave = np.append(tsave,main.t)
+  Tsave = np.append(Tsave,np.amax(main.cgas_field.T))
   #advanceSolImplicit_MG(main,main,eqns)
 reconstructU(main,main.a)
 uG = gatherSolSlab(main,eqns,main.a)

@@ -215,10 +215,12 @@ def rusanovFlux_reacting(main,UL,UR,cgas_field,n,args=None):
   F[3]    = 0.5*(FL[3]+FR[3])-0.5*smax*(UR[3] - UL[3])
   F[4]    = 0.5*(FL[4]+FR[4])-0.5*smax*(UR[4] - UL[4])
   ## Now add fluxes for the passive scalars
+#  print(np.mean(smax),n)
   for i in range(0,np.shape(UL)[0]-5):
     FL[5+i] = UL[5+i]*unL
-    FR[5+i] = UR[5+i]*unL
+    FR[5+i] = UR[5+i]*unR
     F[5+i]    = 0.5*(FL[5+i] + FR[5+i]) - 0.5*smax*(UR[5+i] - UL[5+i])
+#  print(np.linalg.norm(F))
   return F
                
   

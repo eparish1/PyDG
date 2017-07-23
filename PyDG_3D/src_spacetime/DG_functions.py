@@ -111,6 +111,8 @@ def getFlux(main,MZ,eqns,args):
 def getRHS_BR1(main,MZ,eqns,args=[],args_phys=[]):
   t0 = time.time()
   main.basis.reconstructU(main,main.a)
+#  print(np.amax(main.a.a[0,1::,1::]))
+#  print(np.amin(main.a.u[0]),np.amax(main.a.u[0]))
   if (main.eq_str[0:-2] == 'Navier-Stokes Reacting'):
     update_state_cantera(main)
   # evaluate inviscid flux
@@ -208,7 +210,6 @@ def getRHS(main,MZ,eqns,args=[],args_phys=[]):
 #      force[i] = main.source_mag[i]#*main.a.u[i]
     for i in range(5,main.nvars):
       force[i] = np.reshape(main.cgas_field.net_production_rates[:,i-5]*main.cgas_field.molecular_weights[i-5],np.shape(main.a.u[0]))
-    print(np.mean(main.cgas_field.T))
     tmp += main.basis.volIntegrateGlob(main, force ,main.w0,main.w1,main.w2,main.w3)*scale[None,:,:,:,:,None,None,None,None]
   main.RHS = tmp
   main.comm.Barrier()
