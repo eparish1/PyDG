@@ -9,28 +9,32 @@ def evalFluxXEuler_reacting(main,u,f,args):
   es = 1.e-30
   gamma = 1.4
   #p = (gamma - 1.)*(u[4] - 0.5*u[1]**2/u[0] - 0.5*u[2]**2/u[0] - 0.5*u[3]**2/u[0])
-  p,T = computePressure_and_Temperature_Cantera(main,u,main.cgas_field)
+  #p,T = computePressure_and_Temperature_Cantera(main,u,main.cgas_field)
+  p = main.a.p
   f[0] = u[1]
   f[1] = u[1]*u[1]/(u[0]) + p
   f[2] = u[1]*u[2]/(u[0])
   f[3] = u[1]*u[3]/(u[0])
   f[4] = (u[4] + p)*u[1]/(u[0])
-  for i in range(0,np.shape(u)[0]-5):
-    f[5+i] = u[1]*u[5+i]/u[0]
+  f[5::] = u[None,1]*u[5::]/u[None,0] 
+# for i in range(0,np.shape(u)[0]-5):
+#    f[5+i] = u[1]*u[5+i]/u[0]
  
 
 def evalFluxYEuler_reacting(main,u,f,args):
   #f = np.zeros(np.shape(u))
   gamma = 1.4
 #  p = (gamma - 1.)*(u[4] - 0.5*u[1]**2/u[0] - 0.5*u[2]**2/u[0] - 0.5*u[3]**2/u[0])
-  p,T = computePressure_and_Temperature_Cantera(main,u,main.cgas_field)
+#  p,T = computePressure_and_Temperature_Cantera(main,u,main.cgas_field)
+  p = main.a.p
   f[0] = u[2]
   f[1] = u[1]*u[2]/u[0]
   f[2] = u[2]*u[2]/u[0] + p
   f[3] = u[2]*u[3]/u[0] 
   f[4] = (u[4] + p)*u[2]/u[0]
-  for i in range(0,np.shape(u)[0]-5):
-    f[5+i] = u[2]*u[5+i]/u[0]
+  f[5::] = u[None,2]*u[5::]/u[None,0] 
+#  for i in range(0,np.shape(u)[0]-5):
+#    f[5+i] = u[2]*u[5+i]/u[0]
 
 
 
@@ -38,14 +42,16 @@ def evalFluxZEuler_reacting(main,u,f,args):
   #f = np.zeros(np.shape(u))
   gamma = 1.4
   #p = (gamma - 1.)*(u[4] - 0.5*u[1]**2/u[0] - 0.5*u[2]**2/u[0] - 0.5*u[3]**2/u[0])
-  p,T = computePressure_and_Temperature_Cantera(main,u,main.cgas_field)
+#  p,T = computePressure_and_Temperature_Cantera(main,u,main.cgas_field)
+  p = main.a.p
   f[0] = u[3]
   f[1] = u[1]*u[3]/u[0]
   f[2] = u[2]*u[3]/u[0] 
   f[3] = u[3]*u[3]/u[0] + p 
   f[4] = (u[4] + p)*u[3]/u[0]
-  for i in range(0,np.shape(u)[0]-5):
-    f[5] = u[3]*u[5+i]/u[0]
+  f[5::] = u[None,3]*u[5::]/u[None,0] 
+#  for i in range(0,np.shape(u)[0]-5):
+#    f[5] = u[3]*u[5+i]/u[0]
 
 
 
@@ -77,6 +83,7 @@ def eulerCentralFlux_reacting(main,UL,UR,cgas_field,n,args=None):
 
   qL = np.sqrt(UL[1]*UL[1] + UL[2]*UL[2] + UL[3]*UL[3])/rL
   pL,TL = computePressure_and_Temperature_Cantera(main,UL,cgas_field)
+
   #pL = (gamma-1)*(UL[4] - 0.5*rL*qL**2.)
   rHL = UL[4] + pL
   HL = rHL/rL
@@ -96,6 +103,7 @@ def eulerCentralFlux_reacting(main,UL,UR,cgas_field,n,args=None):
   unR = uR*n[0] + vR*n[1] + wR*n[2]
   qR = np.sqrt(UR[1]*UR[1] + UR[2]*UR[2] + UR[3]*UR[3])/rR
   pR,TR = computePressure_and_Temperature_Cantera(main,UR,cgas_field)
+
   #pR = (gamma-1)*(UR[4] - 0.5*rR*qR**2.)
   rHR = UR[4] + pR
   HR = rHR/rR
@@ -145,7 +153,9 @@ def rusanovFlux_reacting(main,UL,UR,cgas_field,n,args=None):
 
   qL = np.sqrt(UL[1]*UL[1] + UL[2]*UL[2] + UL[3]*UL[3])/rL
   #pL = (gamma-1)*(UL[4] - 0.5*rL*qL**2.)
-  pL,TL = computePressure_and_Temperature_Cantera(main,UL,cgas_field)
+  pL = computePressure_and_Temperature_Cantera(main,UL,cgas_field)
+  #pL,TL = computePressure_and_Temperature(main,UL)
+
   rHL = UL[4] + pL
   HL = rHL/rL
   cL = np.sqrt(gamma*pL/rL)
@@ -164,8 +174,9 @@ def rusanovFlux_reacting(main,UL,UR,cgas_field,n,args=None):
   wR = UR[3]/rR
   unR = uR*n[0] + vR*n[1] + wR*n[2]
   qR = np.sqrt(UR[1]*UR[1] + UR[2]*UR[2] + UR[3]*UR[3])/rR
-  pR = (gamma-1)*(UR[4] - 0.5*rR*qR**2.)
-  pR,TL = computePressure_and_Temperature_Cantera(main,UR,cgas_field)
+  #pR = (gamma-1)*(UR[4] - 0.5*rR*qR**2.)
+  pR = computePressure_and_Temperature_Cantera(main,UR,cgas_field)
+  #pR,TR = computePressure_and_Temperature(main,UR)
 
   rHR = UR[4] + pR
   HR = rHR/rR
@@ -216,10 +227,13 @@ def rusanovFlux_reacting(main,UL,UR,cgas_field,n,args=None):
   F[4]    = 0.5*(FL[4]+FR[4])-0.5*smax*(UR[4] - UL[4])
   ## Now add fluxes for the passive scalars
 #  print(np.mean(smax),n)
-  for i in range(0,np.shape(UL)[0]-5):
-    FL[5+i] = UL[5+i]*unL
-    FR[5+i] = UR[5+i]*unR
-    F[5+i]    = 0.5*(FL[5+i] + FR[5+i]) - 0.5*smax*(UR[5+i] - UL[5+i])
+  FL[5::] = UL[5::]*unL[None,:]
+  FR[5::] = UR[5::]*unR[None,:]
+  F[5::]    = 0.5*(FL[5::] + FR[5::]) - 0.5*smax[None,:]*(UR[5::] - UL[5::])
+#  for i in range(0,np.shape(UL)[0]-5):
+#    FL[5+i] = UL[5+i]*unL
+#    FR[5+i] = UR[5+i]*unR
+#    F[5+i]    = 0.5*(FL[5+i] + FR[5+i]) - 0.5*smax*(UR[5+i] - UL[5+i])
 #  print(np.linalg.norm(F))
   return F
                
@@ -635,10 +649,10 @@ def evalTauFluxXNS_BR1_reacting(main,tau,u,fvX,mu,cgas_field):
   fvX[2] = mu*tau[3] #tau21
   fvX[3] = mu*tau[4] #tau31
   #diffusive heat flux
-  sh = np.shape(u)[0] - 5
+  sh = np.shape(u)[0] - 5 + 1
   sh = np.append(sh, np.shape(u[0]) )
   partial_enthalpies = np.reshape(cgas_field.partial_molar_enthalpies*cgas_field.molecular_weights[None,:],sh)
-  q =  kappa*tau[6] + D*u[0]*np.sum(partial_enthalpies*tau[9::3],axis=0)*0.
+  q =  kappa*tau[6] + D*u[0]*np.sum(partial_enthalpies[0:-1]*tau[9::3],axis=0)*0.
   fvX[4] = mu*(tau[0]*u[1]/u[0] + tau[3]*u[2]/u[0] + tau[4]*u[3]/u[0]) + q
   fvX[5::] = u[None,0]*D*tau[9::3]
 
@@ -653,10 +667,10 @@ def evalTauFluxYNS_BR1_reacting(main,tau,u,fvY,mu,cgas_field):
   fvY[1] = mu*tau[3] #tau21
   fvY[2] = mu*tau[1] #tau22
   fvY[3] = mu*tau[5] #tau23
-  sh = np.shape(u)[0] - 5
+  sh = np.shape(u)[0] - 5 + 1
   sh = np.append(sh, np.shape(u[0]) )
   partial_enthalpies = np.reshape(cgas_field.partial_molar_enthalpies*cgas_field.molecular_weights[None,:],sh)
-  q =  kappa*tau[7] + D*u[0]*np.sum(partial_enthalpies*tau[10::3],axis=0)*0.
+  q =  kappa*tau[7] + D*u[0]*np.sum(partial_enthalpies[0:-1]*tau[10::3],axis=0)*0.
   fvY[4] = mu*(tau[3]*u[1]/u[0] + tau[1]*u[2]/u[0] + tau[5]*u[3]/u[0]) + q
   fvY[5::] = u[None,0]*D*tau[10::3]
 
@@ -671,10 +685,10 @@ def evalTauFluxZNS_BR1_reacting(main,tau,u,fvZ,mu,cgas_field):
   fvZ[1] = mu*tau[4] #tau31
   fvZ[2] = mu*tau[5] #tau32
   fvZ[3] = mu*tau[2] #tau33
-  sh = np.shape(u)[0] - 5
+  sh = np.shape(u)[0] - 5 + 1
   sh = np.append(sh, np.shape(u[0]) )
   partial_enthalpies = np.reshape(cgas_field.partial_molar_enthalpies*cgas_field.molecular_weights[None,:],sh)
-  q =  kappa*tau[8] + D*u[0]*np.sum(partial_enthalpies*tau[11::3],axis=0)*0.
+  q =  kappa*tau[8] + D*u[0]*np.sum(partial_enthalpies[0:-1]*tau[11::3],axis=0)*0.
   fvZ[4] = mu*(tau[4]*u[1]/u[0] + tau[5]*u[2]/u[0] + tau[2]*u[3]/u[0]) + q
   fvZ[5::] = u[None,0]*D*tau[11::3]
 

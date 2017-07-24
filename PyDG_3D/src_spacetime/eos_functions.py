@@ -1,4 +1,5 @@
 import numpy as np
+import time
 def computeEnergyCantera(main,u,v,w):
   # get internal energy
   e = main.cgas_field.UV[0]
@@ -21,7 +22,7 @@ def update_state_cantera(main):
 #    rhoiF_edge = 1./main.a.uF_edge[0]
 #    rhoiB_edge = 1./main.a.uB_edge[0]
 #
-    fa = np.zeros((np.size(main.a.u[0]),np.shape(main.a.u)[0]-5))
+    fa = np.zeros((np.size(main.a.u[0]),np.shape(main.a.u)[0]-5 + 1))
 #    faR = np.zeros((np.size(main.a.uL[0]),np.shape(main.a.uR)[0]-5))
 #    faL = np.zeros((np.size(main.a.uR[0]),np.shape(main.a.uL)[0]-5))
 #    faU = np.zeros((np.size(main.a.uU[0]),np.shape(main.a.uU)[0]-5))
@@ -49,8 +50,7 @@ def update_state_cantera(main):
 #      faD_edge[:,i] = ( main.a.uD_edge[5+i]*rhoiD_edge ).flatten()
 #      faF_edge[:,i] = ( main.a.uF_edge[5+i]*rhoiF_edge ).flatten()
 #      faB_edge[:,i] = ( main.a.uB_edge[5+i]*rhoiB_edge ).flatten()
-
-
+    fa[:,-1] = 1. - np.sum(fa[:,0:-1],axis=1)
     e = main.a.u[4]*rhoi - 0.5*rhoi**2*(main.a.u[1]**2 + main.a.u[2]**2 + main.a.u[3]**2)
 #    eR = main.a.uR[4]*rhoiR - 0.5*rhoiR**2*(main.a.uR[1]**2 + main.a.uR[2]**2 + main.a.uR[3]**2)
 #    eL = main.a.uL[4]*rhoiL - 0.5*rhoiL**2*(main.a.uL[1]**2 + main.a.uL[2]**2 + main.a.uL[3]**2)
@@ -77,24 +77,31 @@ def update_state_cantera(main):
  #   main.cgas_field_D_edge.UVY = eD_edge.flatten(),rhoiD_edge.flatten(),faD_edge
  #   main.cgas_field_F_edge.UVY = eF_edge.flatten(),rhoiF_edge.flatten(),faF_edge
  #   main.cgas_field_B_edge.UVY = eB_edge.flatten(),rhoiB_edge.flatten(),faB_edge
+    main.a.p[:] = np.reshape(main.cgas_field.P,np.shape(main.a.u[0]) )
+ #   main.a.T[:] = np.reshape(main.cgas_field.T,np.shape(main.a.u[0]) )
 
  
 def computePressure_and_Temperature_Cantera(main,U,cgas_field):
+  t0 = time.time()
   ## need to go from total energy to internal energy
   e = np.zeros(np.shape(U[4]))
-  e[:] = U[4]
-  rhoi = 1./U[0]
-  e*= rhoi
-  u,v,w = U[1]*rhoi, U[2]*rhoi, U[3]*rhoi 
-
-  fa = np.zeros((np.size(U[0]),np.shape(U)[0]-5))
+  e[:] = U[4]                                            #this is rhoE
+  rhoi = 1./U[0]                                         #cmopute 1./rho 
+  e*= rhoi                                               # now get e
+  u,v,w = U[1]*rhoi, U[2]*rhoi, U[3]*rhoi                # get total kinetic energy
+  e -= 0.5*(u**2 + v**2 + w**2)                          # subtract total KE
+   
+  fa = np.zeros((np.size(U[0]),np.shape(U)[0]-5 + 1))    # now compute mass fractions and reshape for cantera
   for i in range(0,np.shape(U)[0]-5):
     fa[:,i] = ( U[5+i]*rhoi ).flatten()
+  fa[:,-1] = 1. - np.sum(fa[:,0:-1],axis=1)
+  t1 = time.time()
 
-  e -= 0.5*(u**2 + v**2 + w**2)
   cgas_field.UVY = e.flatten(),rhoi.flatten(),fa
-
-  return np.reshape(cgas_field.P,np.shape(U[0])),np.reshape(cgas_field.T,np.shape(U[0]))
+  t2 = time.time()
+#  if (main.mpi_rank == 0):
+#    print('My calc times = ' + str(t1 - t0) + '  Cantera calc times = ' + str(t2 - t1) )
+  return np.reshape(cgas_field.P,np.shape(U[0]))#,np.reshape(cgas_field.T,np.shape(U[0]))
 
 def computeEnergy(main,T,Y,u,v,w):
   R = 8.314
@@ -147,13 +154,15 @@ def computePressure_and_Temperature(main,u):
   #for i in range(0,n_reacting):
   #  Cv += main.Cv[i]*u[5+i] #Cv of the mixture
   #  Winv += u[5+i]/main.W[i] #mean molecular weight
-  Cv = np.einsum('i...,ijk...->jk...',main.Cv,u[5::]/u[0])
-  Winv =  np.einsum('i...,ijk...->jk...',1./main.W,u[5::]/u[0])
+  Y_N2 = 1. - np.sum(u[5::]/u[None,0],axis=0)
+  Cv = np.einsum('i...,ijk...->jk...',main.Cv[0:-1],u[5::]/u[0]) + main.Cv[-1]*Y_N2
+  Winv =  np.einsum('i...,ijk...->jk...',1./main.W[0:-1],u[5::]/u[0]) + 1./main.W[-1]*Y_N2
   # sensible + chemical
   T = u[4]/u[0] - 0.5/u[0]**2*( u[1]**2 + u[2]**2 + u[3]**2 )
   # subtract formation of enthalpy
-  for i in range(0,np.size(main.delta_h0)):
-    T -= main.delta_h0[i]*u[5+i]
+  for i in range(0,np.size(main.delta_h0)-1):
+    T -= main.delta_h0[i]*u[5+i]/u[0]
+  T -= main.delta_h0[-1]*Y_N2
   T += R * T0 * Winv 
   T /= Cv
   T += T0

@@ -35,5 +35,7 @@ def add_reacting_to_main(main,mol_str):
   main.cgas_field_U_edge = ct.SolutionArray(main.cgas,(np.size(main.a.uD_edge[0])))
   main.cgas_field_B_edge = ct.SolutionArray(main.cgas,(np.size(main.a.uF_edge[0])))
   main.cgas_field_F_edge = ct.SolutionArray(main.cgas,(np.size(main.a.uF_edge[0])))
+  main.a.p = np.zeros(np.shape(main.a.u[0]))
+  main.a.T = np.zeros(np.shape(main.a.u[0]))
 
   return main
