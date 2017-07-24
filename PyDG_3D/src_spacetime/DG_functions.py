@@ -12,25 +12,25 @@ from smagorinsky import *
 import time
 
 def getViscousFluxes_BR1(main,MZ,eqns):
-  eqns.evalViscousFluxX(main,main.a.u,main.vFlux.fx,main.cgas_field)
-  eqns.evalViscousFluxY(main,main.a.u,main.vFlux.fy,main.cgas_field)
-  eqns.evalViscousFluxZ(main,main.a.u,main.vFlux.fz,main.cgas_field)
+  eqns.evalViscousFluxX(main,main.a.u,main.vFlux.fx,main.a.T)
+  eqns.evalViscousFluxY(main,main.a.u,main.vFlux.fy,main.a.T)
+  eqns.evalViscousFluxZ(main,main.a.u,main.vFlux.fz,main.a.T)
   # first reconstruct states
 
-  eqns.evalViscousFluxX(main,main.a.uR,main.vFlux.fR,main.cgas_field_R)
-  eqns.evalViscousFluxX(main,main.a.uL,main.vFlux.fL,main.cgas_field_L)
-  eqns.evalViscousFluxY(main,main.a.uU,main.vFlux.fU,main.cgas_field_U)
-  eqns.evalViscousFluxY(main,main.a.uD,main.vFlux.fD,main.cgas_field_D)
-  eqns.evalViscousFluxZ(main,main.a.uF,main.vFlux.fF,main.cgas_field_F)
-  eqns.evalViscousFluxZ(main,main.a.uB,main.vFlux.fB,main.cgas_field_B)
+  eqns.evalViscousFluxX(main,main.a.uR,main.vFlux.fR,main.a.TR)
+  eqns.evalViscousFluxX(main,main.a.uL,main.vFlux.fL,main.a.TL)
+  eqns.evalViscousFluxY(main,main.a.uU,main.vFlux.fU,main.a.TU)
+  eqns.evalViscousFluxY(main,main.a.uD,main.vFlux.fD,main.a.TD)
+  eqns.evalViscousFluxZ(main,main.a.uF,main.vFlux.fF,main.a.TF)
+  eqns.evalViscousFluxZ(main,main.a.uB,main.vFlux.fB,main.a.TB)
 
 
-  eqns.evalViscousFluxX(main,main.a.uR_edge,main.vFlux.fR_edge,main.cgas_field_R_edge)
-  eqns.evalViscousFluxX(main,main.a.uL_edge,main.vFlux.fL_edge,main.cgas_field_L_edge)
-  eqns.evalViscousFluxY(main,main.a.uU_edge,main.vFlux.fU_edge,main.cgas_field_U_edge)
-  eqns.evalViscousFluxY(main,main.a.uD_edge,main.vFlux.fD_edge,main.cgas_field_D_edge)
-  eqns.evalViscousFluxZ(main,main.a.uF_edge,main.vFlux.fF_edge,main.cgas_field_F_edge)
-  eqns.evalViscousFluxZ(main,main.a.uB_edge,main.vFlux.fB_edge,main.cgas_field_B_edge)
+  eqns.evalViscousFluxX(main,main.a.uR_edge,main.vFlux.fR_edge,main.a.TR_edge)
+  eqns.evalViscousFluxX(main,main.a.uL_edge,main.vFlux.fL_edge,main.a.TL_edge)
+  eqns.evalViscousFluxY(main,main.a.uU_edge,main.vFlux.fU_edge,main.a.TU_edge)
+  eqns.evalViscousFluxY(main,main.a.uD_edge,main.vFlux.fD_edge,main.a.TD_edge)
+  eqns.evalViscousFluxZ(main,main.a.uF_edge,main.vFlux.fF_edge,main.a.TF_edge)
+  eqns.evalViscousFluxZ(main,main.a.uB_edge,main.vFlux.fB_edge,main.a.TB_edge)
 
   # now construct star state
 
@@ -93,12 +93,12 @@ def solveb(main,MZ,eqns,dxi,dyi,dzi):
 
 def getFlux(main,MZ,eqns,args):
   # first reconstruct states
-  main.a.uR[:],main.a.uL[:],main.a.uU[:],main.a.uD[:],main.a.uF[:],main.a.uB[:] = main.basis.reconstructEdgesGeneral(main.a.a,main)
+#  main.a.uR[:],main.a.uL[:],main.a.uU[:],main.a.uD[:],main.a.uF[:],main.a.uB[:] = main.basis.reconstructEdgesGeneral(main.a.a,main)
   #main.a.uR_edge[:],main.a.uL_edge[:],main.a.uU_edge[:],main.a.uD_edge[:],main.a.uF_edge[:],main.a.uB_edge[:] = sendEdgesGeneralSlab(main.a.uL,main.a.uR,main.a.uD,main.a.uU,main.a.uB,main.a.uF,main)
-  main.a.uR_edge[:],main.a.uL_edge[:],main.a.uU_edge[:],main.a.uD_edge[:],main.a.uF_edge[:],main.a.uB_edge[:] = sendEdgesGeneralSlab(main.a.uL,main.a.uR,main.a.uD,main.a.uU,main.a.uB,main.a.uF,main)
+#  main.a.uR_edge[:],main.a.uL_edge[:],main.a.uU_edge[:],main.a.uD_edge[:],main.a.uF_edge[:],main.a.uB_edge[:] = sendEdgesGeneralSlab(main.a.uL,main.a.uR,main.a.uD,main.a.uU,main.a.uB,main.a.uF,main)
   #main.a.aR_edge[:],main.a.aL_edge[:],main.a.aU_edge[:],main.a.aD_edge[:],main.a.aF_edge[:],main.a.aB_edge[:] = sendaEdgesGeneralSlab(main.a.a,main)
   #main.a.uR_edge[:],main.a.uL_edge[:],main.a.uU_edge[:],main.a.uD_edge[:],main.a.uF_edge[:],main.a.uB_edge[:] = reconstructEdgeEdgesGeneral(main)
-  inviscidFluxGen(main,eqns,main.iFlux,main.a,args)
+  inviscidFlux(main,eqns,main.iFlux,main.a,args)
   # now we need to integrate along the boundary 
   main.iFlux.fRI = main.basis.faceIntegrateGlob(main,main.iFlux.fRS,MZ.w1,MZ.w2,MZ.w3,MZ.weights1,MZ.weights2,MZ.weights3)
   main.iFlux.fLI = main.basis.faceIntegrateGlob(main,main.iFlux.fLS,MZ.w1,MZ.w2,MZ.w3,MZ.weights1,MZ.weights2,MZ.weights3)
@@ -111,6 +111,10 @@ def getFlux(main,MZ,eqns,args):
 def getRHS_BR1(main,MZ,eqns,args=[],args_phys=[]):
   t0 = time.time()
   main.basis.reconstructU(main,main.a)
+  main.a.uR[:],main.a.uL[:],main.a.uU[:],main.a.uD[:],main.a.uF[:],main.a.uB[:] = main.basis.reconstructEdgesGeneral(main.a.a,main)
+  #main.a.uR_edge[:],main.a.uL_edge[:],main.a.uU_edge[:],main.a.uD_edge[:],main.a.uF_edge[:],main.a.uB_edge[:] = sendEdgesGeneralSlab(main.a.uL,main.a.uR,main.a.uD,main.a.uU,main.a.uB,main.a.uF,main)
+  main.a.uR_edge[:],main.a.uL_edge[:],main.a.uU_edge[:],main.a.uD_edge[:],main.a.uF_edge[:],main.a.uB_edge[:] = sendEdgesGeneralSlab(main.a.uL,main.a.uR,main.a.uD,main.a.uU,main.a.uB,main.a.uF,main)
+
 #  print(np.amax(main.a.a[0,1::,1::]))
 #  print(np.amin(main.a.u[0]),np.amax(main.a.u[0]))
   if (main.eq_str[0:-2] == 'Navier-Stokes Reacting'):
@@ -152,12 +156,12 @@ def getRHS_BR1(main,MZ,eqns,args=[],args_phys=[]):
 
   if (main.source):
     force = np.zeros(np.shape(main.iFlux.fx))
-    force[5::] = np.reshape(main.cgas_field.net_production_rates[:,0:-1]*main.cgas_field.molecular_weights[0:-1],np.shape(force[5::]))
+    sources = main.cgas_field.net_production_rates[:,0:-1]*main.cgas_field.molecular_weights[None,0:-1]
     #main.source_hook(main,force)
 #    for i in range(0,main.nvars):
 #      force[i] = main.source_mag[i]#*main.a.u[i]
-#    for i in range(5,main.nvars):
-#      force[i] = np.reshape(main.cgas_field.net_production_rates[:,i-5]*main.cgas_field.molecular_weights[i-5],np.shape(main.a.u[0]))
+    for i in range(5,main.nvars):
+      force[i] = np.reshape(sources[:,i-5],np.shape(main.a.u[0]))
     tmp += main.basis.volIntegrateGlob(main, force ,main.w0,main.w1,main.w2,main.w3)*scale[None,:,:,:,:,None,None,None,None]
   main.RHS = tmp
   main.comm.Barrier()
@@ -166,6 +170,10 @@ def getRHS_BR1(main,MZ,eqns,args=[],args_phys=[]):
 def getRHS(main,MZ,eqns,args=[],args_phys=[]):
   t0 = time.time()
   main.basis.reconstructU(main,main.a)
+  main.a.uR[:],main.a.uL[:],main.a.uU[:],main.a.uD[:],main.a.uF[:],main.a.uB[:] = main.basis.reconstructEdgesGeneral(main.a.a,main)
+  #main.a.uR_edge[:],main.a.uL_edge[:],main.a.uU_edge[:],main.a.uD_edge[:],main.a.uF_edge[:],main.a.uB_edge[:] = sendEdgesGeneralSlab(main.a.uL,main.a.uR,main.a.uD,main.a.uU,main.a.uB,main.a.uF,main)
+  main.a.uR_edge[:],main.a.uL_edge[:],main.a.uU_edge[:],main.a.uD_edge[:],main.a.uF_edge[:],main.a.uB_edge[:] = sendEdgesGeneralSlab(main.a.uL,main.a.uR,main.a.uD,main.a.uU,main.a.uB,main.a.uF,main)
+
   if (main.eq_str[0:-2] == 'Navier-Stokes Reacting'):
     update_state_cantera(main)
     #main.a.p[:],main.a.T[:] = computePressure_and_Temperature(main,main.a.u)
@@ -209,12 +217,12 @@ def getRHS(main,MZ,eqns,args=[],args_phys=[]):
 
   if (main.source):
     force = np.zeros(np.shape(main.iFlux.fx))
-    force[5::] = np.reshape(main.cgas_field.net_production_rates[:,0:-1]*main.cgas_field.molecular_weights[0:-1],np.shape(force[5::]))
+    sources = main.cgas_field.net_production_rates[:,0:-1]*main.cgas_field.molecular_weights[None,0:-1]
     #main.source_hook(main,force)
 #    for i in range(0,main.nvars):
 #      force[i] = main.source_mag[i]#*main.a.u[i]
-#    for i in range(5,main.nvars):
-#      force[i] = np.reshape(main.cgas_field.net_production_rates[:,i-5]*main.cgas_field.molecular_weights[i-5],np.shape(main.a.u[0]))
+    for i in range(5,main.nvars):
+      force[i] = np.reshape(sources[:,i-5],np.shape(main.a.u[0]))
     tmp += main.basis.volIntegrateGlob(main, force ,main.w0,main.w1,main.w2,main.w3)*scale[None,:,:,:,:,None,None,None,None]
   main.RHS = tmp
   main.comm.Barrier()

@@ -60,7 +60,7 @@ def evalFluxZEuler_reacting(main,u,f,args):
 #== rusanov flux
 #== Roe flux
 
-def eulerCentralFlux_reacting(main,UL,UR,cgas_field,n,args=None):
+def eulerCentralFlux_reacting(main,UL,UR,pL,pR,n,args=None):
 # PURPOSE: This function calculates the flux for the Euler equations
 # using the Roe flux function
 #
@@ -82,7 +82,7 @@ def eulerCentralFlux_reacting(main,UL,UR,cgas_field,n,args=None):
   unL = uL*n[0] + vL*n[1] + wL*n[2]
 
   qL = np.sqrt(UL[1]*UL[1] + UL[2]*UL[2] + UL[3]*UL[3])/rL
-  pL,TL = computePressure_and_Temperature_Cantera(main,UL,cgas_field)
+  #pL,TL = computePressure_and_Temperature_Cantera(main,UL,cgas_field)
 
   #pL = (gamma-1)*(UL[4] - 0.5*rL*qL**2.)
   rHL = UL[4] + pL
@@ -102,7 +102,7 @@ def eulerCentralFlux_reacting(main,UL,UR,cgas_field,n,args=None):
   wR = UR[3]/rR
   unR = uR*n[0] + vR*n[1] + wR*n[2]
   qR = np.sqrt(UR[1]*UR[1] + UR[2]*UR[2] + UR[3]*UR[3])/rR
-  pR,TR = computePressure_and_Temperature_Cantera(main,UR,cgas_field)
+  #pR,TR = computePressure_and_Temperature_Cantera(main,UR,cgas_field)
 
   #pR = (gamma-1)*(UR[4] - 0.5*rR*qR**2.)
   rHR = UR[4] + pR
@@ -128,7 +128,7 @@ def eulerCentralFlux_reacting(main,UL,UR,cgas_field,n,args=None):
   return F
 
 
-def rusanovFlux_reacting(main,UL,UR,cgas_field,n,args=None):
+def rusanovFlux_reacting(main,UL,UR,pL,pR,n,args=None):
 # PURPOSE: This function calculates the flux for the Euler equations
 # using the Roe flux function
 #
@@ -153,7 +153,7 @@ def rusanovFlux_reacting(main,UL,UR,cgas_field,n,args=None):
 
   qL = np.sqrt(UL[1]*UL[1] + UL[2]*UL[2] + UL[3]*UL[3])/rL
   #pL = (gamma-1)*(UL[4] - 0.5*rL*qL**2.)
-  pL = computePressure_and_Temperature_Cantera(main,UL,cgas_field)
+  #pL,TL = computePressure_and_Temperature_Cantera(main,UL,cgas_field)
   #pL,TL = computePressure_and_Temperature(main,UL)
 
   rHL = UL[4] + pL
@@ -175,7 +175,7 @@ def rusanovFlux_reacting(main,UL,UR,cgas_field,n,args=None):
   unR = uR*n[0] + vR*n[1] + wR*n[2]
   qR = np.sqrt(UR[1]*UR[1] + UR[2]*UR[2] + UR[3]*UR[3])/rR
   #pR = (gamma-1)*(UR[4] - 0.5*rR*qR**2.)
-  pR = computePressure_and_Temperature_Cantera(main,UR,cgas_field)
+  #pR,TR = computePressure_and_Temperature_Cantera(main,UR,cgas_field)
   #pR,TR = computePressure_and_Temperature(main,UR)
 
   rHR = UR[4] + pR
@@ -225,11 +225,19 @@ def rusanovFlux_reacting(main,UL,UR,cgas_field,n,args=None):
   F[2]    = 0.5*(FL[2]+FR[2])-0.5*smax*(UR[2] - UL[2])
   F[3]    = 0.5*(FL[3]+FR[3])-0.5*smax*(UR[3] - UL[3])
   F[4]    = 0.5*(FL[4]+FR[4])-0.5*smax*(UR[4] - UL[4])
+
+#  F[0]    = 0.5*(FL[0]+FR[0])-0.5*main.dt/main.dx*(UR[0] - UL[0])*10000.
+#  F[1]    = 0.5*(FL[1]+FR[1])-0.5*main.dt/main.dx*(UR[1] - UL[1])*10000.
+#  F[2]    = 0.5*(FL[2]+FR[2])-0.5*main.dt/main.dx*(UR[2] - UL[2])*10000.
+#  F[3]    = 0.5*(FL[3]+FR[3])-0.5*main.dt/main.dx*(UR[3] - UL[3])*10000.
+#  F[4]    = 0.5*(FL[4]+FR[4])-0.5*main.dt/main.dx*(UR[4] - UL[4])*10000.
   ## Now add fluxes for the passive scalars
-#  print(np.mean(smax),n)
+#  print(np.mean(smax),main.dt/main.dx*10000.)
   FL[5::] = UL[5::]*unL[None,:]
   FR[5::] = UR[5::]*unR[None,:]
   F[5::]    = 0.5*(FL[5::] + FR[5::]) - 0.5*smax[None,:]*(UR[5::] - UL[5::])
+#  F[5::]    = 0.5*(FL[5::] + FR[5::]) - 0.5*main.dt/main.dx*(UR[5::] - UL[5::])*10000.
+
 #  for i in range(0,np.shape(UL)[0]-5):
 #    FL[5+i] = UL[5+i]*unL
 #    FR[5+i] = UR[5+i]*unR
@@ -576,7 +584,7 @@ def evalViscousFluxZNS_IP_reacting(main,u,Ux,Uy,Uz,mu):
 ### Diffusion fluxes for BR1
 
 ### viscous fluxes
-def evalViscousFluxXNS_BR1_reacting(main,U,fv,cgas_field):
+def evalViscousFluxXNS_BR1_reacting(main,U,fv,T):
   u = U[1]/U[0]
   v = U[2]/U[0]
   w = U[3]/U[0]
@@ -586,7 +594,7 @@ def evalViscousFluxXNS_BR1_reacting(main,U,fv,cgas_field):
   fv[3] = v         #tau12 = (du/dy + dv/dx)
   fv[4] = w         #tau13 = (du/dz + dw/dx)
   fv[5] = 0.           #tau23 = (dv/dz + dw/dy)
-  p,T = computePressure_and_Temperature_Cantera(main,U,cgas_field)
+  #p,T = computePressure_and_Temperature_Cantera(main,U,cgas_field)
   #T = (U[4]/U[0] - 0.5*( u**2 + v**2 + w**2 ) ) #kinda a psuedo tmp, should divide by Cv but it's constant so this is taken care of in the tauFlux with gamma
   fv[6] = T
   fv[7] = 0.
@@ -596,7 +604,7 @@ def evalViscousFluxXNS_BR1_reacting(main,U,fv,cgas_field):
   fv[11::3] = 0.
 
 #
-def evalViscousFluxYNS_BR1_reacting(main,U,fv,cgas_field):
+def evalViscousFluxYNS_BR1_reacting(main,U,fv,T):
   u = U[1]/U[0]
   v = U[2]/U[0]
   w = U[3]/U[0]
@@ -607,7 +615,7 @@ def evalViscousFluxYNS_BR1_reacting(main,U,fv,cgas_field):
   fv[4] = 0            #tau13 = (du/dz + dw/dx)
   fv[5] = w         #tau23 = (dv/dz + dw/dy)
   fv[6] = 0.
-  p,T = computePressure_and_Temperature_Cantera(main,U,cgas_field)
+  #p,T = computePressure_and_Temperature_Cantera(main,U,cgas_field)
   #T = (U[4]/U[0] - 0.5*( u**2 + v**2 + w**2 ) )
   fv[7] = T
   fv[8] = 0.
@@ -615,7 +623,7 @@ def evalViscousFluxYNS_BR1_reacting(main,U,fv,cgas_field):
   fv[10::3] = U[5::]/U[None,0]
   fv[11::3] = 0.
 
-def evalViscousFluxZNS_BR1_reacting(main,U,fv,cgas_field):
+def evalViscousFluxZNS_BR1_reacting(main,U,fv,T):
   u = U[1]/U[0]
   v = U[2]/U[0]
   w = U[3]/U[0]
@@ -625,7 +633,7 @@ def evalViscousFluxZNS_BR1_reacting(main,U,fv,cgas_field):
   fv[3] = 0.           #tau12 = (du/dy + dv/dx)
   fv[4] = u         #tau13 = (du/dz + dw/dx)
   fv[5] = v        #tau23 = (dv/dz + dw/dy)
-  p,T = computePressure_and_Temperature_Cantera(main,U,cgas_field)
+#  p,T = computePressure_and_Temperature_Cantera(main,U,cgas_field)
 #  T = (U[4]/U[0] - 0.5*( u**2 + v**2 + w**2 ) )
   fv[6] = 0.
   fv[7] = 0.
@@ -651,8 +659,8 @@ def evalTauFluxXNS_BR1_reacting(main,tau,u,fvX,mu,cgas_field):
   #diffusive heat flux
   sh = np.shape(u)[0] - 5 + 1
   sh = np.append(sh, np.shape(u[0]) )
-  partial_enthalpies = np.reshape(cgas_field.partial_molar_enthalpies*cgas_field.molecular_weights[None,:],sh)
-  q =  kappa*tau[6] + D*u[0]*np.sum(partial_enthalpies[0:-1]*tau[9::3],axis=0)*0.
+  #partial_enthalpies = np.reshape(cgas_field.partial_molar_enthalpies*cgas_field.molecular_weights[None,:],sh)
+  q =  kappa*tau[6] #+ D*u[0]*np.sum(partial_enthalpies[0:-1]*tau[9::3],axis=0)*0.
   fvX[4] = mu*(tau[0]*u[1]/u[0] + tau[3]*u[2]/u[0] + tau[4]*u[3]/u[0]) + q
   fvX[5::] = u[None,0]*D*tau[9::3]
 
@@ -669,8 +677,8 @@ def evalTauFluxYNS_BR1_reacting(main,tau,u,fvY,mu,cgas_field):
   fvY[3] = mu*tau[5] #tau23
   sh = np.shape(u)[0] - 5 + 1
   sh = np.append(sh, np.shape(u[0]) )
-  partial_enthalpies = np.reshape(cgas_field.partial_molar_enthalpies*cgas_field.molecular_weights[None,:],sh)
-  q =  kappa*tau[7] + D*u[0]*np.sum(partial_enthalpies[0:-1]*tau[10::3],axis=0)*0.
+  #partial_enthalpies = np.reshape(cgas_field.partial_molar_enthalpies*cgas_field.molecular_weights[None,:],sh)
+  q =  kappa*tau[7] #+ D*u[0]*np.sum(partial_enthalpies[0:-1]*tau[10::3],axis=0)*0.
   fvY[4] = mu*(tau[3]*u[1]/u[0] + tau[1]*u[2]/u[0] + tau[5]*u[3]/u[0]) + q
   fvY[5::] = u[None,0]*D*tau[10::3]
 
@@ -687,8 +695,8 @@ def evalTauFluxZNS_BR1_reacting(main,tau,u,fvZ,mu,cgas_field):
   fvZ[3] = mu*tau[2] #tau33
   sh = np.shape(u)[0] - 5 + 1
   sh = np.append(sh, np.shape(u[0]) )
-  partial_enthalpies = np.reshape(cgas_field.partial_molar_enthalpies*cgas_field.molecular_weights[None,:],sh)
-  q =  kappa*tau[8] + D*u[0]*np.sum(partial_enthalpies[0:-1]*tau[11::3],axis=0)*0.
+  #partial_enthalpies = np.reshape(cgas_field.partial_molar_enthalpies*cgas_field.molecular_weights[None,:],sh)
+  q =  kappa*tau[8] #+ D*u[0]*np.sum(partial_enthalpies[0:-1]*tau[11::3],axis=0)*0.
   fvZ[4] = mu*(tau[4]*u[1]/u[0] + tau[5]*u[2]/u[0] + tau[2]*u[3]/u[0]) + q
   fvZ[5::] = u[None,0]*D*tau[11::3]
 

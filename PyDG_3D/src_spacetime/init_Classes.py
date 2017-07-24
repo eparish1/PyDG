@@ -258,6 +258,37 @@ class variables:
     self.mu0F =np.ones(np.append( eqns.nmus, np.shape( self.a.uF[0])))*self.mus
     self.mu0B =np.ones(np.append( eqns.nmus, np.shape( self.a.uB[0])))*self.mus
 
+
+    self.a.p = np.zeros(np.shape(self.a.u[0]))
+    self.a.pR = np.zeros(np.shape(self.a.uR[0]))
+    self.a.pL = np.zeros(np.shape(self.a.uL[0]))
+    self.a.pU = np.zeros(np.shape(self.a.uU[0]))
+    self.a.pD = np.zeros(np.shape(self.a.uD[0]))
+    self.a.pF = np.zeros(np.shape(self.a.uF[0]))
+    self.a.pB = np.zeros(np.shape(self.a.uB[0]))
+    self.a.pR_edge = np.zeros(np.shape(self.a.uR_edge[0]))
+    self.a.pL_edge = np.zeros(np.shape(self.a.uL_edge[0]))
+    self.a.pU_edge = np.zeros(np.shape(self.a.uU_edge[0]))
+    self.a.pD_edge = np.zeros(np.shape(self.a.uD_edge[0]))
+    self.a.pF_edge = np.zeros(np.shape(self.a.uF_edge[0]))
+    self.a.pB_edge = np.zeros(np.shape(self.a.uB_edge[0]))
+  
+    self.a.T = np.zeros(np.shape(self.a.u[0]))
+    self.a.TR = np.zeros(np.shape(self.a.uR[0]))
+    self.a.TL = np.zeros(np.shape(self.a.uL[0]))
+    self.a.TU = np.zeros(np.shape(self.a.uU[0]))
+    self.a.TD = np.zeros(np.shape(self.a.uD[0]))
+    self.a.TF = np.zeros(np.shape(self.a.uF[0]))
+    self.a.TB = np.zeros(np.shape(self.a.uB[0]))
+    self.a.TR_edge = np.zeros(np.shape(self.a.uR_edge[0]))
+    self.a.TL_edge = np.zeros(np.shape(self.a.uL_edge[0]))
+    self.a.TU_edge = np.zeros(np.shape(self.a.uU_edge[0]))
+    self.a.TD_edge = np.zeros(np.shape(self.a.uD_edge[0]))
+    self.a.TF_edge = np.zeros(np.shape(self.a.uF_edge[0]))
+    self.a.TB_edge = np.zeros(np.shape(self.a.uB_edge[0]))
+
+
+
     self.getFlux = getFlux
     self.RHS = np.zeros((eqns.nvars,self.order[0],self.order[1],self.order[2],self.order[3],self.Npx,self.Npy,self.Npz,self.Npt))
   
