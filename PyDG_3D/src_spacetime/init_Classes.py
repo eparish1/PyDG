@@ -215,7 +215,7 @@ class variables:
 
 
     ## Sources
-    self.source = source
+    self.fsource = source
     self.source_mag = source_mag
     ## Initialize arrays
     self.dx = xG[1] - xG[0]

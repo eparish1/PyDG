@@ -14,6 +14,8 @@ from myGMRES import GMRes
 from scipy.optimize.nonlin import InverseJacobian
 from scipy.optimize.nonlin import BroydenFirst, KrylovJacobian
 import time
+
+from pylab import *
 def gatherResid(Rstar,main):
   ## Create Global residual
   data = main.comm.gather(np.linalg.norm(Rstar)**2,root = 0)
@@ -136,7 +138,25 @@ def ExplicitRK4(main,MZ,eqns,args=None):
   rk4const = np.array([1./4,1./3,1./2,1.])
   for i in range(0,4):
     main.rkstage = i
+#    plot(main.cgas_field_dummy.P,'o')
     main.getRHS(main,MZ,eqns)  ## put RHS in a array since we don't need it
+#    plot(main.cgas_field.P)
+#    #ylim([amin(main.cgas_field.P)*0.999999,amax(main.cgas_field.P)*1.000001])
+#    pause(1.)
+#    #xlim([100,150])
+#
+#    clf()
+#    print('rho',np.linalg.norm(main.RHS[0]),np.linalg.norm(main.a.u[0]))
+#    print('rhou',np.linalg.norm(main.RHS[1]),np.linalg.norm(main.a.u[1]))
+#    print('rhov',np.linalg.norm(main.RHS[2]),np.linalg.norm(main.a.u[2]))
+#    print('rhow',np.linalg.norm(main.RHS[3]),np.linalg.norm(main.a.u[3]))
+#    print('rhoE',np.linalg.norm(main.RHS[4]),np.linalg.norm(main.a.u[4]))
+#    print('rhoY1',np.linalg.norm(main.RHS[5]),np.linalg.norm(main.a.u[5]))
+#    print('rhoY2',np.linalg.norm(main.RHS[6]),np.linalg.norm(main.a.u[6]))
+#    print('rhoY3',np.linalg.norm(main.RHS[7]),np.linalg.norm(main.a.u[7]))
+#    print('rhoY4',np.linalg.norm(main.RHS[8]),np.linalg.norm(main.a.u[8]))
+#    print('rhoY5',np.linalg.norm(main.RHS[9]),np.linalg.norm(main.a.u[9]))
+#    print('delta p = ' + str(np.amax(main.cgas_field.P) - np.amin(main.cgas_field.P)))
     main.a.a[:] = main.a0 + main.dt*rk4const[i]*(main.RHS[:])
   main.t += main.dt
   main.iteration += 1

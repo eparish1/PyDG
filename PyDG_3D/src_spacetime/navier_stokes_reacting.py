@@ -33,6 +33,7 @@ def evalFluxYEuler_reacting(main,u,f,args):
   f[3] = u[2]*u[3]/u[0] 
   f[4] = (u[4] + p)*u[2]/u[0]
   f[5::] = u[None,2]*u[5::]/u[None,0] 
+
 #  for i in range(0,np.shape(u)[0]-5):
 #    f[5+i] = u[2]*u[5+i]/u[0]
 
@@ -50,6 +51,7 @@ def evalFluxZEuler_reacting(main,u,f,args):
   f[3] = u[3]*u[3]/u[0] + p 
   f[4] = (u[4] + p)*u[3]/u[0]
   f[5::] = u[None,3]*u[5::]/u[None,0] 
+
 #  for i in range(0,np.shape(u)[0]-5):
 #    f[5] = u[3]*u[5+i]/u[0]
 
@@ -90,9 +92,9 @@ def eulerCentralFlux_reacting(main,UL,UR,pL,pR,n,args=None):
   # left flux
   FL = np.zeros(np.shape(UL))
   FL[0] = rL*unL
-  FL[1] = UL[1]*unL + pL*n[0]
-  FL[2] = UL[2]*unL + pL*n[1]
-  FL[3] = UL[3]*unL + pL*n[2]
+  FL[1] = UL[1]*unL #+ pL*n[0]
+  FL[2] = UL[2]*unL #+ pL*n[1]
+  FL[3] = UL[3]*unL #+ pL*n[2]
   FL[4] = rHL*unL
 
   # process right state
@@ -125,6 +127,7 @@ def eulerCentralFlux_reacting(main,UL,UR,pL,pR,n,args=None):
     FL[5+i] = UL[5+i]*unL
     FR[5+i] = UR[5+i]*unR
     F[5+i]    = 0.5*(FL[5+i] + FR[5+i])
+
   return F
 
 

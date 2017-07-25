@@ -95,11 +95,11 @@ def getIC(main,f,x,y,z,zeta3,Npt):
 comm = MPI.COMM_WORLD
 mpi_rank = comm.Get_rank()
 
-if 'source' in globals():
+if 'fsource' in globals():
   pass
 else:
-  source = False
-  source_mag = []
+  fsource = False
+  fsource_mag = []
 
 if 'enriched_ratio' in globals():
   pass
@@ -139,10 +139,9 @@ if (mpi_rank == 0):
   print('dt*(p/dx)**2*mu = ' + str(dt*order[0]**2/dx**2*mu) )
 iteration = 0
 eqns = equations(eqn_str,schemes,turb_str)
-main = variables(Nel,order,quadpoints,eqns,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,source,source_mag,shock_capturing)
+main = variables(Nel,order,quadpoints,eqns,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,fsource,source_mag,shock_capturing)
 
-if (eqn_str[0:-2] == 'Navier-Stokes Reacting'):
-  main = add_reacting_to_main(main,mol_str)
+
 if (enriched):
   eqnsEnriched = equations(enriched_eqn_str,enriched_schemes,turb_str)
   mainEnriched = variables(Nel,np.int64(order*enriched_ratio),quadpoints,eqnsEnriched,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,source,source_mag,shock_capturing)
@@ -151,12 +150,17 @@ else:
 xG,yG,zG = getGlobGrid(x,y,z,main.zeta0,main.zeta1,main.zeta2)
 xG2,yG2,zG2 = getGlobGrid2(x,y,z,main.zeta0,main.zeta1,main.zeta2)
 
+if (eqn_str[0:-2] == 'Navier-Stokes Reacting'):
+  main = add_reacting_to_main(main,mol_str)
+  mainEnriched = add_reacting_to_main(mainEnriched,mol_str)
+main.basis = basis_class('Legendre',[basis_functions_str])
+mainEnriched.basis = main.basis
+
+
 getIC(main,IC_function,xG2[:,:,:,main.sx,main.sy,:],yG2[:,:,:,main.sx,main.sy,:],zG2[:,:,:,main.sx,main.sy,:],main.zeta3,main.Npt)
 reconstructU(main,main.a)
 
 timescheme = timeschemes(time_integration,linear_solver_str,nonlinear_solver_str)
-main.basis = basis_class('Legendre',[basis_functions_str])
-mainEnriched.basis = main.basis
 #main.source_hook = source_hook
 if (main.mpi_rank == 0):
   if not os.path.exists('Solution'):
@@ -164,7 +168,7 @@ if (main.mpi_rank == 0):
   np.savez('DGgrid',x=xG,y=yG,z=zG)
 
 t0 = time.time()
-#main.a.a[:,1::,:] = 0.
+main.a.a[:,1::,:] = 0.
 #main.a.a[:,:,1::] = 0.
 tsave = np.empty(0)
 Tsave = np.empty(0)
@@ -185,7 +189,7 @@ while (main.t <= main.et + main.dt/2):
 
   timescheme.advanceSol(main,mainEnriched,eqns,timescheme.args)
   tsave = np.append(tsave,main.t)
-  Tsave = np.append(Tsave,np.amax(main.cgas_field.T))
+  #Tsave = np.append(Tsave,np.amax(main.cgas_field.T))
   #advanceSolImplicit_MG(main,main,eqns)
 reconstructU(main,main.a)
 uG = gatherSolSlab(main,eqns,main.a)

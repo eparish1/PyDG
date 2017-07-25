@@ -7,6 +7,28 @@ def computeEnergyCantera(main,u,v,w):
   e += 0.5*(u**2 + v**2 + w**2)
   return e
 
+def update_state(main):
+    main.a.p[:],main.a.T[:] = computePressure_and_Temperature(main,main.a.u)
+    main.a.pR[:],main.a.TR[:] = computePressure_and_Temperature(main,main.a.uR)
+    main.a.pL[:],main.a.TL[:] = computePressure_and_Temperature(main,main.a.uL)
+    main.a.pU[:],main.a.TU[:] = computePressure_and_Temperature(main,main.a.uF)
+    main.a.pD[:],main.a.TD[:] = computePressure_and_Temperature(main,main.a.uB)
+    main.a.pF[:],main.a.TF[:] = computePressure_and_Temperature(main,main.a.uU)
+    main.a.pB[:],main.a.TB[:] = computePressure_and_Temperature(main,main.a.uD)
+
+    main.a.pR_edge[:],main.a.TR_edge[:] = computePressure_and_Temperature(main,main.a.uR_edge)
+    main.a.pL_edge[:],main.a.TL_edge[:] = computePressure_and_Temperature(main,main.a.uL_edge)
+    main.a.pU_edge[:],main.a.TU_edge[:] = computePressure_and_Temperature(main,main.a.uF_edge)
+    main.a.pD_edge[:],main.a.TD_edge[:] = computePressure_and_Temperature(main,main.a.uB_edge)
+    main.a.pF_edge[:],main.a.TF_edge[:] = computePressure_and_Temperature(main,main.a.uU_edge)
+    main.a.pB_edge[:],main.a.TB_edge[:] = computePressure_and_Temperature(main,main.a.uD_edge)
+
+    fa = np.zeros((np.size(main.a.u[0]),np.shape(main.a.u)[0]-5 + 1))
+    for i in range(0,np.shape(main.a.u)[0]-5):
+      fa[:,i] = ( main.a.u[5+i]/main.a.u[0] ).flatten()
+    fa[:,-1] = 1. - np.sum(fa[:,0:-1],axis=1)
+    main.cgas_field.TPY = main.a.T.flatten(),main.a.p.flatten(),fa 
+
 def update_state_cantera(main):
     rhoi = 1./main.a.u[0]
     rhoiL = 1./main.a.uL[0]
@@ -189,7 +211,7 @@ def computePressure(main,u,T):
 
 
 def computePressure_and_Temperature(main,u):
-  R = 8.314
+  R = 8314.4621/1000.
   T0 = 298.15
   n_reacting = np.size(main.delta_h0)
   #Cv = 0

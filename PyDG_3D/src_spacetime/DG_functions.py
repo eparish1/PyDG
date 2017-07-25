@@ -118,7 +118,7 @@ def getRHS_BR1(main,MZ,eqns,args=[],args_phys=[]):
 #  print(np.amax(main.a.a[0,1::,1::]))
 #  print(np.amin(main.a.u[0]),np.amax(main.a.u[0]))
   if (main.eq_str[0:-2] == 'Navier-Stokes Reacting'):
-    update_state_cantera(main)
+    update_state(main)
     #main.a.p[:],main.a.T[:] = computePressure_and_Temperature(main,main.a.u)
 
   # evaluate inviscid flux
@@ -175,7 +175,7 @@ def getRHS(main,MZ,eqns,args=[],args_phys=[]):
   main.a.uR_edge[:],main.a.uL_edge[:],main.a.uU_edge[:],main.a.uD_edge[:],main.a.uF_edge[:],main.a.uB_edge[:] = sendEdgesGeneralSlab(main.a.uL,main.a.uR,main.a.uD,main.a.uU,main.a.uB,main.a.uF,main)
 
   if (main.eq_str[0:-2] == 'Navier-Stokes Reacting'):
-    update_state_cantera(main)
+    update_state(main)
     #main.a.p[:],main.a.T[:] = computePressure_and_Temperature(main,main.a.u)
   # evaluate inviscid flux
   getFlux(main,MZ,eqns,args)
@@ -215,7 +215,7 @@ def getRHS(main,MZ,eqns,args=[],args_phys=[]):
     tmp +=  (fvR2I[:,None,:,:] - fvL2I[:,None,:,:]*main.altarray0[None,:,None,None,None,None,None,None,None])*dxi[None] + (fvU2I[:,:,None,:] - fvD2I[:,:,None,:]*main.altarray1[None,None,:,None,None,None,None,None,None])*dyi[None] + (fvF2I[:,:,:,None] - fvB2I[:,:,:,None]*main.altarray2[None,None,None,:,None,None,None,None,None])*dzi[None]
 
 
-  if (main.source):
+  if (main.fsource):
     force = np.zeros(np.shape(main.iFlux.fx))
     sources = main.cgas_field.net_production_rates[:,0:-1]*main.cgas_field.molecular_weights[None,0:-1]
     #main.source_hook(main,force)
@@ -224,6 +224,7 @@ def getRHS(main,MZ,eqns,args=[],args_phys=[]):
     for i in range(5,main.nvars):
       force[i] = np.reshape(sources[:,i-5],np.shape(main.a.u[0]))
     tmp += main.basis.volIntegrateGlob(main, force ,main.w0,main.w1,main.w2,main.w3)*scale[None,:,:,:,:,None,None,None,None]
+
   main.RHS = tmp
   main.comm.Barrier()
 
