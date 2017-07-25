@@ -54,3 +54,9 @@ def adiabaticwall_bc(Ue,UBC,args,main):
   UBC[3] = UBC[0]*ww
   UBC[4] = UBC[0]*E
   return UBC
+
+def subsonic_outflow(Ue,UBC,args,main):
+  p,T = computePressure_and_Temperature(main,Ue)
+  pB = p
+  S_plus = p/Ue[0]**main.gamma
+

@@ -248,6 +248,111 @@ def rusanovFlux_reacting(main,UL,UR,pL,pR,n,args=None):
 #  print(np.linalg.norm(F))
   return F
                
+
+def HLLEFlux_reacting(main,UL,UR,pL,pR,n,args=None):
+# PURPOSE: This function calculates the flux for the Euler equations
+# using the Roe flux function
+#
+# INPUTS:
+#    UL: conservative state vector in left cell
+#    UR: conservative state vector in right cell
+#    n: normal pointing from the left cell to the right cell
+#
+# OUTPUTS:
+#  F   : the flux out of the left cell (into the right cell)
+#  smag: the maximum propagation speed of disturbance
+#
+  gamma = 1.4
+  gmi = gamma-1.0
+  #process left state
+  rL = UL[0]
+  uL = UL[1]/rL
+  vL = UL[2]/rL
+  wL = UL[3]/rL
+
+  unL = uL*n[0] + vL*n[1] + wL*n[2]
+
+  qL = np.sqrt(UL[1]*UL[1] + UL[2]*UL[2] + UL[3]*UL[3])/rL
+  #pL = (gamma-1)*(UL[4] - 0.5*rL*qL**2.)
+  #pL,TL = computePressure_and_Temperature_Cantera(main,UL,cgas_field)
+  #pL,TL = computePressure_and_Temperature(main,UL)
+
+  rHL = UL[4] + pL
+  HL = rHL/rL
+  cL = np.sqrt(gamma*pL/rL)
+  # left flux
+  FL = np.zeros(np.shape(UL))
+  FL[0] = rL*unL
+  FL[1] = UL[1]*unL + pL*n[0]
+  FL[2] = UL[2]*unL + pL*n[1]
+  FL[3] = UL[3]*unL + pL*n[2]
+  FL[4] = rHL*unL
+
+  # process right state
+  rR = UR[0]
+  uR = UR[1]/rR
+  vR = UR[2]/rR
+  wR = UR[3]/rR
+  unR = uR*n[0] + vR*n[1] + wR*n[2]
+  qR = np.sqrt(UR[1]*UR[1] + UR[2]*UR[2] + UR[3]*UR[3])/rR
+  #pR = (gamma-1)*(UR[4] - 0.5*rR*qR**2.)
+  #pR,TR = computePressure_and_Temperature_Cantera(main,UR,cgas_field)
+  #pR,TR = computePressure_and_Temperature(main,UR)
+
+  rHR = UR[4] + pR
+  HR = rHR/rR
+  cR = np.sqrt(gamma*pR/rR)
+  # right flux
+  FR = np.zeros(np.shape(UR))
+  FR[0] = rR*unR
+  FR[1] = UR[1]*unR + pR*n[0]
+  FR[2] = UR[2]*unR + pR*n[1]
+  FR[3] = UR[3]*unR + pR*n[2]
+  FR[4] = rHR*unR
+  FL[5::] = UL[5::]*unL[None,:]
+  FR[5::] = UR[5::]*unR[None,:]
+
+  #% eigenvalues
+  Y_N2_R = 1. - np.sum(UR[5::]/UR[None,0],axis=0)
+  gammaR = np.einsum('i...,ijk...->jk...',main.gamma[0:-1],UR[5::]/UR[None,0]) + main.gamma[-1]*Y_N2_R
+  cR = np.sqrt(gammaR*pR/UR[0])
+
+  Y_N2_L = 1. - np.sum(UL[5::]/UL[None,0],axis=0)
+  gammaL = np.einsum('i...,ijk...->jk...',main.gamma[0:-1],UL[5::]/UL[None,0]) + main.gamma[-1]*Y_N2_L
+  cL = np.sqrt(gammaR*pR/UR[0])
+  #print(np.mean(cR),np.mean(cL))
+  sL_min = np.fmin(0,unL - cL)
+  sR_min = np.fmin(0,unR - cR)
+  sL_max = np.fmax(0,unL + cL)
+  sR_max = np.fmax(0,unR + cR)
+  smin = np.fmin(sL_min,sR_min)
+  smax = np.fmax(sL_max,sR_max)
+  term1 = 0.5*(smax + smin)/(smax - smin)
+  term2 = (smax*smin)/(smax - smin)
+  #print(np.mean(smax)*main.dt*main.order[0]/main.dx/main.order[-1])
+  #print((gammaL))#,np.amax(gammaL))
+  # flux assembly
+  F = np.zeros(np.shape(FL))  # for allocation
+  F[0]    = 0.5*(FL[0]+FR[0])-term1*(FR[0] - FL[0]) + term2*(UR[0] - UL[0])
+  #Ystar = np.zeros(np.shape(F[5::]))
+  #Ystar[:,F[0]<0] = UR[5::,F[0]<0]/UR[None,0,F[0]<0]
+  #Ystar[:,F[0]>0] = UL[5::,F[0]>0]/UL[None,0,F[0]>0]
+  F[1]    = 0.5*(FL[1]+FR[1])-term1*(FR[1] - FL[1]) + term2*(UR[1] - UL[1])
+  F[2]    = 0.5*(FL[2]+FR[2])-term1*(FR[2] - FL[2]) + term2*(UR[2] - UL[2])
+  F[3]    = 0.5*(FL[3]+FR[3])-term1*(FR[3] - FL[3]) + term2*(UR[3] - UL[3])
+  F[4]    = 0.5*(FL[4]+FR[4])-term1*(FR[4] - FL[4]) + term2*(UR[4] - UL[4])
+  F[5::]    = 0.5*(FL[5::]+FR[5::])-term1[None,:]*(FR[5::] - FL[5::]) + term2[None,:]*(UR[5::] - UL[5::])
+  #F[5::]    = F[None,0]*Ystar[:] 
+
+#  F[5::]    = 0.5*(FL[5::] + FR[5::]) - 0.5*main.dt/main.dx*(UR[5::] - UL[5::])*10000.
+
+#  for i in range(0,np.shape(UL)[0]-5):
+#    FL[5+i] = UL[5+i]*unL
+#    FR[5+i] = UR[5+i]*unR
+#    F[5+i]    = 0.5*(FL[5+i] + FR[5+i]) - 0.5*smax*(UR[5+i] - UL[5+i])
+#  print(np.linalg.norm(F))
+  return F
+
   
 
 def kfid_roeflux_reacting(main,UL,UR,n,args=None):

@@ -154,7 +154,7 @@ def getRHS_BR1(main,MZ,eqns,args=[],args_phys=[]):
   tmp +=  (main.vFlux2.fUI[:,:,None,:] - main.vFlux2.fDI[:,:,None,:]*main.altarray1[None,None,:,None,None,None,None,None,None])*dyi[None]
   tmp +=  (main.vFlux2.fFI[:,:,:,None] - main.vFlux2.fBI[:,:,:,None]*main.altarray2[None,None,None,:,None,None,None,None,None])*dzi[None]
 
-  if (main.source):
+  if (main.fsource):
     force = np.zeros(np.shape(main.iFlux.fx))
     sources = main.cgas_field.net_production_rates[:,0:-1]*main.cgas_field.molecular_weights[None,0:-1]
     #main.source_hook(main,force)

@@ -90,6 +90,9 @@ class equations:
       if (iflux_str == 'rusanov'):
         self.inviscidFlux = rusanovFlux_reacting
         checki = 1
+      if (iflux_str == 'HLLE'):
+        self.inviscidFlux = HLLEFlux_reacting
+        checki = 1
       if (checki == 0):
         if (mpi_rank == 0): print('Error, inviscid flux scheme ' + iflux_str + ' not valid. Options are "central", "roe", "rusanov". PyDG quitting')
         sys.exit()

@@ -13,6 +13,7 @@ from scipy.optimize import newton_krylov
 from myGMRES import GMRes
 from scipy.optimize.nonlin import InverseJacobian
 from scipy.optimize.nonlin import BroydenFirst, KrylovJacobian
+from eos_functions import *
 import time
 
 from pylab import *
@@ -131,33 +132,58 @@ def spaceTime(main,MZ,eqns,args=None):
   main.iteration += 1
   main.a.uFuture[:],uPast = main.basis.reconstructEdgesGeneralTime(main.a.a,main)
 
-  
+def limiter_MF(main):
+   main.basis.reconstructU(main,main.a)
+   main.a.u[5::] = np.fmax(main.a.u[5::],1e-7)
+   main.a.u[5::] = np.fmin(main.a.u[5::],main.a.u[None,0]*np.ones(np.shape(main.a.u[5::])))
+   ord_arrx= np.linspace(0,main.order[0]-1,main.order[0])
+   ord_arry= np.linspace(0,main.order[1]-1,main.order[1])
+   ord_arrz= np.linspace(0,main.order[2]-1,main.order[2])
+   ord_arrt= np.linspace(0,main.order[3]-1,main.order[3])
+   scale =  (2.*ord_arrx[:,None,None,None] + 1.)*(2.*ord_arry[None,:,None,None] + 1.)*(2.*ord_arrz[None,None,:,None] + 1.)*(2.*ord_arrt[None,None,None,:] + 1.)/16.
+   main.a.a[:] = main.basis.volIntegrateGlob(main,main.a.u,main.w0,main.w1,main.w2,main.w3)*scale[None,:,:,:,:,None,None,None,None]
 
+
+
+def limiter(main):
+#   main.basis.reconstructU(main,main.a)
+#   u0 = main.a.u*1.
+   a_f = np.zeros(np.shape(main.a.a))
+   a_f[:] = main.a.a[:]
+   a_f[:,-1] = 0.
+   dcR = np.zeros(np.shape(main.a.a))
+   dcL = np.zeros(np.shape(main.a.a))
+
+   dcR[:,:,:,:,:,0:-1] = main.a.a[:,:,:,:,:,1::] - main.a.a[:,:,:,:,:,0:-1]   
+   dcR[:,:,:,:,:,-1] =   dcR[:,:,:,:,:,-2]
+   dcL[:,:,:,:,:,1::] = dcR[:,:,:,:,:,0:-1]
+   dcL[:,:,:,:,:,0] = dcL[:,:,:,:,:,1]
+   indx = ((sign(main.a.a[:,-1])==sign(dcR[:,-2]))==sign(dcL[:,-2]))
+   u_limit = np.zeros(np.shape(main.a.u) )
+   alpha = 1.#2./(main.dx*main.order[0])
+   a_f[:,-1][indx] = np.sign(main.a.a[:,-1][indx])*np.fmin( np.abs(main.a.a[:,-1][indx]),np.abs(alpha*dcR[:,-2][indx]),np.abs(alpha*dcL[:,-2][indx]) )
+#   main.a.a[:] = a_f[:]
+#   main.basis.reconstructU(main,main.a)
+#   u1 = main.a.u*1.
+  
 def ExplicitRK4(main,MZ,eqns,args=None):
   main.a0[:] = main.a.a[:]
   rk4const = np.array([1./4,1./3,1./2,1.])
+  main.basis.reconstructU(main,main.a)
+  main.a.p[:],main.a.T[:] = computePressure_and_Temperature(main,main.a.u)
+  Y_N2 = 1. - np.sum(main.a.u[5::]/main.a.u[None,0],axis=0)
+  gamma = np.einsum('i...,ijk...->jk...',main.gamma[0:-1],main.a.u[5::]/main.a.u[None,0]) + main.gamma[-1]*Y_N2
+  c = np.amax(np.sqrt(gamma*main.a.p/main.a.u[0]))
+  umax = np.sqrt( np.amax( (main.a.u[1]/main.a.u[0])**2 ) + np.amax(  (main.a.u[2]/main.a.u[0])**2 ) + np.amax( (main.a.u[3]/main.a.u[0])**2 ) )
+#  #CFL = c*dt/dx -> dt = CFL*dx/c
+  main.dt = 0.2*main.dx/(c + umax)
+#  if (main.mpi_rank == 0):
+#    print(main.dt)
   for i in range(0,4):
     main.rkstage = i
-#    plot(main.cgas_field_dummy.P,'o')
     main.getRHS(main,MZ,eqns)  ## put RHS in a array since we don't need it
-#    plot(main.cgas_field.P)
-#    #ylim([amin(main.cgas_field.P)*0.999999,amax(main.cgas_field.P)*1.000001])
-#    pause(1.)
-#    #xlim([100,150])
-#
-#    clf()
-#    print('rho',np.linalg.norm(main.RHS[0]),np.linalg.norm(main.a.u[0]))
-#    print('rhou',np.linalg.norm(main.RHS[1]),np.linalg.norm(main.a.u[1]))
-#    print('rhov',np.linalg.norm(main.RHS[2]),np.linalg.norm(main.a.u[2]))
-#    print('rhow',np.linalg.norm(main.RHS[3]),np.linalg.norm(main.a.u[3]))
-#    print('rhoE',np.linalg.norm(main.RHS[4]),np.linalg.norm(main.a.u[4]))
-#    print('rhoY1',np.linalg.norm(main.RHS[5]),np.linalg.norm(main.a.u[5]))
-#    print('rhoY2',np.linalg.norm(main.RHS[6]),np.linalg.norm(main.a.u[6]))
-#    print('rhoY3',np.linalg.norm(main.RHS[7]),np.linalg.norm(main.a.u[7]))
-#    print('rhoY4',np.linalg.norm(main.RHS[8]),np.linalg.norm(main.a.u[8]))
-#    print('rhoY5',np.linalg.norm(main.RHS[9]),np.linalg.norm(main.a.u[9]))
-#    print('delta p = ' + str(np.amax(main.cgas_field.P) - np.amin(main.cgas_field.P)))
     main.a.a[:] = main.a0 + main.dt*rk4const[i]*(main.RHS[:])
+    #limiter_MF(main)
   main.t += main.dt
   main.iteration += 1
 
