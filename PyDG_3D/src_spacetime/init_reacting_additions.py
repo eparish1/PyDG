@@ -16,8 +16,12 @@ def add_reacting_to_main(main,mol_str):
   main.nasa_coeffs = getNASAPolys(mol_str)
   main.Cv = getConstantCvs(mol_str)
   main.Cp = getConstantCps(mol_str)
+  #main.Cp[:] = main.Cp[0]
+  #main.Cv[:] = main.Cv[0]
+  #main.delta_h0[:] = main.delta_h0[0]
+  #main.W[:] = main.W[0]
   main.gamma = main.Cp/main.Cv
-  main.gamma[:] = 1.4
+  #main.gamma[:] = 1.4
   main.cgas = ct.Solution('2s_ch4_bfer.xml')
   main.cgas_field = ct.SolutionArray(main.cgas,(np.size(main.a.u[0])))
   main.cgas_field_dummy = ct.SolutionArray(main.cgas,(np.size(main.a.u[0,:,:,:,0,:,:,:,0])))

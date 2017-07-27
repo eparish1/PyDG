@@ -523,6 +523,14 @@ def volIntegrateGlob_tensordot(main,f,w0,w1,w2,w3):
   tmp = np.tensordot(main.weights3[None,:,None,None,None,None,None,None,None]*tmp,w3,axes=([1],[1]))
   return np.rollaxis( np.rollaxis( np.rollaxis( np.rollaxis( tmp , -4 , 1) , -3 , 2), -2, 3), -1, 4)
 
+def volIntegrateGlob_tensordot_collocate(main,f,w0,w1,w2,w3):
+  tmp = np.tensordot(main.weights0_c[None,:,None,None,None,None,None,None,None]*f  ,w0,axes=([1],[1]))
+  tmp = np.tensordot(main.weights1_c[None,:,None,None,None,None,None,None,None]*tmp,w1,axes=([1],[1]))
+  tmp = np.tensordot(main.weights1_c[None,:,None,None,None,None,None,None,None]*tmp,w2,axes=([1],[1]))
+  tmp = np.tensordot(main.weights3_c[None,:,None,None,None,None,None,None,None]*tmp,w3,axes=([1],[1]))
+  return np.rollaxis( np.rollaxis( np.rollaxis( np.rollaxis( tmp , -4 , 1) , -3 , 2), -2, 3), -1, 4)
+
+
 def volIntegrateGlob_einsum(main,f,w1,w2,w3):
   tmp = np.einsum('nr,zpqrijk->zpqnijk',w3,main.weights2[None,None,None,:,None,None,None]*f)
   tmp = np.einsum('mq,zpqnijk->zpmnijk',w2,main.weights1[None,None,:,None,None,None,None]*tmp)
@@ -548,14 +556,16 @@ def faceIntegrateGlob_einsum(main,f,w1,w2,weights0,weights1):
 def reconstructU_einsum(main,var):
   var.u[:] = 0.
   #var.u = np.einsum('lmpq,klmij->kpqij',main.w[:,None,:,None]*main.w[None,:,None,:],var.a) ## this is actually much slower than the two line code
-  tmp =  np.einsum('rn,zpqr...->zpqn...',main.w,var.a)
-  tmp = np.einsum('qm,zpqn...->zpmn...',main.w,tmp)
-  var.u = np.einsum('pl,zpmn...->zlmn...',main.w,tmp)
+  tmp =  np.einsum('so,zpqrs...->zpqro...',main.w3,var.a)
+  tmp =  np.einsum('rn,zpqro...->zpqno...',main.w2,var.a)
+  tmp = np.einsum('qm,zpqno...->zpmno...',main.w1,tmp)
+  var.u = np.einsum('pl,zpmno...->zlmno...',main.w0,tmp)
 
 def reconstructUGeneral_einsum(main,a):
-  tmp =  np.einsum('rn,zpqr...->zpqn...',main.w,a)
-  tmp = np.einsum('qm,zpqn...->zpmn...',main.w,tmp)
-  return np.einsum('pl,zpmn...->zlmn...',main.w,tmp)
+  tmp =  np.einsum('so,zpqrs...->zpqro...',main.w3,a)
+  tmp =  np.einsum('rn,zpqro...->zpqno...',main.w2,a)
+  tmp = np.einsum('qm,zpqno...->zpmno...',main.w1,tmp)
+  return np.einsum('pl,zpmno...->zlmno...',main.w0,tmp)
 
 
 def reconstructU_tensordot(main,var):
@@ -642,31 +652,37 @@ def reconstructEdgesGeneralTime_tensordot(a,main):
 
 def reconstructEdgesGeneral_einsum(a,main):
   nvars = np.shape(a)[0]
-  aR = np.einsum('zpqrijk->zqrijk',a)
-  aL = np.einsum('zpqrijk->zqrijk',a*main.altarray[None,:,None,None,None,None,None])
+  aR = np.einsum('zpqr...->zqr...',a)
+  aL = np.einsum('zpqr...->zqr...',a*main.altarray0[None,:,None,None,None,None,None,None,None])
 
-  aU = np.einsum('zpqrijk->zprijk',a)
-  aD = np.einsum('zpqrijk->zprijk',a*main.altarray[None,None,:,None,None,None,None])
+  aU = np.einsum('zpqr...->zpr...',a)
+  aD = np.einsum('zpqr...->zpr...',a*main.altarray1[None,None,:,None,None,None,None,None,None])
 
-  aF = np.einsum('zpqrijk->zpqijk',a)
-  aB = np.einsum('zpqrijk->zpqijk',a*main.altarray[None,None,None,:,None,None,None])
+  aF = np.einsum('zpqr...->zpq...',a)
+  aB = np.einsum('zpqr...->zpq...',a*main.altarray2[None,None,None,:,None,None,None,None,None])
 
 #  uU = np.zeros((main.nvars,main.quadpoints,main.quadpoints,main.Npx,main.Npy,main.Npz))
   # need to do 2D reconstruction to the gauss points on each face
-  tmp = np.einsum('rn,zqrijk->zqnijk',main.w,aR)
-  uR  = np.einsum('qm,zqnijk->zmnijk',main.w,tmp)
-  tmp = np.einsum('rn,zqrijk->zqnijk',main.w,aL)
-  uL  = np.einsum('qm,zqnijk->zmnijk',main.w,tmp)
+  tmp = np.einsum('so,zqrs...->zqro...',main.w3,aR)
+  tmp = np.einsum('rn,zqro...->zqno...',main.w2,tmp)
+  uR  = np.einsum('qm,zqno...->zmno...',main.w1,tmp)
+  tmp = np.einsum('so,zqrs...->zqro...',main.w3,aL)
+  tmp = np.einsum('rn,zqro...->zqno...',main.w2,tmp)
+  uL  = np.einsum('qm,zqno...->zmno...',main.w1,tmp)
 
-  tmp = np.einsum('rn,zprijk->zpnijk',main.w,aU)
-  uU  = np.einsum('pl,zpnijk->zlnijk',main.w,tmp)
-  tmp = np.einsum('rn,zprijk->zpnijk',main.w,aD)
-  uD  = np.einsum('pl,zpnijk->zlnijk',main.w,tmp)
+  tmp = np.einsum('so,zprs...->zpro...',main.w3,aU)
+  tmp = np.einsum('rn,zpro...->zpno...',main.w2,tmp)
+  uU  = np.einsum('pl,zpno...->zlno...',main.w0,tmp)
+  tmp = np.einsum('so,zprs...->zpro...',main.w3,aD)
+  tmp = np.einsum('rn,zpro...->zpno...',main.w2,tmp)
+  uD  = np.einsum('pl,zpno...->zlno...',main.w0,tmp)
 
-  tmp = np.einsum('qm,zpqijk->zpmijk',main.w,aF)
-  uF  = np.einsum('pl,zpmijk->zlmijk',main.w,tmp)
-  tmp = np.einsum('qm,zpqijk->zpmijk',main.w,aB)
-  uB  = np.einsum('pl,zpmijk->zlmijk',main.w,tmp)
+  tmp = np.einsum('so,zpqs...->zpqo...',main.w3,aF)
+  tmp = np.einsum('qm,zpqo...->zpmo...',main.w1,tmp)
+  uF  = np.einsum('pl,zpmo...->zlmo...',main.w0,tmp)
+  tmp = np.einsum('so,zpqs...->zpqo...',main.w3,aB)
+  tmp = np.einsum('qm,zpqo...->zpmo...',main.w1,tmp)
+  uB  = np.einsum('pl,zpmo...->zlmo...',main.w0,tmp)
   return uR,uL,uU,uD,uF,uB
 
 

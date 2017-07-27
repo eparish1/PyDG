@@ -27,7 +27,7 @@ def tauModelFD(main,MZ,eqns):
     ### EVAL RESIDUAL AND DO MZ STUFF
     filtarray = np.zeros(np.shape(MZ.a.a))
     filtarray[:,0:main.order[0],0:main.order[1],0:main.order[2]] = 1.
-    eps = 1.e-9
+    eps = 1.e-5
     MZ.a.a[:] = 0.
     MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2]] = main.a.a[:]
     #eqns.getRHS(main,main,eqns)
@@ -48,7 +48,7 @@ def tauModelFD(main,MZ,eqns):
     RHS3 = np.zeros(np.shape(MZ.RHS))
     RHS3[:] = MZ.RHS[:]
     PLQLU = (RHS2[:,0:main.order[0],0:main.order[1],0:main.order[2]] - RHS3[:,0:main.order[0],0:main.order[1],0:main.order[2]])/(eps + 1e-30)
-    main.RHS[:] =  RHS1[:,0:main.order[0],0:main.order[1],0:main.order[2]] + 1./400*main.dx/MZ.order[0]**2*PLQLU
+    main.RHS[:] =  RHS1[:,0:main.order[0],0:main.order[1],0:main.order[2]] + 1./10000*main.dx/MZ.order[0]**2*PLQLU
 
 
 def FM1Linearized(main,MZ,eqns):

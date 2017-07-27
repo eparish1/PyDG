@@ -27,7 +27,7 @@ def update_state(main):
     for i in range(0,np.shape(main.a.u)[0]-5):
       fa[:,i] = ( main.a.u[5+i]/main.a.u[0] ).flatten()
     fa[:,-1] = 1. - np.sum(fa[:,0:-1],axis=1)
-    main.cgas_field.TPY = main.a.T.flatten(),main.a.p.flatten(),fa 
+    #main.cgas_field.TPY = main.a.T.flatten(),main.a.p.flatten(),fa 
 
 def update_state_cantera(main):
     rhoi = 1./main.a.u[0]
@@ -180,35 +180,6 @@ def computeEnergy(main,T,Y,u,v,w):
   e += 0.5*(u**2 + v**2 + w**2)
   return e 
 
-def computeTemperature(main,u):
-  R = 8.314
-  T0 = 298.15
-  n_reacting = np.size(main.delta_h0)
-  #Cv = 0
-  #Winv = 0
-  #for i in range(0,n_reacting):
-  #  Cv += main.Cv[i]*u[5+i] #Cv of the mixture
-  #  Winv += u[5+i]/main.W[i] #mean molecular weight
-  Cv = np.einsum('i...,ijk...->jk...',main.Cv,u[5::]/u[0])
-  Winv =  np.einsum('i...,ijk...->jk...',1./main.W,u[5::]/u[0])
-  # sensible + chemical
-  T = u[4]/u[0] - 0.5/u[0]**2*( u[1]**2 + u[2]**2 + u[3]**2 )
-  # subtract formation of enthalpy
-  for i in range(0,np.size(main.delta_h0)):
-    T -= main.delta_h0[i]*u[5+i]/u[0]
-  T += R * T0 * Winv 
-  T /= Cv
-  T += T0
-
-  return T
-
-
-def computePressure(main,u,T):
-  R = 8.314 
-  Winv =  np.einsum('i...,ijk...->jk...',1./main.W,u[5::])
-  p = u[0]*R*Winv*T
-  return p
-
 
 def computePressure_and_Temperature(main,u):
   R = 8314.4621/1000.
@@ -219,15 +190,15 @@ def computePressure_and_Temperature(main,u):
   #for i in range(0,n_reacting):
   #  Cv += main.Cv[i]*u[5+i] #Cv of the mixture
   #  Winv += u[5+i]/main.W[i] #mean molecular weight
-  Y_N2 = 1. - np.sum(u[5::]/u[None,0],axis=0)
-  Cv = np.einsum('i...,ijk...->jk...',main.Cv[0:-1],u[5::]/u[0]) + main.Cv[-1]*Y_N2
-  Winv =  np.einsum('i...,ijk...->jk...',1./main.W[0:-1],u[5::]/u[0]) + 1./main.W[-1]*Y_N2
+  Y_last = 1. - np.sum(u[5::]/u[None,0],axis=0)
+  Cv = np.einsum('i...,ijk...->jk...',main.Cv[0:-1],u[5::]/u[0]) + main.Cv[-1]*Y_last
+  Winv =  np.einsum('i...,ijk...->jk...',1./main.W[0:-1],u[5::]/u[0]) + 1./main.W[-1]*Y_last
   # sensible + chemical
   T = u[4]/u[0] - 0.5/u[0]**2*( u[1]**2 + u[2]**2 + u[3]**2 )
   # subtract formation of enthalpy
   for i in range(0,np.size(main.delta_h0)-1):
     T -= main.delta_h0[i]*u[5+i]/u[0]
-  T -= main.delta_h0[-1]*Y_N2
+  T -= main.delta_h0[-1]*Y_last
   T += R * T0 * Winv 
   T /= Cv
   T += T0

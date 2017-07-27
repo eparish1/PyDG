@@ -176,7 +176,7 @@ def ExplicitRK4(main,MZ,eqns,args=None):
   c = np.amax(np.sqrt(gamma*main.a.p/main.a.u[0]))
   umax = np.sqrt( np.amax( (main.a.u[1]/main.a.u[0])**2 ) + np.amax(  (main.a.u[2]/main.a.u[0])**2 ) + np.amax( (main.a.u[3]/main.a.u[0])**2 ) )
 #  #CFL = c*dt/dx -> dt = CFL*dx/c
-  main.dt = 0.2*main.dx/(c + umax)
+#  main.dt = 0.1*main.dx/(c + umax)
 #  if (main.mpi_rank == 0):
 #    print(main.dt)
   for i in range(0,4):

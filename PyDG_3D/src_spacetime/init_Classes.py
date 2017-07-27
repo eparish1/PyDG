@@ -178,6 +178,18 @@ class variables:
     self.w3,self.wp3,self.wpedge3,self.weights3,self.zeta3 = gaussPoints(self.order[3],self.quadpoints[3])
     self.altarray3 = (-np.ones(self.order[3]))**(np.linspace(0,self.order[3]-1,self.order[3]))
 
+
+    self.w0_c,self.wp0_c,self.wpedge0_c,self.weights0_c,self.zeta0_c = gaussPoints(self.order[0],1)#self.order[0])
+    self.altarray0_c = (-np.ones(self.order[0]))**(np.linspace(0,self.order[0]-1,self.order[0]))
+    self.w1_c,self.wp1_c,self.wpedge1_c,self.weights1_c,self.zeta1_c = gaussPoints(self.order[1],1)#self.order[1])
+    self.altarray1_c = (-np.ones(self.order[1]))**(np.linspace(0,self.order[1]-1,self.order[1]))
+    self.w2_c,self.wp2_c,self.wpedge2_c,self.weights2_c,self.zeta2_c = gaussPoints(self.order[2],1)#self.order[2])
+    self.altarray2_c = (-np.ones(self.order[2]))**(np.linspace(0,self.order[2]-1,self.order[2]))
+    self.w3_c,self.wp3_c,self.wpedge3_c,self.weights3_c,self.zeta3_c = gaussPoints(self.order[3],1)#self.order[3])
+    self.altarray3_c = (-np.ones(self.order[3]))**(np.linspace(0,self.order[3]-1,self.order[3]))
+
+
+
     self.gas = gasClass() 
     self.Cv = self.gas.Cv
     self.Cp = self.gas.Cp

@@ -156,6 +156,7 @@ def getConstantCvs(mol_str):
   CO2 = 0.655
   H2O = 1.46
   N2 = 0.743
+  H2 = 10.06
   for i in range(0,np.size(mol_str)):
     if mol_str[i] in locals():
       Cv[i] = locals()[mol_str[i]]
@@ -169,13 +170,14 @@ def getConstantCvs(mol_str):
 def getConstantCps(mol_str):
   # returns Cp in J/(kg K)
   Cp = np.zeros(np.size(mol_str))
-  Air = 101.
+  Air = 1.01
   O2 = 0.919
   CH4 = 2.22
   CO = 1.02
   CO2 = 0.844
   H2O = 1.93
   N2 = 1.04
+  H2 = 14.32
   for i in range(0,np.size(mol_str)):
     if mol_str[i] in locals():
       Cp[i] = locals()[mol_str[i]]
