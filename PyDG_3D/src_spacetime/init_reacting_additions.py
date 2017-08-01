@@ -22,7 +22,7 @@ def add_reacting_to_main(main,mol_str):
   #main.W[:] = main.W[0]
   main.gamma = main.Cp/main.Cv
   #main.gamma[:] = 1.4
-  main.cgas = ct.Solution('2s_ch4_bfer.xml')
+  main.cgas = ct.Solution('2S_CH4_BFER.cti')
   main.cgas_field = ct.SolutionArray(main.cgas,(np.size(main.a.u[0])))
   main.cgas_field_dummy = ct.SolutionArray(main.cgas,(np.size(main.a.u[0,:,:,:,0,:,:,:,0])))
 
@@ -70,5 +70,8 @@ def add_reacting_to_main(main,mol_str):
   main.a.TD_edge = np.zeros(np.shape(main.a.uD_edge[0]))
   main.a.TF_edge = np.zeros(np.shape(main.a.uF_edge[0]))
   main.a.TB_edge = np.zeros(np.shape(main.a.uB_edge[0]))
+
+  main.a.rh0 = np.zeros(np.shape(main.a.u[0]))
+  main.a.gamma_star = np.zeros(np.shape(main.a.u[0]))
 
   return main

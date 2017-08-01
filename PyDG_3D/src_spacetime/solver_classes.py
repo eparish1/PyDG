@@ -12,6 +12,14 @@ class timeschemes:
       check_t = 0
       self.advanceSol = ExplicitRK4
       self.args = None
+    if (time_str == 'SSP_RK3'):
+      check_t = 0
+      self.advanceSol = SSP_RK3
+      self.args = None
+    if (time_str == 'SSP_RK3_DOUBLEFLUX'):
+      check_t = 0
+      self.advanceSol = SSP_RK3_DOUBLEFLUX
+      self.args = None
 
     if (time_str == 'SpaceTime'):
       check_t = 0

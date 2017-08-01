@@ -156,12 +156,14 @@ def getRHS_BR1(main,MZ,eqns,args=[],args_phys=[]):
 
   if (main.fsource):
     force = np.zeros(np.shape(main.iFlux.fx))
-    sources = main.cgas_field.net_production_rates[:,0:-1]*main.cgas_field.molecular_weights[None,0:-1]
+    sources = main.cgas_field.net_production_rates[:,:]*main.cgas_field.molecular_weights[None,:]
     #main.source_hook(main,force)
 #    for i in range(0,main.nvars):
 #      force[i] = main.source_mag[i]#*main.a.u[i]
     for i in range(5,main.nvars):
       force[i] = np.reshape(sources[:,i-5],np.shape(main.a.u[0]))
+      force[4] -= force[i]*main.delta_h0[i-5]
+    force[4] -= main.delta_h0[-1]*np.reshape(sources[:,-1],np.shape(main.a.u[0]))
     tmp += main.basis.volIntegrateGlob(main, force ,main.w0,main.w1,main.w2,main.w3)*scale[None,:,:,:,:,None,None,None,None]
   main.RHS = tmp
   main.comm.Barrier()
@@ -223,6 +225,8 @@ def getRHS(main,MZ,eqns,args=[],args_phys=[]):
 #      force[i] = main.source_mag[i]#*main.a.u[i]
     for i in range(5,main.nvars):
       force[i] = np.reshape(sources[:,i-5],np.shape(main.a.u[0]))
+      force[4] -= force[i]*main.delta_h0[i-5]
+    force[4] -= main.delta_h0[-1]*np.reshape(sources[:,-1],np.shape(main.a.u[0]))
     tmp += main.basis.volIntegrateGlob(main, force ,main.w0,main.w1,main.w2,main.w3)*scale[None,:,:,:,:,None,None,None,None]
 
   main.RHS = tmp

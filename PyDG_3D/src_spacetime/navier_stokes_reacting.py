@@ -8,7 +8,7 @@ def evalFluxXEuler_reacting(main,u,f,args):
   #f = np.zeros(np.shape(u))
   es = 1.e-30
   gamma = 1.4
-  #p = (gamma - 1.)*(u[4] - 0.5*u[1]**2/u[0] - 0.5*u[2]**2/u[0] - 0.5*u[3]**2/u[0])
+  #p = (main.a.gamma_star - 1.)*(u[4] - 0.5*u[1]**2/u[0] - 0.5*u[2]**2/u[0] - 0.5*u[3]**2/u[0])
   #p,T = computePressure_and_Temperature_Cantera(main,u,main.cgas_field)
   p = main.a.p
   f[0] = u[1]
@@ -24,7 +24,7 @@ def evalFluxXEuler_reacting(main,u,f,args):
 def evalFluxYEuler_reacting(main,u,f,args):
   #f = np.zeros(np.shape(u))
   gamma = 1.4
-#  p = (gamma - 1.)*(u[4] - 0.5*u[1]**2/u[0] - 0.5*u[2]**2/u[0] - 0.5*u[3]**2/u[0])
+  #p = (main.a.gamma_star - 1.)*(u[4] - 0.5*u[1]**2/u[0] - 0.5*u[2]**2/u[0] - 0.5*u[3]**2/u[0])
 #  p,T = computePressure_and_Temperature_Cantera(main,u,main.cgas_field)
   p = main.a.p
   f[0] = u[2]
@@ -42,7 +42,7 @@ def evalFluxYEuler_reacting(main,u,f,args):
 def evalFluxZEuler_reacting(main,u,f,args):
   #f = np.zeros(np.shape(u))
   gamma = 1.4
-  #p = (gamma - 1.)*(u[4] - 0.5*u[1]**2/u[0] - 0.5*u[2]**2/u[0] - 0.5*u[3]**2/u[0])
+  #p = (main.a.gamma_star - 1.)*(u[4] - 0.5*u[1]**2/u[0] - 0.5*u[2]**2/u[0] - 0.5*u[3]**2/u[0])
 #  p,T = computePressure_and_Temperature_Cantera(main,u,main.cgas_field)
   p = main.a.p
   f[0] = u[3]
@@ -249,126 +249,302 @@ def rusanovFlux_reacting(main,UL,UR,pL,pR,n,args=None):
   return F
                
 
-def HLLEClux_reacting(main,UL,UR,pL,pR,n,args=None):
-# PURPOSE: This function calculates the flux for the Euler equations
-# using the Roe flux function
-#
-# INPUTS:
-#    UL: conservative state vector in left cell
-#    UR: conservative state vector in right cell
-#    n: normal pointing from the left cell to the right cell
-#
-# OUTPUTS:
-#  F   : the flux out of the left cell (into the right cell)
-#  smag: the maximum propagation speed of disturbance
-#
+def HLLCFlux_reacting(main,UL,UR,pL,pR,n,args=None):
+# Calculates HLLC for variable species navier-stokes equations
+# implementation based on paper:
+#   Discontinuous Galerkin method for multicomponent chemically reacting flows and combustion
+#   Journal of Computational Physics 270 (2014) 105-137
+  #process left state
+  rhoL = UL[0]
+  uL = UL[1]/rhoL
+  vL = UL[2]/rhoL
+  wL = UL[3]/rhoL
+  rHL = UL[4] + pL
+  HL = rHL/rhoL
+  unL = uL*n[0] + vL*n[1] + wL*n[2]
+  # process right state
+  rhoR = UR[0]
+  uR = UR[1]/rhoR
+  vR = UR[2]/rhoR
+  wR = UR[3]/rhoR
+  rHR = UR[4] + pR
+  HR = rHR/rhoR
+  unR = uR*n[0] + vR*n[1] + wR*n[2]
+  # compute speed of sounds 
+  R = 8314.4621/1000.
+  Y_N2_R = 1. - np.sum(UR[5::]/UR[None,0],axis=0)
+  WinvR =  np.einsum('i...,ijk...->jk...',1./main.W[0:-1],UR[5::]/UR[None,0]) + 1./main.W[-1]*Y_N2_R
+  CpR = np.einsum('i...,ijk...->jk...',main.Cp[0:-1],UR[5::]/UR[None,0]) + main.Cp[-1]*Y_N2_R
+  CvR = CpR - R*WinvR
+  gammaR = CpR/CvR
+  cR = np.sqrt(gammaR*pR/UR[0])
+
+  Y_N2_L = 1. - np.sum(UL[5::]/UL[None,0],axis=0)
+  WinvL =  np.einsum('i...,ijk...->jk...',1./main.W[0:-1],UL[5::]/UL[None,0]) + 1./main.W[-1]*Y_N2_L
+  CpL = np.einsum('i...,ijk...->jk...',main.Cp[0:-1],UL[5::]/UL[None,0]) + main.Cp[-1]*Y_N2_L
+  CvL = CpL - R*WinvL
+  gammaL = CpL/CvL
+
+  cL = np.sqrt(gammaL*pL/UL[0])
+
+  # make computations for HLLC
   rho_bar = 0.5*(UL[0] + UR[0])
   c_bar = 0.5*(cL + cR)
-  unL = uL*n[0] + vL*n[1] + wL*n[2]
-  unR = uR*n[0] + vR*n[1] + wR*n[2]
 
   p_pvrs = 0.5*(pL + pR) - 0.5*(unR - unL)*rho_bar*c_bar
   p_star = np.fmax(0,p_pvrs)
 
   qkR = np.ones(np.shape(pR))
-  qkR[p_star > pR] = ((1. + (gamma_star + 1.)/(2.*gamma_star) * (p_star/pR - 1.))[p_star > pR])**0.5 
+  #qkR[p_star > pR] = ((1. + (gamma_star + 1.)/(2.*gamma_star) * (p_star/pR - 1.))[p_star > pR])**0.5 
+  qkR[p_star > pR] = ((1. + (gammaR + 1.)/(2.*gammaR) * (p_star/pR - 1.))[p_star > pR])**0.5 
   qkL = np.ones(np.shape(pL))
-  qkL[p_star > pL] = ((1. + (gamma_star + 1.)/(2.*gamma_star) * (p_star/pL - 1.))[p_star > pL])**0.5 
+  #qkL[p_star > pL] = ((1. + (gamma_star + 1.)/(2.*gamma_star) * (p_star/pL - 1.))[p_star > pL])**0.5 
+  qkL[p_star > pL] = ((1. + (gammaL + 1.)/(2.*gammaL) * (p_star/pL - 1.))[p_star > pL])**0.5 
 
-  SL = unL - cL*qL
-  SR = unR + cR*qR
+  SL = unL - cL*qkL
+  SR = unR + cR*qkR
   S_star = ( pR - pL + rhoL*unL*(SL - unL) - rhoR*unR*(SR - unR) ) / ( rhoL*(SL - unL) - rhoR*(SR - unR) ) 
-  gamma = 1.4
-  gmi = gamma-1.0
-  #process left state
-  rL = UL[0]
-  uL = UL[1]/rL
-  vL = UL[2]/rL
-  wL = UL[3]/rL
+  # Compute UStar state for HLLC
+  #left state
+  srat = (SL - unL)/(SL - S_star)
+  UstarL = np.zeros(np.shape(UL))
+  UstarL[0] = srat*( UL[0] )
+  UstarL[1] = srat*( UL[1] + rhoL*(S_star - unL)*n[0] )
+  UstarL[2] = srat*( UL[2] + rhoL*(S_star - unL)*n[1] )
+  UstarL[3] = srat*( UL[3] + rhoL*(S_star - unL)*n[2] )
+  UstarL[4] = srat*( UL[4] + (S_star - unL)*(rhoL*S_star + pL/(SL - unL) ) )
+  UstarL[5::] = srat[None,:]*( UL[5::] ) 
+  #right state
+  srat[:] = (SR - unR)/(SR - S_star)
+  UstarR = np.zeros(np.shape(UR))
+  UstarR[0] = srat*( UR[0] )
+  UstarR[1] = srat*( UR[1] + rhoR*(S_star - unR)*n[0] )
+  UstarR[2] = srat*( UR[2] + rhoR*(S_star - unR)*n[1] )
+  UstarR[3] = srat*( UR[3] + rhoR*(S_star - unR)*n[2] )
+  UstarR[4] = srat*( UR[4] + (S_star - unR)*(rhoR*S_star + pR/(SR - unR) ) )
+  UstarR[5::] = srat[None,:]*( UR[5::] )
 
-  unL = uL*n[0] + vL*n[1] + wL*n[2]
-
-  qL = np.sqrt(UL[1]*UL[1] + UL[2]*UL[2] + UL[3]*UL[3])/rL
-  #pL = (gamma-1)*(UL[4] - 0.5*rL*qL**2.)
-  #pL,TL = computePressure_and_Temperature_Cantera(main,UL,cgas_field)
-  #pL,TL = computePressure_and_Temperature(main,UL)
-
-  rHL = UL[4] + pL
-  HL = rHL/rL
-  cL = np.sqrt(gamma*pL/rL)
   # left flux
   FL = np.zeros(np.shape(UL))
-  FL[0] = rL*unL
+  FL[0] = rhoL*unL
   FL[1] = UL[1]*unL + pL*n[0]
   FL[2] = UL[2]*unL + pL*n[1]
   FL[3] = UL[3]*unL + pL*n[2]
   FL[4] = rHL*unL
-
-  # process right state
-  rR = UR[0]
-  uR = UR[1]/rR
-  vR = UR[2]/rR
-  wR = UR[3]/rR
-  unR = uR*n[0] + vR*n[1] + wR*n[2]
-  qR = np.sqrt(UR[1]*UR[1] + UR[2]*UR[2] + UR[3]*UR[3])/rR
-  #pR = (gamma-1)*(UR[4] - 0.5*rR*qR**2.)
-  #pR,TR = computePressure_and_Temperature_Cantera(main,UR,cgas_field)
-  #pR,TR = computePressure_and_Temperature(main,UR)
-
-  rHR = UR[4] + pR
-  HR = rHR/rR
-  cR = np.sqrt(gamma*pR/rR)
+  FL[5::] = UL[5::]*unL[None,:]
   # right flux
   FR = np.zeros(np.shape(UR))
-  FR[0] = rR*unR
+  FR[0] = rhoR*unR
   FR[1] = UR[1]*unR + pR*n[0]
   FR[2] = UR[2]*unR + pR*n[1]
   FR[3] = UR[3]*unR + pR*n[2]
   FR[4] = rHR*unR
-  FL[5::] = UL[5::]*unL[None,:]
   FR[5::] = UR[5::]*unR[None,:]
 
-  #% eigenvalues
-  Y_N2_R = 1. - np.sum(UR[5::]/UR[None,0],axis=0)
-  gammaR = np.einsum('i...,ijk...->jk...',main.gamma[0:-1],UR[5::]/UR[None,0]) + main.gamma[-1]*Y_N2_R
-  cR = np.sqrt(gammaR*pR/UR[0])
-
-  Y_N2_L = 1. - np.sum(UL[5::]/UL[None,0],axis=0)
-  gammaL = np.einsum('i...,ijk...->jk...',main.gamma[0:-1],UL[5::]/UL[None,0]) + main.gamma[-1]*Y_N2_L
-  cL = np.sqrt(gammaR*pR/UR[0])
-  #print(np.mean(cR),np.mean(cL))
-  sL_min = np.fmin(0,unL - cL)
-  sR_min = np.fmin(0,unR - cR)
-  sL_max = np.fmax(0,unL + cL)
-  sR_max = np.fmax(0,unR + cR)
-  smin = np.fmin(sL_min,sR_min)
-  smax = np.fmax(sL_max,sR_max)
-  term1 = 0.5*(smax + smin)/(smax - smin)
-  term2 = (smax*smin)/(smax - smin)
-  #print(np.mean(smax)*main.dt*main.order[0]/main.dx/main.order[-1])
-  #print((gammaL))#,np.amax(gammaL))
-  # flux assembly
-  F = np.zeros(np.shape(FL))  # for allocation
-  F[0]    = 0.5*(FL[0]+FR[0])-term1*(FR[0] - FL[0]) + term2*(UR[0] - UL[0])
-  #Ystar = np.zeros(np.shape(F[5::]))
-  #Ystar[:,F[0]<0] = UR[5::,F[0]<0]/UR[None,0,F[0]<0]
-  #Ystar[:,F[0]>0] = UL[5::,F[0]>0]/UL[None,0,F[0]>0]
-  F[1]    = 0.5*(FL[1]+FR[1])-term1*(FR[1] - FL[1]) + term2*(UR[1] - UL[1])
-  F[2]    = 0.5*(FL[2]+FR[2])-term1*(FR[2] - FL[2]) + term2*(UR[2] - UL[2])
-  F[3]    = 0.5*(FL[3]+FR[3])-term1*(FR[3] - FL[3]) + term2*(UR[3] - UL[3])
-  F[4]    = 0.5*(FL[4]+FR[4])-term1*(FR[4] - FL[4]) + term2*(UR[4] - UL[4])
-  F[5::]    = 0.5*(FL[5::]+FR[5::])-term1[None,:]*(FR[5::] - FL[5::]) + term2[None,:]*(UR[5::] - UL[5::])
-  #F[5::]    = F[None,0]*Ystar[:] 
-
-#  F[5::]    = 0.5*(FL[5::] + FR[5::]) - 0.5*main.dt/main.dx*(UR[5::] - UL[5::])*10000.
-
-#  for i in range(0,np.shape(UL)[0]-5):
-#    FL[5+i] = UL[5+i]*unL
-#    FR[5+i] = UR[5+i]*unR
-#    F[5+i]    = 0.5*(FL[5+i] + FR[5+i]) - 0.5*smax*(UR[5+i] - UL[5+i])
-#  print(np.linalg.norm(F))
+  # Assemble final HLLC Flux
+  indx0 = 0<SL
+  indx1 = (SL <= 0) & (0 < S_star)
+  indx2 = (S_star <= 0) & (0 < SR)
+  indx3 = SR <= 0
+  F = np.zeros(np.shape(UR))
+  F[:,indx0] = FL[:,indx0]
+  F[:,indx1] = (FL + SL[None,:]*(UstarL - UL) )[:,indx1]
+  F[:,indx2] = (FR + SR[None,:]*(UstarR - UR) )[:,indx2]
+  F[:,indx3] = FR[:,indx3]
   return F
 
+def HLLCFlux_reacting_doubleflux_minus(main,UL,UR,pL,pR,gammaL,gammR,n,args=None):
+# Calculates HLLC for variable species navier-stokes equations
+# implementation based on paper:
+#   Discontinuous Galerkin method for multicomponent chemically reacting flows and combustion
+#   Journal of Computational Physics 270 (2014) 105-137
+  #process left state
+  rhoL = UL[0]
+  uL = UL[1]/rhoL
+  vL = UL[2]/rhoL
+  wL = UL[3]/rhoL
+  q2L = uL**2 + vL**2 + wL**2
+  hL = gammaL/rhoL*(UL[4] - 0.5*uL[0]*q2L)
+  pL = rhoL*hL*(gammaL - 1.)/gammaL
+  cL = np.sqrt((gammmaL - 1.)*hL)
+  rHL = UL[4] + pL
+  unL = uL*n[0] + vL*n[1] + wL*n[2]
+  # process right state
+  rhoR = UR[0]
+  uR = UR[1]/rhoR
+  vR = UR[2]/rhoR
+  wR = UR[3]/rhoR
+  q2R = uR**2 + vR**2 + wR**2
+  hR = gammaL/rhoR*(UR[4] - 0.5*uR[0]*q2R)*(gammaR - 1.)/(gammaL - 1.) 
+  pR = rhoR*hR*(gammaL - 1.)/gammaL
+  cR = np.sqrt((gammmaL - 1.)*hR)
+  rHR = UR[4] + pR
+  unR = uR*n[0] + vR*n[1] + wR*n[2]
+
+  # make computations for HLLC
+  SL = np.fmin(uL - cL , uR - cR)
+  SR = np.fmax(uL + cL , uR + cR)
+
+  S_star = ( pR - pL + rhoL*unL*(SL - unL) - rhoR*unR*(SR - unR) ) / ( rhoL*(SL - unL) - rhoR*(SR - unR) ) 
+
+  rho_bar = 0.5*(UL[0] + UR[0])
+  c_bar = 0.5*(cL + cR)
+
+  p_pvrs = 0.5*(pL + pR) - 0.5*(unR - unL)*rho_bar*c_bar
+  p_star = np.fmax(0,p_pvrs)
+
+  qkR = np.ones(np.shape(pR))
+  #qkR[p_star > pR] = ((1. + (gamma_star + 1.)/(2.*gamma_star) * (p_star/pR - 1.))[p_star > pR])**0.5 
+  qkR[p_star > pR] = ((1. + (gamma_star + 1.)/(2.*gamma_star) * (p_star/pR - 1.))[p_star > pR])**0.5 
+  qkL = np.ones(np.shape(pL))
+  #qkL[p_star > pL] = ((1. + (gamma_star + 1.)/(2.*gamma_star) * (p_star/pL - 1.))[p_star > pL])**0.5 
+  qkL[p_star > pL] = ((1. + (gamma_star + 1.)/(2.*gamma_star) * (p_star/pL - 1.))[p_star > pL])**0.5 
+
+  SL = unL - cL*qkL
+  SR = unR + cR*qkR
+  # Compute UStar state for HLLC
+  #left state
+  srat = (SL - unL)/(SL - S_star)
+  UstarL = np.zeros(np.shape(UL))
+  UstarL[0] = srat*( UL[0] )
+  UstarL[1] = srat*( UL[1] + rhoL*(S_star - unL)*n[0] )
+  UstarL[2] = srat*( UL[2] + rhoL*(S_star - unL)*n[1] )
+  UstarL[3] = srat*( UL[3] + rhoL*(S_star - unL)*n[2] )
+  UstarL[4] = srat*( UL[4] + (S_star - unL)*(rhoL*S_star + pL/(SL - unL) ) )
+  UstarL[5::] = srat[None,:]*( UL[5::] ) 
+  #right state
+  srat[:] = (SR - unR)/(SR - S_star)
+  UstarR = np.zeros(np.shape(UR))
+  UstarR[0] = srat*( UR[0] )
+  UstarR[1] = srat*( UR[1] + rhoR*(S_star - unR)*n[0] )
+  UstarR[2] = srat*( UR[2] + rhoR*(S_star - unR)*n[1] )
+  UstarR[3] = srat*( UR[3] + rhoR*(S_star - unR)*n[2] )
+  UstarR[4] = srat*( UR[4] + (S_star - unR)*(rhoR*S_star + pR/(SR - unR) ) )
+  UstarR[5::] = srat[None,:]*( UR[5::] )
+
+  # left flux
+  FL = np.zeros(np.shape(UL))
+  FL[0] = rhoL*unL
+  FL[1] = UL[1]*unL + pL*n[0]
+  FL[2] = UL[2]*unL + pL*n[1]
+  FL[3] = UL[3]*unL + pL*n[2]
+  FL[4] = rHL*unL
+  FL[5::] = UL[5::]*unL[None,:]
+  # right flux
+  FR = np.zeros(np.shape(UR))
+  FR[0] = rhoR*unR
+  FR[1] = UR[1]*unR + pR*n[0]
+  FR[2] = UR[2]*unR + pR*n[1]
+  FR[3] = UR[3]*unR + pR*n[2]
+  FR[4] = rHR*unR
+  FR[5::] = UR[5::]*unR[None,:]
+
+  # Assemble final HLLC Flux
+  indx0 = 0<SL
+  indx1 = (SL <= 0) & (0 < S_star)
+  indx2 = (S_star <= 0) & (0 < SR)
+  indx3 = SR <= 0
+  F = np.zeros(np.shape(UR))
+  F[:,indx0] = FL[:,indx0]
+  F[:,indx1] = (FL + SL[None,:]*(UstarL - UL) )[:,indx1]
+  F[:,indx2] = (FR + SR[None,:]*(UstarR - UR) )[:,indx2]
+  F[:,indx3] = FR[:,indx3]
+  return F
+
+
+def HLLCFlux_reacting_doubleflux(main,UL,UR,pL,pR,rh0,gamma_star,n,args=None):
+# Calculates HLLC for variable species navier-stokes equations
+# implementation based on paper:
+#   Discontinuous Galerkin method for multicomponent chemically reacting flows and combustion
+#   Journal of Computational Physics 270 (2014) 105-137
+  #process left state
+  rhoL = UL[0]
+  uL = UL[1]/rhoL
+  vL = UL[2]/rhoL
+  wL = UL[3]/rhoL
+  q2L = uL**2 + vL**2 + wL**2
+  pL = (gamma_star - 1.)*(UL[4] - 0.5*q2L*uL[0])
+  rHL = UL[4] + pL
+  unL = uL*n[0] + vL*n[1] + wL*n[2]
+  # process right state
+  rhoR = UR[0]
+  uR = UR[1]/rhoR
+  vR = UR[2]/rhoR
+  wR = UR[3]/rhoR
+  q2R = uR**2 + vR**2 + wR**2
+  pR = (gamma_star - 1.)*(UR[4] - 0.5*q2R*uR[0])
+  #print(np.mean(pR),np.mean(p2R),n)
+  rHR = UR[4] + pR
+  unR = uR*n[0] + vR*n[1] + wR*n[2]
+  # compute speed of sounds 
+  cR = np.sqrt(gamma_star*pR/UR[0])
+  cL = np.sqrt(gamma_star*pL/UL[0])
+
+  # make computations for HLLC
+  rho_bar = 0.5*(UL[0] + UR[0])
+  c_bar = 0.5*(cL + cR)
+
+  p_pvrs = 0.5*(pL + pR) - 0.5*(unR - unL)*rho_bar*c_bar
+  p_star = np.fmax(0,p_pvrs)
+
+  qkR = np.ones(np.shape(pR))
+  #qkR[p_star > pR] = ((1. + (gamma_star + 1.)/(2.*gamma_star) * (p_star/pR - 1.))[p_star > pR])**0.5 
+  qkR[p_star > pR] = ((1. + (gamma_star + 1.)/(2.*gamma_star) * (p_star/pR - 1.))[p_star > pR])**0.5 
+  qkL = np.ones(np.shape(pL))
+  #qkL[p_star > pL] = ((1. + (gamma_star + 1.)/(2.*gamma_star) * (p_star/pL - 1.))[p_star > pL])**0.5 
+  qkL[p_star > pL] = ((1. + (gamma_star + 1.)/(2.*gamma_star) * (p_star/pL - 1.))[p_star > pL])**0.5 
+
+  SL = unL - cL*qkL
+  SR = unR + cR*qkR
+  S_star = ( pR - pL + rhoL*unL*(SL - unL) - rhoR*unR*(SR - unR) ) / ( rhoL*(SL - unL) - rhoR*(SR - unR) ) 
+  # Compute UStar state for HLLC
+  #left state
+  srat = (SL - unL)/(SL - S_star)
+  UstarL = np.zeros(np.shape(UL))
+  UstarL[0] = srat*( UL[0] )
+  UstarL[1] = srat*( UL[1] + rhoL*(S_star - unL)*n[0] )
+  UstarL[2] = srat*( UL[2] + rhoL*(S_star - unL)*n[1] )
+  UstarL[3] = srat*( UL[3] + rhoL*(S_star - unL)*n[2] )
+  UstarL[4] = srat*( UL[4] + (S_star - unL)*(rhoL*S_star + rhoL/(SL - unL) ) )
+  UstarL[5::] = srat[None,:]*( UL[5::] ) 
+  #right state
+  srat[:] = (SR - unR)/(SR - S_star)
+  UstarR = np.zeros(np.shape(UR))
+  UstarR[0] = srat*( UR[0] )
+  UstarR[1] = srat*( UR[1] + rhoR*(S_star - unR)*n[0] )
+  UstarR[2] = srat*( UR[2] + rhoR*(S_star - unR)*n[1] )
+  UstarR[3] = srat*( UR[3] + rhoR*(S_star - unR)*n[2] )
+  UstarR[4] = srat*( UR[4] + (S_star - unR)*(rhoR*S_star + rhoR/(SR - unR) ) )
+  UstarR[5::] = srat[None,:]*( UR[5::] )
+
+  # left flux
+  FL = np.zeros(np.shape(UL))
+  FL[0] = rhoL*unL
+  FL[1] = UL[1]*unL + pL*n[0]
+  FL[2] = UL[2]*unL + pL*n[1]
+  FL[3] = UL[3]*unL + pL*n[2]
+  FL[4] = rHL*unL
+  FL[5::] = UL[5::]*unL[None,:]
+  # right flux
+  FR = np.zeros(np.shape(UR))
+  FR[0] = rhoR*unR
+  FR[1] = UR[1]*unR + pR*n[0]
+  FR[2] = UR[2]*unR + pR*n[1]
+  FR[3] = UR[3]*unR + pR*n[2]
+  FR[4] = rHR*unR
+  FR[5::] = UR[5::]*unR[None,:]
+
+  # Assemble final HLLC Flux
+  indx0 = 0<SL
+  indx1 = (SL <= 0) & (0 < S_star)
+  indx2 = (S_star <= 0) & (0 < SR)
+  indx3 = SR <= 0
+  F = np.zeros(np.shape(UR))
+  F[:,indx0] = FL[:,indx0]
+  F[:,indx1] = (FL + SL[None,:]*(UstarL - UL) )[:,indx1]
+  F[:,indx2] = (FR + SR[None,:]*(UstarR - UR) )[:,indx2]
+  F[:,indx3] = FR[:,indx3]
+  return F
 
 
 def HLLEFlux_reacting(main,UL,UR,pL,pR,n,args=None):

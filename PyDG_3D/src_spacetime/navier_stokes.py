@@ -109,7 +109,7 @@ def evalFluxZEulerLin(main,U0,f,args):
 #== rusanov flux
 #== Roe flux
 
-def eulerCentralFlux(main,UL,UR,cgas,n,args=None):
+def eulerCentralFlux(main,UL,UR,pL,pR,n,args=None):
 # PURPOSE: This function calculates the flux for the Euler equations
 # using the Roe flux function
 #
@@ -172,7 +172,7 @@ def eulerCentralFlux(main,UL,UR,cgas,n,args=None):
   return F
 
 
-def eulerCentralFluxLinearized(main,U0L,U0R,cgas,n,args):
+def eulerCentralFluxLinearized(main,U0L,U0R,pL,pR,n,args):
   gamma = 1.4
   upL = args[0]
   upR = args[1]
@@ -222,7 +222,7 @@ def eulerCentralFluxLinearized(main,U0L,U0R,cgas,n,args):
   return F
 
 
-def rusanovFlux(main,UL,UR,cgas,n,args=None):
+def rusanovFlux(main,UL,UR,pL,pR,n,args=None):
 # PURPOSE: This function calculates the flux for the Euler equations
 # using the Roe flux function
 #
@@ -317,7 +317,7 @@ def rusanovFlux(main,UL,UR,cgas,n,args=None):
                
   
 
-def kfid_roeflux(main,UL,UR,cgas,n,args=None):
+def kfid_roeflux(main,UL,UR,pL,pR,n,args=None):
 # PURPOSE: This function calculates the flux for the Euler equations
 # using the Roe flux function
 #

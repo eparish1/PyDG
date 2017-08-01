@@ -228,7 +228,7 @@ while (main.t <= main.et + main.dt/2):
 
   timescheme.advanceSol(main,mainEnriched,eqns,timescheme.args)
   tsave = np.append(tsave,main.t)
-  Tsave = np.append(Tsave,np.amax(main.cgas_field.T))
+  Tsave = np.append(Tsave,np.amax(main.a.T))
   #advanceSolImplicit_MG(main,main,eqns)
 reconstructU(main,main.a)
 uG = gatherSolSlab(main,eqns,main.a)

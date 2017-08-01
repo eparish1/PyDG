@@ -144,7 +144,129 @@ def limiter_MF(main):
    main.a.a[:] = main.basis.volIntegrateGlob(main,main.a.u,main.w0,main.w1,main.w2,main.w3)*scale[None,:,:,:,:,None,None,None,None]
 
 
+def limiter_characteristic(main):
+  gamma = 1.4
+  atmp = np.zeros(np.shape(main.a.a))
+  atmp[:,0,0,0] = main.a.a[:,0,0,0]
+  #atmp[:] = main.a.a[:] 
+  main.basis.reconstructU(main,main.a)
+  U = main.basis.reconstructUGeneral(main,atmp)
+  p = (gamma - 1.)*(U[4] - 0.5*U[1]**2/U[0] - 0.5*U[2]**2/U[0] - 0.5*U[3]**2/U[0])
+  c = np.sqrt(gamma*p/U[0])
+  u = U[1] / U[0]
+  v = U[2] / U[0]
+  w = U[3] / U[0]
+  nx = 1.
+  ny = 0.
+  nz = 0.
+  mx = 1.
+  my = 0.
+  mz = 0.
+  lx = 1.
+  ly = 0.
+  lz = 0.
+  K = gamma - 1. 
+  ql = u*1.
+  qm = u*1.
+  qn = u*1.
 
+  sizeu = np.shape(main.a.u)[0]
+  sizeu = np.append(sizeu,np.shape(main.a.u))
+  L = np.zeros(sizeu)
+  R = np.zeros(sizeu)
+
+  q = np.sqrt(u**2 + v**2 + w**2)
+  L[0,0] = K*q**2/(4.*c**2) + qn/(2.*c)
+  L[0,1] = -(K/(2.*c**2)*u + nx/(2.*c))
+  L[0,2] = -(K/(2.*c**2)*v + ny/(2.*c))
+  L[0,3] = -(K/(2.*c**2)*w + nz/(2.*c))
+  L[0,4] = K/(2.*c**2)
+  L[1,0] = 1. - K*q**2/(2.*c**2)
+  L[1,1] = K*u/c**2
+  L[1,2] = K*v/c**2
+  L[1,3] = K*w/c**2
+  L[1,4] = -K/c**2
+  L[2,0] = K*q**2/(4.*c**2) - qn/(2.*c)
+  L[2,1] = -(K/(2.*c**2)*u - nx/(2.*c) )
+  L[2,2] = -(K/(2.*c**2)*v - ny/(2.*c) )
+  L[2,3] = -(K/(2.*c**2)*w - nz/(2.*c) )
+  L[2,4] = K/(2.*c**2)
+  L[3,0] = -ql
+  L[3,1] = lx
+  L[3,2] = ly
+  L[3,3] = lz
+  L[4,0] = -qm
+  L[4,1] = mx
+  L[4,2] = my
+  L[4,3] = mz
+
+  # compute H in three steps (H = E + p/rho)
+  H = (gamma - 1.)*(U[4] - 0.5*U[0]*q**2) #compute pressure
+  H += U[4]
+  H /= U[0]
+
+  R[0,0] = 1.
+  R[0,1] = 1.
+  R[0,2] = 1.
+  R[1,0] = u - c*nx
+  R[1,1] = u
+  R[1,2] = u + c*nx
+  R[1,3] = lx
+  R[1,4] = mx
+  R[2,0] = v - c*ny
+  R[2,1] = v
+  R[2,2] = v + c*ny
+  R[2,3] = ly
+  R[2,4] = my
+  R[3,0] = w - c*nz
+  R[3,1] = w
+  R[3,2] = w + c*nz
+  R[3,3] = lz
+  R[3,4] = mz
+  R[4,0] = H - qn*c 
+  R[4,1] = q**2/2.
+  R[4,2] = H + qn*c
+  R[4,3] = ql
+  R[4,4] = qm
+
+
+  w = np.einsum('ij...,j...->i...',L,main.a.u)
+  ord_arrx= np.linspace(0,main.order[0]-1,main.order[0])
+  ord_arry= np.linspace(0,main.order[1]-1,main.order[1])
+  ord_arrz= np.linspace(0,main.order[2]-1,main.order[2])
+  ord_arrt= np.linspace(0,main.order[3]-1,main.order[3])
+  scale =  (2.*ord_arrx[:,None,None,None] + 1.)*(2.*ord_arry[None,:,None,None] + 1.)*(2.*ord_arrz[None,None,:,None] + 1.)*(2.*ord_arrt[None,None,None,:] + 1.)/16.
+  Cw = main.basis.volIntegrateGlob(main,w,main.w0,main.w1,main.w2,main.w3)*scale[None,:,:,:,:,None,None,None,None]
+  Cwf = np.zeros(np.shape(main.a.a))
+  Cwf[:] = Cw[:]
+  dcR = np.zeros(np.shape(main.a.a))
+  dcL = np.zeros(np.shape(main.a.a))
+  dcR[:,:,:,:,:,0:-1] = Cw[:,:,:,:,:,1::] - Cw[:,:,:,:,:,0:-1]   
+  dcR[:,:,:,:,:,-1] =   dcR[:,:,:,:,:,-2]
+  dcL[:,:,:,:,:,1::] = dcR[:,:,:,:,:,0:-1]
+  dcL[:,:,:,:,:,0] = dcL[:,:,:,:,:,1]
+
+  ## perform filtering
+  pindx = np.shape(main.a.a)[1] - 1
+  Cwf0 = np.zeros(np.shape(main.a.a))
+  check = 0
+  indx_eq = np.zeros(np.shape(main.a.a[:,0]),dtype=bool)
+  while (pindx >= 1 and check == 0):
+    Cwf0[:] = Cwf[:]
+    indx = (sign(Cwf0[:,pindx])==sign(dcR[:,pindx-1])) & (sign(dcR[:,pindx-1])==sign(dcL[:,pindx-1] ))
+    #print(np.size(Cw[:,-1][indx]),pindx) 
+    w_limit = np.zeros(np.shape(main.a.u) )
+    alpha = 1.#2./(main.dx*main.order[0])
+    Cwf[:,pindx] = 0.
+    Cwf[:,pindx][indx] = np.sign(Cwf0[:,pindx][indx])*np.fmin( np.abs(Cwf0[:,pindx][indx]), np.fmin(np.abs(alpha*dcR[:,pindx-1][indx]),np.abs(alpha*dcL[:,pindx-1][indx]) ))
+    #print(np.size(Cwf[indx_eq]),pindx)
+    Cwf[:,pindx][indx_eq] = Cwf0[:,pindx][indx_eq]
+    indx_eq = np.isclose(Cwf[:,pindx],Cwf0[:,pindx],rtol=1e-7,atol = 1e-11)
+    pindx -= 1
+  w = main.basis.reconstructUGeneral(main,Cwf)
+  u2 = np.einsum('ij...,j...->i...',R,w)
+  main.a.a[:] = main.basis.volIntegrateGlob(main,u2,main.w0,main.w1,main.w2,main.w3)*scale[None,:,:,:,:,None,None,None,None]
+ 
 def limiter(main):
 #   main.basis.reconstructU(main,main.a)
 #   u0 = main.a.u*1.
@@ -153,28 +275,101 @@ def limiter(main):
    a_f[:,-1] = 0.
    dcR = np.zeros(np.shape(main.a.a))
    dcL = np.zeros(np.shape(main.a.a))
-
    dcR[:,:,:,:,:,0:-1] = main.a.a[:,:,:,:,:,1::] - main.a.a[:,:,:,:,:,0:-1]   
    dcR[:,:,:,:,:,-1] =   dcR[:,:,:,:,:,-2]
    dcL[:,:,:,:,:,1::] = dcR[:,:,:,:,:,0:-1]
    dcL[:,:,:,:,:,0] = dcL[:,:,:,:,:,1]
-   indx = ((sign(main.a.a[:,-1])==sign(dcR[:,-2]))==sign(dcL[:,-2]))
+   indx = (sign(main.a.a[:,-1])==sign(alpha*dcR[:,-2])) & (sign(alpha*dcR[:,-2])==sign(alpha*dcL[:,-2] ))
    u_limit = np.zeros(np.shape(main.a.u) )
    alpha = 1.#2./(main.dx*main.order[0])
    a_f[:,-1][indx] = np.sign(main.a.a[:,-1][indx])*np.fmin( np.abs(main.a.a[:,-1][indx]),np.abs(alpha*dcR[:,-2][indx]),np.abs(alpha*dcL[:,-2][indx]) )
-#   main.a.a[:] = a_f[:]
+   main.a.a[:] = a_f[:]
+
 #   main.basis.reconstructU(main,main.a)
 #   u1 = main.a.u*1.
-  
+ 
+def SSP_RK3(main,MZ,eqns,args=None):
+  main.getRHS(main,MZ,eqns)  ## put RHS in a array since we don't need it
+  a0 = np.zeros(np.shape(main.a.a))
+  a0[:] = main.a.a[:]
+  a1 = main.a.a[:]  + main.dt*(main.RHS[:])
+  main.a.a[:] = a1[:]
+  #limiter_characteristic(main)
+  main.getRHS(main,MZ,eqns)
+  a1[:] = 3./4.*a0 + 1./4.*(a1 + main.dt*main.RHS[:]) #reuse a1 vector
+  main.a.a[:] = a1[:]
+  #limiter_characteristic(main)
+  main.getRHS(main,MZ,eqns)  ## put RHS in a array since we don't need it
+  main.a.a[:] = 1./3.*a0 + 2./3.*(a1[:] + main.dt*main.RHS[:])
+  main.t += main.dt
+  main.iteration += 1
+#  plot(main.a.p[0,0,0,0,:,0,0,0]/1000.,color='green')
+#  ylim([99.95,100.05]) 
+#  pause(0.001)
+
+  #limiter_characteristic(main)
+
+def SSP_RK3_DOUBLEFLUX(main,MZ,eqns,args=None):
+  R = 8314.4621/1000.
+  main.basis.reconstructU(main,main.a)
+  ## Compute gamma_star and this is frozen
+  Y_last = 1. - np.sum(main.a.u[5::]/main.a.u[None,0],axis=0)
+  Winv =  np.einsum('i...,ijk...->jk...',1./main.W[0:-1],main.a.u[5::]/main.a.u[None,0]) + 1./main.W[-1]*Y_last
+  Cv = np.einsum('i...,ijk...->jk...',main.Cv[0:-1],main.a.u[5::]/main.a.u[0]) + main.Cv[-1]*Y_last
+  Cp = R*Winv + Cv
+  main.a.gamma_star[:] = Cp/Cv
+  # now get RHS with gamma_star managing thermo
+  main.getRHS(main,MZ,eqns)  ## put RHS in a array since we don't need it
+  a0 = np.zeros(np.shape(main.a.a))
+  a0[:] = main.a.a[:]
+  a1 = main.a.a[:]  + main.dt*(main.RHS[:])
+  main.a.a[:] = a1[:]
+  #limiter_characteristic(main)
+  main.getRHS(main,MZ,eqns)
+  a1[:] = 3./4.*a0 + 1./4.*(a1 + main.dt*main.RHS[:]) #reuse a1 vector
+  main.a.a[:] = a1[:]
+  #limiter_characteristic(main)
+  main.getRHS(main,MZ,eqns)  ## put RHS in a array since we don't need it
+  main.a.a[:] = 1./3.*a0 + 2./3.*(a1[:] + main.dt*main.RHS[:])
+
+  # now update the thermodynamic state and relax energy
+  main.basis.reconstructU(main,main.a)
+  # compute pressure from new values of u but old value of gamma_star
+  KE = 0.5*(main.a.u[1]**2 + main.a.u[2]**2 + main.a.u[3]**2)/main.a.u[0]
+  main.a.p = (main.a.gamma_star - 1.)*( main.a.u[4] - KE)
+  # now update gamma_star
+  Y_last = 1. - np.sum(main.a.u[5::]/main.a.u[None,0],axis=0)
+  Winv =  np.einsum('i...,ijk...->jk...',1./main.W[0:-1],main.a.u[5::]/main.a.u[None,0]) + 1./main.W[-1]*Y_last
+  main.a.T = main.a.p/(main.a.u[0]*R*Winv) 
+  Cv = np.einsum('i...,ijk...->jk...',main.Cv[0:-1],main.a.u[5::]/main.a.u[0]) + main.Cv[-1]*Y_last
+  Cp = R*Winv + Cv
+  main.a.gamma_star[:] = Cp/Cv
+  # now update state with new gamma_star
+  #main.a.u[4] = main.a.p/(main.a.gamma_star - 1.) + KE
+  # finally project this back to modal space
+  ord_arrx= np.linspace(0,main.order[0]-1,main.order[0])
+  ord_arry= np.linspace(0,main.order[1]-1,main.order[1])
+  ord_arrz= np.linspace(0,main.order[2]-1,main.order[2])
+  ord_arrt= np.linspace(0,main.order[3]-1,main.order[3])
+  scale =  (2.*ord_arrx[:,None,None,None] + 1.)*(2.*ord_arry[None,:,None,None] + 1.)*(2.*ord_arrz[None,None,:,None] + 1.)*(2.*ord_arrt[None,None,None,:] + 1.)/16.
+  main.a.a[:] = main.basis.volIntegrateGlob(main,main.a.u,main.w0,main.w1,main.w2,main.w3)*scale[None,:,:,:,:,None,None,None,None]
+
+
+
+  main.t += main.dt
+  main.iteration += 1
+  #limiter_characteristic(main)
+
+ 
 def ExplicitRK4(main,MZ,eqns,args=None):
   main.a0[:] = main.a.a[:]
   rk4const = np.array([1./4,1./3,1./2,1.])
-  main.basis.reconstructU(main,main.a)
-  main.a.p[:],main.a.T[:] = computePressure_and_Temperature(main,main.a.u)
-  Y_N2 = 1. - np.sum(main.a.u[5::]/main.a.u[None,0],axis=0)
-  gamma = np.einsum('i...,ijk...->jk...',main.gamma[0:-1],main.a.u[5::]/main.a.u[None,0]) + main.gamma[-1]*Y_N2
-  c = np.amax(np.sqrt(gamma*main.a.p/main.a.u[0]))
-  umax = np.sqrt( np.amax( (main.a.u[1]/main.a.u[0])**2 ) + np.amax(  (main.a.u[2]/main.a.u[0])**2 ) + np.amax( (main.a.u[3]/main.a.u[0])**2 ) )
+#  main.basis.reconstructU(main,main.a)
+#  main.a.p[:],main.a.T[:] = computePressure_and_Temperature(main,main.a.u)
+#  Y_N2 = 1. - np.sum(main.a.u[5::]/main.a.u[None,0],axis=0)
+#  gamma = np.einsum('i...,ijk...->jk...',main.gamma[0:-1],main.a.u[5::]/main.a.u[None,0]) + main.gamma[-1]*Y_N2
+#  c = np.amax(np.sqrt(gamma*main.a.p/main.a.u[0]))
+#  umax = np.sqrt( np.amax( (main.a.u[1]/main.a.u[0])**2 ) + np.amax(  (main.a.u[2]/main.a.u[0])**2 ) + np.amax( (main.a.u[3]/main.a.u[0])**2 ) )
 #  #CFL = c*dt/dx -> dt = CFL*dx/c
 #  main.dt = 0.1*main.dx/(c + umax)
 #  if (main.mpi_rank == 0):

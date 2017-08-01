@@ -93,8 +93,14 @@ class equations:
       if (iflux_str == 'HLLE'):
         self.inviscidFlux = HLLEFlux_reacting
         checki = 1
+      if (iflux_str == 'HLLC'):
+        self.inviscidFlux = HLLCFlux_reacting
+        checki = 1
+      if (iflux_str == 'HLLC_DOUBLEFLUX'):
+        self.inviscidFlux = HLLCFlux_reacting_doubleflux
+        checki = 1
       if (checki == 0):
-        if (mpi_rank == 0): print('Error, inviscid flux scheme ' + iflux_str + ' not valid. Options are "central", "roe", "rusanov". PyDG quitting')
+        if (mpi_rank == 0): print('Error, inviscid flux scheme ' + iflux_str + ' not valid. Options are "central", "roe", "rusanov", "HLLE", "HLLC". PyDG quitting')
         sys.exit()
       checkv = 0 
       if (vflux_str == 'BR1'):

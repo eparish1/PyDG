@@ -123,6 +123,17 @@ class boundaryConditions:
       self.BC_type = BC_type
       self.applyBC = dirichlet_bc
       self.args = BC_args
+    if (BC_type == 'neumann'):
+      check = 1
+      self.BC_type = BC_type
+      self.applyBC = neumann_bc
+      self.args = BC_args
+    if (BC_type == 'reflecting_wall'):
+      check = 1
+      self.BC_type = BC_type
+      self.applyBC = reflectingwall_bc
+      self.args = BC_args
+
     if (BC_type[0:6] == 'custom'):
       check = 1
       self.BC_type = BC_type 
