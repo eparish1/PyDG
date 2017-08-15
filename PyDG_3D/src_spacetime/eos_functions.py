@@ -192,10 +192,10 @@ def computePressure_and_Temperature(main,u):
   #  Winv += u[5+i]/main.W[i] #mean molecular weight
   Y_last = 1. - np.sum(u[5::]/u[None,0],axis=0)
   Winv =  np.einsum('i...,ijk...->jk...',1./main.W[0:-1],u[5::]/u[None,0]) + 1./main.W[-1]*Y_last
-  Cv = np.einsum('i...,ijk...->jk...',main.Cv[0:-1],u[5::]/u[None,0]) + main.Cv[-1]*Y_last
-  #Cp = np.einsum('i...,ijk...->jk...',main.Cp[0:-1],u[5::]/u[None,0]) + main.Cp[-1]*Y_last
+  #Cv = np.einsum('i...,ijk...->jk...',main.Cv[0:-1],u[5::]/u[None,0]) + main.Cv[-1]*Y_last
+  Cp = np.einsum('i...,ijk...->jk...',main.Cp[0:-1],u[5::]/u[None,0]) + main.Cp[-1]*Y_last
   #R = Cp - Cv
-  Cp = Cv + R*Winv
+  Cv = Cp - R*Winv
   gamma = Cp/Cv
   #print(np.mean(R*Winv),np.mean(Cp - Cv))
 
@@ -204,39 +204,12 @@ def computePressure_and_Temperature(main,u):
   T += R * T0 * Winv 
   T /= Cv
   T += T0
-  p = u[0]*R*Winv*T
-  p2 = (gamma - 1.)*(u[4] - 0.5*u[1]**2/u[0] - 0.5*u[2]**2/u[0] - 0.5*u[3]**2/u[0])
+  #p = u[0]*R*Winv*T
+  p = (gamma - 1.)*(u[4] - 0.5*u[1]**2/u[0] - 0.5*u[2]**2/u[0] - 0.5*u[3]**2/u[0])
 
   #print(np.mean(p),np.mean(p2),'EOS')
   #print(np.amin(p),np.amax(p),'1')
   #print(np.amin(p2),np.amax(p2),'2')
 
-  return p,T
-
-
-def computePressure_and_Temperature1(main,u):
-  R = 8314.4621/1000.
-  T0 = 298.15
-  n_reacting = np.size(main.delta_h0)
-  #Cv = 0
-  #Winv = 0
-  #for i in range(0,n_reacting):
-  #  Cv += main.Cv[i]*u[5+i] #Cv of the mixture
-  #  Winv += u[5+i]/main.W[i] #mean molecular weight
-  Y_last = 1. - np.sum(u[5::]/u[None,0],axis=0)
-  Cv = np.einsum('i...,ijk...->jk...',main.Cv[0:-1],u[5::]/u[0]) + main.Cv[-1]*Y_last
-  Cp = np.einsum('i...,ijk...->jk...',main.Cp[0:-1],u[5::]/u[0]) + main.Cp[-1]*Y_last
-  gamma = Cp/Cv
-  Winv =  np.einsum('i...,ijk...->jk...',1./main.W[0:-1],u[5::]/u[0]) + 1./main.W[-1]*Y_last
-  # sensible + chemical
-  T = u[4]/u[0] - 0.5/u[0]**2*( u[1]**2 + u[2]**2 + u[3]**2 )
-  # subtract formation of enthalpy
-  for i in range(0,np.size(main.delta_h0)-1):
-    T -= main.delta_h0[i]*u[5+i]/u[0]
-  T -= main.delta_h0[-1]*Y_last
-  T += R * T0 * Winv 
-  T /= Cv
-  T += T0
-  p = u[0]*R*Winv*T
   return p,T
 

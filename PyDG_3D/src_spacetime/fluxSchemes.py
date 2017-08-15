@@ -1,6 +1,7 @@
 import numpy as np
 from MPI_functions import *
 from tensor_products import *
+from navier_stokes_reacting import *
 def centralFluxGeneral(fR,fL,fU,fD,fF,fB,fR_edge,fL_edge,fU_edge,fD_edge,fF_edge,fB_edge):
   fRS = np.zeros(np.shape(fR))
   fLS = np.zeros(np.shape(fL))
@@ -46,10 +47,10 @@ def inviscidFlux_DOUBLEFLUX(main,eqns,fluxVar,var,args=None):
   nx = np.array([1,0,0])
   ny = np.array([0,1,0])
   nz = np.array([0,0,1])
-  fluxVar.fRS[:,:,:,:,0:-1,:,:] = eqns.inviscidFlux(main,var.uR[:,:,:,:,0:-1,:,:],var.uL[:,:,:,:,1::,:,:],main.a.pR[:,:,:,0:-1,:,:],main.a.pL[:,:,:,1::,:,:],main.a.rh0[0,:,:,:,0:-1,:,:],main.a.gamma_star[0,:,:,:,0:-1,:,:],nx)
-  fluxVar.fRS[:,:,:,:,  -1,:,:] = eqns.inviscidFlux(main,var.uR[:,:,:,:,  -1,:,:],var.uR_edge,main.a.pR[:,:,:,-1,:,:],main.a.pR_edge,main.a.rh0[0,:,:,:,-1,:,:],main.a.gamma_star[0,:,:,:,-1,:,:],nx)
-  fluxVar.fLS[:,:,:,:,1:: ,:,:] = eqns.inviscidFlux(main,var.uR[:,:,:,:,0:-1,:,:],var.uL[:,:,:,:,1::,:,:],main.a.pR[:,:,:,0:-1,:,:],main.a.pL[:,:,:,1::,:,:],main.a.rh0[0,:,:,:,1::,:,:],main.a.gamma_star[0,:,:,:,1::,:,:],nx)
-  fluxVar.fLS[:,:,:,:,0   ,:,:] = eqns.inviscidFlux(main,var.uL_edge,var.uL[:,:,:,:,0,:,:],main.a.pL_edge,main.a.pL[:,:,:,0,:,:],main.a.rh0[0,:,:,:,0,:,:],main.a.gamma_star[0,:,:,:,0,:,:],nx)
+  fluxVar.fRS[:,:,:,:,0:-1,:,:] = HLLCFlux_reacting_doublefluxR(main,var.uR[:,:,:,:,0:-1,:,:],var.uL[:,:,:,:,1::,:,:],main.a.pR[:,:,:,0:-1,:,:],main.a.pL[:,:,:,1::,:,:],main.a.rh0[0,:,:,:,0:-1,:,:],main.a.gamma_star[0,:,:,:,0:-1,:,:],nx)
+  fluxVar.fRS[:,:,:,:,  -1,:,:] = HLLCFlux_reacting_doublefluxR(main,var.uR[:,:,:,:,  -1,:,:],var.uR_edge,main.a.pR[:,:,:,-1,:,:],main.a.pR_edge,main.a.rh0[0,:,:,:,-1,:,:],main.a.gamma_star[0,:,:,:,-1,:,:],nx)
+  fluxVar.fLS[:,:,:,:,1:: ,:,:] = HLLCFlux_reacting_doublefluxL(main,var.uR[:,:,:,:,0:-1,:,:],var.uL[:,:,:,:,1::,:,:],main.a.pR[:,:,:,0:-1,:,:],main.a.pL[:,:,:,1::,:,:],main.a.rh0[0,:,:,:,1::,:,:],main.a.gamma_star[0,:,:,:,1::,:,:],nx)
+  fluxVar.fLS[:,:,:,:,0   ,:,:] = HLLCFlux_reacting_doublefluxL(main,var.uL_edge,var.uL[:,:,:,:,0,:,:],main.a.pL_edge,main.a.pL[:,:,:,0,:,:],main.a.rh0[0,:,:,:,0,:,:],main.a.gamma_star[0,:,:,:,0,:,:],nx)
 
   fluxVar.fUS[:,:,:,:,:,0:-1,:] = eqns.inviscidFlux(main,var.uU[:,:,:,:,:,0:-1,:],var.uD[:,:,:,:,:,1::,:],main.a.pU[:,:,:,:,0:-1,:],main.a.pD[:,:,:,:,1::,:],main.a.rh0[:,0,:,:,:,0:-1,:],main.a.gamma_star[:,0,:,:,:,0:-1,:],ny )
   fluxVar.fUS[:,:,:,:,:,  -1,:] = eqns.inviscidFlux(main,var.uU[:,:,:,:,:,  -1,:],var.uU_edge,main.a.pU[:,:,:,:,  -1,:],main.a.pU_edge,main.a.rh0[:,0,:,:,  -1,:],main.a.gamma_star[:,0,:,:,  -1,:],ny)
@@ -60,6 +61,28 @@ def inviscidFlux_DOUBLEFLUX(main,eqns,fluxVar,var,args=None):
   fluxVar.fFS[:,:,:,:,:,:,  -1] = eqns.inviscidFlux(main,var.uF[:,:,:,:,:,:,  -1],var.uF_edge,main.a.pF[:,:,:,:,:,  -1],main.a.pF_edge,main.a.rh0[:,0,:,:,:,:,  -1],main.a.gamma_star[:,0,:,:,:,:,  -1],nz)
   fluxVar.fBS[:,:,:,:,:,:,1:: ] = eqns.inviscidFlux(main,var.uF[:,:,:,:,:,:,0:-1],var.uB[:,:,:,:,:,:,1::],main.a.pF[:,:,:,:,:,0:-1],main.a.pB[:,:,:,:,:,1::],main.a.rh0[:,0,:,:,:,:,1::],main.a.gamma_star[:,0,:,:,:,:,1::],nz )
   fluxVar.fBS[:,:,:,:,:,:,0   ] = eqns.inviscidFlux(main,var.uB_edge,var.uB[:,:,:,:,:,:,0],main.a.pB_edge,main.a.pB[:,:,:,:,:,0],main.a.rh0[:,0,:,:,:,:,0],main.a.gamma_star[:,0,:,:,:,:,0],nz)
+
+
+def inviscidFlux_DOUBLEFLUX2(main,eqns,fluxVar,var,args=None):
+  nx = np.array([1,0,0])
+  ny = np.array([0,1,0])
+  nz = np.array([0,0,1])
+  print(np.shape(main.a.gamma_star))
+  fluxVar.fRS[:,:,:,:,0:-1,:,:] = HLLCFlux_reacting_doubleflux_minus(main,var.uR[:,:,:,:,0:-1,:,:],var.uL[:,:,:,:,1::,:,:],main.a.pR[:,:,:,0:-1,:,:],main.a.pL[:,:,:,1::,:,:],main.a.gamma_star[0,:,:,:,0:-1,:,:],main.a.gamma_star[0,:,:,:,1::,:,:],nx)
+  fluxVar.fRS[:,:,:,:,  -1,:,:] = HLLCFlux_reacting_doubleflux_minus(main,var.uR[:,:,:,:,  -1,:,:],var.uR_edge,main.a.pR[:,:,:,-1,:,:],main.a.pR_edge,main.a.gamma_star[0,:,:,:,-1,:,:],main.a.gamma_star[0,:,:,:,0,:,:],nx)
+  fluxVar.fLS[:,:,:,:,1:: ,:,:] = HLLCFlux_reacting_doubleflux_plus(main,var.uR[:,:,:,:,0:-1,:,:],var.uL[:,:,:,:,1::,:,:],main.a.pR[:,:,:,0:-1,:,:],main.a.pL[:,:,:,1::,:,:],main.a.gamma_star[0,:,:,:,0:-1,:,:],main.a.gamma_star[0,:,:,:,1::,:,:],nx)
+  fluxVar.fLS[:,:,:,:,0   ,:,:] = HLLCFlux_reacting_doubleflux_plus(main,var.uL_edge,var.uL[:,:,:,:,0,:,:],main.a.pL_edge,main.a.pL[:,:,:,0,:,:],main.a.gamma_star[0,:,:,:,-1,:,:],main.a.gamma_star[0,:,:,:,0,:,:],nx)
+
+  fluxVar.fUS[:,:,:,:,:,0:-1,:] = eqns.inviscidFlux(main,var.uU[:,:,:,:,:,0:-1,:],var.uD[:,:,:,:,:,1::,:],main.a.pU[:,:,:,:,0:-1,:],main.a.pD[:,:,:,:,1::,:],ny )
+  fluxVar.fUS[:,:,:,:,:,  -1,:] = eqns.inviscidFlux(main,var.uU[:,:,:,:,:,  -1,:],var.uU_edge,main.a.pU[:,:,:,:,  -1,:],main.a.pU_edge,ny)
+  fluxVar.fDS[:,:,:,:,:,1:: ,:] = fluxVar.fUS[:,:,:,:,:,0:-1,:] 
+  fluxVar.fDS[:,:,:,:,:,0   ,:] = eqns.inviscidFlux(main,var.uD_edge,var.uD[:,:,:,:,:,0,:],main.a.pD_edge,main.a.pD[:,:,:,:,0,:],ny)
+
+  fluxVar.fFS[:,:,:,:,:,:,0:-1] = eqns.inviscidFlux(main,var.uF[:,:,:,:,:,:,0:-1],var.uB[:,:,:,:,:,:,1::],main.a.pF[:,:,:,:,:,0:-1],main.a.pB[:,:,:,:,:,1::],nz )
+  fluxVar.fFS[:,:,:,:,:,:,  -1] = eqns.inviscidFlux(main,var.uF[:,:,:,:,:,:,  -1],var.uF_edge,main.a.pF[:,:,:,:,:,  -1],main.a.pF_edge,nz)
+  fluxVar.fBS[:,:,:,:,:,:,1:: ] = fluxVar.fFS[:,:,:,:,:,:,0:-1] 
+  fluxVar.fBS[:,:,:,:,:,:,0   ] = eqns.inviscidFlux(main,var.uB_edge,var.uB[:,:,:,:,:,:,0],main.a.pB_edge,main.a.pB[:,:,:,:,:,0],nz)
+
 
 
 def inviscidFluxTwoArg(main,eqns,fluxVar,var,args):

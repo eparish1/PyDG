@@ -14,7 +14,7 @@ def add_reacting_to_main(main,mol_str):
   main.D_Vols = getDiffusionVolumes(main.mol_str)
   main.delta_h0 = getEnthalpyOfFormation(main.mol_str)
   main.nasa_coeffs = getNASAPolys(mol_str)
-  main.Cv = getConstantCvs(mol_str)
+  #main.Cv = getConstantCvs(mol_str)
   main.Cp = getConstantCps(mol_str)
   #main.Cp[:] = main.Cp[0]
   #main.Cv[:] = main.Cv[0]

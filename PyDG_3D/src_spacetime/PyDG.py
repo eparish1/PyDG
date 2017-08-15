@@ -222,7 +222,7 @@ while (main.t <= main.et + main.dt/2):
       #uGF = getGlobU(uG)
       sys.stdout.write('======================================' + '\n')
       sys.stdout.write('wall time = ' + str(time.time() - t0) + '\n' )
-      sys.stdout.write('t = ' + str(main.t) +  '   rho sum = ' + str(np.sum(uG[0])) + '  dt = ' + str(main.dt) +  '\n')
+      sys.stdout.write('t = ' + str(main.t) +  '   E sum = ' + str(np.sum(uG[4])) + '  dt = ' + str(main.dt) +  '\n')
       np.savez('Solution/npsol' + str(main.iteration),U=UG,a=aG,t=main.t,iteration=main.iteration,order=order)
       sys.stdout.flush()
 
