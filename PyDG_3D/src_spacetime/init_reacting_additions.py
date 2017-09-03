@@ -4,7 +4,7 @@ import cantera as ct
 def add_reacting_to_main(main,mol_str):
   main.reacting = True
   main.nspecies = np.size(mol_str)
-  if (main.mpi_rank == 0):
+  if (main.mpi_rank == 0 and main.t == 0):
     sys.stdout.write('Chemistry Set: \n')
     for i in range(0,main.nspecies):
       sys.stdout.write(mol_str[i] + '\n')
@@ -22,7 +22,7 @@ def add_reacting_to_main(main,mol_str):
   #main.W[:] = main.W[0]
   main.gamma = main.Cp/main.Cv
   #main.gamma[:] = 1.4
-  main.cgas = ct.Solution('2S_CH4_BFER.cti')
+  main.cgas = ct.Solution('2s_ch4_bfer.xml')
   main.cgas_field = ct.SolutionArray(main.cgas,(np.size(main.a.u[0])))
   main.cgas_field_dummy = ct.SolutionArray(main.cgas,(np.size(main.a.u[0,:,:,:,0,:,:,:,0])))
 

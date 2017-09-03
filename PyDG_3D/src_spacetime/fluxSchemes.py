@@ -67,7 +67,6 @@ def inviscidFlux_DOUBLEFLUX2(main,eqns,fluxVar,var,args=None):
   nx = np.array([1,0,0])
   ny = np.array([0,1,0])
   nz = np.array([0,0,1])
-  print(np.shape(main.a.gamma_star))
   fluxVar.fRS[:,:,:,:,0:-1,:,:] = HLLCFlux_reacting_doubleflux_minus(main,var.uR[:,:,:,:,0:-1,:,:],var.uL[:,:,:,:,1::,:,:],main.a.pR[:,:,:,0:-1,:,:],main.a.pL[:,:,:,1::,:,:],main.a.gamma_star[0,:,:,:,0:-1,:,:],main.a.gamma_star[0,:,:,:,1::,:,:],nx)
   fluxVar.fRS[:,:,:,:,  -1,:,:] = HLLCFlux_reacting_doubleflux_minus(main,var.uR[:,:,:,:,  -1,:,:],var.uR_edge,main.a.pR[:,:,:,-1,:,:],main.a.pR_edge,main.a.gamma_star[0,:,:,:,-1,:,:],main.a.gamma_star[0,:,:,:,0,:,:],nx)
   fluxVar.fLS[:,:,:,:,1:: ,:,:] = HLLCFlux_reacting_doubleflux_plus(main,var.uR[:,:,:,:,0:-1,:,:],var.uL[:,:,:,:,1::,:,:],main.a.pR[:,:,:,0:-1,:,:],main.a.pL[:,:,:,1::,:,:],main.a.gamma_star[0,:,:,:,0:-1,:,:],main.a.gamma_star[0,:,:,:,1::,:,:],nx)

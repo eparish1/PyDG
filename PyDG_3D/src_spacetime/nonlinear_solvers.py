@@ -3,17 +3,19 @@ import sys
 import time
 import matplotlib.pyplot as plt
 from init_Classes import variables,equations
+from DG_functions import getRHS_SOURCE
 def newtonSolver(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadrature,eqns):
   if (sparse_quadrature):
     coarsen = 2
     quadpoints_coarsen = np.fmax(main.quadpoints/(coarsen),1)
     quadpoints_coarsen[-1] = main.quadpoints[-1]
-    main_coarse = variables(main.Nel,main.order,quadpoints_coarsen,eqns,main.mus,main.xG,main.yG,main.zG,main.t,main.et,main.dt,main.iteration,main.save_freq,'DNS',main.procx,main.procy,main.BCs,main.source,main.source_mag,main.shock_capturing)
+    main_coarse = variables(main.Nel,main.order,quadpoints_coarsen,eqns,main.mus,main.xG,main.yG,main.zG,main.t,main.et,main.dt,main.iteration,main.save_freq,'DNS',main.procx,main.procy,main.BCs,main.fsource,main.source_mag,main.shock_capturing,main.mol_str)
     main_coarse.basis = main.basis
     main_coarse.a.a[:] = main.a.a[:]
     def newtonHook(main_coarse,main,Rn):
       main_coarse.a.a[:] = main.a.a[:]
       main_coarse.getRHS(main_coarse,main_coarse,eqns)
+      #getRHS_SOURCE(main_coarse,main_coarse,eqns)
       Rn[:] = main_coarse.RHS[:]
   else: 
     main_coarse = main
@@ -28,7 +30,7 @@ def newtonSolver(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadratu
   resid_hist = np.zeros(0)
   t_hist = np.zeros(0)
   tnls = time.time()
-  while (Rstar_glob >= 1e-7 or Rstar_glob/Rstar_glob0 > 1e-7):
+  while (Rstar_glob >= 1e-8 and Rstar_glob/Rstar_glob0 > 1e-8):
     NLiter += 1
     ts = time.time()
     newtonHook(main_coarse,main,Rn)
@@ -40,7 +42,7 @@ def newtonSolver(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadratu
 #      delta = 3
 #    if (Rstar_glob/Rstar_glob0 < 1e-6):
 #      delta = 3
-    sol = linear_solver.solve(MF_Jacobian, -Rstarn.flatten(), old.flatten(),main_coarse,MF_Jacobian_args,np.fmin(Rstar_glob,0.1),linear_solver.maxiter_outer,100*delta,False)
+    sol = linear_solver.solve(MF_Jacobian, -Rstarn.flatten(), old.flatten(),main_coarse,MF_Jacobian_args,np.fmin(Rstar_glob,0.1),linear_solver.maxiter_outer,20,False)
     main.a.a[:] = an[:] + 1.0*np.reshape(sol,np.shape(main.a.a))
     an[:] = main.a.a[:]
     Rstarn,Rn,Rstar_glob = unsteadyResidual(main.a.a)
@@ -48,6 +50,8 @@ def newtonSolver(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadratu
     t_hist = np.append(t_hist,time.time() - tnls)
     if (main.mpi_rank == 0):
       sys.stdout.write('NL iteration = ' + str(NLiter) + '  NL residual = ' + str(Rstar_glob) + ' relative decrease = ' + str(Rstar_glob/Rstar_glob0) + ' Solve time = ' + str(time.time() - ts)  + '\n')
+      #print(np.linalg.norm(Rstarn[0]),np.linalg.norm(Rstarn[-1]))
+    
       sys.stdout.flush()
   np.savez('resid_history',resid=resid_hist,t=t_hist)
 
@@ -91,7 +95,7 @@ def psuedoTimeSolver(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quad
 
 
 def newtonSolver_MG(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadrature,eqns):
-  n_levels = int( np.log(np.amax(main.order))/np.log(2))  + 1
+  n_levels =  int( np.log(np.amax(main.order))/np.log(2))  
   coarsen = np.int32(2**np.linspace(0,n_levels-1,n_levels))
   mg_classes = []
   mg_Rn = []
@@ -104,7 +108,7 @@ def newtonSolver_MG(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadr
     quadpoints_coarsen = np.int32(np.fmax(main.quadpoints/(coarsen[i]),1))
     order_coarsen[-1] = main.order[-1]
     quadpoints_coarsen[-1] = main.quadpoints[-1]
-    mg_classes.append( variables(main.Nel,order_coarsen,quadpoints_coarsen,eqns,main.mus,main.xG,main.yG,main.zG,main.t,main.et,main.dt,main.iteration,main.save_freq,'DNS',main.procx,main.procy,main.BCs,main.source,main.source_mag,main.shock_capturing) )
+    mg_classes.append( variables(main.Nel,order_coarsen,quadpoints_coarsen,eqns,main.mus,main.xG,main.yG,main.zG,main.t,main.et,main.dt,main.iteration,main.save_freq,'DNS',main.procx,main.procy,main.BCs,main.fsource,main.source_mag,main.shock_capturing) )
     mg_classes[i].basis = main.basis
     mg_Rn.append( np.zeros(np.shape(mg_classes[i].RHS)) )
     mg_an.append( np.zeros(np.shape(mg_classes[i].a.a) ) )
@@ -132,7 +136,7 @@ def newtonSolver_MG(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadr
   resid_hist = np.zeros(0)
   t_hist = np.zeros(0)
 
-  while (Rstar_glob >= 1e-6 or Rstar_glob/Rstar_glob0 > 1e-6):
+  while (Rstar_glob >= 1e-9 and Rstar_glob/Rstar_glob0 > 1e-9):
     NLiter += 1
     ts = time.time()
     old[:] = 0.
@@ -177,7 +181,7 @@ def newtonSolver_PC2(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quad
     coarsen = 2
     quadpoints_coarsen = np.fmax(main.quadpoints/(coarsen),1)
     quadpoints_coarsen[-1] = main.quadpoints[-1]
-    main_coarse = variables(main.Nel,main.order,quadpoints_coarsen,eqns,main.mus,main.xG,main.yG,main.zG,main.t,main.et,main.dt,main.iteration,main.save_freq,'DNS',main.procx,main.procy,main.BCs,main.source,main.source_mag,main.shock_capturing)
+    main_coarse = variables(main.Nel,main.order,quadpoints_coarsen,eqns,main.mus,main.xG,main.yG,main.zG,main.t,main.et,main.dt,main.iteration,main.save_freq,'DNS',main.procx,main.procy,main.BCs,main.fsource,main.source_mag,main.shock_capturing)
     main_coarse.basis = main.basis
     main_coarse.a.a[:] = main.a.a[:]
     def newtonHook(main_coarse,main,Rn):
@@ -226,7 +230,7 @@ def newtonSolver_PC8(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quad
 #  order_coarsen[-1] = main.order[-1]
   quadpoints_coarsen = np.fmax(main.quadpoints/2,1)
   quadpoints_coarsen[-1] = main.quadpoints[-1]
-  main_coarse = variables(main.Nel,order_coarsen,quadpoints_coarsen,eqns,main.mus,main.xG,main.yG,main.zG,main.t,main.et,main.dt,main.iteration,main.save_freq,'DNS',main.procx,main.procy,main.BCs,main.source,main.source_mag,main.shock_capturing)
+  main_coarse = variables(main.Nel,order_coarsen,quadpoints_coarsen,eqns,main.mus,main.xG,main.yG,main.zG,main.t,main.et,main.dt,main.iteration,main.save_freq,'DNS',main.procx,main.procy,main.BCs,main.fsource,main.source_mag,main.shock_capturing)
   main_coarse.basis = main.basis
   main_coarse.a.a[:] = main.a.a[:,0:main_coarse.order[0],0:main_coarse.order[1],0:main_coarse.order[2],0:main_coarse.order[3] ]
   def newtonHook(main,main_coarse,Rn,Rnc):

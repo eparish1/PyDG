@@ -9,47 +9,31 @@ def evalFluxD(main,u,f,args):
 
 
 ### Pure Diffusion Viscous Fluxes
-def evalViscousFluxXD_BR1(u,fv):
+def evalViscousFluxXD_BR1(main,u,fv,dum):
   fv[0] = u[0]
   fv[1] = 0.
   fv[2] = 0.
 #
-def evalViscousFluxYD_BR1(u,fv):
+def evalViscousFluxYD_BR1(main,u,fv,dum):
   fv[0] = 0.
   fv[1] = u[0]
   fv[2] = 0.
 
-def evalViscousFluxZD_BR1(u,fv):
+def evalViscousFluxZD_BR1(main,u,fv,dum):
   fv[0] = 0.
   fv[1] = 0.
   fv[2] = u[0]
 
 
-def evalTauFluxXD_BR1(tau,u,fvX,mu):
+def evalTauFluxXD_BR1(main,tau,u,fvX,mu,dum):
   fvX[0] = mu*tau[0]
 
-def evalTauFluxYD_BR1(tau,u,fvY,mu):
+def evalTauFluxYD_BR1(main,tau,u,fvY,mu,dum):
   fvY[0] = mu*tau[1]
 
-def evalTauFluxZD_BR1(tau,u,fvZ,mu):
+def evalTauFluxZD_BR1(main,tau,u,fvZ,mu,dum):
   fvZ[0] = mu*tau[2]
 
-
-### Pure Diffusion Viscous Fluxes
-def evalViscousFluxXD_BR1(u,fv):
-  fv[0] = u[0]
-  fv[1] = 0.
-  fv[2] = 0.
-#
-def evalViscousFluxYD_BR1(u,fv):
-  fv[0] = 0.
-  fv[1] = u[0]
-  fv[2] = 0.
-
-def evalViscousFluxZD_BR1(u,fv):
-  fv[0] = 0.
-  fv[1] = 0.
-  fv[2] = u[0]
 
 
 ######  ====== Linear advection fluxes and eigen values ==== ###########
@@ -65,7 +49,7 @@ def evalFluxZLA(main,u,f,args):
 
 
 #### ================ Flux schemes for the faces ========= ###########
-def linearAdvectionCentralFlux(UL,UR,n,args=None):
+def linearAdvectionCentralFlux(UL,UR,pL,pR,n,args=None):
   F = np.zeros(np.shape(UL))
   #F[0] = 0.5*(UR[0] + UL[0])
   F[0] = UL[0]
@@ -98,7 +82,7 @@ def getGsD_Z(u,main,mu,V):
   fvG33[0] = mu*V[0]
   return fvG13,fvG23,fvG33
 
-def diffusionCentralFlux(main,UL,UR,n,args=None):
+def diffusionCentralFlux(main,UL,UR,pL,pR,n,args=None):
   f = np.zeros(np.shape(UL))
   return f
 

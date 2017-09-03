@@ -14,6 +14,8 @@ from viscousFluxesIP import *
 from boundary_conditions import *
 from equations_class import *
 from gas import *
+from basis_class import *
+from init_reacting_additions import add_reacting_to_main
 class variable:
   def __init__(self,nvars,order,quadpoints,Npx,Npy,Npz,Npt):
       self.nvars = nvars
@@ -108,6 +110,11 @@ class boundaryConditions:
       self.BC_type = BC_type
       self.applyBC = periodic_bc
       self.args = BC_args
+    if (BC_type == 'incompressible_wall'):
+      check = 1
+      self.BC_type = BC_type
+      self.applyBC = incompwall_bc
+      self.args = BC_args
     if (BC_type == 'isothermal_wall'):
       check = 1
       self.BC_type = BC_type
@@ -148,7 +155,7 @@ class boundaryConditions:
     
 
 class variables:
-  def __init__(self,Nel,order,quadpoints,eqns,mu,xG,yG,zG,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,source,source_mag,shock_capturing):
+  def __init__(self,Nel,order,quadpoints,eqns,mu,xG,yG,zG,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,source,source_mag,shock_capturing,mol_str=None):
     ## DG scheme information
     self.eq_str = eqns.eq_str
     self.Nel = Nel
@@ -190,13 +197,13 @@ class variables:
     self.altarray3 = (-np.ones(self.order[3]))**(np.linspace(0,self.order[3]-1,self.order[3]))
 
 
-    self.w0_c,self.wp0_c,self.wpedge0_c,self.weights0_c,self.zeta0_c = gaussPoints(self.order[0],1)#self.order[0])
+    self.w0_c,self.wp0_c,self.wpedge0_c,self.weights0_c,self.zeta0_c = gaussPoints(self.order[0],self.order[0])
     self.altarray0_c = (-np.ones(self.order[0]))**(np.linspace(0,self.order[0]-1,self.order[0]))
-    self.w1_c,self.wp1_c,self.wpedge1_c,self.weights1_c,self.zeta1_c = gaussPoints(self.order[1],1)#self.order[1])
+    self.w1_c,self.wp1_c,self.wpedge1_c,self.weights1_c,self.zeta1_c = gaussPoints(self.order[1],self.order[1])
     self.altarray1_c = (-np.ones(self.order[1]))**(np.linspace(0,self.order[1]-1,self.order[1]))
-    self.w2_c,self.wp2_c,self.wpedge2_c,self.weights2_c,self.zeta2_c = gaussPoints(self.order[2],1)#self.order[2])
+    self.w2_c,self.wp2_c,self.wpedge2_c,self.weights2_c,self.zeta2_c = gaussPoints(self.order[2],self.order[2])
     self.altarray2_c = (-np.ones(self.order[2]))**(np.linspace(0,self.order[2]-1,self.order[2]))
-    self.w3_c,self.wp3_c,self.wpedge3_c,self.weights3_c,self.zeta3_c = gaussPoints(self.order[3],1)#self.order[3])
+    self.w3_c,self.wp3_c,self.wpedge3_c,self.weights3_c,self.zeta3_c = gaussPoints(self.order[3],self.order[3])
     self.altarray3_c = (-np.ones(self.order[3]))**(np.linspace(0,self.order[3]-1,self.order[3]))
 
 
@@ -338,3 +345,6 @@ class variables:
       if (self.mpi_rank == 0):
          print('Using turb model ' + turb_str)
 
+    self.basis = basis_class('Legendre',['TensorDot'])
+
+    #self = add_reacting_to_main(self,mol_str)

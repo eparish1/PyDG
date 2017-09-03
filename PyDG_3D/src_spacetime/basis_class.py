@@ -6,9 +6,9 @@ class basis_class:
     comm = MPI.COMM_WORLD
     self.basis_str = basis_str
     mpi_rank = comm.Get_rank()  
-    if (mpi_rank == 0): print('Using ' + basis_str + ' basis' )
+    #if (mpi_rank == 0): print('Using ' + basis_str + ' basis' )
     if (args[0] == 'TensorDot'):
-      if (mpi_rank == 0): print('Using ' + args[0] + ' function for modal computations')
+      #if (mpi_rank == 0): print('Using ' + args[0] + ' function for modal computations')
       self.diffU = diffU_tensordot
       self.diffUXEdge_edge = diffUXEdge_edge_tensordot
       self.diffUX_edge = diffUX_edge_tensordot
@@ -17,6 +17,7 @@ class basis_class:
       self.diffUZEdge_edge = diffUZEdge_edge_tensordot
       self.diffUZ_edge = diffUZ_edge_tensordot
       self.volIntegrateGlob = volIntegrateGlob_tensordot
+      self.volIntegrate = volIntegrate
       self.faceIntegrateGlob = faceIntegrateGlob_tensordot
       self.reconstructU = reconstructU_tensordot
       self.reconstructEdgesGeneral = reconstructEdgesGeneral_tensordot

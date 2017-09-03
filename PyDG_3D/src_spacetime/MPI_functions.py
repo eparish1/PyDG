@@ -1,5 +1,32 @@
 import numpy as np
 import mpi4py as MPI
+def globalNorm(r,main):
+  ## Create Global residual
+  data = main.comm.gather(np.linalg.norm(r)**2,root = 0)
+  if (main.mpi_rank == 0):
+    rn_glob = 0.
+    for j in range(0,main.num_processes):
+      rn_glob += data[j]
+    rn_glob = np.sqrt(rn_glob)
+    for j in range(1,main.num_processes):
+      main.comm.send(rn_glob, dest=j)
+  else:
+    rn_glob = main.comm.recv(source=0)
+  return rn_glob
+
+def globalSum(r,main):
+  ## Create Global residual
+  data = main.comm.gather(np.sum(r),root = 0)
+  if (main.mpi_rank == 0):
+    rn_glob = 0.
+    for j in range(0,main.num_processes):
+      rn_glob += data[j]
+    for j in range(1,main.num_processes):
+      main.comm.send(rn_glob, dest=j)
+  else:
+    rn_glob = main.comm.recv(source=0)
+  return rn_glob
+
 
 
 def sendaEdgesGeneralSlab(a,main):
@@ -170,6 +197,22 @@ def sendEdgesGeneralSlab_Derivs(fL,fR,fD,fU,fB,fF,main):
   uB[:] = fF[:,:,:,:,:,:,-1]
   return uR,uL,uU,uD,uF,uB
 
+def gatherSolScalar(main,u):
+  if (main.mpi_rank == 0):
+    uG = np.zeros((main.quadpoints[0],main.quadpoints[1],main.quadpoints[2],main.quadpoints[3],main.Nel[0],main.Nel[1],main.Nel[2],main.Nel[3]))
+    uG[:,:,:,:,:,0:main.Npx,0:main.Npy,:] = u[:]
+    for i in range(1,main.num_processes):
+      loc_rank = i
+      data = np.zeros(np.shape(u)).flatten()
+      main.comm.Recv(data,source=loc_rank,tag = loc_rank)
+      xL = int( (loc_rank%main.procx)*main.Npx)
+      xR = int(((loc_rank%main.procx) +1)*main.Npx)
+      yD = int(loc_rank)/int(main.procx)*main.Npy
+      yU = (int(loc_rank)/int(main.procx) + 1)*main.Npy
+      uG[:,:,:,:,:,xL:xR,yD:yU,:] = np.reshape(data,np.shape(u))
+    return uG
+  else:
+    main.comm.Send(u.flatten(),dest=0,tag=main.mpi_rank)
 
 
 def gatherSolSlab(main,eqns,var):

@@ -15,8 +15,9 @@ from scipy.optimize.nonlin import InverseJacobian
 from scipy.optimize.nonlin import BroydenFirst, KrylovJacobian
 from eos_functions import *
 import time
-
+from DG_functions import getRHS_SOURCE
 from pylab import *
+from tensor_products import diffCoeffs
 def gatherResid(Rstar,main):
   ## Create Global residual
   data = main.comm.gather(np.linalg.norm(Rstar)**2,root = 0)
@@ -30,6 +31,84 @@ def gatherResid(Rstar,main):
   else:
     Rstar_glob = main.comm.recv(source=0)
   return Rstar_glob
+
+def spaceTimeIncomp(main,MZ,eqns,args=None):
+  main.a.Upx,main.a.Upy,main.a.Upz = main.basis.diffU(main.a.a,main)
+  div = main.a.Upx[0] + main.a.Upy[1] + main.a.Upz[2]
+  print('Div = ' + str(np.linalg.norm(div)))
+  nonlinear_solver = args[0]
+  linear_solver = args[1]
+  sparse_quadrature = args[2]
+  main.a0[:] = main.a.a[:]
+  ord_arr0= np.linspace(0,main.order[0]-1,main.order[0])
+  ord_arr1= np.linspace(0,main.order[1]-1,main.order[1])
+  ord_arr2= np.linspace(0,main.order[2]-1,main.order[2])
+  ord_arr3= np.linspace(0,main.order[3]-1,main.order[3])
+  scale =  (2.*ord_arr0[:,None,None,None] + 1.)*(2.*ord_arr1[None,:,None,None] + 1.)*(2.*ord_arr2[None,None,:,None]+1.)*(2.*ord_arr3[None,None,None,:] + 1. )/16.
+
+  def unsteadyResidual(v):
+    ord_arr0= np.linspace(0,main.order[0]-1,main.order[0])
+    ord_arr1= np.linspace(0,main.order[1]-1,main.order[1])
+    ord_arr2= np.linspace(0,main.order[2]-1,main.order[2])
+    ord_arr3= np.linspace(0,main.order[3]-1,main.order[3])
+    scale =  (2.*ord_arr0[:,None,None,None] + 1.)*(2.*ord_arr1[None,:,None,None] + 1.)*(2.*ord_arr2[None,None,:,None]+1.)*(2.*ord_arr3[None,None,None,:] + 1. )/16.
+    main.a.a[:] = np.reshape(v,np.shape(main.a.a))
+    eqns.getRHS(main,main,eqns)
+    R1 = np.zeros(np.shape(main.RHS))
+    R1[:] = main.RHS[:]
+    ## now integrate the volume term ( \int ( dw/dt * u) )
+    volint_t = main.basis.volIntegrateGlob(main,main.a.u,main.w0,main.w1,main.w2,main.wp3)*scale[None,:,:,:,:,None,None,None,None]*2./main.dt
+    uFuture,uPast = main.basis.reconstructEdgesGeneralTime(main.a.a,main)
+    futureFlux = main.basis.faceIntegrateGlob(main,uFuture,main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
+    uPast[:,:,:,:,:,:,:,0] = main.a.uFuture[:,:,:,:,:,:,:,-1]
+    if (main.Npt > 1):
+      uPast[:,:,:,:,:,:,:,1::] = uFuture[:,:,:,:,:,:,:,0:-1]
+    pastFlux   = main.basis.faceIntegrateGlob(main,uPast  ,main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
+    volint_t[-1] = 0.
+    futureFlux[-1] = 0.
+    pastFlux[-1] = 0.
+    Rstar = volint_t - (futureFlux[:,:,:,:,None] - pastFlux[:,:,:,:,None]*main.altarray3[None,None,None,None,:,None,None,None,None])*scale[None,:,:,:,:,None,None,None,None]*2./main.dt + main.RHS[:]
+    Rstar[-1] = main.RHS[-1]*1000.
+    Rstar *= main.dt
+    print(np.linalg.norm(Rstar[0]),np.linalg.norm(Rstar[1]),np.linalg.norm(Rstar[2]),np.linalg.norm(Rstar[3]))
+    Rstar_glob = gatherResid(Rstar,main)
+    return Rstar,R1,Rstar_glob
+
+  def create_MF_Jacobian(v,args,main):
+    ord_arr0= np.linspace(0,main.order[0]-1,main.order[0])
+    ord_arr1= np.linspace(0,main.order[1]-1,main.order[1])
+    ord_arr2= np.linspace(0,main.order[2]-1,main.order[2])
+    ord_arr3= np.linspace(0,main.order[3]-1,main.order[3])
+    scale =  (2.*ord_arr0[:,None,None,None] + 1.)*(2.*ord_arr1[None,:,None,None] + 1.)*(2.*ord_arr2[None,None,:,None]+1.)*(2.*ord_arr3[None,None,None,:] + 1. )/16.
+    an = args[0]
+    Rn = args[1]
+    vr = np.reshape(v,np.shape(main.a.a))
+    eps = 5.e-2
+    main.a.a[:] = an + eps*vr
+    eqns.getRHS(main,main,eqns)
+    R1 = np.zeros(np.shape(main.RHS))
+    R1[:] = main.RHS[:]
+    vr_phys = main.basis.reconstructUGeneral(main,vr)
+    volint_t = main.basis.volIntegrateGlob(main,vr_phys,main.w0,main.w1,main.w2,main.wp3)*scale[None,:,:,:,:,None,None,None,None]*2./main.dt
+    uFuture,uPast = main.basis.reconstructEdgesGeneralTime(vr,main)
+    futureFlux = main.basis.faceIntegrateGlob(main,uFuture,main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
+    uPast[:,:,:,:,:,:,:,0] = 0.#main.a.uFuture[:,:,:,:,:,:,:,-1]
+    if (main.Npt > 1):
+      uPast[:,:,:,:,:,:,:,1::] = uFuture[:,:,:,:,:,:,:,0:-1]
+    pastFlux   = main.basis.faceIntegrateGlob(main,uPast  ,main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
+    volint_t[-1] = 0.
+    futureFlux[-1] = 0.
+    pastFlux[-1] = 0.
+    Av = volint_t - (futureFlux[:,:,:,:,None] - pastFlux[:,:,:,:,None]*main.altarray3[None,None,None,None,:,None,None,None,None])*scale[None,:,:,:,:,None,None,None,None]*2./main.dt + \
+         1./eps * (R1 - Rn) 
+    Av[-1] = 1./eps * (R1[-1] - Rn[-1])*1000
+    return Av.flatten()*main.dt
+
+  nonlinear_solver.solve(unsteadyResidual, create_MF_Jacobian,main,linear_solver,sparse_quadrature,eqns)
+  main.t += main.dt*main.Npt
+  main.iteration += 1
+  main.a.uFuture[:],uPast = main.basis.reconstructEdgesGeneralTime(main.a.a,main)
+
 
 
 def spaceTime(main,MZ,eqns,args=None):
@@ -327,6 +406,7 @@ def SSP_RK3(main,MZ,eqns,args=None):
   #limiter_characteristic(main)
   #limiter_MF(main)
 
+
   main.t += main.dt
   main.iteration += 1
 #  plot(main.a.p[0,0,0,0,:,0,0,0]/1000.,color='green')
@@ -337,17 +417,20 @@ def SSP_RK3(main,MZ,eqns,args=None):
 
 def SSP_RK3_DOUBLEFLUX(main,MZ,eqns,args=None):
   R = 8314.4621/1000.
-  main.basis.reconstructU(main,main.a)
+  af = np.zeros(np.shape(main.a.a))
+  af[:] = main.a.a[:]
+  af[:,1::] = 0.
+  uf = main.basis.reconstructUGeneral(main,af)
   ## Compute gamma_star and this is frozen
-  Y_last = 1. - np.sum(main.a.u[5::]/main.a.u[None,0],axis=0)
-  Winv =  np.einsum('i...,ijk...->jk...',1./main.W[0:-1],main.a.u[5::]/main.a.u[None,0]) + 1./main.W[-1]*Y_last
-  Cp = np.einsum('i...,ijk...->jk...',main.Cp[0:-1],main.a.u[5::]/main.a.u[0]) + main.Cp[-1]*Y_last
+  Y_last = 1. - np.sum(uf[5::]/uf[None,0],axis=0)
+  Winv =  np.einsum('i...,ijk...->jk...',1./main.W[0:-1],uf[5::]/uf[None,0]) + 1./main.W[-1]*Y_last
+  Cp = np.einsum('i...,ijk...->jk...',main.Cp[0:-1],uf[5::]/uf[0]) + main.Cp[-1]*Y_last
   Cv = Cp - R*Winv 
   main.a.gamma_star[:] = Cp/Cv
 
   KE = 0.5*(main.a.u[1]**2 + main.a.u[2]**2 + main.a.u[3]**2)/main.a.u[0]
   main.a.p = (main.a.gamma_star - 1.)*( main.a.u[4] - KE)
-  #print(np.amax(diff(main.a.p[0,0,0,0,:,0,0,0])))
+  #print('Start',np.amax(main.a.p) - np.amin(main.a.p))
 
   # now get RHS with gamma_star managing thermo
   main.getRHS(main,MZ,eqns)  ## put RHS in a array since we don't need it
@@ -355,32 +438,37 @@ def SSP_RK3_DOUBLEFLUX(main,MZ,eqns,args=None):
   a0[:] = main.a.a[:]
   a1 = main.a.a[:]  + main.dt*(main.RHS[:])
   main.a.a[:] = a1[:]
-  #limiter_characteristic(main)
+  limiter_MF(main)
 
-#  main.getRHS(main,MZ,eqns)
-#  a1[:] = 3./4.*a0 + 1./4.*(a1 + main.dt*main.RHS[:]) #reuse a1 vector
-#  main.a.a[:] = a1[:]
-#  #limiter_characteristic(main)
-#  main.getRHS(main,MZ,eqns)  ## put RHS in a array since we don't need it
-#  main.a.a[:] = 1./3.*a0 + 2./3.*(a1[:] + main.dt*main.RHS[:])
+  main.getRHS(main,MZ,eqns)
+  a1[:] = 3./4.*a0 + 1./4.*(a1 + main.dt*main.RHS[:]) #reuse a1 vector
+  main.a.a[:] = a1[:]
+  limiter_MF(main)
+
+  main.getRHS(main,MZ,eqns)  ## put RHS in a array since we don't need it
+  main.a.a[:] = 1./3.*a0 + 2./3.*(a1[:] + main.dt*main.RHS[:])
+  limiter_MF(main)
+
 #
 #  # now update the thermodynamic state and relax energy
   main.basis.reconstructU(main,main.a)
   # compute pressure from new values of u but old value of gamma_star
   KE = 0.5*(main.a.u[1]**2 + main.a.u[2]**2 + main.a.u[3]**2)/main.a.u[0]
   main.a.p = (main.a.gamma_star - 1.)*( main.a.u[4] - KE)
-  print(np.amax(diff(main.a.p[0,0,0,0,:,0,0,0])))
-
+  #print('End',np.amax(main.a.p) - np.amin(main.a.p))
   # now update gamma_star
-  Y_last = 1. - np.sum(main.a.u[5::]/main.a.u[None,0],axis=0)
-  Winv =  np.einsum('i...,ijk...->jk...',1./main.W[0:-1],main.a.u[5::]/main.a.u[None,0]) + 1./main.W[-1]*Y_last
+  af[:] = main.a.a[:]
+  af[:,1::] = 0.
+  uf = main.basis.reconstructUGeneral(main,af)
+  Y_last = 1. - np.sum(uf[5::]/uf[None,0],axis=0)
+  Winv =  np.einsum('i...,ijk...->jk...',1./main.W[0:-1],uf[5::]/uf[None,0]) + 1./main.W[-1]*Y_last
   #main.a.T = main.a.p/(main.a.u[0]*R*Winv) 
-  Cp = np.einsum('i...,ijk...->jk...',main.Cp[0:-1],main.a.u[5::]/main.a.u[0]) + main.Cp[-1]*Y_last
+  Cp = np.einsum('i...,ijk...->jk...',main.Cp[0:-1],uf[5::]/uf[0]) + main.Cp[-1]*Y_last
   Cv = Cp - R*Winv
   main.a.gamma_star[:] = Cp/Cv
 
   # now update state with new gamma_star
-  #main.a.u[4] = main.a.p/(main.a.gamma_star - 1.) + KE
+  main.a.u[4] = main.a.p/(main.a.gamma_star - 1.) + KE
 
   # finally project this back to modal space
   ord_arrx= np.linspace(0,main.order[0]-1,main.order[0])
@@ -452,6 +540,166 @@ def SteadyState(main,MZ,eqns,args):
   main.t += main.dt
   main.iteration += 1
 
+def CrankNicolsonIncomp(main,MZ,eqns,args):
+  nonlinear_solver = args[0]
+  linear_solver = args[1]
+  sparse_quadrature = args[2]
+  main.a0[:] = main.a.a[:]
+  eqns.getRHS(main,main,eqns)
+  R0 = np.zeros(np.shape(main.RHS))
+  R0[:] = main.RHS[:]
+  def unsteadyResidual(v):
+    main.a.a[:] = np.reshape(v,np.shape(main.a.a))
+    eqns.getRHS(main,main,eqns)
+    R1 = np.zeros(np.shape(main.RHS))
+    R1[:] = main.RHS[:]
+    Rstar_time = ( main.a.a[:] - main.a0 )
+    Rstar_time[-1] = 0.
+    Rstar = ( main.a.a[:] - main.a0 ) - 0.5*main.dt*(R0 + R1)
+    Rstar[-1] = R1[-1]/50.
+    Rstar_glob = gatherResid(Rstar,main)
+    return Rstar,R1,Rstar_glob
+
+  def create_MF_Jacobian(v,args,main):
+    an = args[0]
+    Rn = args[1]
+    vr = np.reshape(v,np.shape(main.a.a))
+    eps = 5.e-3
+    main.a.a[:] = an + eps*vr
+    eqns.getRHS(main,main,eqns)
+    R1 = np.zeros(np.shape(main.RHS))
+    R1[:] = main.RHS[:]
+    vrtmp = np.zeros(np.shape(vr))
+    vrtmp[:] = vr[:]
+    vrtmp[-1] = 0.
+    Av = vrtmp - main.dt/2.*(R1 - Rn)/eps
+    Av[-1] = (R1[-1] - Rn[-1])/eps/50.
+    return Av.flatten()
+
+  nonlinear_solver.solve(unsteadyResidual, create_MF_Jacobian,main,linear_solver,sparse_quadrature,eqns)
+  main.t += main.dt
+  main.iteration += 1
+
+def fractionalStep(main,MZ,eqns,args):
+  ord_arr0= np.linspace(0,main.order[0]-1,main.order[0])
+  ord_arr1= np.linspace(0,main.order[1]-1,main.order[1])
+  ord_arr2= np.linspace(0,main.order[2]-1,main.order[2])
+  ord_arr3= np.linspace(0,main.order[3]-1,main.order[3])
+  scale =  (2.*ord_arr0[:,None,None,None] + 1.)*(2.*ord_arr1[None,:,None,None] + 1.)*(2.*ord_arr2[None,None,:,None]+1.)*(2.*ord_arr3[None,None,None,:] + 1. )/16.
+
+
+  nonlinear_solver = args[0]
+  linear_solver = args[1]
+  sparse_quadrature = args[2]
+  pressure_linear_solver = args[3]
+  main.a0[:] = main.a.a[:]
+  eqns.getRHS(main,main,eqns)
+  R0 = np.zeros(np.shape(main.RHS))
+  R0[:] = main.RHS[:]
+
+  def unsteadyResidual(v):
+    main.a.a[:] = np.reshape(v,np.shape(main.a.a))
+    eqns.getRHS(main,main,eqns)
+    R1 = np.zeros(np.shape(main.RHS))
+    R1[:] = main.RHS[:]
+    Rstar = ( main.a.a[:] - main.a0 ) - 0.5*main.dt*(R0 + R1)
+    Rstar_glob = gatherResid(Rstar,main)
+    return Rstar,R1,Rstar_glob
+
+  def create_MF_Jacobian(v,args,main):
+    an = args[0]
+    Rn = args[1]
+    vr = np.reshape(v,np.shape(main.a.a))
+    eps = 5.e-2
+    main.a.a[:] = an + eps*vr
+    eqns.getRHS(main,main,eqns)
+    R1 = np.zeros(np.shape(main.RHS))
+    R1[:] = main.RHS[:]
+    Av = vr - main.dt/2.*(R1 - Rn)/eps
+    return Av.flatten()
+
+  # solve for velocity
+  nonlinear_solver.solve(unsteadyResidual, create_MF_Jacobian,main,linear_solver,sparse_quadrature,eqns)
+
+  # now we need to solve for the pressure correction
+
+  right_bc = 'neumann'
+  left_bc = 'neumann'
+  top_bc = 'neumann'
+  bottom_bc = 'neumann'
+  #right_bc = 'dirichlet'
+  #left_bc = 'dirichlet'
+  #top_bc = 'dirichlet'
+  #bottom_bc = 'dirichlet'
+
+  right_bc_args = [0]
+  left_bc_args = [0]
+  top_bc_args = [0]
+  bottom_bc_args = [0]
+  BCs = [right_bc,right_bc_args,top_bc,top_bc_args,left_bc,left_bc_args,bottom_bc,bottom_bc_args]
+
+
+  eqnsPoisson = equations('Diffusion',('central','BR1'),'none' )
+  poisson_main = variables(main.Nel,main.order,main.quadpoints,eqnsPoisson,1,main.xG,main.yG,main.zG,main.t,main.et,main.dt,main.iteration,main.save_freq,main.turb_str,main.procx,main.procy,\
+                         main.BCs,None,0,False,False)
+  main.a.Upx,main.a.Upy,main.a.Upz = main.basis.diffU(main.a.a,main)
+  div = main.a.Upx[0] + main.a.Upy[1] + main.a.Upz[2]
+  #div = div - np.mean(div)
+  print('Start div = ' ,np.linalg.norm(div),np.sum(div))
+  force =(div)/main.dt
+  source = main.basis.volIntegrateGlob(poisson_main, force ,poisson_main.w0,poisson_main.w1,poisson_main.w2,poisson_main.w3)*scale[None,:,:,:,:,None,None,None,None]
+  print(np.shape(force))
+  div_int = np.sum(source) 
+  vol_int = main.basis.volIntegrateGlob(poisson_main, np.ones(np.shape(force) ) ,poisson_main.w0,poisson_main.w1,poisson_main.w2,poisson_main.w3)*scale[None,:,:,:,:,None,None,None,None]
+  vol_int = np.sum(vol_int)
+#  print(np.sum(source2))
+#  difference = (np.sum(source) )/(2.*np.pi)**3
+  source = main.basis.volIntegrateGlob(poisson_main, force - div_int/vol_int ,poisson_main.w0,poisson_main.w1,poisson_main.w2,poisson_main.w3)*scale[None,:,:,:,:,None,None,None,None]
+  print(np.sum(source))
+  def unsteadyResidual_poisson(v):
+    poisson_main.a.a[:] = np.reshape(v[:],np.shape(poisson_main.a.a))
+    eqnsPoisson.getRHS(poisson_main,poisson_main,eqnsPoisson)
+    R1 = np.zeros(np.shape(poisson_main.RHS))
+    R1[:] = poisson_main.RHS[:]
+    Rstar = R1 - source 
+    Rstar_glob = gatherResid(Rstar,poisson_main)
+    Rstar = Rstar.flatten()
+    return Rstar,R1,Rstar_glob
+
+  def create_MF_Jacobian_poisson(v,args,poisson_main):
+    vr = np.reshape(v[:],np.shape(poisson_main.a.a))
+    poisson_main.a.a[:] = vr
+    eqnsPoisson.getRHS(poisson_main,poisson_main,eqnsPoisson)
+    R1 = np.zeros(np.shape(poisson_main.RHS))
+    R1[:] = poisson_main.RHS[:]
+    Av = ( R1 ).flatten()
+    return Av.flatten()
+
+  nonlinear_solver.solve(unsteadyResidual_poisson, create_MF_Jacobian_poisson,poisson_main,linear_solver,False,eqnsPoisson)
+#  v = np.zeros(np.size(poisson_main.a.a))
+#  v[:] = poisson_main.a.a.flatten()
+#  Rstarn,Rn,Rstar_glob = unsteadyResidual_poisson(v)
+#  old = np.zeros(np.size(poisson_main.a.a))
+#  sol = pressure_linear_solver.solve(create_MF_Jacobian_poisson, -Rstarn.flatten(), old.flatten(),poisson_main,[],1e-7,linear_solver.maxiter_outer,500,True)
+#  poisson_main.a.a[:] = np.reshape(sol[:],np.shape(poisson_main.a.a))
+  ## Now fix velocity
+  px,py,pz = poisson_main.basis.diffU(poisson_main.a.a,poisson_main)
+  main.a.u[0] = main.a.u[0] - main.dt*px
+  main.a.u[1] = main.a.u[1] - main.dt*py
+  main.a.u[2] = main.a.u[2] - main.dt*pz
+  main.a.a[:] = main.basis.volIntegrateGlob(main,main.a.u ,main.w0,main.w1,main.w2,main.w3)*scale[None,:,:,:,:,None,None,None,None]
+  main.a.Upx,main.a.Upy,main.a.Upz = main.basis.diffU(main.a.a,main)
+  div = main.a.Upx[0] + main.a.Upy[1] + main.a.Upz[2]
+  print('End div = ' ,np.linalg.norm(div))
+  main.t += main.dt
+  main.iteration += 1
+  main.a.p[:] = poisson_main.a.u[0]
+#  contourf(poisson_main.a.a[0,0,0,0,0,:,:,0,0],100)
+#  colorbar()
+#  pause(.2)
+#  clf() 
+
+
 
 def CrankNicolson(main,MZ,eqns,args):
   nonlinear_solver = args[0]
@@ -497,6 +745,72 @@ def CrankNicolson(main,MZ,eqns,args):
     return Av.flatten()
 
   nonlinear_solver.solve(unsteadyResidual, create_MF_Jacobian,main,linear_solver,sparse_quadrature,eqns)
+  main.t += main.dt
+  main.iteration += 1
+
+def StrangSplitting(main,MZ,eqns,args):
+  ## First run SSP_RK4 for half a time step with no source
+  main.fsource = 0.
+  main.getRHS(main,MZ,eqns)
+  tau = 0.5*main.dt
+  a0 = np.zeros(np.shape(main.a.a))
+  a0[:] = main.a.a[:]
+  a1 = main.a.a[:]  + tau*(main.RHS[:])
+  main.a.a[:] = a1[:]
+
+  main.getRHS(main,MZ,eqns)
+  a1[:] = 3./4.*a0 + 1./4.*(a1 + tau*main.RHS[:]) #reuse a1 vector
+  main.a.a[:] = a1[:]
+
+  main.getRHS(main,MZ,eqns)  ## put RHS in a array since we don't need it
+  main.a.a[:] = 1./3.*a0 + 2./3.*(a1[:] + tau*main.RHS[:])
+
+  ## Now run implicit on the source term for a full time step
+  nonlinear_solver = args[0]
+  linear_solver = args[1]
+  sparse_quadrature = args[2]
+  main.a0[:] = main.a.a[:]
+  getRHS_SOURCE(main,main,eqns)
+  R0 = np.zeros(np.shape(main.RHS))
+  R0[:] = main.RHS[:]
+  def unsteadyResidual(v):
+    main.a.a[:] = np.reshape(v,np.shape(main.a.a))
+    getRHS_SOURCE(main,main,eqns)
+    R1 = np.zeros(np.shape(main.RHS))
+    R1[:] = main.RHS[:]
+    Rstar = ( main.a.a[:] - main.a0 ) - 0.5*main.dt*(R0 + R1)
+    Rstar_glob = gatherResid(Rstar,main)
+    return Rstar,R1,Rstar_glob
+
+  def create_MF_Jacobian(v,args,main):
+    an = args[0]
+    Rn = args[1]
+    vr = np.reshape(v,np.shape(main.a.a))
+    eps = 5.e-2
+    main.a.a[:] = an + eps*vr
+    getRHS_SOURCE(main,main,eqns)
+    R1 = np.zeros(np.shape(main.RHS))
+    R1[:] = main.RHS[:]
+    Av = vr - main.dt/2.*(R1 - Rn)/eps
+    return Av.flatten()
+
+  nonlinear_solver.solve(unsteadyResidual, create_MF_Jacobian,main,linear_solver,sparse_quadrature,eqns)
+
+  ## Finish with SSP_RK4 for a final half time step
+  a0 = np.zeros(np.shape(main.a.a))
+  a0[:] = main.a.a[:]
+  main.getRHS(main,MZ,eqns)  ## put RHS in a array since we don't need it
+  a1 = main.a.a[:]  + tau*(main.RHS[:])
+  main.a.a[:] = a1[:]
+
+  main.getRHS(main,MZ,eqns)
+  a1[:] = 3./4.*a0 + 1./4.*(a1 + tau*main.RHS[:]) #reuse a1 vector
+  main.a.a[:] = a1[:]
+
+  main.getRHS(main,MZ,eqns)  ## put RHS in a array since we don't need it
+  main.a.a[:] = 1./3.*a0 + 2./3.*(a1[:] + tau*main.RHS[:])
+
+
   main.t += main.dt
   main.iteration += 1
 

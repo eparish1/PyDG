@@ -6,7 +6,7 @@ from init_Classes import *
 from solver_classes import *
 from DG_functions import reconstructU_tensordot as reconstructU
 from DG_functions import volIntegrateGlob_tensordot as volIntegrateGlob
-from MPI_functions import gatherSolSlab,gatherSolSpectral
+from MPI_functions import gatherSolSlab,gatherSolSpectral,gatherSolScalar,globalSum
 from init_reacting_additions import *
 from timeSchemes import *#advanceSol,advanceSolImplicitMG,advanceSolImplicit,advanceSolImplicitPC
 import time
@@ -17,7 +17,8 @@ def getGlobGrid2(x,y,z,zeta0,zeta1,zeta2):
 #  dx = x[1] - x[0]
 #  dy = y[1] - y[0]
 #  dz = z[1] - z[0]
-  Npx,Npy,Npz = np.size(x),np.size(y),np.size(z)
+
+  Npx,Npy,Npz = int(np.size(x)),int(np.size(y)),int(np.size(z))
 
   nqx = np.size(zeta0)
   nqy = np.size(zeta1)
@@ -46,10 +47,15 @@ def getGlobGrid(x,y,z,zeta0,zeta1,zeta2):
   order0 = np.size(zeta0)
   order1 = np.size(zeta1)
   order2 = np.size(zeta2)
+  quadpoints = np.zeros(3,dtype='int')
+  quadpoints[0] =int( np.size(zeta0) )
+  quadpoints[1] =int( np.size(zeta1) )
+  quadpoints[2] =int( np.size(zeta2) )
 
   xG = np.zeros(((np.size(x)-1)*np.size(zeta0)))
   yG = np.zeros(((np.size(y)-1)*np.size(zeta1)))
   zG = np.zeros(((np.size(z)-1)*np.size(zeta2)))
+
   for i in range(0,Nelx-1):
      dx = x[i+1] - x[i]
      xG[i*quadpoints[0]:(i+1)*quadpoints[0]] = (2.*x[i]  + dx)/2. + zeta0/2.*(dx)
@@ -100,6 +106,7 @@ def getIC(main,f,x,y,z,zeta3,Npt):
   for i in range(0,nt):
     for j in range(0,Npt):
       U[:,:,:,:,i,:,:,:,j] =  U[:,:,:,:,0,:,:,:,0]  
+      main.a.uFuture[:,:,:,:,:,:,:,j] = U[:,:,:,:,0,:,:,:,0] 
   main.a.a[:] = volIntegrateGlob_tensordot(main,U,main.w0,main.w1,main.w2,main.w3)*scale[None,:,:,:,:,None,None,None,None]
 
 
@@ -114,7 +121,7 @@ def getIC_collocate(main,f,x,y,z,zeta3,Npt):
   ord_arrz= np.linspace(0,order[2]-1,order[2])
   ord_arrt= np.linspace(0,order[3]-1,order[3])
   scale =  (2.*ord_arrx[:,None,None,None] + 1.)*(2.*ord_arry[None,:,None,None] + 1.)*(2.*ord_arrz[None,None,:,None] + 1.)*(2.*ord_arrt[None,None,None,:] + 1.)/16.
-
+  print(np.shape(y))
   U = np.zeros((Nvars,nqx,nqy,nqz,1,Nelx,Nely,Nelz,1))
   U[:,:,:,:,0,:,:,:,0] = f(x,y,z,main)
   for i in range(0,nt):
@@ -171,25 +178,27 @@ if (mpi_rank == 0):
   print('dt*p/(Nt*dx) = ' + str(1.*dt*order[0]/dx/order[-1]))
   print('dt*(p/dx)**2*mu = ' + str(dt*order[0]**2/dx**2*mu) )
 iteration = 0
+
 eqns = equations(eqn_str,schemes,turb_str)
-main = variables(Nel,order,quadpoints,eqns,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,fsource,source_mag,shock_capturing)
+main = variables(Nel,order,quadpoints,eqns,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,fsource,source_mag,shock_capturing,mol_str)
 
 
 if (enriched):
   eqnsEnriched = equations(enriched_eqn_str,enriched_schemes,turb_str)
-  mainEnriched = variables(Nel,np.int64(order*enriched_ratio),quadpoints,eqnsEnriched,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,source,source_mag,shock_capturing)
+  mainEnriched = variables(Nel,np.int64(order*enriched_ratio),quadpoints,eqnsEnriched,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,source,source_mag,shock_capturing,mol_str)
 else:
   mainEnriched = main
+
+
 xG,yG,zG = getGlobGrid(x,y,z,main.zeta0,main.zeta1,main.zeta2)
 xG2,yG2,zG2 = getGlobGrid2(x,y,z,main.zeta0,main.zeta1,main.zeta2)
 xGc,yGc,zGc = getGlobGrid2(x,y,z,main.zeta0_c,main.zeta1_c,main.zeta2_c)
+xGc2,yGc2,zGc2 = getGlobGrid(x,y,z,main.zeta0_c,main.zeta1_c,main.zeta2_c)
 
-if (eqn_str[0:-2] == 'Navier-Stokes Reacting'):
-  main = add_reacting_to_main(main,mol_str)
-  mainEnriched = add_reacting_to_main(mainEnriched,mol_str)
 main.basis = basis_class('Legendre',[basis_functions_str])
 mainEnriched.basis = main.basis
 
+main.xG2 = xG2
 
 #getIC_collocate(main,IC_function,xGc[:,:,:,main.sx,main.sy,:],yGc[:,:,:,main.sx,main.sy,:],zGc[:,:,:,main.sx,main.sy,:],main.zeta3,main.Npt)
 getIC(main,IC_function,xG2[:,:,:,main.sx,main.sy,:],yG2[:,:,:,main.sx,main.sy,:],zG2[:,:,:,main.sx,main.sy,:],main.zeta3,main.Npt)
@@ -204,31 +213,30 @@ if (main.mpi_rank == 0):
   np.savez('DGgrid',x=xG,y=yG,z=zG)
 
 t0 = time.time()
-#main.a.a[:,1::,:] = 0.
-#main.a.a[:,:,1::] = 0.
-tsave = np.empty(0)
-Tsave = np.empty(0)
-#print(np.amax(main.a.a[0,1::,1::]))
+
+ord_arrx= np.linspace(0,order[0]-1,order[0])
+ord_arry= np.linspace(0,order[1]-1,order[1])
+ord_arrz= np.linspace(0,order[2]-1,order[2])
+ord_arrt= np.linspace(0,order[3]-1,order[3])
+scale =  (2.*ord_arrx[:,None,None,None] + 1.)*(2.*ord_arry[None,:,None,None] + 1.)*(2.*ord_arrz[None,None,:,None] + 1.)*(2.*ord_arrt[None,None,None,:] + 1.)/16.
+
+
 while (main.t <= main.et + main.dt/2):
   if (main.iteration%main.save_freq == 0):
     reconstructU(main,main.a)
     uG = gatherSolSlab(main,eqns,main.a)
     aG = gatherSolSpectral(main.a.a,main)
+    savehook(main)
     if (main.mpi_rank == 0):
       UG = getGlobU(uG)
-      pG = getGlobU_scalar(main.a.p)
-      TG = getGlobU_scalar(main.a.T)
-
       #uGF = getGlobU(uG)
       sys.stdout.write('======================================' + '\n')
       sys.stdout.write('wall time = ' + str(time.time() - t0) + '\n' )
-      sys.stdout.write('t = ' + str(main.t) +  '   E sum = ' + str(np.sum(uG[4])) + '  dt = ' + str(main.dt) +  '\n')
+      sys.stdout.write('t = ' + str(main.t) +  '\n')
       np.savez('Solution/npsol' + str(main.iteration),U=UG,a=aG,t=main.t,iteration=main.iteration,order=order)
       sys.stdout.flush()
 
   timescheme.advanceSol(main,mainEnriched,eqns,timescheme.args)
-  tsave = np.append(tsave,main.t)
-  Tsave = np.append(Tsave,np.amax(main.a.T))
   #advanceSolImplicit_MG(main,main,eqns)
 reconstructU(main,main.a)
 uG = gatherSolSlab(main,eqns,main.a)

@@ -29,6 +29,25 @@ class timeschemes:
       self.sparse_quadrature = False
       self.args = [self.nonlinear_solver,self.linear_solver,self.sparse_quadrature]
 
+    if (time_str == 'fractionalStep'):
+      check_t = 0
+      self.advanceSol = fractionalStep
+      self.linear_solver = linearSolver(lsolver_str)
+      self.pressure_linear_solver = linearSolver('BICGSTAB')
+      self.nonlinear_solver = nonlinearSolver(nlsolver_str)
+      self.sparse_quadrature = False
+      self.args = [self.nonlinear_solver,self.linear_solver,self.sparse_quadrature,self.pressure_linear_solver]
+
+
+    if (time_str == 'SpaceTimeIncomp'):
+      check_t = 0
+      self.advanceSol = spaceTimeIncomp 
+      self.linear_solver = linearSolver(lsolver_str)
+      self.nonlinear_solver = nonlinearSolver(nlsolver_str)
+      self.sparse_quadrature = False
+      self.args = [self.nonlinear_solver,self.linear_solver,self.sparse_quadrature]
+
+
     if (time_str == 'SteadyState'):
       check_t = 0
       self.advanceSol = SteadyState
@@ -44,6 +63,24 @@ class timeschemes:
       self.nonlinear_solver = nonlinearSolver(nlsolver_str)
       self.sparse_quadrature = True
       self.args = [self.nonlinear_solver,self.linear_solver,self.sparse_quadrature]
+
+    if (time_str == 'CrankNicolsonIncomp'):
+      check_t = 0
+      self.advanceSol = CrankNicolsonIncomp
+      self.linear_solver = linearSolver(lsolver_str)
+      self.nonlinear_solver = nonlinearSolver(nlsolver_str)
+      self.sparse_quadrature = False
+      self.args = [self.nonlinear_solver,self.linear_solver,self.sparse_quadrature]
+
+    if (time_str == 'StrangSplitting'):
+      check_t = 0
+      self.advanceSol = StrangSplitting
+      self.linear_solver = linearSolver(lsolver_str)
+      self.nonlinear_solver = nonlinearSolver(nlsolver_str)
+      self.sparse_quadrature = True
+      self.args = [self.nonlinear_solver,self.linear_solver,self.sparse_quadrature]
+
+
     if (time_str == 'SDIRK2'):
       check_t = 0
       self.advanceSol = SDIRK2 
@@ -106,4 +143,11 @@ class linearSolver:
       self.tol=tol
       self.maxiter_outer = maxiter_outer
       self.maxiter = maxiter
+    if (SolverType == 'BICGSTAB'):
+      if (comm.Get_rank() == 0): print('Linear solver set to ' + SolverType)
+      self.solve = bicgstab
+      self.tol=tol
+      self.maxiter_outer = maxiter_outer
+      self.maxiter = 50
+      self.printnorm = printnorm
 

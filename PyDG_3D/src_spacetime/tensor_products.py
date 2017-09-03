@@ -6,7 +6,6 @@ def diffU_tensordot(a,main):
   tmp = np.tensordot(tmp,main.w2,axes=([1],[0]))
   tmp = np.tensordot(tmp,main.w3,axes=([1],[0]))
   ux = np.rollaxis( np.rollaxis( np.rollaxis( np.rollaxis( tmp , -4 , 1) , -3 , 2), -2, 3), -1, 4)
- 
   tmpu = np.tensordot(a,main.w0,axes=([1],[0]))
   tmp = np.tensordot(tmpu,main.wp1,axes=([1],[0]))
   tmp = np.tensordot(tmp,main.w2,axes=([1],[0]))
@@ -462,10 +461,11 @@ def diffUZ_edge_einsum(a,main):
 def diffCoeffs(a):
   atmp = np.zeros(np.shape(a))
   atmp[:] = a[:]
-  nvars,order,order,order,Nelx,Nely,Nelz = np.shape(a)
-  ax = np.zeros((nvars,order[0],order[1],order[2],Nelx,Nely,Nelz))
-  ay = np.zeros((nvars,order[0],order[1],order[2],Nelx,Nely,Nelz))
-  az = np.zeros((nvars,order[0],order[1],order[2],Nelx,Nely,Nelz))
+  nvars,orderx,ordery,orderz,ordert,Nelx,Nely,Nelz,Nelt = np.shape(a)
+  order = np.array([orderx,ordery,orderz,ordert])
+  ax = np.zeros((nvars,order[0],order[1],order[2],Nelx,Nely,Nelz,Nelt))
+  ay = np.zeros((nvars,order[0],order[1],order[2],Nelx,Nely,Nelz,Nelt))
+  az = np.zeros((nvars,order[0],order[1],order[2],Nelx,Nely,Nelz,Nelt))
 
   for j in range(order-1,2,-1):
     ax[:,j-1,:,:] = (2.*j-1)*atmp[:,j,:,:]
@@ -512,8 +512,9 @@ def diffCoeffs(a):
   return ax,ay,az
 
 
-def volIntegrate(weights0,weights1,weights2,f):
-  return  np.einsum('zpqrijk->zijk',weights0[None,:,None,None,None,None,None]*weights1[None,None,:,None,None,None,None]*weights2[None,None,None,:,None,None,None]*f[:,:,:,:,:])
+def volIntegrate(weights0,weights1,weights2,weights3,f):
+  return  np.einsum('zpqrl...->z...',weights0[None,:,None,None,None,None,None,None,None]*weights1[None,None,:,None,None,None,None,None,None]*\
+          weights2[None,None,None,:,None,None,None,None,None]*weights3[None,None,None,None,:,None,None,None,None]*f)
 
 
 def volIntegrateGlob_tensordot(main,f,w0,w1,w2,w3):

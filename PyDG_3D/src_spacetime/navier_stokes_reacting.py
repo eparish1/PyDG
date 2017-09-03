@@ -249,6 +249,7 @@ def rusanovFlux_reacting(main,UL,UR,pL,pR,n,args=None):
   return F
                
 
+
 def HLLCFlux_reacting(main,UL,UR,pL,pR,n,args=None):
 
   #process left state
@@ -369,7 +370,7 @@ def HLLCFlux_reacting(main,UL,UR,pL,pR,n,args=None):
   F[:,indx3] = FR[:,indx3]
   return F
 
-def HLLCFlux_reacting_doubleflux_plus(main,UL,UR,pL,pR,gammaL,gammaR,n,args=None):
+def HLLCFlux_reacting_doubleflux_plus(main,UL,UR,pL2,pR2,gammaL,gammaR,n,args=None):
 # Calculates HLLC for variable species navier-stokes equations
 # implementation based on paper:
 #   Discontinuous Galerkin method for multicomponent chemically reacting flows and combustion
@@ -382,13 +383,13 @@ def HLLCFlux_reacting_doubleflux_plus(main,UL,UR,pL,pR,gammaL,gammaR,n,args=None
   WinvR =  np.einsum('i...,ijk...->jk...',1./main.W[0:-1],UR[5::]/UR[None,0]) + 1./main.W[-1]*Y_N2_R
   CpR = np.einsum('i...,ijk...->jk...',main.Cp[0:-1],UR[5::]/UR[None,0]) + main.Cp[-1]*Y_N2_R
   CvR = CpR - R*WinvR
-#  gammaR = CpR/CvR
+  #gammaR = CpR/CvR
 
   Y_N2_L = 1. - np.sum(UL[5::]/UL[None,0],axis=0)
   WinvL =  np.einsum('i...,ijk...->jk...',1./main.W[0:-1],UL[5::]/UL[None,0]) + 1./main.W[-1]*Y_N2_L
   CpL = np.einsum('i...,ijk...->jk...',main.Cp[0:-1],UL[5::]/UL[None,0]) + main.Cp[-1]*Y_N2_L
   CvL = CpL - R*WinvL
-#  gammaL = CpL/CvL
+  #gammaL = CpL/CvL
 
 
 
@@ -398,10 +399,12 @@ def HLLCFlux_reacting_doubleflux_plus(main,UL,UR,pL,pR,gammaL,gammaR,n,args=None
   vL = UL[2]/rhoL
   wL = UL[3]/rhoL
   q2L = uL**2 + vL**2 + wL**2
-  hL = gammaR/rhoL*(UL[4] - 0.5*UL[0]*q2L)*(gammaR - 1.)/(gammaL - 1.) 
+  hL = gammaR/rhoL*(UL[4] - 0.5*UL[0]*q2L)*(gammaL - 1.)/(gammaR - 1.) 
   pL = rhoL*hL*(gammaR - 1.)/gammaR
   cL = np.sqrt((gammaR - 1.)*hL)
-  rHL = UL[4] + pL
+  rHL =  rhoL*(hL + 0.5*q2L)
+  #rHL = UL[4] + pL
+  #print(np.mean(UL[4]),np.mean( rhoL*(hL + 0.5*uL**2) - pL) )
   unL = uL*n[0] + vL*n[1] + wL*n[2]
   # process right state
   rhoR = UR[0]
@@ -412,7 +415,8 @@ def HLLCFlux_reacting_doubleflux_plus(main,UL,UR,pL,pR,gammaL,gammaR,n,args=None
   hR = gammaR/rhoR*(UR[4] - 0.5*UR[0]*q2R)
   pR = rhoR*hR*(gammaR - 1.)/gammaR
   cR = np.sqrt((gammaR - 1.)*hR)
-  rHR = UR[4] + pR
+  #rHR = UR[4] + pR
+  rHR =  rhoR*(hR + 0.5*q2R)
   unR = uR*n[0] + vR*n[1] + wR*n[2]
   # make computations for HLLC
   SL = np.fmin(unL - cL , unR - cR)
@@ -428,6 +432,7 @@ def HLLCFlux_reacting_doubleflux_plus(main,UL,UR,pL,pR,gammaL,gammaR,n,args=None
   UstarL[1] = srat*( UL[1] + rhoL*(S_star - unL)*n[0] )
   UstarL[2] = srat*( UL[2] + rhoL*(S_star - unL)*n[1] )
   UstarL[3] = srat*( UL[3] + rhoL*(S_star - unL)*n[2] )
+  #UstarL[4] = srat*( rhoL*(hL + 0.5*q2L) - pL + (S_star - unL)*(rhoL*S_star + pL/(SL - unL) ) )
   UstarL[4] = srat*( UL[4] + (S_star - unL)*(rhoL*S_star + pL/(SL - unL) ) )
   UstarL[5::] = srat[None,:]*( UL[5::] ) 
   #right state
@@ -437,6 +442,7 @@ def HLLCFlux_reacting_doubleflux_plus(main,UL,UR,pL,pR,gammaL,gammaR,n,args=None
   UstarR[1] = srat*( UR[1] + rhoR*(S_star - unR)*n[0] )
   UstarR[2] = srat*( UR[2] + rhoR*(S_star - unR)*n[1] )
   UstarR[3] = srat*( UR[3] + rhoR*(S_star - unR)*n[2] )
+  #UstarR[4] = srat*( rhoR*(hR + 0.5*q2R) - pR + (S_star - unR)*(rhoR*S_star + pR/(SR - unR) ) )
   UstarR[4] = srat*( UR[4] + (S_star - unR)*(rhoR*S_star + pR/(SR - unR) ) )
   UstarR[5::] = srat[None,:]*( UR[5::] )
 
@@ -471,7 +477,7 @@ def HLLCFlux_reacting_doubleflux_plus(main,UL,UR,pL,pR,gammaL,gammaR,n,args=None
 
 
 
-def HLLCFlux_reacting_doubleflux_minus(main,UL,UR,pL,pR,gammaL,gammaR,n,args=None):
+def HLLCFlux_reacting_doubleflux_minus(main,UL,UR,pL2,pR2,gammaL,gammaR,n,args=None):
 # Calculates HLLC for variable species navier-stokes equations
 # implementation based on paper:
 #   Discontinuous Galerkin method for multicomponent chemically reacting flows and combustion
@@ -484,12 +490,13 @@ def HLLCFlux_reacting_doubleflux_minus(main,UL,UR,pL,pR,gammaL,gammaR,n,args=Non
   WinvR =  np.einsum('i...,ijk...->jk...',1./main.W[0:-1],UR[5::]/UR[None,0]) + 1./main.W[-1]*Y_N2_R
   CpR = np.einsum('i...,ijk...->jk...',main.Cp[0:-1],UR[5::]/UR[None,0]) + main.Cp[-1]*Y_N2_R
   CvR = CpR - R*WinvR
-  gammaR2 = CpR/CvR
+  #gammaR = CpR/CvR
+
   Y_N2_L = 1. - np.sum(UL[5::]/UL[None,0],axis=0)
   WinvL =  np.einsum('i...,ijk...->jk...',1./main.W[0:-1],UL[5::]/UL[None,0]) + 1./main.W[-1]*Y_N2_L
   CpL = np.einsum('i...,ijk...->jk...',main.Cp[0:-1],UL[5::]/UL[None,0]) + main.Cp[-1]*Y_N2_L
   CvL = CpL - R*WinvL
-  gammaL2 = CpL/CvL
+  #gammaL = CpL/CvL
 
 
 
@@ -502,7 +509,8 @@ def HLLCFlux_reacting_doubleflux_minus(main,UL,UR,pL,pR,gammaL,gammaR,n,args=Non
   hL = gammaL/rhoL*(UL[4] - 0.5*UL[0]*q2L)
   pL = rhoL*hL*(gammaL - 1.)/gammaL
   cL = np.sqrt((gammaL - 1.)*hL)
-  rHL = UL[4] + pL
+  #rHL = UL[4] + pL
+  rHL =  rhoL*(hL + 0.5*q2L)
   unL = uL*n[0] + vL*n[1] + wL*n[2]
   # process right state
   rhoR = UR[0]
@@ -513,7 +521,9 @@ def HLLCFlux_reacting_doubleflux_minus(main,UL,UR,pL,pR,gammaL,gammaR,n,args=Non
   hR = gammaL/rhoR*(UR[4] - 0.5*UR[0]*q2R)*(gammaR - 1.)/(gammaL - 1.) 
   pR = rhoR*hR*(gammaL - 1.)/gammaL
   cR = np.sqrt((gammaL - 1.)*hR)
-  rHR = UR[4] + pR
+  #rHR = UR[4] + pR
+  rHR =  rhoR*(hR + 0.5*q2R) 
+  #print(np.mean(rHR),np.mean(UR[4] + pR))
   unR = uR*n[0] + vR*n[1] + wR*n[2]
 
   # make computations for HLLC
@@ -530,6 +540,7 @@ def HLLCFlux_reacting_doubleflux_minus(main,UL,UR,pL,pR,gammaL,gammaR,n,args=Non
   UstarL[1] = srat*( UL[1] + rhoL*(S_star - unL)*n[0] )
   UstarL[2] = srat*( UL[2] + rhoL*(S_star - unL)*n[1] )
   UstarL[3] = srat*( UL[3] + rhoL*(S_star - unL)*n[2] )
+  #UstarL[4] = srat*( rhoL*(hL + 0.5*q2L) - pL + (S_star - unL)*(rhoL*S_star + pL/(SL - unL) ) )
   UstarL[4] = srat*( UL[4] + (S_star - unL)*(rhoL*S_star + pL/(SL - unL) ) )
   UstarL[5::] = srat[None,:]*( UL[5::] ) 
   #right state
@@ -539,6 +550,7 @@ def HLLCFlux_reacting_doubleflux_minus(main,UL,UR,pL,pR,gammaL,gammaR,n,args=Non
   UstarR[1] = srat*( UR[1] + rhoR*(S_star - unR)*n[0] )
   UstarR[2] = srat*( UR[2] + rhoR*(S_star - unR)*n[1] )
   UstarR[3] = srat*( UR[3] + rhoR*(S_star - unR)*n[2] )
+  #UstarR[4] = srat*( rhoR*(hR + 0.5*q2R) - pR + (S_star - unR)*(rhoR*S_star + pR/(SR - unR) ) )
   UstarR[4] = srat*( UR[4] + (S_star - unR)*(rhoR*S_star + pR/(SR - unR) ) )
   UstarR[5::] = srat[None,:]*( UR[5::] )
 

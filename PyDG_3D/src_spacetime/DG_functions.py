@@ -99,6 +99,8 @@ def getFlux(main,MZ,eqns,args):
   #main.a.aR_edge[:],main.a.aL_edge[:],main.a.aU_edge[:],main.a.aD_edge[:],main.a.aF_edge[:],main.a.aB_edge[:] = sendaEdgesGeneralSlab(main.a.a,main)
   #main.a.uR_edge[:],main.a.uL_edge[:],main.a.uU_edge[:],main.a.uD_edge[:],main.a.uF_edge[:],main.a.uB_edge[:] = reconstructEdgeEdgesGeneral(main)
   inviscidFlux(main,eqns,main.iFlux,main.a,args)
+  #inviscidFlux_DOUBLEFLUX2(main,eqns,main.iFlux,main.a,args)
+
   # now we need to integrate along the boundary 
   main.iFlux.fRI = main.basis.faceIntegrateGlob(main,main.iFlux.fRS,MZ.w1,MZ.w2,MZ.w3,MZ.weights1,MZ.weights2,MZ.weights3)
   main.iFlux.fLI = main.basis.faceIntegrateGlob(main,main.iFlux.fLS,MZ.w1,MZ.w2,MZ.w3,MZ.weights1,MZ.weights2,MZ.weights3)
@@ -114,7 +116,6 @@ def getRHS_BR1(main,MZ,eqns,args=[],args_phys=[]):
   main.a.uR[:],main.a.uL[:],main.a.uU[:],main.a.uD[:],main.a.uF[:],main.a.uB[:] = main.basis.reconstructEdgesGeneral(main.a.a,main)
   #main.a.uR_edge[:],main.a.uL_edge[:],main.a.uU_edge[:],main.a.uD_edge[:],main.a.uF_edge[:],main.a.uB_edge[:] = sendEdgesGeneralSlab(main.a.uL,main.a.uR,main.a.uD,main.a.uU,main.a.uB,main.a.uF,main)
   main.a.uR_edge[:],main.a.uL_edge[:],main.a.uU_edge[:],main.a.uD_edge[:],main.a.uF_edge[:],main.a.uB_edge[:] = sendEdgesGeneralSlab(main.a.uL,main.a.uR,main.a.uD,main.a.uU,main.a.uB,main.a.uF,main)
-
 #  print(np.amax(main.a.a[0,1::,1::]))
 #  print(np.amin(main.a.u[0]),np.amax(main.a.u[0]))
   if (main.eq_str[0:-2] == 'Navier-Stokes Reacting'):
@@ -154,17 +155,24 @@ def getRHS_BR1(main,MZ,eqns,args=[],args_phys=[]):
   tmp +=  (main.vFlux2.fUI[:,:,None,:] - main.vFlux2.fDI[:,:,None,:]*main.altarray1[None,None,:,None,None,None,None,None,None])*dyi[None]
   tmp +=  (main.vFlux2.fFI[:,:,:,None] - main.vFlux2.fBI[:,:,:,None]*main.altarray2[None,None,None,:,None,None,None,None,None])*dzi[None]
 
-  if (main.fsource):
-    force = np.zeros(np.shape(main.iFlux.fx))
-    sources = main.cgas_field.net_production_rates[:,:]*main.cgas_field.molecular_weights[None,:]
-    #main.source_hook(main,force)
+#  main.a.Upx,main.a.Upy,main.a.Upz = main.basis.diffU(main.a.a,main)
+#  force = np.zeros(np.shape(main.iFlux.fx))
+#  force[3] =  main.a.Upx[0]**2 + main.a.Upy[1]**2 + main.a.Upz[2]**2 + 2.*main.a.Upy[0]*main.a.Upx[1] + 2.*main.a.Upz[0]*main.a.Upx[2] + 2.*main.a.Upz[1]*main.a.Upy[2]
+#  #force[3] = main.a.Upx[0] + main.a.Upy[1] + main.a.Upz[2]
+#  vol_int = main.basis.volIntegrateGlob(main,force,main.w0,main.w1,main.w2,main.w3)*scale[None,:,:,:,:,None,None,None,None]
+#  tmp[3] += vol_int[3]
+#  #f =  main.a.Upx[0]**2 + main.a.Upy[1]**2 + main.a.Upz[2]**2 + 2.*main.a.Upy[0]*main.a.Upx[1] + 2.*main.a.Upz[0]*main.a.Upx[2] + 2.*main.a.Upz[1]*main.a.Upy[2]
+#  if (main.fsource):
+#    force = np.zeros(np.shape(main.iFlux.fx))
+#    #sources = main.cgas_field.net_production_rates[:,:]*main.cgas_field.molecular_weights[None,:]
+#    #main.source_hook(main,force)
 #    for i in range(0,main.nvars):
 #      force[i] = main.source_mag[i]#*main.a.u[i]
-    for i in range(5,main.nvars):
-      force[i] = np.reshape(sources[:,i-5],np.shape(main.a.u[0]))
-      force[4] -= force[i]*main.delta_h0[i-5]
-    force[4] -= main.delta_h0[-1]*np.reshape(sources[:,-1],np.shape(main.a.u[0]))
-    tmp += main.basis.volIntegrateGlob(main, force ,main.w0,main.w1,main.w2,main.w3)*scale[None,:,:,:,:,None,None,None,None]
+#    for i in range(5,main.nvars):
+#      force[i] = np.reshape(sources[:,i-5],np.shape(main.a.u[0]))
+#      force[4] -= force[i]*main.delta_h0[i-5]
+#    force[4] -= main.delta_h0[-1]*np.reshape(sources[:,-1],np.shape(main.a.u[0]))
+#    tmp += main.basis.volIntegrateGlob(main, force ,main.w0,main.w1,main.w2,main.w3)*scale[None,:,:,:,:,None,None,None,None]
   main.RHS = tmp
   main.comm.Barrier()
 
@@ -216,19 +224,50 @@ def getRHS(main,MZ,eqns,args=[],args_phys=[]):
     tmp +=  (fvFIG13[:,:,:,None] + fvFIG23[:,:,:,None] + fvFIG33[:,:,:,None]*main.wpedge2[None,None,None,:,1,None,None,None,None,None]  - (fvBIG13[:,:,:,None]*main.altarray2[None,None,None,:,None,None,None,None,None] + fvBIG23[:,:,:,None]*main.altarray2[None,None,None,:,None,None,None,None,None] + fvBIG33[:,:,:,None]*main.wpedge2[None,None,None,:,0,None,None,None,None,None]) )*dzi[None]
     tmp +=  (fvR2I[:,None,:,:] - fvL2I[:,None,:,:]*main.altarray0[None,:,None,None,None,None,None,None,None])*dxi[None] + (fvU2I[:,:,None,:] - fvD2I[:,:,None,:]*main.altarray1[None,None,:,None,None,None,None,None,None])*dyi[None] + (fvF2I[:,:,:,None] - fvB2I[:,:,:,None]*main.altarray2[None,None,None,:,None,None,None,None,None])*dzi[None]
 
+#  main.a.Upx,main.a.Upy,main.a.Upz = main.basis.diffU(main.a.a,main)
+#  force = np.zeros(np.shape(main.iFlux.fx))
+#  force[3] =  main.a.Upx[0]**2 + main.a.Upy[1]**2 + main.a.Upz[2]**2 + 2.*main.a.Upy[0]*main.a.Upx[1] + 2.*main.a.Upz[0]*main.a.Upx[2] + 2.*main.a.Upz[1]*main.a.Upy[2]
+#  tmp += main.basis.volIntegrateGlob(main, force ,main.w0,main.w1,main.w2,main.w3)*scale[None,:,:,:,:,None,None,None,None]
+#  if (main.fsource):
+#    force = np.zeros(np.shape(main.iFlux.fx))
+#    sources = main.cgas_field.net_production_rates[:,0:-1]*main.cgas_field.molecular_weights[None,0:-1]
+#    #main.source_hook(main,force)
+##    for i in range(0,main.nvars):
+##      force[i] = main.source_mag[i]#*main.a.u[i]
+#    for i in range(5,main.nvars):
+#      force[i] = np.reshape(sources[:,i-5],np.shape(main.a.u[0]))
+#      force[4] -= force[i]*main.delta_h0[i-5]
+#    force[4] -= main.delta_h0[-1]*np.reshape(sources[:,-1],np.shape(main.a.u[0]))
+#    tmp += main.basis.volIntegrateGlob(main, force ,main.w0,main.w1,main.w2,main.w3)*scale[None,:,:,:,:,None,None,None,None]
 
-  if (main.fsource):
-    force = np.zeros(np.shape(main.iFlux.fx))
-    sources = main.cgas_field.net_production_rates[:,0:-1]*main.cgas_field.molecular_weights[None,0:-1]
-    #main.source_hook(main,force)
-#    for i in range(0,main.nvars):
-#      force[i] = main.source_mag[i]#*main.a.u[i]
-    for i in range(5,main.nvars):
-      force[i] = np.reshape(sources[:,i-5],np.shape(main.a.u[0]))
-      force[4] -= force[i]*main.delta_h0[i-5]
-    force[4] -= main.delta_h0[-1]*np.reshape(sources[:,-1],np.shape(main.a.u[0]))
-    tmp += main.basis.volIntegrateGlob(main, force ,main.w0,main.w1,main.w2,main.w3)*scale[None,:,:,:,:,None,None,None,None]
+  main.RHS = tmp
+  main.comm.Barrier()
 
+
+
+def getRHS_SOURCE(main,MZ,eqns,args=[],args_phys=[]):
+  main.basis.reconstructU(main,main.a)
+  main.a.uR[:],main.a.uL[:],main.a.uU[:],main.a.uD[:],main.a.uF[:],main.a.uB[:] = main.basis.reconstructEdgesGeneral(main.a.a,main)
+  main.a.uR_edge[:],main.a.uL_edge[:],main.a.uU_edge[:],main.a.uD_edge[:],main.a.uF_edge[:],main.a.uB_edge[:] = sendEdgesGeneralSlab(main.a.uL,main.a.uR,main.a.uD,main.a.uU,main.a.uB,main.a.uF,main)
+  update_state(main)
+  ord_arr0= np.linspace(0,main.order[0]-1,main.order[0])
+  ord_arr1= np.linspace(0,main.order[1]-1,main.order[1])
+  ord_arr2= np.linspace(0,main.order[2]-1,main.order[2])
+  ord_arr3= np.linspace(0,main.order[3]-1,main.order[3])
+  scale =  (2.*ord_arr0[:,None,None,None] + 1.)*(2.*ord_arr1[None,:,None,None] + 1.)*(2.*ord_arr2[None,None,:,None]+1.)*(2.*ord_arr3[None,None,None,:] + 1.)/16.
+  dxi = 2./main.dx2[None,None,None,None,:,None,None,None]*scale[:,:,:,:,None,None,None,None]*np.ones(np.shape(main.a.a[0]))
+  dyi = 2./main.dy2[None,None,None,None,None,:,None,None]*scale[:,:,:,:,None,None,None,None]*np.ones(np.shape(main.a.a[0]))
+  dzi = 2./main.dz2[None,None,None,None,None,None,:,None]*scale[:,:,:,:,None,None,None,None]*np.ones(np.shape(main.a.a[0]))
+  tmp = 0
+  force = np.zeros(np.shape(main.iFlux.fx))
+  main.a.Upx,main.a.Upy,main.a.Upz = main.basis.diffU(main.a.a,main)
+  source[0] = (main.a.Upx[0] + main.a.Upy[1] + main.a.Upz[2])/main.dt
+#  sources = main.cgas_field.net_production_rates[:,0:-1]*main.cgas_field.molecular_weights[None,0:-1]
+#  for i in range(5,main.nvars):
+#    force[i] = np.reshape(sources[:,i-5],np.shape(main.a.u[0]))
+#    force[4] -= force[i]*main.delta_h0[i-5]
+#  force[4] -= main.delta_h0[-1]*np.reshape(sources[:,-1],np.shape(main.a.u[0]))
+#  tmp += main.basis.volIntegrateGlob(main, force ,main.w0,main.w1,main.w2,main.w3)*scale[None,:,:,:,:,None,None,None,None]
   main.RHS = tmp
   main.comm.Barrier()
 

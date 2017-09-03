@@ -1,31 +1,32 @@
 import numpy as np
+from MPI_functions import globalNorm,globalSum
 import sys
-def globalNorm(r,main):
-  ## Create Global residual
-  data = main.comm.gather(np.linalg.norm(r)**2,root = 0)
-  if (main.mpi_rank == 0):
-    rn_glob = 0.
-    for j in range(0,main.num_processes):
-      rn_glob += data[j]
-    rn_glob = np.sqrt(rn_glob)
-    for j in range(1,main.num_processes):
-      main.comm.send(rn_glob, dest=j)
-  else:
-    rn_glob = main.comm.recv(source=0)
-  return rn_glob
-
-def globalSum(r,main):
-  ## Create Global residual
-  data = main.comm.gather(np.sum(r),root = 0)
-  if (main.mpi_rank == 0):
-    rn_glob = 0.
-    for j in range(0,main.num_processes):
-      rn_glob += data[j]
-    for j in range(1,main.num_processes):
-      main.comm.send(rn_glob, dest=j)
-  else:
-    rn_glob = main.comm.recv(source=0)
-  return rn_glob
+#def globalNorm(r,main):
+#  ## Create Global residual
+#  data = main.comm.gather(np.linalg.norm(r)**2,root = 0)
+#  if (main.mpi_rank == 0):
+#    rn_glob = 0.
+#    for j in range(0,main.num_processes):
+#      rn_glob += data[j]
+#    rn_glob = np.sqrt(rn_glob)
+#    for j in range(1,main.num_processes):
+#      main.comm.send(rn_glob, dest=j)
+#  else:
+#    rn_glob = main.comm.recv(source=0)
+#  return rn_glob
+#
+#def globalSum(r,main):
+#  ## Create Global residual
+#  data = main.comm.gather(np.sum(r),root = 0)
+#  if (main.mpi_rank == 0):
+#    rn_glob = 0.
+#    for j in range(0,main.num_processes):
+#      rn_glob += data[j]
+#    for j in range(1,main.num_processes):
+#      main.comm.send(rn_glob, dest=j)
+#  else:
+#    rn_glob = main.comm.recv(source=0)
+#  return rn_glob
 
 
 
@@ -101,6 +102,37 @@ def GMRes(Af, b, x0,main,args,tol=1e-9,maxiter_outer=1,maxiter=20,printnorm=0):
       x0[:] = x[:]
       k_outer += 1
     return x[:]
+
+
+
+def bicgstab(Af, b, x0,main,args,tol=1e-9,maxiter_outer=1,maxiter=50,printnorm=0):
+  r0 = b - Af(x0,args,main)
+  rhat0 = np.zeros(np.shape(r0))
+  rhat0[:] = r0[:]
+  rhat0_norm = globalNorm(rhat0,main)
+  r0_norm = rhat0_norm*1.
+  rho0,alpha,omega0 = 1.,1.,1.
+  v0,p0 = np.zeros(np.shape(r0)),np.zeros(np.shape(r0))
+  iterat = 0
+  while (r0_norm/rhat0_norm  >= tol and iterat <= maxiter):
+    rhoi = globalSum(rhat0*r0,main)
+    beta = rhoi/rho0*alpha/omega0
+    p0 = r0 + beta*(p0 - omega0*v0)
+    v0 = Af(p0,args,main)
+    alpha = rhoi/globalSum(rhat0*v0,main)
+    h = x0 + alpha*p0
+    s = r0 - alpha*v0
+    t = Af(s,args,main)
+    omega0 = globalSum(t*s,main)/globalSum(t*t,main)
+    x0 = h + omega0*s
+    r0 = s - omega0*t
+    #update old values
+    rho0 = rhoi*1.
+    r0_norm = globalNorm(r0,main)
+    if (main.mpi_rank == 0 and printnorm == 1):
+      sys.stdout.write(' Iteration = ' + str(iterat) + '  BICGSTAB residual = ' + str(r0_norm/rhat0_norm) +  '\n')
+    iterat += 1
+  return x0
 
 
 def fGMRes(Af, b, x0,main,args,Minv,tol=1e-9,maxiter_outer=1,maxiter=20,printnorm=0):
