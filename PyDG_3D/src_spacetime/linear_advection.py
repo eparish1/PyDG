@@ -9,6 +9,23 @@ def evalFluxD(main,u,f,args):
 
 
 ### Pure Diffusion Viscous Fluxes
+def evalViscousFluxD_BR1(main,uL,uR,n,args=None):
+  nvars = 3
+  sz = np.append(nvars,np.shape(uL[0]))
+  F = np.zeros(sz)
+  F[0] = 0.5*(uL[0] + uR[0])*n[0]
+  F[1] = 0.5*(uL[0] + uR[0])*n[1]
+  F[2] = 0.5*(uL[0] + uR[0])*n[2]
+  return F
+
+def evalTauFluxD_BR1(main,uL,uR,n,args):
+  tauL = args[0]
+  tauR = args[1]
+  fV = 0.5* ( (tauL[0]*n[0] + tauL[1]*n[1] + tauL[2]*n[2]) + (tauR[0]*n[0] + tauR[1]*n[1] + tauR[2]*n[2]) )
+  return fV
+#
+
+### Pure Diffusion Viscous Fluxes
 def evalViscousFluxXD_BR1(main,u,fv,dum):
   fv[0] = u[0]
   fv[1] = 0.

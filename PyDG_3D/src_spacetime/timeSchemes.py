@@ -498,10 +498,17 @@ def ExplicitRK4(main,MZ,eqns,args=None):
 #  main.dt = 0.1*main.dx/(c + umax)
 #  if (main.mpi_rank == 0):
 #    print(main.dt)
+  ord_arrx= np.linspace(0,main.order[0]-1,main.order[0])
+  ord_arry= np.linspace(0,main.order[1]-1,main.order[1])
+  ord_arrz= np.linspace(0,main.order[2]-1,main.order[2])
+  ord_arrt= np.linspace(0,main.order[3]-1,main.order[3])
+  scale =  (2.*ord_arrx[:,None,None,None] + 1.)*(2.*ord_arry[None,:,None,None] + 1.)*(2.*ord_arrz[None,None,:,None] + 1.)*(2.*ord_arrt[None,None,None,:] + 1.)/16.
+  Jdet = np.amax(main.Jdet)
   for i in range(0,4):
     main.rkstage = i
     main.getRHS(main,MZ,eqns)  ## put RHS in a array since we don't need it
-    main.a.a[:] = main.a0 + main.dt*rk4const[i]*(main.RHS[:])
+    f = np.einsum('ijklpqrs...,zpqrs...->zijkl...',main.Minv,main.RHS)
+    main.a.a[:] = main.a0 + main.dt*rk4const[i]*(f)#/Jdet*scale[None,:,:,:,:,None,None,None,None]
     #limiter_MF(main)
   main.t += main.dt
   main.iteration += 1
@@ -698,6 +705,74 @@ def fractionalStep(main,MZ,eqns,args):
 #  colorbar()
 #  pause(.2)
 #  clf() 
+
+def CrankNicolsonEntropy(main,MZ,eqns,args):
+  def entropy_to_conservative(V):
+   gamma = 1.4
+   U = np.zeros(np.shape(V))
+   gamma1 = gamma - 1.
+   igamma1 = 1./gamma1
+   gmogm1 = gamma*igamma1
+   iu4 = 1./V[4]  #- p / rho
+   u = -iu4*V[1]
+   v = -iu4*V[2]
+   w = -iu4*V[3]
+   t0 = -0.5*iu4*(V[1]**2 + V[2]**2 + V[3]**2)
+   t1 = V[0] - gmogm1 + t0
+   t2 =np.exp(-igamma1*np.log(-V[4]) )
+   t3 = np.exp(t1)
+   U[0] = t2*t3
+   H = -iu4*(gmogm1 + t0)
+   E = (H + iu4)
+   U[1] = U[0]*u
+   U[2] = U[0]*v
+   U[3] = U[0]*w
+   U[4] = U[0]*E
+   return U
+
+
+  nonlinear_solver = args[0]
+  linear_solver = args[1]
+  sparse_quadrature = args[2]
+  main.a0[:] = main.a.a[:]
+  eqns.getRHS(main,main,eqns)
+  R0 = np.zeros(np.shape(main.RHS))
+  R0[:] = main.RHS[:]
+  U0 = entropy_to_conservative(main.a.u)
+  ord_arr0= np.linspace(0,main.order[0]-1,main.order[0])
+  ord_arr1= np.linspace(0,main.order[1]-1,main.order[1])
+  ord_arr2= np.linspace(0,main.order[2]-1,main.order[2])
+  ord_arr3= np.linspace(0,main.order[3]-1,main.order[3])
+  scale =  (2.*ord_arr0[:,None,None,None] + 1.)*(2.*ord_arr1[None,:,None,None] + 1.)*(2.*ord_arr2[None,None,:,None]+1.)*(2.*ord_arr3[None,None,None,:] + 1. )/16.
+
+  def unsteadyResidual(v):
+    main.a.a[:] = np.reshape(v,np.shape(main.a.a))
+    eqns.getRHS(main,main,eqns)
+    U = entropy_to_conservative(main.a.u)
+    R1 = np.zeros(np.shape(main.RHS))
+    R1[:] = main.RHS[:]
+    ## compute volume integral term
+    time_integral = main.basis.volIntegrateGlob(main,U - U0,main.w0,main.w1,main.w2,main.w3)*scale[None,:,:,:,:,None,None,None,None]
+    Rstar = time_integral  - 0.5*main.dt*(R0 + R1)
+    Rstar_glob = gatherResid(Rstar,main)
+    return Rstar,R1,Rstar_glob
+
+  def create_MF_Jacobian(v,args,main):
+    an = args[0]
+    vr = np.reshape(v,np.shape(main.a.a))
+    eps = 5.e-2
+    main.a.a[:] = an
+    Rn,dum,dum = unsteadyResidual(main.a.a)
+    main.a.a[:] = an + eps*vr
+    R1,dum,dum = unsteadyResidual(main.a.a)
+    Av = (R1 - Rn)/eps
+    return Av.flatten()
+
+  nonlinear_solver.solve(unsteadyResidual, create_MF_Jacobian,main,linear_solver,sparse_quadrature,eqns)
+  #atmp = newton_krylov(unsteadyResidual, main.a.a.flatten(), iter=None, rdiff=None, method='lgmres', inner_maxiter=20, inner_M=None, outer_k=10, verbose=True)
+  #main.a.a[:] = np.reshape(atmp,np.shape(main.a.a))
+  main.t += main.dt
+  main.iteration += 1
 
 
 

@@ -5,22 +5,27 @@ def diffU_tensordot(a,main):
   tmp = np.tensordot(tmp,main.w1,axes=([1],[0]))
   tmp = np.tensordot(tmp,main.w2,axes=([1],[0]))
   tmp = np.tensordot(tmp,main.w3,axes=([1],[0]))
-  ux = np.rollaxis( np.rollaxis( np.rollaxis( np.rollaxis( tmp , -4 , 1) , -3 , 2), -2, 3), -1, 4)
+  uzeta = np.rollaxis( np.rollaxis( np.rollaxis( np.rollaxis( tmp , -4 , 1) , -3 , 2), -2, 3), -1, 4)
   tmpu = np.tensordot(a,main.w0,axes=([1],[0]))
   tmp = np.tensordot(tmpu,main.wp1,axes=([1],[0]))
   tmp = np.tensordot(tmp,main.w2,axes=([1],[0]))
   tmp = np.tensordot(tmp,main.w3,axes=([1],[0]))
-  uy = np.rollaxis( np.rollaxis( np.rollaxis( np.rollaxis( tmp , -4 , 1) , -3 , 2), -2, 3), -1, 4)
+  ueta = np.rollaxis( np.rollaxis( np.rollaxis( np.rollaxis( tmp , -4 , 1) , -3 , 2), -2, 3), -1, 4)
 
   #tmp = np.tensordot(a,main.w,axes=([1],[0]))
   tmp = np.tensordot(tmpu,main.w1,axes=([1],[0]))
   tmp = np.tensordot(tmp,main.wp2,axes=([1],[0]))
   tmp = np.tensordot(tmp,main.w3,axes=([1],[0]))
-  uz = np.rollaxis( np.rollaxis( np.rollaxis( np.rollaxis( tmp , -4 , 1) , -3 , 2), -2, 3), -1, 4)
+  umu = np.rollaxis( np.rollaxis( np.rollaxis( np.rollaxis( tmp , -4 , 1) , -3 , 2), -2, 3), -1, 4)
 
-  ux *= 2./main.dx2[None,None,None,None,None,:,None,None,None]
-  uy *= 2./main.dy2[None,None,None,None,None,None,:,None,None]
-  uz *= 2./main.dz2[None,None,None,None,None,None,None,:,None]
+#  uzeta *= 2./main.dx2[None,None,None,None,None,:,None,None,None]
+#  ueta *= 2./main.dy2[None,None,None,None,None,None,:,None,None]
+#  umu *= 2./main.dz2[None,None,None,None,None,None,None,:,None]
+  
+  ux = uzeta*main.Jinv[0,0][None,:,:,:,None,:,:,:,None] + ueta*main.Jinv[1,0][None,:,:,:,None,:,:,:,None] + umu*main.Jinv[2,0][None,:,:,:,None,:,:,:,None]
+  uy = uzeta*main.Jinv[0,1][None,:,:,:,None,:,:,:,None] + ueta*main.Jinv[1,1][None,:,:,:,None,:,:,:,None] + umu*main.Jinv[2,1][None,:,:,:,None,:,:,:,None]
+  uz = uzeta*main.Jinv[0,2][None,:,:,:,None,:,:,:,None] + ueta*main.Jinv[1,2][None,:,:,:,None,:,:,:,None] + umu*main.Jinv[2,2][None,:,:,:,None,:,:,:,None]
+
   return ux,uy,uz
 
 
@@ -518,7 +523,7 @@ def volIntegrate(weights0,weights1,weights2,weights3,f):
 
 
 def volIntegrateGlob_tensordot(main,f,w0,w1,w2,w3):
-  tmp = np.tensordot(main.weights0[None,:,None,None,None,None,None,None,None]*f  ,w0,axes=([1],[1]))
+  tmp = np.tensordot(main.weights0[None,:,None,None,None,None,None,None,None]*f,w0,axes=([1],[1]))
   tmp = np.tensordot(main.weights1[None,:,None,None,None,None,None,None,None]*tmp,w1,axes=([1],[1]))
   tmp = np.tensordot(main.weights2[None,:,None,None,None,None,None,None,None]*tmp,w2,axes=([1],[1]))
   tmp = np.tensordot(main.weights3[None,:,None,None,None,None,None,None,None]*tmp,w3,axes=([1],[1]))
@@ -532,10 +537,24 @@ def volIntegrateGlob_tensordot_collocate(main,f,w0,w1,w2,w3):
   return np.rollaxis( np.rollaxis( np.rollaxis( np.rollaxis( tmp , -4 , 1) , -3 , 2), -2, 3), -1, 4)
 
 
-def volIntegrateGlob_einsum(main,f,w1,w2,w3):
-  tmp = np.einsum('nr,zpqrijk->zpqnijk',w3,main.weights2[None,None,None,:,None,None,None]*f)
-  tmp = np.einsum('mq,zpqnijk->zpmnijk',w2,main.weights1[None,None,:,None,None,None,None]*tmp)
-  return np.einsum('lp,zpmnijk->zlmnijk',w1,main.weights0[None,:,None,None,None,None,None]*tmp)
+def volIntegrateGlob_einsum(main,f,w0,w1,w2,w3):
+  tmp = np.einsum('os...,zpqrs...->zpqro...',w3,main.weights3[None,None,None,None,:,None,None,None,None]*f)
+  tmp = np.einsum('nr...,zpqro...->zpqno...',w2,main.weights2[None,None,None,:,None,None,None,None,None]*tmp)
+  tmp = np.einsum('mq...,zpqno...->zpmno...',w1,main.weights1[None,None,:,None,None,None,None,None,None]*tmp)
+  return np.einsum('lp...,zpmno...->zlmno...',w0,main.weights0[None,:,None,None,None,None,None,None,None]*tmp)
+
+def volIntegrateGlob_einsum_2(main,f):
+#  weights = main.weights0[None,None,None,None,None,:,None,None,None,None,None,None,None]*main.weights1[None,None,None,None,None,None,:,None,None,None,None,None,None]*\
+#            main.weights1[None,None,None,None,None,None,None,:,None,None,None,None,None]*main.weights3[None,None,None,None,None,None,None,None,:,None,None,None,None]
+  weights = main.weights0[:,None,None,None]*main.weights1[None,:,None,None]*main.weights2[None,None,:,None]*main.weights3[None,None,None,:]
+  tmp = np.einsum('pqrs,zlmnopqrs...->zlmno...',weights,f)
+#  tmp = np.einsum('s,zlmnopqrs...->zlmnopqr...',main.weights3,f)
+#  tmp = np.einsum('r,zlmnopqr...->zlmnopq...',main.weights2,tmp)
+#  tmp = np.einsum('q,zlmnopq...->zlmnop...',main.weights1,tmp)
+#  tmp = np.einsum('p,zlmnop...->zlmno...',main.weights0,tmp)
+
+  return tmp
+
 
 def faceIntegrate(weights,f):
   return np.einsum('zpqijk->zijk',weights[None,:,None,None,None,None]*weights[None,None,:,None,None,None]*f)

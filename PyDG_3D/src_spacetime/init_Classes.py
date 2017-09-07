@@ -15,6 +15,7 @@ from boundary_conditions import *
 from equations_class import *
 from gas import *
 from basis_class import *
+from grid_functions import *
 from init_reacting_additions import add_reacting_to_main
 class variable:
   def __init__(self,nvars,order,quadpoints,Npx,Npy,Npz,Npt):
@@ -79,19 +80,13 @@ class fluxvariable:
     self.fF = np.zeros((nvars,quadpoints[0],quadpoints[1],quadpoints[3],Npx,Npy,Npz,Npt))
     self.fB = np.zeros((nvars,quadpoints[0],quadpoints[1],quadpoints[3],Npx,Npy,Npz,Npt))
 
-    self.fLS = np.zeros((nvars,quadpoints[1],quadpoints[2],quadpoints[3],Npx,Npy,Npz,Npt))
-    self.fRS = np.zeros((nvars,quadpoints[1],quadpoints[2],quadpoints[3],Npx,Npy,Npz,Npt))
-    self.fUS = np.zeros((nvars,quadpoints[0],quadpoints[2],quadpoints[3],Npx,Npy,Npz,Npt))
-    self.fDS = np.zeros((nvars,quadpoints[0],quadpoints[2],quadpoints[3],Npx,Npy,Npz,Npt))
-    self.fFS = np.zeros((nvars,quadpoints[0],quadpoints[1],quadpoints[3],Npx,Npy,Npz,Npt))
-    self.fBS = np.zeros((nvars,quadpoints[0],quadpoints[1],quadpoints[3],Npx,Npy,Npz,Npt))
+    self.fRLS = np.zeros((nvars,quadpoints[1],quadpoints[2],quadpoints[3],Npx+1,Npy,Npz,Npt))
+    self.fUDS = np.zeros((nvars,quadpoints[0],quadpoints[2],quadpoints[3],Npx,Npy+1,Npz,Npt))
+    self.fFBS = np.zeros((nvars,quadpoints[0],quadpoints[1],quadpoints[3],Npx,Npy,Npz+1,Npt))
 
-    self.fLI = np.zeros((nvars,order[1],order[2],quadpoints[3],Npx,Npy,Npz,Npt))
-    self.fRI = np.zeros((nvars,order[1],order[2],quadpoints[3],Npx,Npy,Npz,Npt))
-    self.fUI = np.zeros((nvars,order[0],order[2],quadpoints[3],Npx,Npy,Npz,Npt))
-    self.fDI = np.zeros((nvars,order[0],order[2],quadpoints[3],Npx,Npy,Npz,Npt))
-    self.fFI = np.zeros((nvars,order[0],order[1],quadpoints[3],Npx,Npy,Npz,Npt))
-    self.fBI = np.zeros((nvars,order[0],order[1],quadpoints[3],Npx,Npy,Npz,Npt))
+    self.fRLI = np.zeros((nvars,order[1],order[2],quadpoints[3],Npx+1,Npy,Npz,Npt))
+    self.fUDI = np.zeros((nvars,order[0],order[2],quadpoints[3],Npx,Npy+1,Npz,Npt))
+    self.fFBI = np.zeros((nvars,order[0],order[1],quadpoints[3],Npx,Npy,Npz+1,Npt))
 
     self.fR_edge = np.zeros((nvars,quadpoints[1],quadpoints[2],quadpoints[3],Npy,Npz,Npt))
     self.fL_edge = np.zeros((nvars,quadpoints[1],quadpoints[2],quadpoints[3],Npy,Npz,Npt))
@@ -155,7 +150,7 @@ class boundaryConditions:
     
 
 class variables:
-  def __init__(self,Nel,order,quadpoints,eqns,mu,xG,yG,zG,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,source,source_mag,shock_capturing,mol_str=None):
+  def __init__(self,Nel,order,quadpoints,eqns,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,source,source_mag,shock_capturing,mol_str=None):
     ## DG scheme information
     self.eq_str = eqns.eq_str
     self.Nel = Nel
@@ -207,10 +202,38 @@ class variables:
     self.altarray3_c = (-np.ones(self.order[3]))**(np.linspace(0,self.order[3]-1,self.order[3]))
 
 
-
+    #xtmp,ytmp,ztmp = np.meshgrid(xG,yG,zG,indexing='ij')
+    Xtmp = np.zeros((3,Nel[0]+1,Nel[1]+1,Nel[2]+1))
+    Xtmp[0],Xtmp[1],Xtmp[2] = x,y,z
+    X_el = get_Xel(Xtmp,self.sx,self.sy)
+    self.J,self.Jinv,self.Jdet,self.J_edge_det,self.normals = computeJacobian(X_el,self.zeta0,self.zeta1,self.zeta2)
+    self.xG,self.yG,self.zG = getGlobGrid(self,x,y,z,self.zeta0,self.zeta1,self.zeta2)
+    self.Minv = getMassMatrix(self)
     self.gas = gasClass() 
     self.Cv = self.gas.Cv
     self.Cp = self.gas.Cp
+
+    self.wx = self.wp0[:,None,None,None,:,None,None,None,None,None,None,None]*self.Jinv[0,0][None,None,None,None,:,:,:,None,:,:,:,None]*self.w1[None,:,None,None,None,:,None,None,None,None,None,None]*\
+       self.w2[None,None,:,None,None,None,:,None,None,None,None,None]*self.w3[None,None,None,:,None,None,None,:,None,None,None,None] + \
+       self.w0[:,None,None,None,:,None,None,None,None,None,None,None]*self.wp1[None,:,None,None,None,:,None,None,None,None,None,None]*self.Jinv[1,0][None,None,None,None,:,:,:,None,:,:,:,None]*\
+       self.w2[None,None,:,None,None,None,:,None,None,None,None,None]*self.w3[None,None,None,:,None,None,None,:,None,None,None,None] + \
+       self.w0[:,None,None,None,:,None,None,None,None,None,None,None]*self.w1[None,:,None,None,None,:,None,None,None,None,None,None]*\
+       self.wp2[None,None,:,None,None,None,:,None,None,None,None,None]*self.Jinv[2,0][None,None,None,None,:,:,:,None,:,:,:,None]*self.w3[None,None,None,:,None,None,None,:,None,None,None,None]
+
+    self.wy = self.wp0[:,None,None,None,:,None,None,None,None,None,None,None]*self.Jinv[0,1][None,None,None,None,:,:,:,None,:,:,:,None]*self.w1[None,:,None,None,None,:,None,None,None,None,None,None]*\
+       self.w2[None,None,:,None,None,None,:,None,None,None,None,None]*self.w3[None,None,None,:,None,None,None,:,None,None,None,None] + \
+       self.w0[:,None,None,None,:,None,None,None,None,None,None,None]*self.wp1[None,:,None,None,None,:,None,None,None,None,None,None]*self.Jinv[1,1][None,None,None,None,:,:,:,None,:,:,:,None]*\
+       self.w2[None,None,:,None,None,None,:,None,None,None,None,None]*self.w3[None,None,None,:,None,None,None,:,None,None,None,None] + \
+       self.w0[:,None,None,None,:,None,None,None,None,None,None,None]*self.w1[None,:,None,None,None,:,None,None,None,None,None,None]*\
+       self.wp2[None,None,:,None,None,None,:,None,None,None,None,None]*self.Jinv[2,1][None,None,None,None,:,:,:,None,:,:,:,None]*self.w3[None,None,None,:,None,None,None,:,None,None,None,None]
+
+    self.wz = self.wp0[:,None,None,None,:,None,None,None,None,None,None,None]*self.Jinv[0,2][None,None,None,None,:,:,:,None,:,:,:,None]*self.w1[None,:,None,None,None,:,None,None,None,None,None,None]*\
+       self.w2[None,None,:,None,None,None,:,None,None,None,None,None]*self.w3[None,None,None,:,None,None,None,:,None,None,None,None] + \
+       self.w0[:,None,None,None,:,None,None,None,None,None,None,None]*self.wp1[None,:,None,None,None,:,None,None,None,None,None,None]*self.Jinv[1,2][None,None,None,None,:,:,:,None,:,:,:,None]*\
+       self.w2[None,None,:,None,None,None,:,None,None,None,None,None]*self.w3[None,None,None,:,None,None,None,:,None,None,None,None] + \
+       self.w0[:,None,None,None,:,None,None,None,None,None,None,None]*self.w1[None,:,None,None,None,:,None,None,None,None,None,None]*\
+       self.wp2[None,None,:,None,None,None,:,None,None,None,None,None]*self.Jinv[2,2][None,None,None,None,:,:,:,None,:,:,:,None]*self.w3[None,None,None,:,None,None,None,:,None,None,None,None]
+
 
     self.reacting = False
     ## Initialize BCs
@@ -248,20 +271,17 @@ class variables:
     self.fsource = source
     self.source_mag = source_mag
     ## Initialize arrays
-    self.dx = xG[1] - xG[0]
-    self.dy = yG[1] - yG[0]
-    self.dz = zG[1] - zG[0]
-    self.dx2 = np.diff(xG)[self.sx]
-    self.dy2 = np.diff(yG)[self.sy]
-    self.dz2 = np.diff(zG)
+    self.dx = x[1,0,0] - x[0,0,0]
+    self.dy = y[0,1,0] - y[0,0,0]
+    self.dz = z[0,0,1] - z[0,0,0]
+    self.dx2 = np.diff(x[:,0,0])[self.sx]
+    self.dy2 = np.diff(y[0,:,0])[self.sy]
+    self.dz2 = np.diff(z[0,0,:])
 
     #print(np.shape(xG))
-    self.x = xG[self.sx]
-    self.y = yG[self.sy] 
-    self.z = zG
-    self.xG = xG
-    self.yG = yG
-    self.zG = zG
+    self.x = x[self.sx]
+    self.y = y[self.sy] 
+    self.z = z
     self.nvars = eqns.nvars
 
     self.a0 = np.zeros((eqns.nvars,self.order[0],self.order[1],self.order[2],self.order[3],self.Npx,self.Npy,self.Npz,self.Npt))
@@ -346,5 +366,5 @@ class variables:
          print('Using turb model ' + turb_str)
 
     self.basis = basis_class('Legendre',['TensorDot'])
-
+    self.mol_str = mol_str
     #self = add_reacting_to_main(self,mol_str)

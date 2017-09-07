@@ -64,6 +64,15 @@ class timeschemes:
       self.sparse_quadrature = True
       self.args = [self.nonlinear_solver,self.linear_solver,self.sparse_quadrature]
 
+    if (time_str == 'CrankNicolsonEntropy'):
+      check_t = 0
+      self.advanceSol = CrankNicolsonEntropy
+      self.linear_solver = linearSolver(lsolver_str)
+      self.nonlinear_solver = nonlinearSolver(nlsolver_str)
+      self.sparse_quadrature = True
+      self.args = [self.nonlinear_solver,self.linear_solver,self.sparse_quadrature]
+
+
     if (time_str == 'CrankNicolsonIncomp'):
       check_t = 0
       self.advanceSol = CrankNicolsonIncomp
