@@ -213,26 +213,26 @@ class variables:
     self.Cv = self.gas.Cv
     self.Cp = self.gas.Cp
 
-    self.wx = self.wp0[:,None,None,None,:,None,None,None,None,None,None,None]*self.Jinv[0,0][None,None,None,None,:,:,:,None,:,:,:,None]*self.w1[None,:,None,None,None,:,None,None,None,None,None,None]*\
-       self.w2[None,None,:,None,None,None,:,None,None,None,None,None]*self.w3[None,None,None,:,None,None,None,:,None,None,None,None] + \
-       self.w0[:,None,None,None,:,None,None,None,None,None,None,None]*self.wp1[None,:,None,None,None,:,None,None,None,None,None,None]*self.Jinv[1,0][None,None,None,None,:,:,:,None,:,:,:,None]*\
-       self.w2[None,None,:,None,None,None,:,None,None,None,None,None]*self.w3[None,None,None,:,None,None,None,:,None,None,None,None] + \
-       self.w0[:,None,None,None,:,None,None,None,None,None,None,None]*self.w1[None,:,None,None,None,:,None,None,None,None,None,None]*\
-       self.wp2[None,None,:,None,None,None,:,None,None,None,None,None]*self.Jinv[2,0][None,None,None,None,:,:,:,None,:,:,:,None]*self.w3[None,None,None,:,None,None,None,:,None,None,None,None]
-
-    self.wy = self.wp0[:,None,None,None,:,None,None,None,None,None,None,None]*self.Jinv[0,1][None,None,None,None,:,:,:,None,:,:,:,None]*self.w1[None,:,None,None,None,:,None,None,None,None,None,None]*\
-       self.w2[None,None,:,None,None,None,:,None,None,None,None,None]*self.w3[None,None,None,:,None,None,None,:,None,None,None,None] + \
-       self.w0[:,None,None,None,:,None,None,None,None,None,None,None]*self.wp1[None,:,None,None,None,:,None,None,None,None,None,None]*self.Jinv[1,1][None,None,None,None,:,:,:,None,:,:,:,None]*\
-       self.w2[None,None,:,None,None,None,:,None,None,None,None,None]*self.w3[None,None,None,:,None,None,None,:,None,None,None,None] + \
-       self.w0[:,None,None,None,:,None,None,None,None,None,None,None]*self.w1[None,:,None,None,None,:,None,None,None,None,None,None]*\
-       self.wp2[None,None,:,None,None,None,:,None,None,None,None,None]*self.Jinv[2,1][None,None,None,None,:,:,:,None,:,:,:,None]*self.w3[None,None,None,:,None,None,None,:,None,None,None,None]
-
-    self.wz = self.wp0[:,None,None,None,:,None,None,None,None,None,None,None]*self.Jinv[0,2][None,None,None,None,:,:,:,None,:,:,:,None]*self.w1[None,:,None,None,None,:,None,None,None,None,None,None]*\
-       self.w2[None,None,:,None,None,None,:,None,None,None,None,None]*self.w3[None,None,None,:,None,None,None,:,None,None,None,None] + \
-       self.w0[:,None,None,None,:,None,None,None,None,None,None,None]*self.wp1[None,:,None,None,None,:,None,None,None,None,None,None]*self.Jinv[1,2][None,None,None,None,:,:,:,None,:,:,:,None]*\
-       self.w2[None,None,:,None,None,None,:,None,None,None,None,None]*self.w3[None,None,None,:,None,None,None,:,None,None,None,None] + \
-       self.w0[:,None,None,None,:,None,None,None,None,None,None,None]*self.w1[None,:,None,None,None,:,None,None,None,None,None,None]*\
-       self.wp2[None,None,:,None,None,None,:,None,None,None,None,None]*self.Jinv[2,2][None,None,None,None,:,:,:,None,:,:,:,None]*self.w3[None,None,None,:,None,None,None,:,None,None,None,None]
+#    self.wx = self.wp0[:,None,None,None,:,None,None,None,None,None,None,None]*self.Jinv[0,0][None,None,None,None,:,:,:,None,:,:,:,None]*self.w1[None,:,None,None,None,:,None,None,None,None,None,None]*\
+#       self.w2[None,None,:,None,None,None,:,None,None,None,None,None]*self.w3[None,None,None,:,None,None,None,:,None,None,None,None] + \
+#       self.w0[:,None,None,None,:,None,None,None,None,None,None,None]*self.wp1[None,:,None,None,None,:,None,None,None,None,None,None]*self.Jinv[1,0][None,None,None,None,:,:,:,None,:,:,:,None]*\
+#       self.w2[None,None,:,None,None,None,:,None,None,None,None,None]*self.w3[None,None,None,:,None,None,None,:,None,None,None,None] + \
+#       self.w0[:,None,None,None,:,None,None,None,None,None,None,None]*self.w1[None,:,None,None,None,:,None,None,None,None,None,None]*\
+#       self.wp2[None,None,:,None,None,None,:,None,None,None,None,None]*self.Jinv[2,0][None,None,None,None,:,:,:,None,:,:,:,None]*self.w3[None,None,None,:,None,None,None,:,None,None,None,None]
+#
+#    self.wy = self.wp0[:,None,None,None,:,None,None,None,None,None,None,None]*self.Jinv[0,1][None,None,None,None,:,:,:,None,:,:,:,None]*self.w1[None,:,None,None,None,:,None,None,None,None,None,None]*\
+#       self.w2[None,None,:,None,None,None,:,None,None,None,None,None]*self.w3[None,None,None,:,None,None,None,:,None,None,None,None] + \
+#       self.w0[:,None,None,None,:,None,None,None,None,None,None,None]*self.wp1[None,:,None,None,None,:,None,None,None,None,None,None]*self.Jinv[1,1][None,None,None,None,:,:,:,None,:,:,:,None]*\
+#       self.w2[None,None,:,None,None,None,:,None,None,None,None,None]*self.w3[None,None,None,:,None,None,None,:,None,None,None,None] + \
+#       self.w0[:,None,None,None,:,None,None,None,None,None,None,None]*self.w1[None,:,None,None,None,:,None,None,None,None,None,None]*\
+#       self.wp2[None,None,:,None,None,None,:,None,None,None,None,None]*self.Jinv[2,1][None,None,None,None,:,:,:,None,:,:,:,None]*self.w3[None,None,None,:,None,None,None,:,None,None,None,None]
+#
+#    self.wz = self.wp0[:,None,None,None,:,None,None,None,None,None,None,None]*self.Jinv[0,2][None,None,None,None,:,:,:,None,:,:,:,None]*self.w1[None,:,None,None,None,:,None,None,None,None,None,None]*\
+#       self.w2[None,None,:,None,None,None,:,None,None,None,None,None]*self.w3[None,None,None,:,None,None,None,:,None,None,None,None] + \
+#       self.w0[:,None,None,None,:,None,None,None,None,None,None,None]*self.wp1[None,:,None,None,None,:,None,None,None,None,None,None]*self.Jinv[1,2][None,None,None,None,:,:,:,None,:,:,:,None]*\
+#       self.w2[None,None,:,None,None,None,:,None,None,None,None,None]*self.w3[None,None,None,:,None,None,None,:,None,None,None,None] + \
+#       self.w0[:,None,None,None,:,None,None,None,None,None,None,None]*self.w1[None,:,None,None,None,:,None,None,None,None,None,None]*\
+#       self.wp2[None,None,:,None,None,None,:,None,None,None,None,None]*self.Jinv[2,2][None,None,None,None,:,:,:,None,:,:,:,None]*self.w3[None,None,None,:,None,None,None,:,None,None,None,None]
 
 
     self.reacting = False
@@ -294,19 +294,19 @@ class variables:
 
     self.mus = mu
     self.mu = np.ones(np.append( eqns.nmus, np.shape( self.a.u[0])))*self.mus
-    self.muR = np.ones(np.append( eqns.nmus, np.shape( self.a.uR[0])))*self.mus
-    self.muL = np.ones(np.append( eqns.nmus, np.shape( self.a.uL[0])))*self.mus
-    self.muU = np.ones(np.append( eqns.nmus, np.shape( self.a.uU[0])))*self.mus
-    self.muD = np.ones(np.append( eqns.nmus, np.shape( self.a.uD[0])))*self.mus
-    self.muF = np.ones(np.append( eqns.nmus, np.shape( self.a.uF[0])))*self.mus
-    self.muB = np.ones(np.append( eqns.nmus, np.shape( self.a.uB[0])))*self.mus
-    self.mu0 = np.ones(np.append( eqns.nmus, np.shape( self.a.u[0] )))*self.mus
-    self.mu0R =np.ones(np.append( eqns.nmus, np.shape( self.a.uR[0])))*self.mus
-    self.mu0L =np.ones(np.append( eqns.nmus, np.shape( self.a.uL[0])))*self.mus
-    self.mu0U =np.ones(np.append( eqns.nmus, np.shape( self.a.uU[0])))*self.mus
-    self.mu0D =np.ones(np.append( eqns.nmus, np.shape( self.a.uD[0])))*self.mus
-    self.mu0F =np.ones(np.append( eqns.nmus, np.shape( self.a.uF[0])))*self.mus
-    self.mu0B =np.ones(np.append( eqns.nmus, np.shape( self.a.uB[0])))*self.mus
+#    self.muR = np.ones(np.append( eqns.nmus, np.shape( self.a.uR[0])))*self.mus
+#    self.muL = np.ones(np.append( eqns.nmus, np.shape( self.a.uL[0])))*self.mus
+#    self.muU = np.ones(np.append( eqns.nmus, np.shape( self.a.uU[0])))*self.mus
+#    self.muD = np.ones(np.append( eqns.nmus, np.shape( self.a.uD[0])))*self.mus
+#    self.muF = np.ones(np.append( eqns.nmus, np.shape( self.a.uF[0])))*self.mus
+#    self.muB = np.ones(np.append( eqns.nmus, np.shape( self.a.uB[0])))*self.mus
+#    self.mu0 = np.ones(np.append( eqns.nmus, np.shape( self.a.u[0] )))*self.mus
+#    self.mu0R =np.ones(np.append( eqns.nmus, np.shape( self.a.uR[0])))*self.mus
+#    self.mu0L =np.ones(np.append( eqns.nmus, np.shape( self.a.uL[0])))*self.mus
+#    self.mu0U =np.ones(np.append( eqns.nmus, np.shape( self.a.uU[0])))*self.mus
+#    self.mu0D =np.ones(np.append( eqns.nmus, np.shape( self.a.uD[0])))*self.mus
+#    self.mu0F =np.ones(np.append( eqns.nmus, np.shape( self.a.uF[0])))*self.mus
+#    self.mu0B =np.ones(np.append( eqns.nmus, np.shape( self.a.uB[0])))*self.mus
 
 
     self.a.p = np.zeros(np.shape(self.a.u[0]))

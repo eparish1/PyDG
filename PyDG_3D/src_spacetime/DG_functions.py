@@ -36,22 +36,33 @@ def getViscousFluxes_BR1(main,MZ,eqns):
 
 def solveb(main,MZ,eqns):
   ##first do quadrature
-  t0 = time.time()
   getViscousFluxes_BR1(main,MZ,eqns)
-  t1 = time.time()
-  f = main.vFlux.fx[:,None,None,None,None]*main.Jdet[None,None,None,None,None,:,:,:,None,:,:,:,None]*main.wx[None,:,:,:,:,:,:,:,:]
-  main.b.a[:] -= volIntegrateGlob_einsum_2(main,f)
-  f = main.vFlux.fy[:,None,None,None,None]*main.Jdet[None,None,None,None,None,:,:,:,None,:,:,:,None]*main.wy[None,:,:,:,:,:,:,:,:]
-  main.b.a[:] -= volIntegrateGlob_einsum_2(main,f)
-  f = main.vFlux.fz[:,None,None,None,None]*main.Jdet[None,None,None,None,None,:,:,:,None,:,:,:,None]*main.wz[None,:,:,:,:,:,:,:,:]
-  main.b.a[:] -= volIntegrateGlob_einsum_2(main,f)
-#  main.b.a[:] -= main.basis.volIntegrateGlob(main,main.vFlux.fz*main.Jdet[None,:,:,:,None,:,:,:,None],main.w0,main.w1,main.wp2,main.w3)
-  t2 = time.time()
+  #f = main.vFlux.fx[:,None,None,None,None]*main.Jdet[None,None,None,None,None,:,:,:,None,:,:,:,None]*main.wx[None,:,:,:,:,:,:,:,:]
+  #main.b.a[:] -= volIntegrateGlob_einsum_2(main,f)
+  #f = main.vFlux.fy[:,None,None,None,None]*main.Jdet[None,None,None,None,None,:,:,:,None,:,:,:,None]*main.wy[None,:,:,:,:,:,:,:,:]
+  #main.b.a[:] -= volIntegrateGlob_einsum_2(main,f)
+  #f = main.vFlux.fz[:,None,None,None,None]*main.Jdet[None,None,None,None,None,:,:,:,None,:,:,:,None]*main.wz[None,:,:,:,:,:,:,:,:]
+  #main.b.a[:] -= volIntegrateGlob_einsum_2(main,f)
+  f = main.vFlux.fx*main.Jinv[0,0][None,:,:,:,None,:,:,:,None]
+  f += main.vFlux.fy*main.Jinv[0,1][None,:,:,:,None,:,:,:,None]
+  f += main.vFlux.fz*main.Jinv[0,2][None,:,:,:,None,:,:,:,None]
+  f *= main.Jdet[None,:,:,:,None,:,:,:,None]
+  main.b.a[:] -= main.basis.volIntegrateGlob(main,f,main.wp0,main.w1,main.w2,main.w3)
 
+
+  f = main.vFlux.fx*main.Jinv[1,0][None,:,:,:,None,:,:,:,None]
+  f += main.vFlux.fy*main.Jinv[1,1][None,:,:,:,None,:,:,:,None]
+  f += main.vFlux.fz*main.Jinv[1,2][None,:,:,:,None,:,:,:,None]
+  f *= main.Jdet[None,:,:,:,None,:,:,:,None]
+  main.b.a[:] -= main.basis.volIntegrateGlob(main,f,main.w0,main.wp1,main.w2,main.w3)
+
+  f = main.vFlux.fx*main.Jinv[2,0][None,:,:,:,None,:,:,:,None]
+  f += main.vFlux.fy*main.Jinv[2,1][None,:,:,:,None,:,:,:,None]
+  f += main.vFlux.fz*main.Jinv[2,2][None,:,:,:,None,:,:,:,None]
+  f *= main.Jdet[None,:,:,:,None,:,:,:,None]
+  main.b.a[:] -= main.basis.volIntegrateGlob(main,f,main.w0,main.w1,main.wp2,main.w3)
   main.b.a[:] = np.einsum('ijklpqrs...,zpqrs...->zijkl...',main.Minv,main.b.a)
-  t3 = time.time()
 
-#  print('b = ' , np.linalg.norm(main.b.a))
   ## Now reconstruct tau and get edge states for later flux computations
   main.basis.reconstructU(main,main.b)
   main.b.uR[:],main.b.uL[:],main.b.uU[:],main.b.uD[:],main.b.uF[:],main.b.uB[:] = main.basis.reconstructEdgesGeneral(main.b.a,main)
@@ -64,8 +75,6 @@ def solveb(main,MZ,eqns):
   main.iFlux.fy -= main.vFlux2.fy
   main.iFlux.fz -= main.vFlux2.fz
 
-  t4 = time.time()
-  #print(t1-t0,t2-t1,t3-t2,t4-t3)
   main.iFlux.fRLI = main.basis.faceIntegrateGlob(main,main.iFlux.fRLS*main.J_edge_det[0][None,:,:,None,:,:,:,None],MZ.w1,MZ.w2,MZ.w3,MZ.weights1,MZ.weights2,MZ.weights3)
   main.iFlux.fUDI = main.basis.faceIntegrateGlob(main,main.iFlux.fUDS*main.J_edge_det[1][None,:,:,None,:,:,:,None],MZ.w0,MZ.w2,MZ.w3,MZ.weights0,MZ.weights2,MZ.weights3)
   main.iFlux.fFBI = main.basis.faceIntegrateGlob(main,main.iFlux.fFBS*main.J_edge_det[2][None,:,:,None,:,:,:,None],MZ.w0,MZ.w1,MZ.w3,MZ.weights0,MZ.weights1,MZ.weights3)
@@ -95,6 +104,7 @@ def getFlux(main,MZ,eqns,args):
   main.RHS[:] -= main.iFlux.fFBI[:,:,:,None,:,:,:,1::] 
   main.RHS[:] += main.iFlux.fFBI[:,:,:,None,:,:,:,0:-1]*main.altarray2[None,None,None,:,None,None,None,None,None]
 
+#@profile
 def getRHS_BR1(main,MZ,eqns,args=[],args_phys=[]):
   t0 = time.time()
   main.basis.reconstructU(main,main.a)
@@ -112,14 +122,35 @@ def getRHS_BR1(main,MZ,eqns,args=[],args_phys=[]):
   eqns.evalFluxZ(main,main.a.u,main.iFlux.fz,args_phys)
   solveb(main,MZ,eqns) 
 
-  f = main.iFlux.fx[:,None,None,None,None]*main.Jdet[None,None,None,None,None,:,:,:,None,:,:,:,None]*main.wx[None,:,:,:,:,:,:,:,:]
-  main.RHS[:] += volIntegrateGlob_einsum_2(main,f)
+#  f = main.iFlux.fx[:,None,None,None,None]*main.Jdet[None,None,None,None,None,:,:,:,None,:,:,:,None]*main.wx[None,:,:,:,:,:,:,:,:]
+#  main.RHS[:] += volIntegrateGlob_einsum_2(main,f)
 
-  f = main.iFlux.fy[:,None,None,None,None]*main.Jdet[None,None,None,None,None,:,:,:,None,:,:,:,None]*main.wy[None,:,:,:,:,:,:,:,:]
-  main.RHS[:] += volIntegrateGlob_einsum_2(main,f)
+#  f = main.iFlux.fy[:,None,None,None,None]*main.Jdet[None,None,None,None,None,:,:,:,None,:,:,:,None]*main.wy[None,:,:,:,:,:,:,:,:]
+#  main.RHS[:] += volIntegrateGlob_einsum_2(main,f)
 
-  f = main.iFlux.fz[:,None,None,None,None]*main.Jdet[None,None,None,None,None,:,:,:,None,:,:,:,None]*main.wz[None,:,:,:,:,:,:,:,:]
-  main.RHS[:] += volIntegrateGlob_einsum_2(main,f)
+#  f = main.iFlux.fz[:,None,None,None,None]*main.Jdet[None,None,None,None,None,:,:,:,None,:,:,:,None]*main.wz[None,:,:,:,:,:,:,:,:]
+#  main.RHS[:] += volIntegrateGlob_einsum_2(main,f)
+
+  f = main.iFlux.fx*main.Jinv[0,0][None,:,:,:,None,:,:,:,None]
+  f += main.iFlux.fy*main.Jinv[0,1][None,:,:,:,None,:,:,:,None]
+  f += main.iFlux.fz*main.Jinv[0,2][None,:,:,:,None,:,:,:,None]
+  f *= main.Jdet[None,:,:,:,None,:,:,:,None]
+  main.RHS[:] += main.basis.volIntegrateGlob(main,f,main.wp0,main.w1,main.w2,main.w3)
+
+
+  f = main.iFlux.fx*main.Jinv[1,0][None,:,:,:,None,:,:,:,None]
+  f += main.iFlux.fy*main.Jinv[1,1][None,:,:,:,None,:,:,:,None]
+  f += main.iFlux.fz*main.Jinv[1,2][None,:,:,:,None,:,:,:,None]
+  f *= main.Jdet[None,:,:,:,None,:,:,:,None]
+  main.RHS[:] += main.basis.volIntegrateGlob(main,f,main.w0,main.wp1,main.w2,main.w3)
+
+  f = main.iFlux.fx*main.Jinv[2,0][None,:,:,:,None,:,:,:,None]
+  f += main.iFlux.fy*main.Jinv[2,1][None,:,:,:,None,:,:,:,None]
+  f += main.iFlux.fz*main.Jinv[2,2][None,:,:,:,None,:,:,:,None]
+  f *= main.Jdet[None,:,:,:,None,:,:,:,None]
+  main.RHS[:] += main.basis.volIntegrateGlob(main,f,main.w0,main.w1,main.wp2,main.w3)
+
+
 
 
 #  main.a.Upx,main.a.Upy,main.a.Upz = main.basis.diffU(main.a.a,main)
