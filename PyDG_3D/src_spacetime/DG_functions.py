@@ -34,7 +34,7 @@ def addSource(main):
 
 def addInviscidFlux(main,MZ,eqns,args=[],args_phys=[]):
   # first compute contribution from flux at faces
-  inviscidFlux(main,eqns,main.iFlux,main.a,args)
+  generalFluxGen(main,eqns,main.iFlux,main.a,eqns.inviscidFlux,args)
   # now we need to integrate along the boundary 
   main.iFlux.fRLI = main.basis.faceIntegrateGlob(main,main.iFlux.fRLS*main.J_edge_det[0][None,:,:,None,:,:,:,None],MZ.w1,MZ.w2,MZ.w3,MZ.weights1,MZ.weights2,MZ.weights3)
   main.iFlux.fUDI = main.basis.faceIntegrateGlob(main,main.iFlux.fUDS*main.J_edge_det[1][None,:,:,None,:,:,:,None],MZ.w0,MZ.w2,MZ.w3,MZ.weights0,MZ.weights2,MZ.weights3)

@@ -156,7 +156,7 @@ def evalFluxZEulerLin(main,U0,f,args):
 #== rusanov flux
 #== Roe flux
 
-def eulerCentralFlux(main,UL,UR,pL,pR,n,args=None):
+def eulerCentralFlux(main,UL,UR,n,args=None):
 # PURPOSE: This function calculates the flux for the Euler equations
 # using the Roe flux function
 #
@@ -219,7 +219,7 @@ def eulerCentralFlux(main,UL,UR,pL,pR,n,args=None):
   return F
 
 
-def ismailFlux(main,UL,UR,pL,pR,n,args=None):
+def ismailFlux(main,UL,UR,n,args=None):
 # PURPOSE: This function calculates the flux for the Euler equations
 # using the Roe flux function
 #
@@ -310,7 +310,7 @@ def ismailFlux(main,UL,UR,pL,pR,n,args=None):
 
 
 
-def eulerCentralFluxLinearized(main,U0L,U0R,pL,pR,n,args):
+def eulerCentralFluxLinearized(main,U0L,U0R,n,args):
   gamma = 1.4
   upL = args[0]
   upR = args[1]
@@ -360,7 +360,7 @@ def eulerCentralFluxLinearized(main,U0L,U0R,pL,pR,n,args):
   return F
 
 
-def rusanovFlux(main,UL,UR,pL,pR,n,args=None):
+def rusanovFlux(main,UL,UR,n,args=None):
 # PURPOSE: This function calculates the flux for the Euler equations
 # using the Roe flux function
 #
@@ -455,7 +455,7 @@ def rusanovFlux(main,UL,UR,pL,pR,n,args=None):
                
   
 
-def kfid_roeflux(main,UL,UR,pL,pR,n,args=None):
+def kfid_roeflux(main,UL,UR,n,args=None):
 # PURPOSE: This function calculates the flux for the Euler equations
 # using the Roe flux function
 #
@@ -1226,6 +1226,72 @@ def evalViscousFluxZNS_BR1(main,U,fv,cgas):
   fv[6] = 0.
   fv[7] = 0.
   fv[8] = T
+
+def evalTauFluxNS_BR1_ne(main,uL,uR,n,args):
+  tauL = args[0]
+  tauR = args[1]
+  Pr = 0.72
+  Pri = 1./Pr
+  gamma = 1.4
+
+  mu = main.mus
+  muL,muR = mu,mu
+  sz = np.shape(uL)
+  fvL = np.zeros(sz)
+  fvR = np.zeros(sz)
+  fv = np.zeros(sz)
+  n0 = n[0]
+  n1 = n[1]
+  n2 = n[2]
+  tau0 = tauL[0]
+  tau1 = tauL[1]
+  tau2 = tauL[2]
+  tau3 = tauL[3]
+  tau4 = tauL[4]
+  tau5 = tauL[5]
+  tau6 = tauL[6]
+  tau7 = tauL[7]
+  tau8 = tauL[8]
+
+
+  u1 = uL[1]
+  u2 = uL[2]
+  u3 = uL[3]
+  rhoinv = 1./uL[0]
+  fvL1 = ne.evaluate("tau0*n0 + tau3*n1 + tau4*n2")
+  fvL2 = ne.evaluate("tau3*n0 + tau1*n1 + tau5*n2")
+  fvL3 = ne.evaluate("tau4*n0 + tau5*n1 + tau2*n2")
+  fvL4 = ne.evaluate("rhoinv*(fvL1*u1 + fvL2*u2 + fvL3*u3)")
+  fvL4 = ne.evaluate("fvL4 + gamma*Pri*(tau6*n0 + tau7*n1 + tau8*n2)",out=fvL4)
+
+
+  tau0 = tauR[0]
+  tau1 = tauR[1]
+  tau2 = tauR[2]
+  tau3 = tauR[3]
+  tau4 = tauR[4]
+  tau5 = tauR[5]
+  tau6 = tauR[6]
+  tau7 = tauR[7]
+  tau8 = tauR[8]
+
+  u1 = uR[1]
+  u2 = uR[2]
+  u3 = uR[3]
+  rhoinv = 1./uR[0]
+  fvR1 = ne.evaluate("tau0*n0 + tau3*n1 + tau4*n2")
+  fvR2 = ne.evaluate("tau3*n0 + tau1*n1 + tau5*n2")
+  fvR3 = ne.evaluate("tau4*n0 + tau5*n1 + tau2*n2")
+  fvR4 = ne.evaluate("rhoinv*(fvR1*u1 + fvR2*u2 + fvR3*u3)")
+  fvR4 = ne.evaluate("fvR4 + gamma*Pri*(tau6*n0 + tau7*n1 + tau8*n2)",out=fvR4)
+  #fvR4 += gamma*Pri*(tauR[6]*n[0] + tauR[7]*n[1] + tauR[8]*n[2])
+
+
+  fv[1] = ne.evaluate("0.5*(fvL1 + fvR1)")
+  fv[2] = ne.evaluate("0.5*(fvL2 + fvR2)")
+  fv[3] = ne.evaluate("0.5*(fvL3 + fvR3)")
+  fv[4] = ne.evaluate("0.5*(fvL4 + fvR4)")
+  fv *= mu
 
 def evalTauFluxNS_BR1(main,uL,uR,n,args):
   tauL = args[0]

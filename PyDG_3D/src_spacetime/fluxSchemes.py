@@ -51,17 +51,17 @@ def inviscidFlux(main,eqns,fluxVar,var,args=None):
   #nx = np.array([1,0,0])
   #ny = np.array([0,1,0])
   #nz = np.array([0,0,1])
-  fluxVar.fRLS[:,:,:,:,1:-1,:,:] = eqns.inviscidFlux(main,var.uR[:,:,:,:,0:-1,:,:],var.uL[:,:,:,:,1::,:,:],main.a.pR[:,:,:,0:-1,:,:],main.a.pL[:,:,:,1::,:,:],main.normals[0][:,None,None,None,0:-1,:,:,None])
-  fluxVar.fRLS[:,:,:,:,  -1,:,:] = eqns.inviscidFlux(main,var.uR[:,:,:,:,  -1,:,:],var.uR_edge,main.a.pR[:,:,:,-1,:,:],main.a.pR_edge,main.normals[0][:,None,None,None,-1,:,:,None])
-  fluxVar.fRLS[:,:,:,:,0   ,:,:] = eqns.inviscidFlux(main,var.uL_edge,var.uL[:,:,:,:,0,:,:],main.a.pL_edge,main.a.pL[:,:,:,0,:,:],-main.normals[1][:,None,None,None,0,:,:,None])
+  fluxVar.fRLS[:,:,:,:,1:-1,:,:] = eqns.inviscidFlux(main,var.uR[:,:,:,:,0:-1,:,:],var.uL[:,:,:,:,1::,:,:],main.normals[0][:,None,None,None,0:-1,:,:,None])
+  fluxVar.fRLS[:,:,:,:,  -1,:,:] = eqns.inviscidFlux(main,var.uR[:,:,:,:,  -1,:,:],var.uR_edge,main.normals[0][:,None,None,None,-1,:,:,None])
+  fluxVar.fRLS[:,:,:,:,0   ,:,:] = eqns.inviscidFlux(main,var.uL_edge,var.uL[:,:,:,:,0,:,:],-main.normals[1][:,None,None,None,0,:,:,None])
 
-  fluxVar.fUDS[:,:,:,:,:,1:-1,:] = eqns.inviscidFlux(main,var.uU[:,:,:,:,:,0:-1,:],var.uD[:,:,:,:,:,1::,:],main.a.pU[:,:,:,:,0:-1,:],main.a.pD[:,:,:,:,1::,:],main.normals[2][:,None,None,None,:,0:-1,:,None])
-  fluxVar.fUDS[:,:,:,:,:,  -1,:] = eqns.inviscidFlux(main,var.uU[:,:,:,:,:,  -1,:],var.uU_edge,main.a.pU[:,:,:,:,  -1,:],main.a.pU_edge,main.normals[2][:,None,None,None,:,-1,:,None])
-  fluxVar.fUDS[:,:,:,:,:,0   ,:] = eqns.inviscidFlux(main,var.uD_edge,var.uD[:,:,:,:,:,0,:],main.a.pD_edge,main.a.pD[:,:,:,:,0,:],-main.normals[3][:,None,None,None,:,0,:,None])
+  fluxVar.fUDS[:,:,:,:,:,1:-1,:] = eqns.inviscidFlux(main,var.uU[:,:,:,:,:,0:-1,:],var.uD[:,:,:,:,:,1::,:],main.normals[2][:,None,None,None,:,0:-1,:,None])
+  fluxVar.fUDS[:,:,:,:,:,  -1,:] = eqns.inviscidFlux(main,var.uU[:,:,:,:,:,  -1,:],var.uU_edge,main.normals[2][:,None,None,None,:,-1,:,None])
+  fluxVar.fUDS[:,:,:,:,:,0   ,:] = eqns.inviscidFlux(main,var.uD_edge,var.uD[:,:,:,:,:,0,:],-main.normals[3][:,None,None,None,:,0,:,None])
 
-  fluxVar.fFBS[:,:,:,:,:,:,1:-1] = eqns.inviscidFlux(main,var.uF[:,:,:,:,:,:,0:-1],var.uB[:,:,:,:,:,:,1::],main.a.pF[:,:,:,:,:,0:-1],main.a.pB[:,:,:,:,:,1::],main.normals[4][:,None,None,None,:,:,0:-1,None])
-  fluxVar.fFBS[:,:,:,:,:,:,  -1] = eqns.inviscidFlux(main,var.uF[:,:,:,:,:,:,  -1],var.uF_edge,main.a.pF[:,:,:,:,:,  -1],main.a.pF_edge,main.normals[4][:,None,None,None,:,:,-1,None])
-  fluxVar.fFBS[:,:,:,:,:,:,0   ] = eqns.inviscidFlux(main,var.uB_edge,var.uB[:,:,:,:,:,:,0],main.a.pB_edge,main.a.pB[:,:,:,:,:,0],-main.normals[5][:,None,None,None,:,:,0,None])
+  fluxVar.fFBS[:,:,:,:,:,:,1:-1] = eqns.inviscidFlux(main,var.uF[:,:,:,:,:,:,0:-1],var.uB[:,:,:,:,:,:,1::],main.normals[4][:,None,None,None,:,:,0:-1,None])
+  fluxVar.fFBS[:,:,:,:,:,:,  -1] = eqns.inviscidFlux(main,var.uF[:,:,:,:,:,:,  -1],var.uF_edge,main.normals[4][:,None,None,None,:,:,-1,None])
+  fluxVar.fFBS[:,:,:,:,:,:,0   ] = eqns.inviscidFlux(main,var.uB_edge,var.uB[:,:,:,:,:,:,0],-main.normals[5][:,None,None,None,:,:,0,None])
 
 
 def inviscidFlux_DOUBLEFLUX(main,eqns,fluxVar,var,args=None):
@@ -105,28 +105,16 @@ def inviscidFlux_DOUBLEFLUX2(main,eqns,fluxVar,var,args=None):
 
 
 
-def inviscidFluxTwoArg(main,eqns,fluxVar,var,args):
-  up = args[0]
-  upR,upL,upU,upD,upF,upB = reconstructEdgesGeneral(up,main)
-  upR_edge,upL_edge,upU_edge,upD_edge,upF_edge,upB_edge = sendEdgesGeneralSlab(upL,upR,upD,upU,upB,upF,main)
-
-
-  nx = np.array([1,0,0])
-  ny = np.array([0,1,0])
-  nz = np.array([0,0,1])
-  fluxVar.fRS[:,:,:,0:-1,:,:] = eqns.inviscidFlux(var.uR[:,:,:,0:-1,:,:],var.uL[:,:,:,1::,:,:],upR[:,:,:,0:-1,:,:],upL[:,:,:,1::,:,:],nx)
-  fluxVar.fRS[:,:,:,  -1,:,:] = eqns.inviscidFlux(var.uR[:,:,:,  -1,:,:],var.uR_edge,upR[:,:,:,  -1,:,:],upR_edge,nx)
-  fluxVar.fLS[:,:,:,1:: ,:,:] = fluxVar.fRS[:,:,:,0:-1,:,:]
-  fluxVar.fLS[:,:,:,0   ,:,:] = eqns.inviscidFlux(var.uL_edge,var.uL[:,:,:,0,:,:],upL_edge,upL[:,:,:,0,:,:],nx)
-  fluxVar.fUS[:,:,:,:,0:-1,:] = eqns.inviscidFlux(var.uU[:,:,:,:,0:-1,:],var.uD[:,:,:,:,1::,:],upU[:,:,:,:,0:-1,:],upD[:,:,:,:,1::,:],ny )
-  fluxVar.fUS[:,:,:,:,  -1,:] = eqns.inviscidFlux(var.uU[:,:,:,:,  -1,:],var.uU_edge,upU[:,:,:,:,  -1,:],upU_edge,ny)
-  fluxVar.fDS[:,:,:,:,1:: ,:] = fluxVar.fUS[:,:,:,:,0:-1,:] 
-  fluxVar.fDS[:,:,:,:,0   ,:] = eqns.inviscidFlux(var.uD_edge,var.uD[:,:,:,:,0,:],upD_edge,upD[:,:,:,:,0,:],ny)
-  #print(np.amax(fluxVar.fDS[1,:,:,:,0,:]),np.amax(np.abs(var.uD_edge[1])), np.amax(np.abs(var.uD[1,:,:,:,0,:]/var.uD[0,:,:,:,0,:] ) )  )
-  fluxVar.fFS[:,:,:,:,:,0:-1] = eqns.inviscidFlux(var.uF[:,:,:,:,:,0:-1],var.uB[:,:,:,:,:,1::],upF[:,:,:,:,:,0:-1],upB[:,:,:,:,:,1::],nz )
-  fluxVar.fFS[:,:,:,:,:,  -1] = eqns.inviscidFlux(var.uF[:,:,:,:,:,  -1],var.uF_edge,upF[:,:,:,:,:,  -1],upF_edge,nz)
-  fluxVar.fBS[:,:,:,:,:,1:: ] = fluxVar.fFS[:,:,:,:,:,0:-1] 
-  fluxVar.fBS[:,:,:,:,:,0   ] = eqns.inviscidFlux(var.uB_edge,var.uB[:,:,:,:,:,0],upB_edge,upB[:,:,:,:,:,0],nz)
+def generalFluxTwoArg(main,eqns,fluxVar,var,var2,fluxFunction,args):
+  fluxVar.fRLS[:,:,:,:,1:-1,:,:] = fluxFunction(main,var.uR[:,:,:,:,0:-1,:,:],var.uL[:,:,:,:,1::,:,:],var2.uR[:,:,:,:,0:-1,:,:],var2.uL[:,:,:,:,1::,:,:],main.normals[0][:,None,None,None,0:-1,:,:,None])
+  fluxVar.fRLS[:,:,:,:,  -1,:,:] = fluxFunction(main,var.uR[:,:,:,:,  -1,:,:],var.uR_edge,var2.uR[:,:,:,:,  -1,:,:],var2.uR_edge,main.normals[0][:,None,None,None,-1,:,:,None])
+  fluxVar.fRLS[:,:,:,:,0   ,:,:] = fluxFunction(main,var.uL_edge,var.uL[:,:,:,:,0,:,:],var2.uL_edge,var2.uL[:,:,:,:,0,:,:],-main.normals[1][:,None,None,None,0,:,:,None])
+  fluxVar.fUDS[:,:,:,:,:,1:-1,:] = fluxFunction(main,var.uU[:,:,:,:,:,0:-1,:],var.uD[:,:,:,:,:,1::,:],var2.uU[:,:,:,:,:,0:-1,:],var2.uD[:,:,:,:,:,1::,:],main.normals[2][:,None,None,None,:,0:-1,:,None])
+  fluxVar.fUDS[:,:,:,:,:,  -1,:] = fluxFunction(main,var.uU[:,:,:,:,:,  -1,:],var.uU_edge,var2.uU[:,:,:,:,:,  -1,:],var2.uU_edge,main.normals[2][:,None,None,None,:,-1,:,None])
+  fluxVar.fUDS[:,:,:,:,:,0   ,:] = fluxFunction(main,var.uD_edge,var.uD[:,:,:,:,:,0,:],var2.uD_edge,var2.uD[:,:,:,:,:,0,:],-main.normals[3][:,None,None,None,:,0,:,None])
+  fluxVar.fFBS[:,:,:,:,:,:,1:-1] = fluxFunction(main,var.uF[:,:,:,:,:,:,0:-1],var.uB[:,:,:,:,:,:,1::],var2.uF[:,:,:,:,:,:,0:-1],var2.uB[:,:,:,:,:,:,1::],main.normals[4][:,None,None,None,:,:,0:-1,None])
+  fluxVar.fFBS[:,:,:,:,:,:,  -1] = fluxFunction(main,var.uF[:,:,:,:,:,:,  -1],var.uF_edge,var2.uF[:,:,:,:,:,:,  -1],var2.uF_edge,main.normals[4][:,None,None,None,:,:,-1,None])
+  fluxVar.fFBS[:,:,:,:,:,:,0   ] = fluxFunction(main,var.uB_edge,var.uB[:,:,:,:,:,:,0],var2.uB_edge,var2.uB[:,:,:,:,:,:,0],-main.normals[5][:,None,None,None,:,:,0,None])
 
 def generalFluxGen(main,eqns,fluxVar,var,fluxFunction,args):
   nargs = np.shape(args)[0]
