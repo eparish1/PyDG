@@ -454,7 +454,7 @@ def rusanovFlux(main,UL,UR,n,args=None):
   return F
                
   
-@profile
+#@profile
 def kfid_roeflux(F,main,UL,UR,n,args=None):
 # PURPOSE: This function calculates the flux for the Euler equations
 # using the Roe flux function
