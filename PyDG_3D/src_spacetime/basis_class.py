@@ -7,6 +7,15 @@ class basis_class:
     self.basis_str = basis_str
     mpi_rank = comm.Get_rank()  
     #if (mpi_rank == 0): print('Using ' + basis_str + ' basis' )
+    if (args[1]):
+      if (mpi_rank == 0): print('NOTE: Orthogonal keyword set, assuming grid is orthogonal')
+      self.applyVolIntegral = applyVolIntegral_numexpr_orthogonal
+      self.applyMassMatrix = applyMassMatrix_orthogonal
+    else:
+      if (mpi_rank == 0): print('NOTE: Orthogonal keyword not set, using full mass matrix and grid metrics')
+      self.applyVolIntegral = applyVolIntegral_numexpr
+      self.applyMassMatrix = applyMassMatrix
+
     if (args[0] == 'TensorDot'):
       #if (mpi_rank == 0): print('Using ' + args[0] + ' function for modal computations')
       self.diffU = diffU_tensordot

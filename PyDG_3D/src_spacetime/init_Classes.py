@@ -8,9 +8,8 @@ from fluxSchemes import inviscidFlux,centralFluxGeneral
 from navier_stokes import *
 from linear_advection import *
 #from equationFluxes import *
-from DG_functions import getFlux,getRHS
+from DG_functions import getRHS
 from turb_models import *
-from viscousFluxesIP import *
 from boundary_conditions import *
 from equations_class import *
 from gas import *
@@ -150,7 +149,7 @@ class boundaryConditions:
     
 
 class variables:
-  def __init__(self,Nel,order,quadpoints,eqns,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,source,source_mag,shock_capturing,mol_str=None):
+  def __init__(self,Nel,order,quadpoints,eqns,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,source,source_mag,shock_capturing,mol_str,basis_args):
     ## DG scheme information
     self.eq_str = eqns.eq_str
     self.Nel = Nel
@@ -339,7 +338,6 @@ class variables:
 
 
 
-    self.getFlux = getFlux
     self.RHS = np.zeros((eqns.nvars,self.order[0],self.order[1],self.order[2],self.order[3],self.Npx,self.Npy,self.Npz,self.Npt))
   
     ### Check turbulence models
@@ -365,6 +363,6 @@ class variables:
       if (self.mpi_rank == 0):
          print('Using turb model ' + turb_str)
 
-    self.basis = basis_class('Legendre',['TensorDot'])
+    self.basis = basis_class('Legendre',basis_args)
     self.mol_str = mol_str
     #self = add_reacting_to_main(self,mol_str)

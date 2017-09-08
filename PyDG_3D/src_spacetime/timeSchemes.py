@@ -15,7 +15,6 @@ from scipy.optimize.nonlin import InverseJacobian
 from scipy.optimize.nonlin import BroydenFirst, KrylovJacobian
 from eos_functions import *
 import time
-from DG_functions import getRHS_SOURCE
 from pylab import *
 from tensor_products import diffCoeffs
 def gatherResid(Rstar,main):
@@ -390,18 +389,22 @@ def SSP_RK3(main,MZ,eqns,args=None):
 
   a0 = np.zeros(np.shape(main.a.a))
   a0[:] = main.a.a[:]
+  main.basis.applyMassMatrix(main,main.RHS)
   a1 = main.a.a[:]  + main.dt*(main.RHS[:])
   main.a.a[:] = a1[:]
   #limiter_characteristic(main)
   #limiter_MF(main)
 
   main.getRHS(main,MZ,eqns)
+  main.basis.applyMassMatrix(main,main.RHS)
+
   a1[:] = 3./4.*a0 + 1./4.*(a1 + main.dt*main.RHS[:]) #reuse a1 vector
   main.a.a[:] = a1[:]
   #limiter_characteristic(main)
   #limiter_MF(main)
 
   main.getRHS(main,MZ,eqns)  ## put RHS in a array since we don't need it
+  main.basis.applyMassMatrix(main,main.RHS)
   main.a.a[:] = 1./3.*a0 + 2./3.*(a1[:] + main.dt*main.RHS[:])
   #limiter_characteristic(main)
   #limiter_MF(main)
@@ -498,17 +501,11 @@ def ExplicitRK4(main,MZ,eqns,args=None):
 #  main.dt = 0.1*main.dx/(c + umax)
 #  if (main.mpi_rank == 0):
 #    print(main.dt)
-  ord_arrx= np.linspace(0,main.order[0]-1,main.order[0])
-  ord_arry= np.linspace(0,main.order[1]-1,main.order[1])
-  ord_arrz= np.linspace(0,main.order[2]-1,main.order[2])
-  ord_arrt= np.linspace(0,main.order[3]-1,main.order[3])
-  scale =  (2.*ord_arrx[:,None,None,None] + 1.)*(2.*ord_arry[None,:,None,None] + 1.)*(2.*ord_arrz[None,None,:,None] + 1.)*(2.*ord_arrt[None,None,None,:] + 1.)/16.
-  Jdet = np.amax(main.Jdet)
   for i in range(0,4):
     main.rkstage = i
     main.getRHS(main,MZ,eqns)  ## put RHS in a array since we don't need it
-    f = np.einsum('ijklpqrs...,zpqrs...->zijkl...',main.Minv,main.RHS)
-    main.a.a[:] = main.a0 + main.dt*rk4const[i]*(f)#/Jdet*scale[None,:,:,:,:,None,None,None,None]
+    main.basis.applyMassMatrix(main,main.RHS) 
+    main.a.a[:] = main.a0 + main.dt*rk4const[i]*main.RHS
     #limiter_MF(main)
   main.t += main.dt
   main.iteration += 1

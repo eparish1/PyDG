@@ -1,4 +1,74 @@
 import numpy as np
+import numexpr as ne
+def applyMassMatrix(main,RHS):
+  RHS[:] = np.einsum('ijklpqrs...,zpqrs...->zijkl...',main.Minv,RHS)
+
+def applyMassMatrix_orthogonal(main,RHS):
+  ord_arr0= np.linspace(0,main.order[0]-1,main.order[0])
+  ord_arr1= np.linspace(0,main.order[1]-1,main.order[1])
+  ord_arr2= np.linspace(0,main.order[2]-1,main.order[2])
+  ord_arr3= np.linspace(0,main.order[3]-1,main.order[3])
+  scale =  (2.*ord_arr0[:,None,None,None] + 1.)*(2.*ord_arr1[None,:,None,None] + 1.)*(2.*ord_arr2[None,None,:,None]+1.)*(2.*ord_arr3[None,None,None,:] + 1. )/16.
+  RHS[:] = RHS*scale[None,:,:,:,:,None,None,None,None]/main.Jdet[None,0,0,0,None,None,None,None,:,:,:,None]
+
+def applyVolIntegral(main,f1,f2,f3,RHS):
+  f = f1*main.Jinv[0,0][None,:,:,:,None,:,:,:,None]
+  f += f2*main.Jinv[0,1][None,:,:,:,None,:,:,:,None]
+  f += f3*main.Jinv[0,2][None,:,:,:,None,:,:,:,None]
+  f *= main.Jdet[None,:,:,:,None,:,:,:,None]
+  RHS[:] += main.basis.volIntegrateGlob(main,f,main.wp0,main.w1,main.w2,main.w3)
+
+
+  f = f1*main.Jinv[1,0][None,:,:,:,None,:,:,:,None]
+  f += f2*main.Jinv[1,1][None,:,:,:,None,:,:,:,None]
+  f += f3*main.Jinv[1,2][None,:,:,:,None,:,:,:,None]
+  f *= main.Jdet[None,:,:,:,None,:,:,:,None]
+  RHS[:] += main.basis.volIntegrateGlob(main,f,main.w0,main.wp1,main.w2,main.w3)
+
+  f = f1*main.Jinv[2,0][None,:,:,:,None,:,:,:,None]
+  f += f2*main.Jinv[2,1][None,:,:,:,None,:,:,:,None]
+  f += f3*main.Jinv[2,2][None,:,:,:,None,:,:,:,None]
+  f *= main.Jdet[None,:,:,:,None,:,:,:,None]
+  RHS[:] += main.basis.volIntegrateGlob(main,f,main.w0,main.w1,main.wp2,main.w3)
+
+
+def applyVolIntegral_numexpr(main,f1,f2,f3,RHS):
+  J1 = main.Jinv[0,0][None,:,:,:,None,:,:,:,None]
+  J2 = main.Jinv[0,1][None,:,:,:,None,:,:,:,None]
+  J3 = main.Jinv[0,2][None,:,:,:,None,:,:,:,None]
+  J3 = main.Jinv[0,2][None,:,:,:,None,:,:,:,None]
+  JD = main.Jdet[None,:,:,:,None,:,:,:,None]
+  f = ne.evaluate("JD*(f1*J1 + f2*J2 + f3*J3)")
+  RHS[:] += main.basis.volIntegrateGlob(main,f,main.wp0,main.w1,main.w2,main.w3)
+
+  J1 = main.Jinv[1,0][None,:,:,:,None,:,:,:,None]
+  J2 = main.Jinv[1,1][None,:,:,:,None,:,:,:,None]
+  J3 = main.Jinv[1,2][None,:,:,:,None,:,:,:,None]
+  J3 = main.Jinv[1,2][None,:,:,:,None,:,:,:,None]
+  f = ne.re_evaluate()#"JD*(a*J1 + b*J2 + c*J3)")
+  RHS[:] += main.basis.volIntegrateGlob(main,f,main.w0,main.wp1,main.w2,main.w3)
+
+  J1 = main.Jinv[2,0][None,:,:,:,None,:,:,:,None]
+  J2 = main.Jinv[2,1][None,:,:,:,None,:,:,:,None]
+  J3 = main.Jinv[2,2][None,:,:,:,None,:,:,:,None]
+  J3 = main.Jinv[2,2][None,:,:,:,None,:,:,:,None]
+  f = ne.re_evaluate()#"JD*(a*J1 + b*J2 + c*J3)")
+  RHS[:] += main.basis.volIntegrateGlob(main,f,main.w0,main.w1,main.wp2,main.w3)
+
+def applyVolIntegral_numexpr_orthogonal(main,f1,f2,f3,RHS):
+  J1 = main.Jinv[0,0][None,:,:,:,None,:,:,:,None]
+  JD = main.Jdet[None,:,:,:,None,:,:,:,None]
+  f = ne.evaluate("JD*(f1*J1)")
+  RHS[:] += main.basis.volIntegrateGlob(main,f,main.wp0,main.w1,main.w2,main.w3)
+
+  J2 = main.Jinv[1,1][None,:,:,:,None,:,:,:,None]
+  f = ne.evaluate("JD*(f2*J2)")
+  RHS[:] += main.basis.volIntegrateGlob(main,f,main.w0,main.wp1,main.w2,main.w3)
+
+  J3 = main.Jinv[2,2][None,:,:,:,None,:,:,:,None]
+  f = ne.evaluate("JD*(f3*J3)")
+  RHS[:] += main.basis.volIntegrateGlob(main,f,main.w0,main.w1,main.wp2,main.w3)
+
 
 def diffU_tensordot(a,main):
   tmp = np.tensordot(a,main.wp0,axes=([1],[0]))
@@ -522,12 +592,27 @@ def volIntegrate(weights0,weights1,weights2,weights3,f):
           weights2[None,None,None,:,None,None,None,None,None]*weights3[None,None,None,None,:,None,None,None,None]*f)
 
 
-def volIntegrateGlob_tensordot(main,f,w0,w1,w2,w3):
+def volIntegrateGlob_tensordot3(main,f,w0,w1,w2,w3):
   tmp = np.tensordot(main.weights0[None,:,None,None,None,None,None,None,None]*f,w0,axes=([1],[1]))
   tmp = np.tensordot(main.weights1[None,:,None,None,None,None,None,None,None]*tmp,w1,axes=([1],[1]))
   tmp = np.tensordot(main.weights2[None,:,None,None,None,None,None,None,None]*tmp,w2,axes=([1],[1]))
   tmp = np.tensordot(main.weights3[None,:,None,None,None,None,None,None,None]*tmp,w3,axes=([1],[1]))
   return np.rollaxis( np.rollaxis( np.rollaxis( np.rollaxis( tmp , -4 , 1) , -3 , 2), -2, 3), -1, 4)
+
+def volIntegrateGlob_tensordot2(main,f,w0,w1,w2,w3):
+  tmp = np.tensordot(f,w0*main.weights0[None,:],axes=([1],[1]))
+  tmp = np.tensordot(tmp,w1*main.weights1[None,:],axes=([1],[1]))
+  tmp = np.tensordot(tmp,w2*main.weights2[None,:],axes=([1],[1]))
+  tmp = np.tensordot(tmp,w3*main.weights3[None,:],axes=([1],[1]))
+  return np.rollaxis( np.rollaxis( np.rollaxis( np.rollaxis( tmp , -4 , 1) , -3 , 2), -2, 3), -1, 4)
+
+def volIntegrateGlob_tensordot(main,f,w0,w1,w2,w3):
+  tmp = np.rollaxis(np.tensordot(w0*main.weights0[None,:],f,axes=([1],[1])),0,9)
+  tmp = np.rollaxis(np.tensordot(w1*main.weights1[None,:],tmp,axes=([1],[1])) , 0 , 9)
+  tmp = np.rollaxis(np.tensordot(w2*main.weights2[None,:],tmp,axes=([1],[1])) , 0 , 9)
+  tmp = np.rollaxis(np.tensordot(w3*main.weights3[None,:],tmp,axes=([1],[1])) , 0 , 9)
+  return np.rollaxis( np.rollaxis( np.rollaxis( np.rollaxis( tmp , -4 , 1) , -3 , 2), -2, 3), -1, 4)
+
 
 def volIntegrateGlob_tensordot_collocate(main,f,w0,w1,w2,w3):
   tmp = np.tensordot(main.weights0_c[None,:,None,None,None,None,None,None,None]*f  ,w0,axes=([1],[1]))
@@ -560,9 +645,9 @@ def faceIntegrate(weights,f):
   return np.einsum('zpqijk->zijk',weights[None,:,None,None,None,None]*weights[None,None,:,None,None,None]*f)
 
 def faceIntegrateGlob_tensordot(main,f,w1,w2,w3,weights1,weights2,weights3):
-  tmp = np.tensordot(weights1[None,:,None,None,None,None,None,None]*f,w1,axes=([1],[1]))
-  tmp = np.tensordot(weights2[None,:,None,None,None,None,None,None]*tmp,w2,axes=([1],[1]))
-  tmp = np.tensordot(weights3[None,:,None,None,None,None,None,None]*tmp,w3,axes=([1],[1]))
+  tmp = np.tensordot(f,w1*weights1[None,:],axes=([1],[1]))
+  tmp = np.tensordot(tmp,w2*weights2[None,:],axes=([1],[1]))
+  tmp = np.tensordot(tmp,w3*weights3[None,:],axes=([1],[1]))
   #return np.swapaxes( np.swapaxes( tmp , 1 , 4) , 2 , 5)
   return np.rollaxis( np.rollaxis( np.rollaxis( tmp , -3 , 1) , -2 , 2),-1,3)
 
@@ -588,12 +673,21 @@ def reconstructUGeneral_einsum(main,a):
   return np.einsum('pl,zpmno...->zlmno...',main.w0,tmp)
 
 
-def reconstructU_tensordot(main,var):
+def reconstructU_tensordot2(main,var):
   var.u[:] = 0.
   tmp = np.tensordot(var.a,main.w0,axes=([1],[0])) 
   tmp = np.tensordot(tmp,main.w1,axes=([1],[0])) 
   tmp = np.tensordot(tmp,main.w2,axes=([1],[0])) 
   tmp = np.tensordot(tmp,main.w3,axes=([1],[0])) 
+#  var.u = np.swapaxes( np.swapaxes( np.swapaxes( tmp , 1 , 4) , 2 , 5), 3, 6)
+  var.u = np.rollaxis( np.rollaxis( np.rollaxis( np.rollaxis( tmp , -4 , 1) , -3 , 2), -2, 3), -1, 4)
+
+def reconstructU_tensordot(main,var):
+  var.u[:] = 0.
+  tmp = np.rollaxis(np.tensordot(main.w0,var.a,axes=([0],[1])) ,0,9)
+  tmp = np.rollaxis(np.tensordot(main.w1,tmp,axes=([0],[1])) ,0,9)
+  tmp = np.rollaxis(np.tensordot(main.w2,tmp,axes=([0],[1])) ,0,9)
+  tmp = np.rollaxis(np.tensordot(main.w3,tmp,axes=([0],[1])) ,0,9)
 #  var.u = np.swapaxes( np.swapaxes( np.swapaxes( tmp , 1 , 4) , 2 , 5), 3, 6)
   var.u = np.rollaxis( np.rollaxis( np.rollaxis( np.rollaxis( tmp , -4 , 1) , -3 , 2), -2, 3), -1, 4)
 

@@ -3,7 +3,6 @@ import sys
 import time
 import matplotlib.pyplot as plt
 from init_Classes import variables,equations
-from DG_functions import getRHS_SOURCE
 def newtonSolver(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadrature,eqns):
   if (sparse_quadrature):
     coarsen = 2

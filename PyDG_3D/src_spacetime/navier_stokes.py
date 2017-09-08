@@ -1,42 +1,89 @@
 import numpy as np
+import numexpr as ne 
 
 ##### =========== Contains all the fluxes and physics neccesary to solve the Navier-Stokes equations within a DG framework #### ============
 
 
 ###### ====== Inviscid Fluxes Fluxes and Eigen Values (Eigenvalues currently not in use) ==== ############
 def evalFluxXEuler(main,u,f,args): 
-  #f = np.zeros(np.shape(u))
+#  #f = np.zeros(np.shape(u))
   es = 1.e-30
   gamma = 1.4
-  p = (gamma - 1.)*(u[4] - 0.5*u[1]**2/u[0] - 0.5*u[2]**2/u[0] - 0.5*u[3]**2/u[0])
+#  gammam1 = 1.4 - 1.
+#  ri = 1./u[0]
+#  p = u[1]**2
+#  p += u[2]**2
+#  p += u[3]**2
+#  p *= ri
+#  p *= -0.5
+#  p += u[4] 
+#  p *= gammam1
+#  #p = (gamma - 1.)*(u[4] - 0.5*u[1]**2/u[0] - 0.5*u[2]**2/u[0] - 0.5*u[3]**2/u[0])
+#  f[0] = u[1]
+#  #t1 = u[1]**2
+#  #t1 *= ri
+#  #t1 += p
+#  #f[1] = t1
+#  f[1] = u[1]**2*ri + p
+#  f[2] = u[1]*u[2]*ri
+#  f[3] = u[1]*u[3]*ri
+#  f[4] = (u[4] + p)*u[1]*ri
+  rho = u[0]
+  rhoU = u[1]
+  rhoV = u[2]
+  rhoW = u[3]
+  rhoE = u[4]
+  p = ne.evaluate("(gamma - 1.)*(rhoE - 0.5*rhoU**2/rho - 0.5*rhoV**2/rho - 0.5*rhoW**2/rho)")
   f[0] = u[1]
-  f[1] = u[1]*u[1]/(u[0]) + p
-  f[2] = u[1]*u[2]/(u[0])
-  f[3] = u[1]*u[3]/(u[0])
-  f[4] = (u[4] + p)*u[1]/(u[0])
-
+  f[1] = ne.evaluate("rhoU*rhoU/(rho) + p")
+  f[2] = ne.evaluate("rhoU*rhoV/(rho) ")
+  f[3] = ne.evaluate("rhoU*rhoW/(rho) ")
+  f[4] = ne.evaluate("(rhoE + p)*rhoU/(rho) ")
 
 def evalFluxYEuler(main,u,f,args):
   #f = np.zeros(np.shape(u))
   gamma = 1.4
-  p = (gamma - 1.)*(u[4] - 0.5*u[1]**2/u[0] - 0.5*u[2]**2/u[0] - 0.5*u[3]**2/u[0])
+#  p = (gamma - 1.)*(u[4] - 0.5*u[1]**2/u[0] - 0.5*u[2]**2/u[0] - 0.5*u[3]**2/u[0])
+#  f[0] = u[2]
+#  f[1] = u[1]*u[2]/u[0]
+#  f[2] = u[2]*u[2]/u[0] + p
+#  f[3] = u[2]*u[3]/u[0] 
+#  f[4] = (u[4] + p)*u[2]/u[0]
+  rho = u[0]
+  rhoU = u[1]
+  rhoV = u[2]
+  rhoW = u[3]
+  rhoE = u[4]
+  p = ne.evaluate("(gamma - 1.)*(rhoE - 0.5*rhoU**2/rho - 0.5*rhoV**2/rho - 0.5*rhoW**2/rho)")
   f[0] = u[2]
-  f[1] = u[1]*u[2]/u[0]
-  f[2] = u[2]*u[2]/u[0] + p
-  f[3] = u[2]*u[3]/u[0] 
-  f[4] = (u[4] + p)*u[2]/u[0]
+  f[1] = ne.evaluate("rhoU*rhoV/(rho)")
+  f[2] = ne.evaluate("rhoV*rhoV/(rho) + p ")
+  f[3] = ne.evaluate("rhoV*rhoW/(rho) ")
+  f[4] = ne.evaluate("(rhoE + p)*rhoV/(rho) ")
 
 
 
 def evalFluxZEuler(main,u,f,args):
   #f = np.zeros(np.shape(u))
   gamma = 1.4
-  p = (gamma - 1.)*(u[4] - 0.5*u[1]**2/u[0] - 0.5*u[2]**2/u[0] - 0.5*u[3]**2/u[0])
+#  p = (gamma - 1.)*(u[4] - 0.5*u[1]**2/u[0] - 0.5*u[2]**2/u[0] - 0.5*u[3]**2/u[0])
+#  f[0] = u[3]
+#  f[1] = u[1]*u[3]/u[0]
+#  f[2] = u[2]*u[3]/u[0] 
+#  f[3] = u[3]*u[3]/u[0] + p 
+#  f[4] = (u[4] + p)*u[3]/u[0]
+  rho = u[0]
+  rhoU = u[1]
+  rhoV = u[2]
+  rhoW = u[3]
+  rhoE = u[4]
+  p = ne.evaluate("(gamma - 1.)*(rhoE - 0.5*rhoU**2/rho - 0.5*rhoV**2/rho - 0.5*rhoW**2/rho)")
   f[0] = u[3]
-  f[1] = u[1]*u[3]/u[0]
-  f[2] = u[2]*u[3]/u[0] 
-  f[3] = u[3]*u[3]/u[0] + p 
-  f[4] = (u[4] + p)*u[3]/u[0]
+  f[1] = ne.evaluate("rhoU*rhoW/(rho)")
+  f[2] = ne.evaluate("rhoV*rhoW/(rho) ")
+  f[3] = ne.evaluate("rhoW*rhoW/(rho) + p ")
+  f[4] = ne.evaluate("(rhoE + p)*rhoW/(rho) ")
+
 
 
 def evalFluxXEulerLin(main,U0,f,args): 

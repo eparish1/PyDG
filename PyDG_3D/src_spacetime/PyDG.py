@@ -216,6 +216,12 @@ if 'basis_functions_str' in globals():
   pass
 else:
   basis_functions_str = 'TensorDot'
+if 'orthogonal_str' in globals():
+  pass
+else:
+  orthogonal_str = False
+basis_args = [basis_functions_str,orthogonal_str]
+
 comm = MPI.COMM_WORLD
 num_processes = comm.Get_size()
 mpi_rank = comm.Get_rank()
@@ -229,7 +235,7 @@ if (mpi_rank == 0):
 iteration = 0
 
 eqns = equations(eqn_str,schemes,turb_str)
-main = variables(Nel,order,quadpoints,eqns,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,fsource,source_mag,shock_capturing,mol_str)
+main = variables(Nel,order,quadpoints,eqns,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,fsource,source_mag,shock_capturing,mol_str,basis_args)
 
 
 if (enriched):
@@ -239,15 +245,9 @@ else:
   mainEnriched = main
 
 
-#xG,yG,zG = getGlobGrid(main,x[main.sx,main.sy,:],y[main.sx,main.sy,:],z[main.sx,main.sy,:],main.zeta0,main.zeta1,main.zeta2)
-#xG,yG,zG = getGlobGrid(main,x,y,z,main.zeta0,main.zeta1,main.zeta2)
 
-#xG2,yG2,zG2 = getGlobGrid2(x,y,z,main.zeta0,main.zeta1,main.zeta2)
-#xGc,yGc,zGc = getGlobGrid2(x,y,z,main.zeta0_c,main.zeta1_c,main.zeta2_c)
-#xGc2,yGc2,zGc2 = getGlobGrid(x,y,z,main.zeta0_c,main.zeta1_c,main.zeta2_c)
-
-main.basis = basis_class('Legendre',[basis_functions_str])
-mainEnriched.basis = main.basis
+#main.basis = basis_class('Legendre',[basis_functions_str,orthogonal_str])
+#mainEnriched.basis = main.basis
 
 
 #getIC_collocate(main,IC_function,xGc[:,:,:,main.sx,main.sy,:],yGc[:,:,:,main.sx,main.sy,:],zGc[:,:,:,main.sx,main.sy,:],main.zeta3,main.Npt)
