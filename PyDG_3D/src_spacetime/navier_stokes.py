@@ -454,8 +454,8 @@ def rusanovFlux(main,UL,UR,n,args=None):
   return F
                
   
-
-def kfid_roeflux(main,UL,UR,n,args=None):
+@profile
+def kfid_roeflux(F,main,UL,UR,n,args=None):
 # PURPOSE: This function calculates the flux for the Euler equations
 # using the Roe flux function
 #
@@ -580,7 +580,6 @@ def kfid_roeflux(main,UL,UR,n,args=None):
   C2    = G1*s2*ci1          + G2*(s1-l3)
 
   # flux assembly
-  F = np.zeros(np.shape(FL))  # for allocation
   F[0]    = 0.5*(FL[0]+FR[0])-0.5*(l3*du[0] + C1   )
   F[1]    = 0.5*(FL[1]+FR[1])-0.5*(l3*du[1] + C1*ui + C2*n[0])
   F[2]    = 0.5*(FL[2]+FR[2])-0.5*(l3*du[2] + C1*vi + C2*n[1])
@@ -1047,7 +1046,7 @@ def evalViscousFluxZNS_IP(main,u,Ux,Uy,Uz,mu):
 ### viscous fluxes
 
 
-def evalViscousFluxNS_BR1(main,UL,UR,n,args=None):
+def evalViscousFluxNS_BR1(fv,main,UL,UR,n,args=None):
   nvars = 9
   sz = np.append(nvars,np.shape(UL[0]))
   fvL = np.zeros(sz)
@@ -1056,7 +1055,6 @@ def evalViscousFluxNS_BR1(main,UL,UR,n,args=None):
 #  fvXR = np.zeros(sz)
 #  fvYR = np.zeros(sz)
 #  fvZR = np.zeros(sz)
-  fv = np.zeros(sz)
 
   rhoi = 1./UL[0]
   u = rhoi*UL[1]
@@ -1180,7 +1178,7 @@ def evalViscousFluxNS_BR1(main,UL,UR,n,args=None):
 #  fv[:] *= 0.5
   return fv
 
-def evalViscousFluxXNS_BR1(main,U,fv,cgas):
+def evalViscousFluxXNS_BR1(main,U,fv):
   u = U[1]/U[0]
   v = U[2]/U[0]
   w = U[3]/U[0]
@@ -1197,7 +1195,7 @@ def evalViscousFluxXNS_BR1(main,U,fv,cgas):
 
 
 #
-def evalViscousFluxYNS_BR1(main,U,fv,cgas):
+def evalViscousFluxYNS_BR1(main,U,fv):
   u = U[1]/U[0]
   v = U[2]/U[0]
   w = U[3]/U[0]
@@ -1212,7 +1210,7 @@ def evalViscousFluxYNS_BR1(main,U,fv,cgas):
   fv[7] = T
   fv[8] = 0.
 
-def evalViscousFluxZNS_BR1(main,U,fv,cgas):
+def evalViscousFluxZNS_BR1(main,U,fv):
   u = U[1]/U[0]
   v = U[2]/U[0]
   w = U[3]/U[0]
@@ -1227,7 +1225,7 @@ def evalViscousFluxZNS_BR1(main,U,fv,cgas):
   fv[7] = 0.
   fv[8] = T
 
-def evalTauFluxNS_BR1_ne(main,uL,uR,n,args):
+def evalTauFluxNS_BR1_ne(fv,main,uL,uR,n,args):
   tauL = args[0]
   tauR = args[1]
   Pr = 0.72
@@ -1239,7 +1237,6 @@ def evalTauFluxNS_BR1_ne(main,uL,uR,n,args):
   sz = np.shape(uL)
   fvL = np.zeros(sz)
   fvR = np.zeros(sz)
-  fv = np.zeros(sz)
   n0 = n[0]
   n1 = n[1]
   n2 = n[2]
@@ -1286,14 +1283,14 @@ def evalTauFluxNS_BR1_ne(main,uL,uR,n,args):
   fvR4 = ne.evaluate("fvR4 + gamma*Pri*(tau6*n0 + tau7*n1 + tau8*n2)",out=fvR4)
   #fvR4 += gamma*Pri*(tauR[6]*n[0] + tauR[7]*n[1] + tauR[8]*n[2])
 
-
+  fv[0] = 0.
   fv[1] = ne.evaluate("0.5*(fvL1 + fvR1)")
   fv[2] = ne.evaluate("0.5*(fvL2 + fvR2)")
   fv[3] = ne.evaluate("0.5*(fvL3 + fvR3)")
   fv[4] = ne.evaluate("0.5*(fvL4 + fvR4)")
   fv *= mu
 
-def evalTauFluxNS_BR1(main,uL,uR,n,args):
+def evalTauFluxNS_BR1(fv,main,uL,uR,n,args):
   tauL = args[0]
   tauR = args[1]
   mu = main.mus
@@ -1301,7 +1298,6 @@ def evalTauFluxNS_BR1(main,uL,uR,n,args):
   sz = np.shape(uL)
   fvL = np.zeros(sz)
   fvR = np.zeros(sz)
-  fv = np.zeros(sz)
 
   Pr = 0.72
   Pri = 1./Pr
@@ -1349,7 +1345,7 @@ def evalTauFluxNS_BR1(main,uL,uR,n,args):
 
   fvR *= mu
 
-  fv = 0.5*(fvL + fvR)
+  fv[:] = 0.5*(fvL + fvR)
  
 #  fvXL[0] = 0.
 #  fvXL[1] = mu*tauL[0] #tau11

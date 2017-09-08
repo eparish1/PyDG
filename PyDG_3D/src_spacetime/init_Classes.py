@@ -307,6 +307,10 @@ class variables:
 #    self.mu0F =np.ones(np.append( eqns.nmus, np.shape( self.a.uF[0])))*self.mus
 #    self.mu0B =np.ones(np.append( eqns.nmus, np.shape( self.a.uB[0])))*self.mus
 
+#    self.tmp0 = np.zeros(np.shape(np.rollaxis(np.tensordot(self.w0*self.weights0[None,:],self.iFlux.fx,axes=([1],[1])),0,9)))
+#    self.tmp1 = np.zeros(np.shape(np.rollaxis(np.tensordot(self.w1*self.weights1[None,:],self.tmp0,axes=([1],[1])),0,9)))
+#    self.tmp2 = np.zeros(np.shape(np.rollaxis(np.tensordot(self.w2*self.weights2[None,:],self.tmp1,axes=([1],[1])),0,9)))
+#    self.tmp3 = np.zeros(np.shape(np.rollaxis(np.tensordot(self.w3*self.weights3[None,:],self.tmp2,axes=([1],[1])),0,9)))
 
     self.RHS = np.zeros((eqns.nvars,self.order[0],self.order[1],self.order[2],self.order[3],self.Npx,self.Npy,self.Npz,self.Npt))
   

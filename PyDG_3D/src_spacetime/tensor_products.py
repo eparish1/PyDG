@@ -31,7 +31,7 @@ def applyVolIntegral(main,f1,f2,f3,RHS):
   f *= main.Jdet[None,:,:,:,None,:,:,:,None]
   RHS[:] += main.basis.volIntegrateGlob(main,f,main.w0,main.w1,main.wp2,main.w3)
 
-
+@profile
 def applyVolIntegral_numexpr(main,f1,f2,f3,RHS):
   J1 = main.Jinv[0,0][None,:,:,:,None,:,:,:,None]
   J2 = main.Jinv[0,1][None,:,:,:,None,:,:,:,None]
@@ -39,21 +39,26 @@ def applyVolIntegral_numexpr(main,f1,f2,f3,RHS):
   J3 = main.Jinv[0,2][None,:,:,:,None,:,:,:,None]
   JD = main.Jdet[None,:,:,:,None,:,:,:,None]
   f = ne.evaluate("JD*(f1*J1 + f2*J2 + f3*J3)")
-  RHS[:] += main.basis.volIntegrateGlob(main,f,main.wp0,main.w1,main.w2,main.w3)
+  f = main.basis.volIntegrateGlob(main,f,main.wp0,main.w1,main.w2,main.w3)
+  ne.evaluate("RHS+f",out=RHS)
 
   J1 = main.Jinv[1,0][None,:,:,:,None,:,:,:,None]
   J2 = main.Jinv[1,1][None,:,:,:,None,:,:,:,None]
   J3 = main.Jinv[1,2][None,:,:,:,None,:,:,:,None]
   J3 = main.Jinv[1,2][None,:,:,:,None,:,:,:,None]
-  f = ne.re_evaluate()#"JD*(a*J1 + b*J2 + c*J3)")
-  RHS[:] += main.basis.volIntegrateGlob(main,f,main.w0,main.wp1,main.w2,main.w3)
+  #f = ne.re_evaluate()#"JD*(a*J1 + b*J2 + c*J3)")
+  f = ne.evaluate("JD*(f1*J1 + f2*J2 + f3*J3)")
+  f = main.basis.volIntegrateGlob(main,f,main.w0,main.wp1,main.w2,main.w3)
+  ne.evaluate("RHS+f",out=RHS)
 
   J1 = main.Jinv[2,0][None,:,:,:,None,:,:,:,None]
   J2 = main.Jinv[2,1][None,:,:,:,None,:,:,:,None]
   J3 = main.Jinv[2,2][None,:,:,:,None,:,:,:,None]
   J3 = main.Jinv[2,2][None,:,:,:,None,:,:,:,None]
-  f = ne.re_evaluate()#"JD*(a*J1 + b*J2 + c*J3)")
-  RHS[:] += main.basis.volIntegrateGlob(main,f,main.w0,main.w1,main.wp2,main.w3)
+  #f = ne.re_evaluate()#"JD*(a*J1 + b*J2 + c*J3)")
+  f = ne.evaluate("JD*(f1*J1 + f2*J2 + f3*J3)")
+  f = main.basis.volIntegrateGlob(main,f,main.w0,main.w1,main.wp2,main.w3)
+  ne.evaluate("RHS+f",out=RHS)
 
 def applyVolIntegral_numexpr_orthogonal(main,f1,f2,f3,RHS):
   J1 = main.Jinv[0,0][None,:,:,:,None,:,:,:,None]
@@ -608,9 +613,13 @@ def volIntegrateGlob_tensordot2(main,f,w0,w1,w2,w3):
 
 def volIntegrateGlob_tensordot(main,f,w0,w1,w2,w3):
   tmp = np.rollaxis(np.tensordot(w0*main.weights0[None,:],f,axes=([1],[1])),0,9)
+
   tmp = np.rollaxis(np.tensordot(w1*main.weights1[None,:],tmp,axes=([1],[1])) , 0 , 9)
+
   tmp = np.rollaxis(np.tensordot(w2*main.weights2[None,:],tmp,axes=([1],[1])) , 0 , 9)
+
   tmp = np.rollaxis(np.tensordot(w3*main.weights3[None,:],tmp,axes=([1],[1])) , 0 , 9)
+
   return np.rollaxis( np.rollaxis( np.rollaxis( np.rollaxis( tmp , -4 , 1) , -3 , 2), -2, 3), -1, 4)
 
 
