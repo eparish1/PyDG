@@ -522,9 +522,11 @@ def SteadyState(main,MZ,eqns,args):
   def unsteadyResidual(v):
     main.a.a[:] = np.reshape(v,np.shape(main.a.a))
     eqns.getRHS(main,main,eqns)
-    R1 = np.zeros(np.shape(main.RHS))
+    R1= np.zeros(np.shape(main.RHS))
+    Rstar = np.zeros(np.shape(main.RHS))
     R1[:] = main.RHS[:]
-    Rstar = R1
+    Rstar[:] = main.RHS[:]
+    main.basis.applyMassMatrix(main,Rstar)
     Rstar_glob = gatherResid(Rstar,main)
     return Rstar,R1,Rstar_glob
 
@@ -538,6 +540,7 @@ def SteadyState(main,MZ,eqns,args):
     R1 = np.zeros(np.shape(main.RHS))
     R1[:] = main.RHS[:]
     Av = (R1 - Rn)/eps
+    main.basis.applyMassMatrix(main,Av)
     return Av.flatten()
 
   nonlinear_solver.solve(unsteadyResidual, create_MF_Jacobian,main,linear_solver,sparse_quadrature,eqns)
@@ -785,8 +788,11 @@ def CrankNicolson(main,MZ,eqns,args):
     main.a.a[:] = np.reshape(v,np.shape(main.a.a))
     eqns.getRHS(main,main,eqns)
     R1 = np.zeros(np.shape(main.RHS))
+    RHS_CN = np.zeros(np.shape(main.RHS))
     R1[:] = main.RHS[:]
-    Rstar = ( main.a.a[:] - main.a0 ) - 0.5*main.dt*(R0 + R1)
+    RHS_CN[:] = 0.5*main.dt*(R0 + R1)
+    main.basis.applyMassMatrix(main,RHS_CN)
+    Rstar = ( main.a.a[:] - main.a0 ) - RHS_CN 
     Rstar_glob = gatherResid(Rstar,main)
     return Rstar,R1,Rstar_glob
 
@@ -794,8 +800,6 @@ def CrankNicolson(main,MZ,eqns,args):
     an = args[0]
     Rn = args[1]
     vr = np.reshape(v,np.shape(main.a.a))
-
-
 #    eqnsLin = equations('Linearized Navier-Stokes',('central','Inviscid'),'DNS')
 #    main.a.a[:] = an[:]
 #    vr_phys = main.basis.reconstructUGeneral(main,vr)
@@ -803,16 +807,15 @@ def CrankNicolson(main,MZ,eqns,args):
 #    R2 = np.zeros(np.shape(main.RHS))
 #    R2[:] = main.RHS[:]
 #    Av2 = vr - main.dt/2.*R2
-
-
-
     eps = 5.e-2
     main.a.a[:] = an + eps*vr
     eqns.getRHS(main,main,eqns)
+    RHS_CN = np.zeros(np.shape(main.RHS))
     R1 = np.zeros(np.shape(main.RHS))
     R1[:] = main.RHS[:]
-    Av = vr - main.dt/2.*(R1 - Rn)/eps
-
+    RHS_CN[:] = 0.5*main.dt*(R1 - Rn)/eps
+    main.basis.applyMassMatrix(main,RHS_CN)
+    Av = vr - RHS_CN
 
     return Av.flatten()
 

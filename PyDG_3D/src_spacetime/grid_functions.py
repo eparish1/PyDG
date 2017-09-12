@@ -99,12 +99,12 @@ def computeJacobian(X_el,zeta0,zeta1,zeta2):
   dum,dum,Nelx,Nely,Nelz = np.shape(X_el)
   #Nelx,Nely,Nelz = np.shape(X_el)[0,0,0],np.shape(X_el)[0,0,1],np.shape(X_el)[0,0,2]
   J = np.zeros((3,3,orderx,ordery,orderz,Nelx,Nely,Nelz))
-  JRL = np.zeros((2,2,ordery,orderz,Nelx+1,Nely,Nelz))
-  JUD = np.zeros((2,2,orderx,orderz,Nelx,Nely+1,Nelz))
-  JFB = np.zeros((2,2,orderx,ordery,Nelx,Nely,Nelz+1))
-  JRLinv = np.zeros((2,2,ordery,orderz,Nelx+1,Nely,Nelz))
-  JUDinv = np.zeros((2,2,orderx,orderz,Nelx,Nely+1,Nelz))
-  JFBinv = np.zeros((2,2,orderx,ordery,Nelx,Nely,Nelz+1))
+  JRL = np.zeros((3,2,ordery,orderz,Nelx+1,Nely,Nelz))
+  JUD = np.zeros((3,2,orderx,orderz,Nelx,Nely+1,Nelz))
+  JFB = np.zeros((3,2,orderx,ordery,Nelx,Nely,Nelz+1))
+  JRLinv = np.zeros((3,2,ordery,orderz,Nelx+1,Nely,Nelz))
+  JUDinv = np.zeros((3,2,orderx,orderz,Nelx,Nely+1,Nelz))
+  JFBinv = np.zeros((3,2,orderx,ordery,Nelx,Nely,Nelz+1))
   JRLdet = np.zeros((ordery,orderz,Nelx+1,Nely,Nelz))
   JUDdet = np.zeros((orderx,orderz,Nelx,Nely+1,Nelz))
   JFBdet = np.zeros((orderx,ordery,Nelx,Nely,Nelz+1))
@@ -193,7 +193,7 @@ def computeJacobian(X_el,zeta0,zeta1,zeta2):
               Jdet[p,q,r,i,j,k] = np.linalg.det(J[:,:,p,q,r,i,j,k])
 
   # Now do face stuff. First comptute Jacobians for each edge
-  def faceMetrics(J_edge,J_edge_inv,J_edge_det,zeta,eta,x0,y0,z0,x1,y1,z1,x2,y2,z2,x3,y3,z3):
+  def faceMetrics2(J_edge,J_edge_inv,J_edge_det,zeta,eta,x0,y0,z0,x1,y1,z1,x2,y2,z2,x3,y3,z3):
     J_edge[0,0] = (x0[None,None]*(eta[:,:,None,None,None] - 1))/4 - (x1[None,None]*(eta[:,:,None,None,None] - 1))/4 - \
             (x2[None,None]*(eta[:,:,None,None,None] + 1))/4 + (x3[None,None]*(eta[:,:,None,None,None] + 1))/4
     J_edge[0,1] = (x0[None,None]*(zeta[:,:,None,None,None] - 1))/4 - (x1[None,None]*(zeta[:,:,None,None,None] + 1))/4 - \
@@ -209,6 +209,7 @@ def computeJacobian(X_el,zeta0,zeta1,zeta2):
         for i in range(0,Nelx):
           for j in range(0,Nely):
             for k in range(0,Nelz):
+              print( np.linalg.pinv(J_edge[:,:,p,q,i,j,k]) )#, np.linalg.inv(J_edge[:,:,p,q,i,j,k]) )
               J_edge_inv[:,:,p,q,i,j,k] = np.linalg.inv(J_edge[:,:,p,q,i,j,k])
               J_edge_det[p,q,i,j,k] = np.linalg.det(J_edge[:,:,p,q,i,j,k])
     #We need to perform integrals like
@@ -224,6 +225,27 @@ def computeJacobian(X_el,zeta0,zeta1,zeta2):
     metric = np.sqrt(dg_dx**2 + dg_dy**2 + 1.)
     J_edge_det *= metric
     return J_edge,J_edge_det
+
+  def faceMetrics(J_edge,J_edge_inv,J_edge_det,zeta,eta,x0,y0,z0,x1,y1,z1,x2,y2,z2,x3,y3,z3):
+    J_edge[0,0] = (x0[None,None]*(eta[:,:,None,None,None] - 1))/4 - (x1[None,None]*(eta[:,:,None,None,None] - 1))/4 - \
+            (x2[None,None]*(eta[:,:,None,None,None] + 1))/4 + (x3[None,None]*(eta[:,:,None,None,None] + 1))/4
+    J_edge[0,1] = (x0[None,None]*(zeta[:,:,None,None,None] - 1))/4 - (x1[None,None]*(zeta[:,:,None,None,None] + 1))/4 - \
+            (x2[None,None]*(zeta[:,:,None,None,None] - 1))/4 + (x3[None,None]*(zeta[:,:,None,None,None] + 1))/4
+    J_edge[1,0] = (y0[None,None]*(eta[:,:,None,None,None] - 1))/4 - (y1[None,None]*(eta[:,:,None,None,None] - 1))/4 - \
+            (y2[None,None]*(eta[:,:,None,None,None] + 1))/4 + (y3[None,None]*(eta[:,:,None,None,None] + 1))/4
+    J_edge[1,1] = (y0[None,None]*(zeta[:,:,None,None,None] - 1))/4 - (y1[None,None]*(zeta[:,:,None,None,None] + 1))/4 - \
+            (y2[None,None]*(zeta[:,:,None,None,None] - 1))/4 + (y3[None,None]*(zeta[:,:,None,None,None] + 1))/4
+    J_edge[2,0] = (z0[None,None]*(eta[:,:,None,None,None] - 1))/4 - (z1[None,None]*(eta[:,:,None,None,None] - 1))/4 - \
+               (z2[None,None]*(eta[:,:,None,None,None] + 1))/4 + (z3[None,None]*(eta[:,:,None,None,None] + 1))/4
+    J_edge[2,1] = (z0[None,None]*(zeta[:,:,None,None,None] - 1))/4 - (z1[None,None]*(zeta[:,:,None,None,None] + 1))/4 - \
+               (z2[None,None]*(zeta[:,:,None,None,None] - 1))/4 + (z3[None,None]*(zeta[:,:,None,None,None] + 1))/4
+
+    # compute surface area magnitude dA
+    mag1 = J_edge[0,0]*J_edge[1,1] - J_edge[1,0]*J_edge[0,1] 
+    mag2 = J_edge[1,0]*J_edge[2,1] - J_edge[2,0]*J_edge[1,1] 
+    mag3 = J_edge[2,0]*J_edge[0,1] - J_edge[0,0]*J_edge[2,1] 
+    J_edge_det = np.sqrt(mag1**2 + mag2**2 + mag3**2)              
+    return J_edge_det
 
 
 
@@ -249,7 +271,7 @@ def computeJacobian(X_el,zeta0,zeta1,zeta2):
   z1 = np.append(z1,z1R[-1][None],axis=0)
   z2 = np.append(z2,z2R[-1][None],axis=0)
   z3 = np.append(z3,z3R[-1][None],axis=0)
-  J_edge[0],J_edge_det[0] = faceMetrics(J_edge[0],J_edge_inv[0],J_edge_det[0],zeta,eta,x0,y0,z0,x1,y1,z1,x2,y2,z2,x3,y3,z3)
+  J_edge_det[0] = faceMetrics(J_edge[0],J_edge_inv[0],J_edge_det[0],zeta,eta,x0,y0,z0,x1,y1,z1,x2,y2,z2,x3,y3,z3)
 
   zeta,eta = np.meshgrid(zeta0,zeta2,indexing='ij')
   x0U,y0U,z0U = X_el[2,0],X_el[2,2],X_el[2,1]
@@ -273,7 +295,7 @@ def computeJacobian(X_el,zeta0,zeta1,zeta2):
   z2 = np.append(z2,z2U[:,-1][:,None],axis=1)
   z3 = np.append(z3,z3U[:,-1][:,None],axis=1)
 
-  J_edge[1],J_edge_det[1] = faceMetrics(J_edge[1],J_edge_inv[1],J_edge_det[1],zeta,eta,x0,y0,z0,x1,y1,z1,x2,y2,z2,x3,y3,z3)
+  J_edge_det[1] = faceMetrics(J_edge[1],J_edge_inv[1],J_edge_det[1],zeta,eta,x0,y0,z0,x1,y1,z1,x2,y2,z2,x3,y3,z3)
 
   zeta,eta = np.meshgrid(zeta0,zeta1,indexing='ij')
   x0F,y0F,z0F = X_el[4,0],X_el[4,1],X_el[4,2]
@@ -297,7 +319,7 @@ def computeJacobian(X_el,zeta0,zeta1,zeta2):
   z2 = np.append(z2,z2F[:,:,-1][:,:,None],axis=2)
   z3 = np.append(z3,z3F[:,:,-1][:,:,None],axis=2)
 
-  J_edge[2],J_edge_det[2] = faceMetrics(J_edge[2],J_edge_inv[2],J_edge_det[2],zeta,eta,x0,y0,z0,x1,y1,z1,x2,y2,z2,x3,y3,z3)
+  J_edge_det[2] = faceMetrics(J_edge[2],J_edge_inv[2],J_edge_det[2],zeta,eta,x0,y0,z0,x1,y1,z1,x2,y2,z2,x3,y3,z3)
 
   a = X_el[1] - X_el[5]
   b = X_el[3] - X_el[5]

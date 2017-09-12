@@ -31,7 +31,6 @@ def applyVolIntegral(main,f1,f2,f3,RHS):
   f *= main.Jdet[None,:,:,:,None,:,:,:,None]
   RHS[:] += main.basis.volIntegrateGlob(main,f,main.w0,main.w1,main.wp2,main.w3)
 
-@profile
 def applyVolIntegral_numexpr(main,f1,f2,f3,RHS):
   J1 = main.Jinv[0,0][None,:,:,:,None,:,:,:,None]
   J2 = main.Jinv[0,1][None,:,:,:,None,:,:,:,None]
