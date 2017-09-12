@@ -470,7 +470,7 @@ def kfid_roeflux(F,main,UL,UR,n,args=None):
   gamma = 1.4
   gmi = gamma-1.0
   #process left state
-  rL = UL[0]
+  rL = UL[0] + 1.e-50
   rhoiL = 1./rL
   uL = UL[1]*rhoiL
   vL = UL[2]*rhoiL
@@ -499,10 +499,10 @@ def kfid_roeflux(F,main,UL,UR,n,args=None):
   FL[4] = rHL*unL
 
   # process right state
-  rR = UR[0]
+  rR = UR[0] + 1.e-50
   rhoiR = 1./rR
   uR = UR[1]*rhoiR
-
+  print(np.linalg.norm(uR),np.linalg.norm(UR))
   vR = UR[2]*rhoiR
 
   wR = UR[3]*rhoiR

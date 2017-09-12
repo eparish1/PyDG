@@ -32,6 +32,9 @@ class equations:
       if (mpi_rank == 0): print('Error, viscous flux scheme ' + vflux_str + ' not yet implemented for non-orthogonal grids. Use BR1 if grid is not orthogonal')
       self.addViscousContribution = addViscousContribution_IP
       self.vflux_type = 'IP'
+    if (vflux_str == 'Inviscid'):
+      self.addViscousContribution = addViscousContribution_inviscid
+      self.vflux_type = 'Inviscid'
 
     if (eq_str == 'FM1 Navier-Stokes'):
       self.nmus = 1
@@ -441,9 +444,11 @@ class equations:
       self.evalFluxX = evalFluxXLA
       self.evalFluxY = evalFluxYLA
       self.evalFluxZ = evalFluxZLA
-      self.inviscidFlux = linearAdvectionCentralFlux
-
+      if (iflux_str == 'central'):
+        self.inviscidFlux = linearAdvectionCentralFlux 
+        checki = 1
       if (vflux_str == 'IP'):
+        if (mpi_rank == 0): print('Warning, ', vflux_str + ' not implemented yet for non-orthogonal grids.')
         self.evalViscousFluxX = evalViscousFluxXLA_IP
         self.evalViscousFluxY = evalViscousFluxYLA_IP
         self.evalViscousFluxZ = evalViscousFluxZLA_IP
@@ -453,10 +458,16 @@ class equations:
 
 
       if (vflux_str == 'BR1'):
-        self.evalViscousFluxX = evalViscousFluxXLA_BR1
-        self.evalViscousFluxY = evalViscousFluxYLA_BR1
-        self.evalTauFluxX = evalTauFluxXLA_BR1
-        self.evalTauFluxY = evalTauFluxYLA_BR1
+        self.evalViscousFluxX = evalViscousFluxXD_BR1
+        self.evalViscousFluxY = evalViscousFluxYD_BR1
+        self.evalViscousFluxZ = evalViscousFluxZD_BR1
+        self.evalViscousFlux = evalViscousFluxD_BR1
+        self.evalTauFluxX = evalTauFluxXD_BR1
+        self.evalTauFluxY = evalTauFluxYD_BR1
+        self.evalTauFluxZ = evalTauFluxZD_BR1
+        self.evalTauFlux = evalTauFluxD_BR1
+
+
 
     if (eq_str == 'Diffusion'):
       check_eq = 1

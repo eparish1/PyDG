@@ -13,110 +13,6 @@ import time
 from scipy import interpolate
 from scipy.interpolate import RegularGridInterpolator
 from basis_class import *
-def getGlobGrid2(x,y,z,zeta0,zeta1,zeta2):
-#  dx = x[1] - x[0]
-#  dy = y[1] - y[0]
-#  dz = z[1] - z[0]
-
-  Npx,Npy,Npz = int(np.size(x)),int(np.size(y)),int(np.size(z))
-
-  nqx = np.size(zeta0)
-  nqy = np.size(zeta1)
-  nqz = np.size(zeta2)
-
-  xG = np.zeros((nqx,nqy,nqz,Npx-1,Npy-1,Npz-1))
-  yG = np.zeros((nqx,nqy,nqz,Npx-1,Npy-1,Npz-1))
-  zG = np.zeros((nqx,nqy,nqz,Npx-1,Npy-1,Npz-1))
-  for i in range(0,Npx-1):
-     dx = x[i+1] - x[i]
-     xG[:,:,:,i,:,:] = ( (2.*x[i]  + dx)/2. + zeta0/2.*(dx) )[:,None,None,None,None]
-  for i in range(0,Npy-1):
-     dy = y[i+1] - y[i]
-     yG[:,:,:,:,i,:] = ( (2.*y[i]  + dy)/2. + zeta1/2.*(dy) )[None,:,None,None,None]
-  for i in range(0,Npz-1):
-     dz = z[i+1] - z[i]
-     zG[:,:,:,:,:,i] = ( (2.*z[i]  + dz)/2. + zeta2/2.*(dz) )[None,None,:,None,None]
-  return xG,yG,zG
-
-
-def getGlobGrid(main,x,y,z,zeta0,zeta1,zeta2):
-#  dx = x[1] - x[0]
-#  dy = y[1] - y[0]
-#  dz = z[1] - z[0]
-  Npx,Npy,Npz = np.shape(x)
-  nqx = np.size(zeta0)
-  nqy = np.size(zeta1)
-  nqz = np.size(zeta2)
-  xG = np.zeros((nqx,nqy,nqz,Npx-1,Npy-1,Npz-1))
-  yG = np.zeros((nqx,nqy,nqz,Npx-1,Npy-1,Npz-1))
-  zG = np.zeros((nqx,nqy,nqz,Npx-1,Npy-1,Npz-1))
-  zeta,eta,mu = np.meshgrid(zeta0,zeta1,zeta2,indexing='ij')
-  zeta = zeta[:,:,:,None,None,None]
-  eta = eta[:,:,:,None,None,None]
-  mu = mu[:,:,:,None,None,None]
-  x0 = x[None,None,None,0:-1,0:-1,0:-1]
-  x1 = x[None,None,None,1:: ,0:-1,0:-1]
-  x2 = x[None,None,None,0:-1,1:: ,0:-1]
-  x3 = x[None,None,None,1:: ,1:: ,0:-1]
-  x4 = x[None,None,None,0:-1,0:-1,1:: ]
-  x5 = x[None,None,None,1:: ,0:-1,1:: ]
-  x6 = x[None,None,None,0:-1,1:: ,1:: ]
-  x7 = x[None,None,None,1:: ,1:: ,1:: ]
-  xG = (x1*(eta - 1)*(mu - 1)*(zeta + 1))/8 - (x0*(eta - 1)*(mu - 1)*(zeta - 1))/8 + (x2*(eta + 1)*(mu - 1)*(zeta - 1))/8 - (x3*(eta + 1)*(mu - 1)*(zeta + 1))/8 + (x4*(eta - 1)*(mu + 1)*(zeta - 1))/8 - (x5*(eta - 1)*(mu + 1)*(zeta + 1))/8 - (x6*(eta + 1)*(mu + 1)*(zeta - 1))/8 + (x7*(eta + 1)*(mu + 1)*(zeta + 1))/8
-  x0 = y[None,None,None,0:-1,0:-1,0:-1]
-  x1 = y[None,None,None,1:: ,0:-1,0:-1]
-  x2 = y[None,None,None,0:-1,1:: ,0:-1]
-  x3 = y[None,None,None,1:: ,1:: ,0:-1]
-  x4 = y[None,None,None,0:-1,0:-1,1:: ]
-  x5 = y[None,None,None,1:: ,0:-1,1:: ]
-  x6 = y[None,None,None,0:-1,1:: ,1:: ]
-  x7 = y[None,None,None,1:: ,1:: ,1:: ]
-
-  yG = (x1*(eta - 1)*(mu - 1)*(zeta + 1))/8 - (x0*(eta - 1)*(mu - 1)*(zeta - 1))/8 + (x2*(eta + 1)*(mu - 1)*(zeta - 1))/8 - (x3*(eta + 1)*(mu - 1)*(zeta + 1))/8 + (x4*(eta - 1)*(mu + 1)*(zeta - 1))/8 - (x5*(eta - 1)*(mu + 1)*(zeta + 1))/8 - (x6*(eta + 1)*(mu + 1)*(zeta - 1))/8 + (x7*(eta + 1)*(mu + 1)*(zeta + 1))/8
-
-  x0 = z[None,None,None,0:-1,0:-1,0:-1]
-  x1 = z[None,None,None,1:: ,0:-1,0:-1]
-  x2 = z[None,None,None,0:-1,1:: ,0:-1]
-  x3 = z[None,None,None,1:: ,1:: ,0:-1]
-  x4 = z[None,None,None,0:-1,0:-1,1:: ]
-  x5 = z[None,None,None,1:: ,0:-1,1:: ]
-  x6 = z[None,None,None,0:-1,1:: ,1:: ]
-  x7 = z[None,None,None,1:: ,1:: ,1:: ]
-
-  ZG = (x1*(eta - 1)*(mu - 1)*(zeta + 1))/8 - (x0*(eta - 1)*(mu - 1)*(zeta - 1))/8 + (x2*(eta + 1)*(mu - 1)*(zeta - 1))/8 - (x3*(eta + 1)*(mu - 1)*(zeta + 1))/8 + (x4*(eta - 1)*(mu + 1)*(zeta - 1))/8 - (x5*(eta - 1)*(mu + 1)*(zeta + 1))/8 - (x6*(eta + 1)*(mu + 1)*(zeta - 1))/8 + (x7*(eta + 1)*(mu + 1)*(zeta + 1))/8
-
-  return xG,yG,zG
-
-
-#def getGlobGrid(x,y,z,zeta0,zeta1,zeta2):
-##  dx = x[1] - x[0]
-##  dy = y[1] - y[0]
-##  dz = z[1] - z[0]
-#  Nelx,Nely,Nelz = np.shape(x)
-#  order0 = np.size(zeta0)
-#  order1 = np.size(zeta1)
-#  order2 = np.size(zeta2)
-#  quadpoints = np.zeros(3,dtype='int')
-#  quadpoints[0] =int( np.size(zeta0) )
-#  quadpoints[1] =int( np.size(zeta1) )
-#  quadpoints[2] =int( np.size(zeta2) )
-#
-#  xG = np.zeros(((np.size(x)-1)*np.size(zeta0)))
-#  yG = np.zeros(((np.size(y)-1)*np.size(zeta1)))
-#  zG = np.zeros(((np.size(z)-1)*np.size(zeta2)))
-#
-#  for i in range(0,Nelx-1):
-#     dx = x[i+1] - x[i]
-#     xG[i*quadpoints[0]:(i+1)*quadpoints[0]] = (2.*x[i]  + dx)/2. + zeta0/2.*(dx)
-#  for i in range(0,Nely-1):
-#     dy = y[i+1] - y[i]
-#     yG[i*quadpoints[1]:(i+1)*quadpoints[1]] = (2.*y[i]  + dy)/2. + zeta1/2.*(dy)
-#  for i in range(0,Nelz-1):
-#     dz = z[i+1] - z[i]
-#     zG[i*quadpoints[2]:(i+1)*quadpoints[2]] = (2.*z[i]  + dz)/2. + zeta2/2.*(dz)
-#
-#  return xG,yG,zG
-
 
 def getGlobU_scalar(u):
   quadpoints0,quadpoints1,quadpoints2,quadpoints3,Nelx,Nely,Nelz,Nelt = np.shape(u)
@@ -227,16 +123,17 @@ num_processes = comm.Get_size()
 mpi_rank = comm.Get_rank()
 if (mpi_rank == 0):
   print('Running on ' + str(num_processes) + ' Procs')
-dx =  (x[-1] - x[0])/Nel[0]
 t = 0
-if (mpi_rank == 0):
-  print('dt*p/(Nt*dx) = ' + str(1.*dt*order[0]/dx[0,0]/order[-1]))
-  print('dt*(p/dx)**2*mu = ' + str(dt*order[0]**2/dx[0,0]**2*mu) )
 iteration = 0
 
 eqns = equations(eqn_str,schemes,turb_str)
 main = variables(Nel,order,quadpoints,eqns,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,fsource,source_mag,shock_capturing,mol_str,basis_args)
 
+vol_min = (np.amin(main.Jdet))**(1./3.)
+CFL = ( np.amin(main.J_edge_det[0])*4. + np.amin(main.J_edge_det[1])*4 + np.amin(main.J_edge_det[2])*4. ) / (np.amin(main.Jdet)*8 )
+if (mpi_rank == 0):
+  print('dt*p/(Nt*dx) = ' + str(1.*dt*order[0]*CFL/order[-1] ))
+  print('dt*(p/dx)**2*mu = ' + str(dt*order[0]**2*CFL**2*mu/order[-1] ))
 
 if (enriched):
   eqnsEnriched = equations(enriched_eqn_str,enriched_schemes,turb_str)

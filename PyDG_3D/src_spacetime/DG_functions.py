@@ -55,7 +55,6 @@ def addVolume_and_Viscous(main,MZ,eqns,args=[],args_phys=[]):
   main.basis.applyVolIntegral(main,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,main.RHS)
 
 
-#@profile
 def getRHS(main,MZ,eqns,args=[],args_phys=[]):
   t0 = time.time()
   main.basis.reconstructU(main,main.a)
@@ -70,3 +69,37 @@ def getRHS(main,MZ,eqns,args=[],args_phys=[]):
   ### Get interior vol terms
   addSource(main)
   main.comm.Barrier()
+
+
+
+def getRHS_element(main,MZ,eqns,args=[],args_phys=[]):
+  t0 = time.time()
+  main.basis.reconstructU(main,main.a)
+  main.a.uR[:],main.a.uL[:],main.a.uU[:],main.a.uD[:],main.a.uF[:],main.a.uB[:] = main.basis.reconstructEdgesGeneral(main.a.a,main)
+  main.a.uR_edge[:],main.a.uL_edge[:],main.a.uU_edge[:],main.a.uD_edge[:],main.a.uF_edge[:],main.a.uB_edge[:] = sendEdgesGeneralSlab(main.a.uL,main.a.uR,main.a.uD,main.a.uU,main.a.uB,main.a.uF,main)
+
+  addInviscidFlux_element(main,MZ,eqns,args,args_phys)
+  main.comm.Barrier()
+
+
+def addInviscidFlux_element(main,MZ,eqns,args=[],args_phys=[]):
+  # first compute contribution from flux at faces
+  generalFluxGen_element(main,eqns,main.iFlux,main.a,eqns.inviscidFlux,args)
+  # now we need to integrate along the boundary 
+  main.iFlux.fRI = main.basis.faceIntegrateGlob(main,main.iFlux.fR*main.J_edge_det[0][None,:,:,None,1::,:,:,None],MZ.w1,MZ.w2,MZ.w3,MZ.weights1,MZ.weights2,MZ.weights3)
+  main.iFlux.fLI = main.basis.faceIntegrateGlob(main,main.iFlux.fL*main.J_edge_det[0][None,:,:,None,0:-1,:,:,None],MZ.w1,MZ.w2,MZ.w3,MZ.weights1,MZ.weights2,MZ.weights3)
+
+  main.iFlux.fUI = main.basis.faceIntegrateGlob(main,main.iFlux.fU*main.J_edge_det[1][None,:,:,None,:,1::,:,None],MZ.w0,MZ.w2,MZ.w3,MZ.weights0,MZ.weights2,MZ.weights3)
+  main.iFlux.fDI = main.basis.faceIntegrateGlob(main,main.iFlux.fD*main.J_edge_det[1][None,:,:,None,:,0:-1,:,None],MZ.w0,MZ.w2,MZ.w3,MZ.weights0,MZ.weights2,MZ.weights3)
+
+  main.iFlux.fFI = main.basis.faceIntegrateGlob(main,main.iFlux.fF*main.J_edge_det[2][None,:,:,None,:,:,1::,None],MZ.w0,MZ.w1,MZ.w3,MZ.weights0,MZ.weights1,MZ.weights3)
+  main.iFlux.fBI = main.basis.faceIntegrateGlob(main,main.iFlux.fB*main.J_edge_det[2][None,:,:,None,:,:,0:-1,None],MZ.w0,MZ.w1,MZ.w3,MZ.weights0,MZ.weights1,MZ.weights3)
+
+  # now add inviscid flux contribution to the RHS
+  main.RHS[:] =  -main.iFlux.fRI[:,None,:,:,:,:] 
+  main.RHS[:] += main.iFlux.fLI[:,None,:,:,:,:]*main.altarray0[None,:,None,None,None,None,None,None,None]
+  main.RHS[:] -= main.iFlux.fUI[:,:,None,:,:,:,:]
+  main.RHS[:] += main.iFlux.fDI[:,:,None,:,:,:,:]*main.altarray1[None,None,:,None,None,None,None,None,None]
+  main.RHS[:] -= main.iFlux.fFI[:,:,:,None,:,:,:,:] 
+  main.RHS[:] += main.iFlux.fBI[:,:,:,None,:,:,:,:]*main.altarray2[None,None,None,:,None,None,None,None,None]
+

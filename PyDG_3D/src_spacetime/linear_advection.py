@@ -16,9 +16,10 @@ def evalViscousFluxD_BR1(F,main,uL,uR,n,args=None):
   F[2] = 0.5*(uL[0] + uR[0])*n[2]
 
 def evalTauFluxD_BR1(fV,main,uL,uR,n,args):
+  mu = main.mus
   tauL = args[0]
   tauR = args[1]
-  fV[:] = 0.5* ( (tauL[0]*n[0] + tauL[1]*n[1] + tauL[2]*n[2]) + (tauR[0]*n[0] + tauR[1]*n[1] + tauR[2]*n[2]) )
+  fV[:] = 0.5* mu*( (tauL[0]*n[0] + tauL[1]*n[1] + tauL[2]*n[2]) + (tauR[0]*n[0] + tauR[1]*n[1] + tauR[2]*n[2]) )
 #
 
 ### Pure Diffusion Viscous Fluxes
@@ -50,22 +51,26 @@ def evalTauFluxZD_BR1(main,tau,u,fvZ,mu,dum):
 
 
 ######  ====== Linear advection fluxes and eigen values ==== ###########
+cx = 1.
+cy = 1.
+cz = 0.
 def evalFluxXLA(main,u,f,args):
-  f[0] = u[0]
+  f[0] = cx*u[0]
 
 def evalFluxYLA(main,u,f,args):
-  f[0] = u[0]
+  f[0] = cy*u[0]
 
 def evalFluxZLA(main,u,f,args):
-  f[0] = u[0]
+  f[0] = cz*u[0]
 
 
 
 #### ================ Flux schemes for the faces ========= ###########
-def linearAdvectionCentralFlux(UL,UR,pL,pR,n,args=None):
-  F = np.zeros(np.shape(UL))
-  #F[0] = 0.5*(UR[0] + UL[0])
-  F[0] = UL[0]
+def linearAdvectionCentralFlux(F,main,UL,UR,n,args=None):
+#  F[0] = cx*0.5*(UR[0] + UL[0])*n[0] + cy*0.5*(UR[0] + UL[0])*n[1] +  cz*0.5*(UR[0] + UL[0])*n[2]
+  F[0] = cx*UL[0]*n[0] + cy*UL[0]*n[1] +  cz*UL[0]*n[2]
+
+  #F[0] = UL[0]
 
   return F
 
