@@ -192,40 +192,6 @@ def computeJacobian(X_el,zeta0,zeta1,zeta2):
               Jinv[:,:,p,q,r,i,j,k] = np.linalg.inv(J[:,:,p,q,r,i,j,k])
               Jdet[p,q,r,i,j,k] = np.linalg.det(J[:,:,p,q,r,i,j,k])
 
-  # Now do face stuff. First comptute Jacobians for each edge
-  def faceMetrics2(J_edge,J_edge_inv,J_edge_det,zeta,eta,x0,y0,z0,x1,y1,z1,x2,y2,z2,x3,y3,z3):
-    J_edge[0,0] = (x0[None,None]*(eta[:,:,None,None,None] - 1))/4 - (x1[None,None]*(eta[:,:,None,None,None] - 1))/4 - \
-            (x2[None,None]*(eta[:,:,None,None,None] + 1))/4 + (x3[None,None]*(eta[:,:,None,None,None] + 1))/4
-    J_edge[0,1] = (x0[None,None]*(zeta[:,:,None,None,None] - 1))/4 - (x1[None,None]*(zeta[:,:,None,None,None] + 1))/4 - \
-            (x2[None,None]*(zeta[:,:,None,None,None] - 1))/4 + (x3[None,None]*(zeta[:,:,None,None,None] + 1))/4
-    J_edge[1,0] = (y0[None,None]*(eta[:,:,None,None,None] - 1))/4 - (y1[None,None]*(eta[:,:,None,None,None] - 1))/4 - \
-            (y2[None,None]*(eta[:,:,None,None,None] + 1))/4 + (y3[None,None]*(eta[:,:,None,None,None] + 1))/4
-    J_edge[1,1] = (y0[None,None]*(zeta[:,:,None,None,None] - 1))/4 - (y1[None,None]*(zeta[:,:,None,None,None] + 1))/4 - \
-            (y2[None,None]*(zeta[:,:,None,None,None] - 1))/4 + (y3[None,None]*(zeta[:,:,None,None,None] + 1))/4
-    # compute inverse
-    Nelx,Nely,Nelz = np.shape(x0)[0],np.shape(x0)[1],np.shape(x0)[2]
-    for p in range(0,np.shape(zeta)[0]):
-      for q in range(0,np.shape(zeta)[1]):
-        for i in range(0,Nelx):
-          for j in range(0,Nely):
-            for k in range(0,Nelz):
-              print( np.linalg.pinv(J_edge[:,:,p,q,i,j,k]) )#, np.linalg.inv(J_edge[:,:,p,q,i,j,k]) )
-              J_edge_inv[:,:,p,q,i,j,k] = np.linalg.inv(J_edge[:,:,p,q,i,j,k])
-              J_edge_det[p,q,i,j,k] = np.linalg.det(J_edge[:,:,p,q,i,j,k])
-    #We need to perform integrals like
-    # \int f(x,y,z) dS = \int f(x,y,g(x,y))\sqrt{ (dg/dx)^2 + (dg/dy)^2 + 1} dx dy
-    # need to compute the metrics dg/dx,dg/dy
-    # eg. dg/dx = dz/dx = dz/dzeta*dzeta/dx + dz/deta*deta/dx
-    dz_dzeta = (z0[None,None]*(eta[:,:,None,None,None] - 1))/4 - (z1[None,None]*(eta[:,:,None,None,None] - 1))/4 - \
-               (z2[None,None]*(eta[:,:,None,None,None] + 1))/4 + (z3[None,None]*(eta[:,:,None,None,None] + 1))/4
-    dz_deta =  (z0[None,None]*(zeta[:,:,None,None,None] - 1))/4 - (z1[None,None]*(zeta[:,:,None,None,None] + 1))/4 - \
-               (z2[None,None]*(zeta[:,:,None,None,None] - 1))/4 + (z3[None,None]*(zeta[:,:,None,None,None] + 1))/4
-    dg_dx = dz_dzeta*J_edge_inv[0,0] + dz_deta*J_edge_inv[1,0]
-    dg_dy = dz_dzeta*J_edge_inv[0,1] + dz_deta*J_edge_inv[1,1]
-    metric = np.sqrt(dg_dx**2 + dg_dy**2 + 1.)
-    J_edge_det *= metric
-    return J_edge,J_edge_det
-
   def faceMetrics(J_edge,J_edge_inv,J_edge_det,zeta,eta,x0,y0,z0,x1,y1,z1,x2,y2,z2,x3,y3,z3):
     J_edge[0,0] = (x0[None,None]*(eta[:,:,None,None,None] - 1))/4 - (x1[None,None]*(eta[:,:,None,None,None] - 1))/4 - \
             (x2[None,None]*(eta[:,:,None,None,None] + 1))/4 + (x3[None,None]*(eta[:,:,None,None,None] + 1))/4
