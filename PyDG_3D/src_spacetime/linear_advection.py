@@ -67,10 +67,12 @@ def evalFluxZLA(main,u,f,args):
 
 #### ================ Flux schemes for the faces ========= ###########
 def linearAdvectionCentralFlux(F,main,UL,UR,n,args=None):
-#  F[0] = cx*0.5*(UR[0] + UL[0])*n[0] + cy*0.5*(UR[0] + UL[0])*n[1] +  cz*0.5*(UR[0] + UL[0])*n[2]
-  F[0] = cx*UL[0]*n[0] + cy*UL[0]*n[1] +  cz*UL[0]*n[2]
+  F[0] = cx*0.5*(UR[0] + UL[0])*n[0] + cy*0.5*(UR[0] + UL[0])*n[1] +  cz*0.5*(UR[0] + UL[0])*n[2]
 
-  #F[0] = UL[0]
+  return F
+
+def linearAdvectionUpwindFlux(F,main,UL,UR,n,args=None):
+  F[0] = cx*UL[0]*n[0] + cy*UL[0]*n[1] +  cz*UL[0]*n[2]
 
   return F
 

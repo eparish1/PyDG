@@ -447,6 +447,10 @@ class equations:
       if (iflux_str == 'central'):
         self.inviscidFlux = linearAdvectionCentralFlux 
         checki = 1
+      if (iflux_str == 'upwind'):
+        self.inviscidFlux = linearAdvectionUpwindFlux 
+        checki = 1
+
       if (vflux_str == 'IP'):
         if (mpi_rank == 0): print('Warning, ', vflux_str + ' not implemented yet for non-orthogonal grids.')
         self.evalViscousFluxX = evalViscousFluxXLA_IP

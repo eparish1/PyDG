@@ -156,7 +156,7 @@ def evalFluxZEulerLin(main,U0,f,args):
 #== rusanov flux
 #== Roe flux
 
-def eulerCentralFlux(main,UL,UR,n,args=None):
+def eulerCentralFlux(F,main,UL,UR,n,args=None):
 # PURPOSE: This function calculates the flux for the Euler equations
 # using the Roe flux function
 #
@@ -219,7 +219,8 @@ def eulerCentralFlux(main,UL,UR,n,args=None):
   return F
 
 
-def ismailFlux(main,UL,UR,n,args=None):
+def ismailFlux(F,main,UL,UR,n,args=None):
+
 # PURPOSE: This function calculates the flux for the Euler equations
 # using the Roe flux function
 #
@@ -360,7 +361,8 @@ def eulerCentralFluxLinearized(main,U0L,U0R,n,args):
   return F
 
 
-def rusanovFlux(main,UL,UR,n,args=None):
+def rusanovFlux(F,main,UL,UR,n,args=None):
+
 # PURPOSE: This function calculates the flux for the Euler equations
 # using the Roe flux function
 #
@@ -502,7 +504,6 @@ def kfid_roeflux(F,main,UL,UR,n,args=None):
   rR = UR[0] + 1.e-50
   rhoiR = 1./rR
   uR = UR[1]*rhoiR
-  print(np.linalg.norm(uR),np.linalg.norm(UR))
   vR = UR[2]*rhoiR
 
   wR = UR[3]*rhoiR

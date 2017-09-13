@@ -22,7 +22,7 @@ def computeBlockJacobian(main,eqns):
   return J
 
 def computeJacobianX(main,eqns,f):
-  J = np.zeros((main.nvars,main.order[0],main.order[0],main.order[1],main.order[2],1,main.Npx,main.Npy,main.Npz,main.Npt))
+  J = np.zeros((main.nvars,main.order[0],main.order[0],main.order[1],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
   RHS0 = np.zeros(np.shape(main.RHS))
   RHStmp = np.zeros(np.shape(main.RHS))
   Rstar0,R0,Rstar_glob = f(main.a.a)
@@ -31,9 +31,9 @@ def computeJacobianX(main,eqns,f):
   eps = 1e-5
   for i in range(0,main.order[0]):
     main.a.a[:] = a0[:]
-    main.a.a[:,i,:,:,0] = a0[:,i,:,:,0] + eps 
+    main.a.a[:,i,:,:,:] = a0[:,i,:,:,:] + eps 
     Rstar,RHStmp,Rstar_glob = f(main.a.a)
-    J[:,:,i,:,:,0] = ( (Rstar - Rstar0)/eps )[:,:,:,:,0]
+    J[:,:,i,:,:,:] = ( (Rstar - Rstar0)/eps )[:,:,:,:,:]
   Jinv = np.rollaxis(np.rollaxis( np.linalg.inv(np.rollaxis(np.rollaxis(J,2,10),1,9)) , 8 , 1) , 9 , 2)
   main.a.a[:] = a0[:]
   return Jinv
@@ -54,8 +54,47 @@ def computeJacobianY(main,eqns,f):
     J[:,:,:,i,:,:] = ( (Rstar - Rstar0)/eps )[:,:,:,:,:]
   Jinv = np.rollaxis(np.rollaxis( np.linalg.inv(np.rollaxis(np.rollaxis(J,3,10),2,9)) , 8 , 2) , 9 , 3)
   main.a.a[:] = a0[:]
-
   return Jinv
+
+def computeJacobianZ(main,eqns,f):
+  J = np.zeros((main.nvars,main.order[0],main.order[1],main.order[2],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
+  RHS0 = np.zeros(np.shape(main.RHS))
+  RHStmp = np.zeros(np.shape(main.RHS))
+  Rstar0,R0,Rstar_glob = f(main.a.a)
+  a0 = np.zeros(np.shape(main.a.a))
+  a0[:] = main.a.a[:]
+  eps = 1e-3
+  for i in range(0,main.order[2]):
+    main.a.a[:] = a0[:]
+    main.a.a[:,:,:,i,:] = a0[:,:,:,i,:] + eps 
+    Rstar,RHStmp,Rstar_glob = f(main.a.a)
+    J[:,:,:,:,i,:] = ( (Rstar - Rstar0)/eps )[:,:,:,:,:]
+  Jinv = np.rollaxis(np.rollaxis( np.linalg.inv(np.rollaxis(np.rollaxis(J,4,10),3,9)) , 8 , 3) , 9 , 4)
+  main.a.a[:] = a0[:]
+  return Jinv
+
+
+def computeJacobianT(main,eqns,f):
+  J = np.zeros((main.nvars,main.order[0],main.order[1],main.order[2],main.order[3],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
+  RHS0 = np.zeros(np.shape(main.RHS))
+  RHStmp = np.zeros(np.shape(main.RHS))
+  Rstar0,R0,Rstar_glob = f(main.a.a)
+  a0 = np.zeros(np.shape(main.a.a))
+  a0[:] = main.a.a[:]
+  eps = 1e-3
+  for i in range(0,main.order[3]):
+    main.a.a[:] = a0[:]
+    main.a.a[:,:,:,:,i] = a0[:,:,:,:,i] + eps 
+    Rstar,RHStmp,Rstar_glob = f(main.a.a)
+    J[:,:,:,:,:,i] = ( (Rstar - Rstar0)/eps )[:,:,:,:,:]
+  Jinv = np.rollaxis(np.rollaxis( np.linalg.inv(np.rollaxis(np.rollaxis(J,5,10),4,9)) , 8 , 4) , 9 , 5)
+  main.a.a[:] = a0[:]
+  return Jinv
+
+
+
+
+
 
 def computeJacobianX_full(main,eqns,f):
   J = np.zeros((main.nvars,main.order[0],main.order[0],main.order[1],main.order[2],main.order[3],main.Nel[0],main.Nel[1],main.Nel[2],main.Nel[3]))
