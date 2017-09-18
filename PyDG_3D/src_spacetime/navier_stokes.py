@@ -472,7 +472,7 @@ def kfid_roeflux(F,main,UL,UR,n,args=None):
   gamma = 1.4
   gmi = gamma-1.0
   #process left state
-  rL = UL[0] + 1.e-50
+  rL = UL[0] + 1.e-10
   rhoiL = 1./rL
   uL = UL[1]*rhoiL
   vL = UL[2]*rhoiL
@@ -491,7 +491,7 @@ def kfid_roeflux(F,main,UL,UR,n,args=None):
   pL = (gamma-1)*(UL[4] - 0.5*rL*qL**2)
   rHL = UL[4] + pL
   HL = rHL*rhoiL
-  cL = np.sqrt(gamma*pL*rhoiL)
+  cL = np.sqrt(np.abs(gamma*pL*rhoiL))
   # left flux
   FL = np.zeros(np.shape(UL))
   FL[0] = rL*unL
@@ -521,7 +521,7 @@ def kfid_roeflux(F,main,UL,UR,n,args=None):
   pR = (gamma-1)*(UR[4] - 0.5*rR*qR*qR)
   rHR = UR[4] + pR
   HR = rHR*rhoiR
-  cR = np.sqrt(gamma*pR*rhoiR)
+  cR = np.sqrt(np.abs(gamma*pR*rhoiR))
   # right flux
   FR = np.zeros(np.shape(UR))
   FR[0] = rR*unR
@@ -534,7 +534,7 @@ def kfid_roeflux(F,main,UL,UR,n,args=None):
   du = UR - UL
 
   # Roe average
-  di     = np.sqrt(rR*rhoiL)
+  di     = np.sqrt(np.abs(rR*rhoiL))
   d1     = 1.0/(1.0+di)
 
   ui     = (di*uR + uL)*d1
@@ -545,7 +545,7 @@ def kfid_roeflux(F,main,UL,UR,n,args=None):
   af     = 0.5*(ui**2+vi**2+wi**2)
   ucp    = ui*n[0] + vi*n[1] + wi*n[2]
   c2     = gmi*(Hi - af)
-  ci     = np.sqrt(c2)
+  ci     = np.sqrt(np.abs(c2))
   ci1    = 1.0/ci
 
 

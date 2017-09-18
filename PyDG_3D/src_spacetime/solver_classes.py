@@ -138,6 +138,10 @@ class nonlinearSolver:
       self.solve = newtonSolver
       self.rtol=rtol
       self.printnorm = printnorm
+    if (SolverType == 'NEJ'):
+      self.solve = NEJSolver
+      self.rtol=rtol
+      self.printnorm = printnorm
     if (SolverType == 'Newton_MG'):
       self.solve = newtonSolver_MG
       self.rtol=rtol

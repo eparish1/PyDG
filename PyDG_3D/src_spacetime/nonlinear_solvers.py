@@ -55,6 +55,57 @@ def newtonSolver(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadratu
   np.savez('resid_history',resid=resid_hist,t=t_hist)
 
 
+
+
+def NEJSolver(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadrature,eqns,PC=None):
+  if (sparse_quadrature):
+    coarsen = 2
+    quadpoints_coarsen = np.fmax(main.quadpoints/(coarsen),1)
+    quadpoints_coarsen[-1] = main.quadpoints[-1]
+    main_coarse = variables(main.Nel,main.order,quadpoints_coarsen,eqns,main.mus,main.xG,main.yG,main.zG,main.t,main.et,main.dt,main.iteration,main.save_freq,'DNS',main.procx,main.procy,main.BCs,main.fsource,main.source_mag,main.shock_capturing,main.mol_str)
+    main_coarse.basis = main.basis
+    main_coarse.a.a[:] = main.a.a[:]
+    def newtonHook(main_coarse,main,Rn):
+      main_coarse.a.a[:] = main.a.a[:]
+      main_coarse.getRHS(main_coarse,main_coarse,eqns)
+      #getRHS_SOURCE(main_coarse,main_coarse,eqns)
+      Rn[:] = main_coarse.RHS[:]
+  else: 
+    main_coarse = main
+    def newtonHook(main_coarse,main,Rn):
+       pass
+  Rstarn,Rn,Rstar_glob = unsteadyResidual(main.a.a)
+  NLiter = 0
+  an = np.zeros(np.shape(main.a0))
+  an[:] = main.a.a[:]
+  Rstar_glob0 = Rstar_glob*1. 
+  old = np.zeros(np.shape(main.a.a))
+  resid_hist = np.zeros(0)
+  t_hist = np.zeros(0)
+  tnls = time.time()
+  omega = 0.8
+  while (Rstar_glob >= 1e-8 and Rstar_glob/Rstar_glob0 > 1e-8):
+    NLiter += 1
+    ts = time.time()
+    main.a.a[:] = an[:]
+    r = PC(-Rstarn.flatten(),main)
+    main.a.a[:] = omega*np.reshape(r,np.shape(main.a.a)) + an[:]
+    an[:] = main.a.a[:]
+    rnorm = globalNorm(r,main) #same across procs
+    Rstarn,Rn,Rstar_glob = unsteadyResidual(main.a.a)
+
+    resid_hist = np.append(resid_hist,Rstar_glob)
+    t_hist = np.append(t_hist,time.time() - tnls)
+    if (main.mpi_rank == 0):
+      sys.stdout.write('NEJ iteration = ' + str(NLiter) + '  NL residual = ' + str(Rstar_glob) + ' relative decrease = ' + str(Rstar_glob/Rstar_glob0) + ' Solve time = ' + str(time.time() - ts)  + '\n')
+      sys.stdout.flush()
+  np.savez('resid_history',resid=resid_hist,t=t_hist)
+
+
+
+
+
+
 def psuedoTimeSolver(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadrature,eqns):
   NLiter = 0
   tau = 0.0002

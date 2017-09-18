@@ -22,22 +22,23 @@ def computeBlockJacobian(main,eqns):
   return J
 
 def computeBlockJacobian(main,eqns,f):
-  J = np.zeros((main.nvars,main.order[0],main.order[1],main.order[2],main.order[3],main.order[0],main.order[1],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
+  J = np.zeros((main.nvars,main.order[0],main.order[1],main.order[2],main.order[3],main.nvars,main.order[0],main.order[1],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
   RHS0 = np.zeros(np.shape(main.RHS))
   RHStmp = np.zeros(np.shape(main.RHS))
   Rstar0,R0,Rstar_glob = f(main,main.a.a)
   a0 = np.zeros(np.shape(main.a.a))
   a0[:] = main.a.a[:]
-  eps = 1
+  eps = 1.e-5
   epsi = 1./eps
-  for i in range(0,main.order[0]):
-    for j in range(0,main.order[1]):
-      for k in range(0,main.order[2]):
-        for l in range(0,main.order[3]):
-          main.a.a[:] = a0[:]
-          main.a.a[:,i,j,k,l] = a0[:,i,j,k,l] + eps 
-          Rstar,RHStmp,Rstar_glob = f(main,main.a.a)
-          J[:,:,:,:,:,i,j,k,l] =  (Rstar - Rstar0)*epsi 
+  for z in range(0,main.nvars):
+    for i in range(0,main.order[0]):
+      for j in range(0,main.order[1]):
+        for k in range(0,main.order[2]):
+          for l in range(0,main.order[3]):
+            main.a.a[:] = a0[:]
+            main.a.a[z,i,j,k,l] = a0[z,i,j,k,l] + eps 
+            Rstar,RHStmp,Rstar_glob = f(main,main.a.a)
+            J[:,:,:,:,:,z,i,j,k,l] =  (Rstar - Rstar0)*epsi 
   #J = np.reshape(J, (main.nvars,main.order[0],main.order[1],main.order[2],main.order[3],main.order[0],main.order[1],main.order[2]*main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
   #J = np.reshape(J, (main.nvars,main.order[0],main.order[1],main.order[2],main.order[3],main.order[0],main.order[1]*main.order[2]*main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
   #J = np.reshape(J, (main.nvars,main.order[0],main.order[1],main.order[2],main.order[3],main.order[0]*main.order[1]*main.order[2]*main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))

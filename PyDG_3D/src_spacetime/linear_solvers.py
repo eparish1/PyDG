@@ -31,7 +31,7 @@ import sys
 ## Jacobi linear solver for Ax = b
 # Af = matrix free method to evaluate A acting on f
 # b, x0
-# Dinvf = matrix free method to evaluate Dinv acting on f 
+# PC = matrix free method to evaluate diagonal inverse acting on f 
 def Jacobi(Af,b,x0,main,args,PC,PCargs,tol=1e-9,maxiter_outer=1,maxiter=20,printnorm=0):
   omega = PCargs[0]
   x = np.zeros(np.shape(x0))
@@ -128,6 +128,63 @@ def GMRes(Af, b, x0,main,args,PC=None,PCargs=None,tol=1e-9,maxiter_outer=1,maxit
     return x[:]
 
 
+#routine for GMRES solver where the problem is local to each element
+def elementNorm(f,main):
+  fsum = np.sum(f**2,axis=0)
+  return np.sqrt(fsum)
+
+def elementSum(f,main):
+  return np.sum(f,axis=0)
+
+def GMRes_element(Af, b, x0,main,args,PC=None,PCargs=None,tol=1e-9,maxiter_outer=1,maxiter=20,printnorm=0):
+    k_outer = 0
+    bnorm = elementNorm(b,main)
+    error = 10.
+    x = np.zeros(np.shape(x0))
+    x[:] = x0[:]
+    while (k_outer < maxiter_outer and np.amax(error) >= tol):
+      r = b - Af(x0,args,main)
+      if (main.mpi_rank == 0 and printnorm==1):
+        print('Outer true norm = ' + str(np.linalg.norm(r)))
+      cs = np.zeros((maxiter,main.Npx,main.Npy,main.Npz,main.Npt)) #should be the same on all procs
+      sn = np.zeros((maxiter,main.Npx,main.Npy,main.Npz,main.Npt)) #same on all procs
+      e1 = np.zeros((maxiter+1,main.Npx,main.Npy,main.Npz,main.Npt))
+      e1[0] = 1
+  
+      rnorm = elementNorm(r,main) #same across procs
+      solve_size = np.shape(b)[0]
+      Q = np.zeros((solve_size,maxiter,main.Npx,main.Npy,main.Npz,main.Npt)) 
+      #v = [0] * (nmax_iter)
+      Q[:,0] = r / rnorm ## The first index of Q is across all procs
+      H = np.zeros((maxiter + 1, maxiter,main.Npx,main.Npy,main.Npz,main.Npt)) ### this should be the same on all procs
+      beta = rnorm[None]*e1
+
+      k = 0
+      while (k < maxiter - 1  and np.amax(error) >= tol):
+  #    for k in range(0,nmax_iter-1):
+          Arnoldi_element(Af,H,Q,k,args,main)
+          apply_givens_rotation_element(H,cs,sn,k)
+          #update the residual vector
+          beta[k+1] = -sn[k]*beta[k]
+          beta[k] = cs[k]*beta[k]
+          error = abs(beta[k+1])/bnorm
+          if (main.mpi_rank == 0 and printnorm == 1):
+            sys.stdout.write('Outer iteration = ' + str(k_outer) + ' Iteration = ' + str(k) + '  GMRES error = ' + str(np.mean(error)) +  '\n')
+            #print('Outer iteration = ' + str(k_outer) + ' Iteration = ' + str(k) + '  GMRES error = ' + str(error), ' Real norm = ' + str(rtnorm))
+          k += 1
+      H = np.rollaxis(np.rollaxis(H,1,6),0,5)
+      beta = np.rollaxis(beta,0,5)
+      y = np.linalg.solve(H[:,:,:,:,0:k,0:k],beta[:,:,:,:,0:k])
+      H = np.rollaxis(np.rollaxis(H,4,0),5,1)
+      Q = np.rollaxis(np.rollaxis(Q,1,6),0,5)
+      tmp = np.einsum('ijklmn,ijkln->ijklm',Q[:,:,:,:,:,0:k],y) 
+      tmp = np.rollaxis(tmp,4,0)
+      x = x0 + tmp#np.rollaxis( np.dot(Q[:,:,:,:,:,0:k],y),5,0)
+      x0[:] = x[:]
+      k_outer += 1
+    return x[:]
+
+
 
 def BICGSTAB(Af, b, x0,main,args,PC=None,PC_args=None,tol=1e-9,maxiter_outer=1,maxiter=50,printnorm=0):
   r0 = b - Af(x0,args,main)
@@ -185,7 +242,7 @@ def fGMRes(Af, b, x0,main,args,PC=None,PC_args=None,tol=1e-9,maxiter_outer=1,max
       beta = rnorm*e1
       k = 0
       while (k < maxiter - 1  and error >= tol):
-          Z[:,k] = Minv(Q[:,k],main)
+          Z[:,k] = PC(Q[:,k],main)
           Q[:,k+1] = Af(Z[:,k],args,main)
           Arnoldi_fgmres(Af,H,Q,k,args,main)
           apply_givens_rotation(H,cs,sn,k)
@@ -211,6 +268,17 @@ def Arnoldi_fgmres(Af,H,Q,k,args,main):
     H[k + 1, k] = globalNorm(Q[:,k+1],main)
 #    if (h[k + 1, k] != 0 and k != nmax_iter - 1):
     Q[:,k + 1] = Q[:,k+1] / H[k + 1, k]
+
+def Arnoldi_element(Af,H,Q,k,args,main):
+    Q[:,k+1] = Af(Q[:,k],args,main)
+    for i in range(0,k+1):
+        H[i, k] = elementSum(Q[:,i]*Q[:,k+1],main)
+        Q[:,k+1] = Q[:,k+1] - H[i, k] * Q[:,i]
+    H[k + 1, k] = elementNorm(Q[:,k+1],main)
+#    if (h[k + 1, k] != 0 and k != nmax_iter - 1):
+    Q[:,k + 1] = Q[:,k+1] / H[k + 1, k]
+#    return h,v 
+
 
 
 def Arnoldi(Af,H,Q,k,args,main):
@@ -247,6 +315,35 @@ def givens_rotation(v1, v2):
     cs = np.abs(v1) / t
     sn = cs * v2 / v1
   return cs,sn
+
+
+
+def apply_givens_rotation_element(H, cs, sn, k):
+  #apply for ith column
+  for i in range(0,k):                              
+    temp     =  cs[i]*H[i,k] + sn[i]*H[i+1,k]
+    H[i+1,k] = -sn[i]*H[i,k] + cs[i]*H[i+1,k]
+    H[i,k]   = temp
+  
+  #update the next sin cos values for rotation
+  cs[k],sn[k] = givens_rotation_element( H[k,k], H[k+1,k])
+  
+  #eliminate H(i+1,i)
+  H[k,k] = cs[k]*H[k,k] + sn[k]*H[k+1,k]
+  H[k+1,k] = 0.0
+
+#----Calculate the Given rotation matrix----%%
+def givens_rotation_element(v1, v2):
+    t=np.sqrt(v1**2+v2**2)
+    cs = np.abs(v1) / t
+    sn = cs * v2 / v1
+    cs[v1==0] = 0
+    sn[v1==0] = 1
+    return cs,sn
+
+
+
+
 
 def GMResOrig(Af, b, x0, nmax_iter, restart=None):
     r = b - Af(x0)
