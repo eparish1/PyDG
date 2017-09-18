@@ -89,8 +89,8 @@ else:
 if 'enriched_ratio' in globals():
   pass
 else:
-#  enriched_ratio = np.array([2,2,2,1])
-  enriched_ratio = np.array([(order[0]+1.)/order[0],(order[1]+1.)/order[1],(order[2]+1.)/order[2],1])
+  enriched_ratio = np.array([2,2,2,1])
+#  enriched_ratio = np.array([(order[0]+1.)/order[0],(order[1]+1.)/order[1],(order[2]+1.)/order[2],1])
 if 'enriched' in globals():
   pass
 else:
@@ -128,7 +128,7 @@ iteration = 0
 
 eqns = equations(eqn_str,schemes,turb_str)
 main = variables(Nel,order,quadpoints,eqns,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,fsource,source_mag,shock_capturing,mol_str,basis_args)
-
+main.x,main.y,main.z = x,y,z
 vol_min = (np.amin(main.Jdet))**(1./3.)
 CFL = ( np.amin(main.J_edge_det[0])*4. + np.amin(main.J_edge_det[1])*4 + np.amin(main.J_edge_det[2])*4. ) / (np.amin(main.Jdet)*8 )
 if (mpi_rank == 0):
@@ -136,8 +136,8 @@ if (mpi_rank == 0):
   print('dt*(p/dx)**2*mu = ' + str(dt*order[0]**2*CFL**2*mu/order[-1] ))
 
 if (enriched):
-  eqnsEnriched = equations(enriched_eqn_str,enriched_schemes,turb_str)
-  mainEnriched = variables(Nel,np.int64(order*enriched_ratio),quadpoints,eqnsEnriched,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,source,source_mag,shock_capturing,mol_str)
+  eqnsEnriched = eqns#equations(enriched_eqn_str,enriched_schemes,turb_str)
+  mainEnriched = variables(Nel,np.int64(order*enriched_ratio),quadpoints*2,eqnsEnriched,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,source,source_mag,shock_capturing,mol_str,basis_args)
 else:
   mainEnriched = main
 
@@ -197,6 +197,27 @@ def entropy_to_conservative(V):
   U[4] = U[0]*E
   return U
 
+mg_levels =  3#int( np.log(np.amax(main.order))/np.log(2))  
+coarsen = np.int32(2**np.linspace(0,mg_levels-1,mg_levels))
+main.mg_classes = []
+main.mg_Rn = []
+main.mg_an = []
+main.mg_b = []
+main.mg_e = []
+mg_iterations = np.array([10,30,70,170])
+mg_omega = np.array([0.8,0.8,0.8,0.8])
+main.mg_args = [mg_levels,mg_iterations,mg_omega]
+for i in range(0,mg_levels):
+  order_coarsen = np.int32(np.fmax(main.order/coarsen[i],1))
+  quadpoints_coarsen = np.int32(np.fmax(main.quadpoints/(coarsen[i]),1))
+  main.mg_classes.append( variables(main.Nel,order_coarsen,quadpoints_coarsen,eqns,main.mus,main.x,main.y,main.z,main.t,main.et,main.dt,main.iteration,main.save_freq,'DNS',main.procx,main.procy,main.BCs,main.fsource,main.source_mag,main.shock_capturing,main.mol_str,main.basis_args) )
+  main.mg_classes[i].basis = main.basis
+  main.mg_Rn.append( np.zeros(np.shape(main.mg_classes[i].RHS)) )
+  main.mg_an.append( np.zeros(np.shape(main.mg_classes[i].a.a) ) )
+  main.mg_b.append( np.zeros(np.size(main.mg_classes[i].RHS)) )
+  main.mg_e.append(  np.zeros(np.size(main.mg_classes[i].RHS)) )
+
+
 
 
 while (main.t <= main.et + main.dt/2):
@@ -214,7 +235,7 @@ while (main.t <= main.et + main.dt/2):
       np.savez('Solution/npsol' + str(main.iteration),U=(UG),a=aG,t=main.t,iteration=main.iteration,order=order)
       sys.stdout.flush()
 
-  timescheme.advanceSol(main,mainEnriched,eqns,timescheme.args)
+  timescheme.advanceSol(main,main,eqns,timescheme.args)
   #advanceSolImplicit_MG(main,main,eqns)
 reconstructU(main,main.a)
 uG = gatherSolSlab(main,eqns,main.a)

@@ -83,9 +83,18 @@ class fluxvariable:
     self.fUDS = np.zeros((nvars,quadpoints[0],quadpoints[2],quadpoints[3],Npx,Npy+1,Npz,Npt))
     self.fFBS = np.zeros((nvars,quadpoints[0],quadpoints[1],quadpoints[3],Npx,Npy,Npz+1,Npt))
 
-    self.fRLI = np.zeros((nvars,order[1],order[2],quadpoints[3],Npx+1,Npy,Npz,Npt))
-    self.fUDI = np.zeros((nvars,order[0],order[2],quadpoints[3],Npx,Npy+1,Npz,Npt))
-    self.fFBI = np.zeros((nvars,order[0],order[1],quadpoints[3],Npx,Npy,Npz+1,Npt))
+    self.fRLI = np.zeros((nvars,order[1],order[2],order[3],Npx+1,Npy,Npz,Npt))
+    self.fUDI = np.zeros((nvars,order[0],order[2],order[3],Npx,Npy+1,Npz,Npt))
+    self.fFBI = np.zeros((nvars,order[0],order[1],order[3],Npx,Npy,Npz+1,Npt))
+
+    self.fRI = np.zeros((nvars,order[1],order[2],order[3],Npx,Npy,Npz,Npt))
+    self.fLI = np.zeros((nvars,order[1],order[2],order[3],Npx,Npy,Npz,Npt))
+    self.fUI = np.zeros((nvars,order[0],order[2],order[3],Npx,Npy,Npz,Npt))
+    self.fDI = np.zeros((nvars,order[0],order[2],order[3],Npx,Npy,Npz,Npt))
+    self.fFI = np.zeros((nvars,order[0],order[1],order[3],Npx,Npy,Npz,Npt))
+    self.fBI = np.zeros((nvars,order[0],order[1],order[3],Npx,Npy,Npz,Npt))
+
+
 
     self.fR_edge = np.zeros((nvars,quadpoints[1],quadpoints[2],quadpoints[3],Npy,Npz,Npt))
     self.fL_edge = np.zeros((nvars,quadpoints[1],quadpoints[2],quadpoints[3],Npy,Npz,Npt))
@@ -151,6 +160,7 @@ class boundaryConditions:
 class variables:
   def __init__(self,Nel,order,quadpoints,eqns,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,source,source_mag,shock_capturing,mol_str,basis_args):
     ## DG scheme information
+    self.basis_args = basis_args
     self.eq_str = eqns.eq_str
     self.Nel = Nel
     self.order = order
@@ -202,6 +212,9 @@ class variables:
 
 
     #xtmp,ytmp,ztmp = np.meshgrid(xG,yG,zG,indexing='ij')
+    print(np.shape(y))
+    self.x,self.y,self.z = x,y,z
+
     Xtmp = np.zeros((3,Nel[0]+1,Nel[1]+1,Nel[2]+1))
     Xtmp[0],Xtmp[1],Xtmp[2] = x,y,z
     X_el = get_Xel(Xtmp,self.sx,self.sy)

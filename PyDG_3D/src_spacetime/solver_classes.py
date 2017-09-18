@@ -36,6 +36,13 @@ class timeschemes:
       self.nonlinear_solver = nonlinearSolver(nlsolver_str)
       self.sparse_quadrature = False
       self.args = [self.nonlinear_solver,self.linear_solver,self.sparse_quadrature]
+    if (time_str == 'SpaceTimePC'):
+      check_t = 0
+      self.advanceSol = spaceTimePC
+      self.linear_solver = linearSolver(lsolver_str)
+      self.nonlinear_solver = nonlinearSolver(nlsolver_str)
+      self.sparse_quadrature = False
+      self.args = [self.nonlinear_solver,self.linear_solver,self.sparse_quadrature]
 
 
     if (time_str == 'fractionalStep'):
@@ -64,6 +71,15 @@ class timeschemes:
       self.nonlinear_solver = nonlinearSolver(nlsolver_str)
       self.sparse_quadrature = False
       self.args = [self.nonlinear_solver,self.linear_solver,self.sparse_quadrature]
+
+    if (time_str == 'SteadyStateExperimental'):
+      check_t = 0
+      self.advanceSol = SteadyStateExperimental
+      self.linear_solver = linearSolver(lsolver_str)
+      self.nonlinear_solver = nonlinearSolver(nlsolver_str)
+      self.sparse_quadrature = False
+      self.args = [self.nonlinear_solver,self.linear_solver,self.sparse_quadrature]
+
 
     if (time_str == 'CrankNicolson'):
       check_t = 0
@@ -142,6 +158,13 @@ class linearSolver:
     if (SolverType == 'GMRes'):
       if (comm.Get_rank() == 0): print('Linear solver set to ' + SolverType)
       self.solve = GMRes
+      self.tol=tol
+      self.maxiter_outer = maxiter_outer
+      self.maxiter = maxiter
+      self.printnorm = printnorm
+    if (SolverType == 'Jacobi'):
+      if (comm.Get_rank() == 0): print('Linear solver set to ' + SolverType)
+      self.solve = Jacobi
       self.tol=tol
       self.maxiter_outer = maxiter_outer
       self.maxiter = maxiter

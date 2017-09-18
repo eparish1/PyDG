@@ -28,9 +28,31 @@ import sys
 #    rn_glob = main.comm.recv(source=0)
 #  return rn_glob
 
+## Jacobi linear solver for Ax = b
+# Af = matrix free method to evaluate A acting on f
+# b, x0
+# Dinvf = matrix free method to evaluate Dinv acting on f 
+def Jacobi(Af,b,x0,main,args,PC,PCargs,tol=1e-9,maxiter_outer=1,maxiter=20,printnorm=0):
+  omega = PCargs[0]
+  x = np.zeros(np.shape(x0))
+  xtmp = np.zeros(np.shape(x0))
+  x[:] = x0[:]
+  k = 0
+  r = b - Af(x,args,main)
+  rnorm = globalNorm(r,main) #same across procs
+  #print(omega,maxiter,np.shape(main.a.a))
+  while(rnorm >= tol and  k < maxiter):
+    r = PC(r,main)
+    x[:] = omega*r[:] + x[:]
+    r = b - Af(x,args,main)
+    rnorm = globalNorm(r,main) #same across procs
+    k += 1
+    if (main.mpi_rank == 0 and printnorm == 1):
+      sys.stdout.write(' Iteration = ' + str(k) + ' Jacobi error = ' + str(rnorm)+ '\n')
 
+  return x
 
-def rungeKutta(Af, b, x0,main,args,tol=1e-9,maxiter_outer=1,maxiter=20,printnorm=0):
+def rungeKutta(Af, b, x0,main,args,PC=None,PCargs=None,tol=1e-9,maxiter_outer=1,maxiter=20,printnorm=0):
      dt = 0.0001
      r = b - Af(x0,args,main)
      rnorm = globalNorm(r,main) #same across procs
@@ -57,10 +79,12 @@ def rungeKutta(Af, b, x0,main,args,tol=1e-9,maxiter_outer=1,maxiter=20,printnorm
      sys.stdout.write(' ================================== ' +  '\n')
      return a
 
-def GMRes(Af, b, x0,main,args,tol=1e-9,maxiter_outer=1,maxiter=20,printnorm=0):
+def GMRes(Af, b, x0,main,args,PC=None,PCargs=None,tol=1e-9,maxiter_outer=1,maxiter=20,printnorm=0):
     k_outer = 0
     bnorm = globalNorm(b,main)
     error = 10.
+    x = np.zeros(np.shape(x0))
+    x[:] = x0[:]
     while (k_outer < maxiter_outer and error >= tol):
       r = b - Af(x0,args,main)
       if (main.mpi_rank == 0 and printnorm==1):
@@ -105,7 +129,7 @@ def GMRes(Af, b, x0,main,args,tol=1e-9,maxiter_outer=1,maxiter=20,printnorm=0):
 
 
 
-def bicgstab(Af, b, x0,main,args,tol=1e-9,maxiter_outer=1,maxiter=50,printnorm=0):
+def BICGSTAB(Af, b, x0,main,args,PC=None,PC_args=None,tol=1e-9,maxiter_outer=1,maxiter=50,printnorm=0):
   r0 = b - Af(x0,args,main)
   rhat0 = np.zeros(np.shape(r0))
   rhat0[:] = r0[:]
@@ -135,10 +159,13 @@ def bicgstab(Af, b, x0,main,args,tol=1e-9,maxiter_outer=1,maxiter=50,printnorm=0
   return x0
 
 
-def fGMRes(Af, b, x0,main,args,Minv,tol=1e-9,maxiter_outer=1,maxiter=20,printnorm=0):
+def fGMRes(Af, b, x0,main,args,PC=None,PC_args=None,tol=1e-9,maxiter_outer=1,maxiter=20,printnorm=1):
+    #printnorm = 1
     k_outer = 0
     bnorm = globalNorm(b,main)
     error = 1.
+    x = np.zeros(np.shape(x0))
+    x[:] = x0[:]
     coarse_order = np.shape(main.a.a)[1:5]
     while (k_outer < maxiter_outer and error >= tol):
       r = b - Af(x0,args,main)
@@ -158,7 +185,7 @@ def fGMRes(Af, b, x0,main,args,Minv,tol=1e-9,maxiter_outer=1,maxiter=20,printnor
       beta = rnorm*e1
       k = 0
       while (k < maxiter - 1  and error >= tol):
-          Z[:,k] = Minv(Q[:,k],main,Af,args,k)
+          Z[:,k] = Minv(Q[:,k],main)
           Q[:,k+1] = Af(Z[:,k],args,main)
           Arnoldi_fgmres(Af,H,Q,k,args,main)
           apply_givens_rotation(H,cs,sn,k)

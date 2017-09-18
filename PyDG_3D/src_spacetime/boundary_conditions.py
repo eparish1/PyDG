@@ -1,6 +1,7 @@
 import numpy as np
 def dirichlet_bc(Ue,UBC,args,main):
-  UBC[0] = args[0] 
+#  UBC[0] = args[0] 
+  UBC[0] = np.sin(main.xG[:,0,:,None,:,0,:,None])
   return UBC
 
 def periodic_bc(Ue,UBC,args,main):
