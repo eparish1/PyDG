@@ -42,7 +42,10 @@ def newtonSolver(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadratu
 #      delta = 3
 #    if (Rstar_glob/Rstar_glob0 < 1e-6):
 #      delta = 3
-    sol = linear_solver.solve(MF_Jacobian, -Rstarn.flatten(), old.flatten(),main_coarse,MF_Jacobian_args,PC,[1],1e-8,linear_solver.maxiter_outer,20,False)
+    loc_tol = 0.1*Rstar_glob/Rstar_glob0
+    PC_iteration = 0
+    PC_args = [1,loc_tol,PC_iteration]
+    sol = linear_solver.solve(MF_Jacobian, -Rstarn.flatten(), old.flatten(),main_coarse,MF_Jacobian_args,PC,PC_args,loc_tol,linear_solver.maxiter_outer,15,False)
     main.a.a[:] = an[:] + 1.0*np.reshape(sol,np.shape(main.a.a))
     an[:] = main.a.a[:]
     Rstarn,Rn,Rstar_glob = unsteadyResidual(main.a.a)
@@ -83,12 +86,15 @@ def NEJSolver(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadrature,
   resid_hist = np.zeros(0)
   t_hist = np.zeros(0)
   tnls = time.time()
-  omega = 0.8
+  omega = 1. 
   while (Rstar_glob >= 1e-8 and Rstar_glob/Rstar_glob0 > 1e-8):
     NLiter += 1
     ts = time.time()
     main.a.a[:] = an[:]
-    r = PC(-Rstarn.flatten(),main)
+    loc_tol = 0.1*Rstar_glob/Rstar_glob0
+    PC_iteration = 0
+    PC_args = [omega,loc_tol,PC_iteration]
+    r = PC(-Rstarn.flatten(),main,PC_args)
     main.a.a[:] = omega*np.reshape(r,np.shape(main.a.a)) + an[:]
     an[:] = main.a.a[:]
     rnorm = globalNorm(r,main) #same across procs
@@ -189,10 +195,13 @@ def newtonSolver_MG(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadr
     old[:] = 0.
     newtonHook(main,mg_classes,mg_Rn,mg_an)
     mg_b[0][:] = -Rstarn.flatten()
+    loc_tol = 1e-6
     for i in range(0,1):
       for j in range(0,n_levels):
         MF_Jacobian_args = [mg_an[j],mg_Rn[j]]
-        mg_e[j][:] = linear_solver.solve(MF_Jacobian,mg_b[j].flatten(),np.zeros(np.size(mg_b[j])),mg_classes[j],MF_Jacobian_args,PC,[omega[j]],tol=1e-5,maxiter_outer=1,maxiter=10,printnorm=0)
+        PC_iteration = 0
+        PC_args = [omega[j],loc_tol,PC_iteration]
+        mg_e[j][:] = linear_solver.solve(MF_Jacobian,mg_b[j].flatten(),np.zeros(np.size(mg_b[j])),mg_classes[j],MF_Jacobian_args,PC,PC_args,tol=1e-5,maxiter_outer=1,maxiter=10,printnorm=0)
         #mg_e[j][:] = Jacobi(MF_Jacobian,mg_b[j].flatten(),np.zeros(np.size(mg_b[j])),PC,omega[j],mg_classes[j],MF_Jacobian_args,tol=1e-9,maxiter_outer=1,maxiter=iterations[j],printnorm=0)
         Resid  =  np.reshape( mv_resid(MF_Jacobian,MF_Jacobian_args,mg_classes[j],mg_e[j],mg_b[j].flatten()) , np.shape(mg_classes[j].a.a ) )
         if (j != n_levels-1):
@@ -206,7 +215,9 @@ def newtonSolver_MG(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadr
         etmp[:,0:order_coarsen[0],0:order_coarsen[1],0:order_coarsen[2],0:order_coarsen[3]] += np.reshape(mg_e[j+1],np.shape(mg_classes[j+1].a.a))
         MF_Jacobian_args = [mg_an[j],mg_Rn[j]]
         #mg_e[j][:] = Jacobi(MF_Jacobian,mg_b[j].flatten(),etmp.flatten(),PC,omega[j],mg_classes[j],MF_Jacobian_args,tol=1e-9,maxiter_outer=1,maxiter=iterations[j],printnorm=0)
-        mg_e[j][:] = linear_solver.solve(MF_Jacobian,mg_b[j].flatten(),etmp.flatten(),mg_classes[j],MF_Jacobian_args,PC,[omega[j]],tol=1e-6,maxiter_outer=1,maxiter=10,printnorm=0)
+        PC_iteration = 0
+        PC_args = [omega[j],loc_tol,PC_iteration]
+        mg_e[j][:] = linear_solver.solve(MF_Jacobian,mg_b[j].flatten(),etmp.flatten(),mg_classes[j],MF_Jacobian_args,PC,PC_args,tol=1e-6,maxiter_outer=1,maxiter=10,printnorm=0)
         #mg_e[j][:] = etmp.flatten()
     alpha = 1. 
     main.a.a[:] = an[:] + alpha*np.reshape(mg_e[0],np.shape(main.a.a))

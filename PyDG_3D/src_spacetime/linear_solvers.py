@@ -1,6 +1,22 @@
 import numpy as np
 from MPI_functions import globalNorm,globalSum
 import sys
+def globalMax(r,main):
+  ## Create Global residual
+  data = main.comm.gather(np.amax(np.abs(r)),root = 0)
+  if (main.mpi_rank == 0):
+    rn_glob = np.zeros(main.num_processes)
+    for j in range(0,main.num_processes):
+      rn_glob[j] = data[j]
+    rn_glob = np.amax(rn_glob)
+    for j in range(1,main.num_processes):
+      main.comm.send(rn_glob, dest=j)
+  else:
+    rn_glob = main.comm.recv(source=0)
+  return rn_glob
+
+
+
 #def globalNorm(r,main):
 #  ## Create Global residual
 #  data = main.comm.gather(np.linalg.norm(r)**2,root = 0)
@@ -34,15 +50,17 @@ import sys
 # PC = matrix free method to evaluate diagonal inverse acting on f 
 def Jacobi(Af,b,x0,main,args,PC,PCargs,tol=1e-9,maxiter_outer=1,maxiter=20,printnorm=0):
   omega = PCargs[0]
+  PC_tol = PCargs[1]
   x = np.zeros(np.shape(x0))
   xtmp = np.zeros(np.shape(x0))
   x[:] = x0[:]
   k = 0
   r = b - Af(x,args,main)
   rnorm = globalNorm(r,main) #same across procs
+  rnorm0 = rnorm*1.
   #print(omega,maxiter,np.shape(main.a.a))
-  while(rnorm >= tol and  k < maxiter):
-    r = PC(r,main)
+  while(rnorm/rnorm0 >= tol and  k < maxiter):
+    r = PC(r,main,PCargs)
     x[:] = omega*r[:] + x[:]
     r = b - Af(x,args,main)
     rnorm = globalNorm(r,main) #same across procs
@@ -142,7 +160,7 @@ def GMRes_element(Af, b, x0,main,args,PC=None,PCargs=None,tol=1e-9,maxiter_outer
     error = 10.
     x = np.zeros(np.shape(x0))
     x[:] = x0[:]
-    while (k_outer < maxiter_outer and np.amax(error) >= tol):
+    while (k_outer < maxiter_outer and globalMax(error,main) >= tol):
       r = b - Af(x0,args,main)
       if (main.mpi_rank == 0 and printnorm==1):
         print('Outer true norm = ' + str(np.linalg.norm(r)))
@@ -160,7 +178,7 @@ def GMRes_element(Af, b, x0,main,args,PC=None,PCargs=None,tol=1e-9,maxiter_outer
       beta = rnorm[None]*e1
 
       k = 0
-      while (k < maxiter - 1  and np.amax(error) >= tol):
+      while (k < maxiter - 1  and globalMax(error,main) >= tol):
   #    for k in range(0,nmax_iter-1):
           Arnoldi_element(Af,H,Q,k,args,main)
           apply_givens_rotation_element(H,cs,sn,k)
@@ -242,7 +260,7 @@ def fGMRes(Af, b, x0,main,args,PC=None,PC_args=None,tol=1e-9,maxiter_outer=1,max
       beta = rnorm*e1
       k = 0
       while (k < maxiter - 1  and error >= tol):
-          Z[:,k] = PC(Q[:,k],main)
+          Z[:,k] = PC(Q[:,k],main,PC_args)
           Q[:,k+1] = Af(Z[:,k],args,main)
           Arnoldi_fgmres(Af,H,Q,k,args,main)
           apply_givens_rotation(H,cs,sn,k)

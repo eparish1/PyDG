@@ -204,8 +204,8 @@ main.mg_Rn = []
 main.mg_an = []
 main.mg_b = []
 main.mg_e = []
-mg_iterations = np.array([10,30,70,170])
-mg_omega = np.array([0.8,0.8,0.8,0.8])
+mg_iterations = np.array([5,15,30,170])
+mg_omega = np.array([0.9,0.9,0.9,0.9])
 main.mg_args = [mg_levels,mg_iterations,mg_omega]
 for i in range(0,mg_levels):
   order_coarsen = np.int32(np.fmax(main.order/coarsen[i],1))
