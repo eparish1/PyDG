@@ -60,7 +60,7 @@ def computeJacobianX(main,eqns,f):
   Rstar0,R0,Rstar_glob = f(main,main.a.a)
   a0 = np.zeros(np.shape(main.a.a))
   a0[:] = main.a.a[:]
-  eps = 1e-5
+  eps = 1.e-2
   for i in range(0,main.nvars):
     for j in range(0,main.order[0]):
       main.a.a[:] = a0[:]
@@ -79,7 +79,7 @@ def computeJacobianXT(main,eqns,f):
   Rstar0,R0,Rstar_glob = f(main,main.a.a)
   a0 = np.zeros(np.shape(main.a.a))
   a0[:] = main.a.a[:]
-  eps = 1
+  eps = 1.e-3
   epsi = 1./eps
   for i in range(0,main.order[0]):
     for j in range(0,main.order[3]):
