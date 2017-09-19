@@ -4,6 +4,7 @@ import time
 import matplotlib.pyplot as plt
 from init_Classes import variables,equations
 from linear_solvers import *
+from jacobian_schemes import *
 def newtonSolver(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadrature,eqns,PC=None):
   if (sparse_quadrature):
     coarsen = 2
@@ -108,6 +109,95 @@ def NEJSolver(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadrature,
   np.savez('resid_history',resid=resid_hist,t=t_hist)
 
 
+def ADISolver(unsteadyResiduals,MF_Jacobians,main,linear_solver,sparse_quadrature,eqns,PC=None):
+  #computeJacobianX = computeJacobians[0]
+  #computeJacobianT = computeJacobians[1]
+  unsteadyResidual = unsteadyResiduals[0]
+  unsteadyResidual_element_zeta = unsteadyResiduals[1]
+  unsteadyResidual_element_time = unsteadyResiduals[2]
+  MF_Jacobian = MF_Jacobians[0]
+  MF_Jacobian_element_zeta = MF_Jacobians[1]
+  MF_Jacobian_element_time = MF_Jacobians[2]
+  f = np.zeros(np.shape(main.a.a))
+  Rstarn0,Rn,Rstar_glob = unsteadyResidual(main.a.a)
+  NLiter = 0
+  an = np.zeros(np.shape(main.a0))
+  an[:] = main.a.a[:]
+  Rstar_glob0 = Rstar_glob*1. 
+  resid_hist = np.zeros(0)
+  t_hist = np.zeros(0)
+  tnls = time.time()
+  rho = 30
+  
+  while (Rstar_glob >= 1e-8 and Rstar_glob/Rstar_glob0 > 1e-8):
+    JX = computeJacobianX(main,eqns,unsteadyResidual_element_zeta) #get the Jacobian
+    JX = np.reshape(JX, (main.nvars*main.order[0],main.nvars*main.order[0],main.order[1],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
+    JX = np.rollaxis(np.rollaxis(JX ,1,9),0,8)
+    JT = computeJacobianT(main,eqns,unsteadyResidual_element_time) #get the Jacobian
+    JT = np.reshape(JT, (main.nvars*main.order[3],main.nvars*main.order[3],main.order[0],main.order[1],main.order[2],main.Npx,main.Npy,main.Npz,main.Npt))
+    JT = np.rollaxis(np.rollaxis(JT ,1,9),0,8)
+
+    args = [an,Rn]
+    Jxf = MF_Jacobian_element_zeta(f,args,main)
+    Jf = MF_Jacobian(f,args,main)
+
+    # perform iteration in the zeta direction    
+    f = np.reshape(f,np.shape(main.a.a))
+    f0 = np.zeros(np.shape(f))
+    f = np.reshape(f, (main.nvars*main.order[0],main.order[1],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
+    f = np.rollaxis(f,0,8)
+    Jxf = np.reshape(Jxf, (main.nvars*main.order[0],main.order[1],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
+    Jxf = np.rollaxis(Jxf,0,8)
+    Jf = np.reshape(Jf, (main.nvars*main.order[0],main.order[1],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
+    Jf = np.rollaxis(Jf,0,8)
+    Rstarn0 = np.reshape(Rstarn0, (main.nvars*main.order[0],main.order[1],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
+    Rstarn0 = np.rollaxis(Rstarn0,0,8)
+    Imat = np.eye(main.nvars*main.order[0])
+    #f = np.linalg.solve(JX + rho*Imat,-Rstarn0 - (Jf - Jxf - rho*f))
+    f = np.rollaxis(f,7,0)
+    f = np.reshape(f,np.shape(main.a.a) )
+    Jf = np.rollaxis(Jf,7,0)
+    Jf = np.reshape(Jf,np.shape(main.a.a))
+    Rstarn0 = np.rollaxis(Rstarn0,7,0)
+    Rstarn0 = np.reshape(Rstarn0,np.shape(main.a.a))
+    print(np.linalg.norm(f - f0))
+
+    # now perform iteration in the time direction
+    Jtf = MF_Jacobian_element_time(f,args,main)
+    Jf = MF_Jacobian(f,args,main)
+
+    f = np.rollaxis(f,4,1)
+    f = np.reshape(f, (main.nvars*main.order[3],main.order[0],main.order[1],main.order[2],main.Npx,main.Npy,main.Npz,main.Npt))
+    f = np.rollaxis(f,0,8)
+    Jtf = np.rollaxis(Jtf,4,1)
+    Jtf = np.reshape(Jtf, (main.nvars*main.order[3],main.order[0],main.order[1],main.order[2],main.Npx,main.Npy,main.Npz,main.Npt))
+    Jtf = np.rollaxis(Jtf,0,8)
+    Jf = np.rollaxis(Jf,4,1)
+    Jf = np.reshape(Jf, (main.nvars*main.order[3],main.order[0],main.order[1],main.order[2],main.Npx,main.Npy,main.Npz,main.Npt))
+    Jf = np.rollaxis(Jf,0,8)
+    Rstarn0 = np.rollaxis(Rstarn0,4,1)
+    Rstarn0 = np.reshape(Rstarn0, (main.nvars*main.order[3],main.order[0],main.order[1],main.order[2],main.Npx,main.Npy,main.Npz,main.Npt))
+    Rstarn0 = np.rollaxis(Rstarn0,0,8)
+    Imat = np.eye(main.nvars*main.order[3])
+    f = np.linalg.solve(JT + rho*Imat,-Rstarn0 - (Jf - Jtf - rho*f))
+    f = np.rollaxis(f,7,0)
+    f = np.reshape(f, (main.nvars,main.order[3],main.order[0],main.order[1],main.order[2],main.Npx,main.Npy,main.Npz,main.Npt))
+    f = np.rollaxis(f,1,5)
+    Rstarn0 = np.rollaxis(Rstarn0,7,0)
+    Rstarn0 = np.reshape(Rstarn0, (main.nvars,main.order[3],main.order[0],main.order[1],main.order[2],main.Npx,main.Npy,main.Npz,main.Npt))
+    Rstarn0 = np.rollaxis(Rstarn0,1,5)
+
+    NLiter += 1
+    ts = time.time()
+    main.a.a[:] = an[:] + f[:]
+    #an[:] = main.a.a[:]
+    Rstarn,Rn,Rstar_glob = unsteadyResidual(main.a.a)
+    resid_hist = np.append(resid_hist,Rstar_glob)
+    t_hist = np.append(t_hist,time.time() - tnls)
+    if (main.mpi_rank == 0):
+      sys.stdout.write('ADI iteration = ' + str(NLiter) + '  NL residual = ' + str(Rstar_glob) + ' relative decrease = ' + str(Rstar_glob/Rstar_glob0) + ' Solve time = ' + str(time.time() - ts)  + '\n')
+      sys.stdout.flush()
+  np.savez('resid_history',resid=resid_hist,t=t_hist)
 
 
 

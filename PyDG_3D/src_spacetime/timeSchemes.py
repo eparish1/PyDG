@@ -140,7 +140,7 @@ def spaceTime(main,MZ,eqns,args=None):
   linear_solver = args[1]
   sparse_quadrature = args[2]
   main.a0[:] = main.a.a[:]
-
+  alpha = 0.1
   def unsteadyResidual_element(main,v):
     main.a.a[:] = np.reshape(v,np.shape(main.a.a))
     getRHS_element(main,main,eqns)
@@ -154,6 +154,56 @@ def spaceTime(main,MZ,eqns,args=None):
     Rstar = volint_t - (futureFlux[:,:,:,:,None])*2./main.dt + main.RHS[:]
     Rstar_glob = gatherResid(Rstar,main)
     return Rstar,R1,Rstar_glob
+
+  def unsteadyResidual_element_zeta(main,v):
+    main.a.a[:] = np.reshape(v,np.shape(main.a.a))
+    getRHS_element_zeta(main,main,eqns)
+    R1 = np.zeros(np.shape(main.RHS))
+    R1[:] = main.RHS[:]
+    ## now integrate the volume term ( \int ( dw/dt * u) )
+    Rstar = main.RHS[:]
+    Rstar_glob = gatherResid(Rstar,main)
+    return Rstar,R1,Rstar_glob
+
+  def unsteadyResidual_element_time(main,v):
+    main.a.a[:] = np.reshape(v,np.shape(main.a.a))
+    ## now integrate the volume term ( \int ( dw/dt * u) )
+    main.basis.reconstructU(main,main.a)
+    volint_t = main.basis.volIntegrateGlob(main,main.a.u[:]*main.Jdet[None,:,:,:,None,:,:,:,None],main.w0,main.w1,main.w2,main.wp3)*2./main.dt
+    uFuture,uPast = main.basis.reconstructEdgesGeneralTime(main.a.a,main)
+    futureFlux = main.basis.faceIntegrateGlob(main,uFuture*main.Jdet[None,:,:,:,:,:,:,None],main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
+    Rstar = volint_t - (futureFlux[:,:,:,:,None])*2./main.dt 
+    Rstar_glob = gatherResid(Rstar,main)
+    return Rstar,Rstar,Rstar_glob
+
+
+  def create_MF_Jacobian_element_zeta(v,args,main):
+    an = args[0]
+    Rn = args[1]
+    vr = np.reshape(v,np.shape(main.a.a))
+    eps = 5.e-1
+#    main.a.a[:] = an + eps*vr
+#    getRHS_element_zeta(main,main,eqns)
+#    R1 = np.zeros(np.shape(main.RHS))
+#    R1[:] = main.RHS[:]
+#    Av = 1./eps * (R1 - Rn)
+#    main.a.a[:] = an[:]
+    main.a.a[:] = vr[:]
+    getRHS_element_zeta(main,main,eqns)
+    R1 = np.zeros(np.shape(main.RHS))
+    R1[:] = main.RHS[:]
+    Av = R1
+    return Av#.flatten()
+
+  def create_MF_Jacobian_element_time(v,args,main):
+    vr = np.reshape(v,np.shape(main.a.a))
+    vr_phys = main.basis.reconstructUGeneral(main,vr)
+    volint_t = main.basis.volIntegrateGlob(main,vr_phys*main.Jdet[None,:,:,:,None,:,:,:,None],main.w0,main.w1,main.w2,main.wp3)*2./main.dt
+    uFuture,uPast = main.basis.reconstructEdgesGeneralTime(vr,main)
+    futureFlux = main.basis.faceIntegrateGlob(main,uFuture*main.Jdet[None,:,:,:,:,:,:,None],main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
+    Av =  volint_t - (futureFlux[:,:,:,:,None])*2./main.dt 
+    return Av
+
 
   def create_MF_Jacobian_element(v,args,main):
     an = args[0]
@@ -221,7 +271,44 @@ def spaceTime(main,MZ,eqns,args=None):
   J = computeBlockJacobian(main,eqns,unsteadyResidual_element) #get the Jacobian
   J2 = np.zeros(np.shape(J))
   J2[:] = J[:]
+
   def create_Dinv(f,main,args=None):
+    J2 = computeJacobianX(main,eqns,unsteadyResidual_element_zeta) #get the Jacobian
+    JT = computeJacobianT(main,eqns,unsteadyResidual_element_time) #get the Jacobian
+    JTf = create_MF_Jacobian_element_time(f,None,main)
+    #JT = np.reshape(JT, (main.nvars*main.order[3],main.nvars*main.order[3],main.order[0],main.order[1],main.order[2],main.Npx,main.Npy,main.Npz,main.Npt))
+    #JT = np.rollaxis(np.rollaxis(JT ,1,9),0,8)
+
+#    J = np.reshape(J2[0:main.nvars,0:main.order[0],0:main.nvars,0:main.order[0],0:main.order[1],0:main.order[2],0:main.order[3] ,0:main.Npx,0:main.Npy,0:main.Npz,0:main.Npt], (main.nvars*main.order[0],main.nvars*main.order[0],main.order[1],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
+    J = np.reshape(J2, (main.nvars*main.order[0],main.nvars*main.order[0],main.order[1],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
+    
+    J = np.rollaxis(np.rollaxis(J ,1,9),0,8)
+    f = np.reshape(f,np.shape(main.a.a))
+    f = np.reshape(f, (main.nvars*main.order[0],main.order[1],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
+    f = np.rollaxis(f,0,8)
+    JTf = np.reshape(JTf, (main.nvars*main.order[0],main.order[1],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
+    JTf = np.rollaxis(JTf,0,8)
+    f = np.linalg.solve(J,f - JTf)
+    f = np.rollaxis(f,7,0)
+    f = np.reshape(f,np.shape(main.a.a) )
+    args = [f,f]
+    Jxf = create_MF_Jacobian_element_zeta(f,args,main)
+
+#    f = np.rollaxis(f,(4,1))
+#    f = np.reshape(f, (main.nvars*main.order[3],main.order[0],main.order[1],main.order[2],main.Npx,main.Npy,main.Npz,main.Npt))
+#    f = np.rollaxis(f,0,8)
+#    Jxf = np.rollaxis(Jxf,(4,1))
+#    Jxf = np.reshape(Jxf, (main.nvars*main.order[3],main.order[0],main.order[1],main.order[2],main.Npx,main.Npy,main.Npz,main.Npt))
+#    Jxf = np.rollaxis(JTf,0,8)
+#    f = np.linalg.solve(J,f - Jxf)
+
+    return f.flatten()
+
+
+
+
+
+  def create_Dinv2(f,main,args=None):
     args[2] += 1
     if (args[2]%100 == 0):
       print('computing')
@@ -300,9 +387,10 @@ def spaceTime(main,MZ,eqns,args=None):
       uPast[:,:,:,:,:,:,:,1::] = uFuture[:,:,:,:,:,:,:,0:-1]
     pastFlux   = main.basis.faceIntegrateGlob(main,uPast*main.Jdet[None,:,:,:,:,:,:,None]  ,main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
     Av = volint_t - (futureFlux[:,:,:,:,None] - pastFlux[:,:,:,:,None]*main.altarray3[None,None,None,None,:,None,None,None,None])*2./main.dt + 1./eps * (R1 - Rn)
-    return Av.flatten()
+    return Av#.flatten()
 
-  nonlinear_solver.solve(unsteadyResidual, create_MF_Jacobian,main,linear_solver,sparse_quadrature,eqns,create_Dinv)
+  ADISolver([unsteadyResidual,unsteadyResidual_element_zeta,unsteadyResidual_element_time],[create_MF_Jacobian,create_MF_Jacobian_element_zeta,create_MF_Jacobian_element_time],main,linear_solver,sparse_quadrature,eqns,PC=None)
+#  nonlinear_solver.solve(unsteadyResidual, create_MF_Jacobian,main,linear_solver,sparse_quadrature,eqns,create_Dinv)
   main.t += main.dt*main.Npt
   main.iteration += 1
   main.a.uFuture[:],uPast = main.basis.reconstructEdgesGeneralTime(main.a.a,main)
