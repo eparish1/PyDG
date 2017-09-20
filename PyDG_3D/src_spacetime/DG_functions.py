@@ -170,7 +170,6 @@ def getRHS_element_zeta(main,MZ,eqns,args=[],args_phys=[]):
   main.basis.reconstructU(main,main.a)
   main.a.uR[:],main.a.uL[:],main.a.uU[:],main.a.uD[:],main.a.uF[:],main.a.uB[:] = main.basis.reconstructEdgesGeneral(main.a.a,main)
   main.a.uR_edge[:],main.a.uL_edge[:],main.a.uU_edge[:],main.a.uD_edge[:],main.a.uF_edge[:],main.a.uB_edge[:] = sendEdgesGeneralSlab(main.a.uL,main.a.uR,main.a.uD,main.a.uU,main.a.uB,main.a.uF,main)
-
   addInviscidFlux_element_zeta(main,MZ,eqns,args,args_phys)
   addVolume_and_Viscous_zeta(main,MZ,eqns,args,args_phys)
   main.comm.Barrier()
@@ -182,11 +181,8 @@ def addInviscidFlux_element_zeta(main,MZ,eqns,args=[],args_phys=[]):
   # now we need to integrate along the boundary 
   main.iFlux.fRI = main.basis.faceIntegrateGlob(main,main.iFlux.fR*main.J_edge_det[0][None,:,:,None,1::,:,:,None],MZ.w1,MZ.w2,MZ.w3,MZ.weights1,MZ.weights2,MZ.weights3)
   main.iFlux.fLI = main.basis.faceIntegrateGlob(main,main.iFlux.fL*main.J_edge_det[0][None,:,:,None,0:-1,:,:,None],MZ.w1,MZ.w2,MZ.w3,MZ.weights1,MZ.weights2,MZ.weights3)
-
   main.RHS[:] =  -main.iFlux.fRI[:,None,:,:,:,:] 
   main.RHS[:] += main.iFlux.fLI[:,None,:,:,:,:]*main.altarray0[None,:,None,None,None,None,None,None,None]
-
-
 
 
 def getRHS_element_eta(main,MZ,eqns,args=[],args_phys=[]):
@@ -194,7 +190,6 @@ def getRHS_element_eta(main,MZ,eqns,args=[],args_phys=[]):
   main.basis.reconstructU(main,main.a)
   main.a.uR[:],main.a.uL[:],main.a.uU[:],main.a.uD[:],main.a.uF[:],main.a.uB[:] = main.basis.reconstructEdgesGeneral(main.a.a,main)
   main.a.uR_edge[:],main.a.uL_edge[:],main.a.uU_edge[:],main.a.uD_edge[:],main.a.uF_edge[:],main.a.uB_edge[:] = sendEdgesGeneralSlab(main.a.uL,main.a.uR,main.a.uD,main.a.uU,main.a.uB,main.a.uF,main)
-
   addInviscidFlux_element_eta(main,MZ,eqns,args,args_phys)
   addVolume_and_Viscous_eta(main,MZ,eqns,args,args_phys)
   main.comm.Barrier()

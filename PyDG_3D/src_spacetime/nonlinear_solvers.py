@@ -114,13 +114,17 @@ def ADISolver(unsteadyResiduals,MF_Jacobians,main,linear_solver,sparse_quadratur
   #computeJacobianT = computeJacobians[1]
   unsteadyResidual = unsteadyResiduals[0]
   unsteadyResidual_element_zeta = unsteadyResiduals[1]
-  unsteadyResidual_element_time = unsteadyResiduals[2]
+  unsteadyResidual_element_eta = unsteadyResiduals[2]
+  unsteadyResidual_element_mu = unsteadyResiduals[3]
+  unsteadyResidual_element_time = unsteadyResiduals[4]
 
   MF_Jacobian = MF_Jacobians[0]
   MF_Jacobian_element_zeta = MF_Jacobians[1]
-  MF_Jacobian_element_time = MF_Jacobians[2]
+  MF_Jacobian_element_eta = MF_Jacobians[2]
+  MF_Jacobian_element_time = MF_Jacobians[3]
 
   f = np.zeros(np.shape(main.a.a))
+  f0 = np.zeros(np.shape(main.a.a))
   dum,Rn_el,dum = unsteadyResidual_element_zeta(main,main.a.a)
 #  print('ADI resid',np.linalg.norm(Rn_el))
   Rstarn0,Rn,Rstar_glob = unsteadyResidual(main.a.a)
@@ -131,50 +135,88 @@ def ADISolver(unsteadyResiduals,MF_Jacobians,main,linear_solver,sparse_quadratur
   resid_hist = np.zeros(0)
   t_hist = np.zeros(0)
   tnls = time.time()
-  rho = -30.
+  rho = -40.
   args = [an,Rn]
   args_el = [an,Rn_el]
   JX = computeJacobianX(main,eqns,unsteadyResidual_element_zeta) #get the Jacobian
   JX = np.reshape(JX, (main.nvars*main.order[0],main.nvars*main.order[0],main.order[1],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
   JX = np.rollaxis(np.rollaxis(JX ,1,9),0,8)
 
+  JY = computeJacobianY(main,eqns,unsteadyResidual_element_eta) #get the Jacobian
+  JY = np.reshape(JY, (main.nvars*main.order[1],main.nvars*main.order[1],main.order[0],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
+  JY = np.rollaxis(np.rollaxis(JY ,1,9),0,8)
+
+
   JT = computeJacobianT(main,eqns,unsteadyResidual_element_time) #get the Jacobian
   JT = np.reshape(JT, (main.nvars*main.order[3],main.nvars*main.order[3],main.order[0],main.order[1],main.order[2],main.Npx,main.Npy,main.Npz,main.Npt))
   JT = np.rollaxis(np.rollaxis(JT ,1,9),0,8)
 
   ImatX = np.eye(main.nvars*main.order[0])
+  ImatY = np.eye(main.nvars*main.order[1])
+  ImatZ = np.eye(main.nvars*main.order[2])
   ImatT = np.eye(main.nvars*main.order[3])
-
   while (Rstar_glob >= 1e-8 and Rstar_glob/Rstar_glob0 > 1e-8):
-    #Jxf = np.einsum('ij...,j...->i...',JX,np.reshape(f,(main.nvars*main.order[0],main.order[1],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt)))
-    #Jxf = np.reshape(Jxf,np.shape(main.a.a)) 
-    Jxf = MF_Jacobian_element_zeta(f,args_el,main)
+    f0[:] = f0[:]
+    #Jxf = MF_Jacobian_element_zeta(f,args_el,main)
     Jf = MF_Jacobian(f,args,main)
     # perform iteration in the zeta direction   
     if (np.shape(f) != np.shape(main.a.a)):
       print('shape error') 
     f = np.reshape(f, (main.nvars*main.order[0],main.order[1],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
     f = np.rollaxis(f,0,8)
-    Jxf = np.reshape(Jxf, (main.nvars*main.order[0],main.order[1],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
-    Jxf = np.rollaxis(Jxf,0,8)
+    #Jxf = np.reshape(Jxf, (main.nvars*main.order[0],main.order[1],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
+    #Jxf = np.rollaxis(Jxf,0,8)
     Jf = np.reshape(Jf, (main.nvars*main.order[0],main.order[1],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
     Jf = np.rollaxis(Jf,0,8)
     Rstarn0 = np.reshape(Rstarn0, (main.nvars*main.order[0],main.order[1],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
     Rstarn0 = np.rollaxis(Rstarn0,0,8)
-    #Jxfb = np.einsum('pqrijklmn...,pqrijkln...->pqrijklm...',JX,f)
+    Jxf = np.einsum('pqrijklmn...,pqrijkln...->pqrijklm...',JX,f)
     #print('MF_x',np.linalg.norm(Jxfb - Jxf))
     f[:] = np.linalg.solve(JX + rho*ImatX,-Rstarn0 - (Jf - Jxf ) + rho*f) 
     f = np.rollaxis(f,7,0)
     f = np.reshape(f,np.shape(main.a.a) )
+    Jf = np.rollaxis(Jf,7,0)
+    Jf = np.reshape(Jf,np.shape(main.a.a) )
     Rstarn0 = np.rollaxis(Rstarn0,7,0)
     Rstarn0 = np.reshape(Rstarn0,np.shape(main.a.a))
 
-    # now perform iteration in the time direction
-    #Jtf = np.einsum('pqrijklmn...,pqrijkln...->pqrijklm...',JT,f)
-    #Jtf = np.rollaxis(Jtf,0,8)
+
+    # now perform iteration in the eta direction
     if (np.shape(f) != np.shape(main.a.a)):
       print('shape error') 
-    Jtf = MF_Jacobian_element_time(f,args_el,main)
+    #Jyf2 = MF_Jacobian_element_eta(f,args_el,main)
+    Jf = MF_Jacobian(f,args,main)
+    f = np.rollaxis(f,2,1)
+    f = np.reshape(f, (main.nvars*main.order[1],main.order[0],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
+    f = np.rollaxis(f,0,8)
+    Jf = np.rollaxis(Jf,2,1)
+    Jf = np.reshape(Jf, (main.nvars*main.order[1],main.order[0],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
+    Jf = np.rollaxis(Jf,0,8)
+    #Jyf2 = np.rollaxis(Jyf2,2,1)
+    #Jyf2 = np.reshape(Jyf2, (main.nvars*main.order[1],main.order[0],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
+    #Jyf2 = np.rollaxis(Jyf2,0,8)
+    Jyf = np.einsum('pqrijklmn...,pqrijkln...->pqrijklm...',JY,f)
+    #print('MF_Y',np.linalg.norm(Jyf2 - Jyf))
+    Rstarn0 = np.rollaxis(Rstarn0,2,1)
+    Rstarn0 = np.reshape(Rstarn0, (main.nvars*main.order[1],main.order[0],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
+    Rstarn0 = np.rollaxis(Rstarn0,0,8)
+    f[:] = np.linalg.solve(JY + rho*ImatY,-Rstarn0 - (Jf - Jyf) + rho*f)
+    f = np.rollaxis(f,7,0)
+    f = np.reshape(f, (main.nvars,main.order[1],main.order[0],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
+    f = np.rollaxis(f,1,3)
+    Rstarn0 = np.rollaxis(Rstarn0,7,0)
+    Rstarn0 = np.reshape(Rstarn0, (main.nvars,main.order[1],main.order[0],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
+    Rstarn0 = np.rollaxis(Rstarn0,1,3)
+
+
+
+
+
+
+    # now perform iteration in the time direction
+    if (np.shape(f) != np.shape(main.a.a)):
+      print('shape error') 
+    #Jtf = MF_Jacobian_element_time(f,args_el,main)
     Jf = MF_Jacobian(f,args,main)
     f = np.rollaxis(f,4,1)
     f = np.reshape(f, (main.nvars*main.order[3],main.order[0],main.order[1],main.order[2],main.Npx,main.Npy,main.Npz,main.Npt))
@@ -182,10 +224,10 @@ def ADISolver(unsteadyResiduals,MF_Jacobians,main,linear_solver,sparse_quadratur
     Jf = np.rollaxis(Jf,4,1)
     Jf = np.reshape(Jf, (main.nvars*main.order[3],main.order[0],main.order[1],main.order[2],main.Npx,main.Npy,main.Npz,main.Npt))
     Jf = np.rollaxis(Jf,0,8)
-    Jtf = np.rollaxis(Jtf,4,1)
-    Jtf = np.reshape(Jtf, (main.nvars*main.order[3],main.order[0],main.order[1],main.order[2],main.Npx,main.Npy,main.Npz,main.Npt))
-    Jtf = np.rollaxis(Jtf,0,8)
-    #Jtfb = np.einsum('pqrijklmn...,pqrijkln...->pqrijklm...',JT,f)
+    #Jtf = np.rollaxis(Jtf,4,1)
+    #Jtf = np.reshape(Jtf, (main.nvars*main.order[3],main.order[0],main.order[1],main.order[2],main.Npx,main.Npy,main.Npz,main.Npt))
+    #Jtf = np.rollaxis(Jtf,0,8)
+    Jtf = np.einsum('pqrijklmn...,pqrijkln...->pqrijklm...',JT,f)
     #print('MF_T',np.linalg.norm(Jtfb - Jtf))
     Rstarn0 = np.rollaxis(Rstarn0,4,1)
     Rstarn0 = np.reshape(Rstarn0, (main.nvars*main.order[3],main.order[0],main.order[1],main.order[2],main.Npx,main.Npy,main.Npz,main.Npt))
@@ -200,7 +242,6 @@ def ADISolver(unsteadyResiduals,MF_Jacobians,main,linear_solver,sparse_quadratur
 #    print(np.shape(Rstarn0),np.shape(f),np.shape(main.a.a))
     NLiter += 1
     ts = time.time()
-    #main.a.a[:] = an[:] + f[:]
     #an[:] = main.a.a[:]
     Rstarn,dum,Rstar_globn = unsteadyResidual(an+f)
     if (Rstar_globn <= Rstar_glob):
@@ -213,6 +254,7 @@ def ADISolver(unsteadyResiduals,MF_Jacobians,main,linear_solver,sparse_quadratur
     if (main.mpi_rank == 0):
       sys.stdout.write('ADI iteration = ' + str(NLiter) + '  NL residual = ' + str(Rstar_glob) + ' relative decrease = ' + str(Rstar_glob/Rstar_glob0) + ' Solve time = ' + str(time.time() - ts)  + '  rho = ' + str(rho) + '\n')
       sys.stdout.flush()
+  main.a.a[:] = an[:] + f[:]
   np.savez('resid_history',resid=resid_hist,t=t_hist)
 
 

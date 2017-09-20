@@ -340,6 +340,28 @@ def spaceTimeExperimental(main,MZ,eqns,args=None):
     Rstar_glob = gatherResid(Rstar,main)
     return Rstar,R1,Rstar_glob
 
+  def unsteadyResidual_element_eta(main,v):
+    main.a.a[:] = np.reshape(v,np.shape(main.a.a))
+    getRHS_element_eta(main,main,eqns)
+    R1 = np.zeros(np.shape(main.RHS))
+    R1[:] = main.RHS[:]
+    ## now integrate the volume term ( \int ( dw/dt * u) )
+    Rstar = main.RHS[:]*1.
+    Rstar_glob = gatherResid(Rstar,main)
+    return Rstar,R1,Rstar_glob
+
+  def unsteadyResidual_element_mu(main,v):
+    main.a.a[:] = np.reshape(v,np.shape(main.a.a))
+    getRHS_element_mu(main,main,eqns)
+    R1 = np.zeros(np.shape(main.RHS))
+    R1[:] = main.RHS[:]
+    ## now integrate the volume term ( \int ( dw/dt * u) )
+    Rstar = main.RHS[:]*1.
+    Rstar_glob = gatherResid(Rstar,main)
+    return Rstar,R1,Rstar_glob
+
+
+
   def unsteadyResidual_element_time(main,v):
     main.a.a[:] = np.reshape(v,np.shape(main.a.a))
     ## now integrate the volume term ( \int ( dw/dt * u) )
@@ -369,6 +391,19 @@ def spaceTimeExperimental(main,MZ,eqns,args=None):
     R1[:] = main.RHS[:]
     Av = R1*1.
     return Av#.flatten()
+
+  def create_MF_Jacobian_element_eta(v,args,main):
+    an = args[0]
+    Rn = args[1]
+    vr = np.reshape(v,np.shape(main.a.a))
+    eps = 5.e-1
+    main.a.a[:] = vr[:]
+    getRHS_element_eta(main,main,eqns)
+    R1 = np.zeros(np.shape(main.RHS))
+    R1[:] = main.RHS[:]
+    Av = R1*1.
+    return Av#.flatten()
+
 
   def create_MF_Jacobian_element_time(v,args,main):
     vr = np.reshape(v,np.shape(main.a.a))
@@ -569,8 +604,8 @@ def spaceTimeExperimental(main,MZ,eqns,args=None):
     Av = volint_t - (futureFlux[:,:,:,:,None] - pastFlux[:,:,:,:,None]*main.altarray3[None,None,None,None,:,None,None,None,None])*2./main.dt + 1./eps * (R1 - Rn)
     return Av#.flatten()
 
-  unsteadyResiduals = [unsteadyResidual,unsteadyResidual_element_zeta,unsteadyResidual_element_time]
-  MF_Jacobians = [create_MF_Jacobian,create_MF_Jacobian_element_zeta,create_MF_Jacobian_element_time]
+  unsteadyResiduals = [unsteadyResidual,unsteadyResidual_element_zeta,unsteadyResidual_element_eta,unsteadyResidual_element_mu,unsteadyResidual_element_time]
+  MF_Jacobians = [create_MF_Jacobian,create_MF_Jacobian_element_zeta,create_MF_Jacobian_element_eta,create_MF_Jacobian_element_time]
   ADISolver(unsteadyResiduals,MF_Jacobians,main,linear_solver,sparse_quadrature,eqns,PC=None)
 #  nonlinear_solver.solve(unsteadyResidual, create_MF_Jacobian,main,linear_solver,sparse_quadrature,eqns,create_Dinv)
   main.t += main.dt*main.Npt
