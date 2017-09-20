@@ -46,7 +46,7 @@ def newtonSolver(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadratu
     loc_tol = 0.1*Rstar_glob/Rstar_glob0
     PC_iteration = 0
     PC_args = [1,loc_tol,PC_iteration]
-    sol = linear_solver.solve(MF_Jacobian, -Rstarn.flatten(), old.flatten(),main_coarse,MF_Jacobian_args,PC,PC_args,loc_tol,linear_solver.maxiter_outer,15,False)
+    sol = linear_solver.solve(MF_Jacobian, -Rstarn.flatten(), old.flatten(),main_coarse,MF_Jacobian_args,PC,PC_args,loc_tol,linear_solver.maxiter_outer,20,False)
     main.a.a[:] = an[:] + 1.0*np.reshape(sol,np.shape(main.a.a))
     an[:] = main.a.a[:]
     Rstarn,Rn,Rstar_glob = unsteadyResidual(main.a.a)
@@ -138,16 +138,16 @@ def ADISolver(unsteadyResiduals,MF_Jacobians,main,linear_solver,sparse_quadratur
   rho = -40.
   args = [an,Rn]
   args_el = [an,Rn_el]
-  JX = computeJacobianX(main,eqns,unsteadyResidual_element_zeta) #get the Jacobian
+  JX = computeJacobianX(main,unsteadyResidual_element_zeta) #get the Jacobian
   JX = np.reshape(JX, (main.nvars*main.order[0],main.nvars*main.order[0],main.order[1],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
   JX = np.rollaxis(np.rollaxis(JX ,1,9),0,8)
 
-  JY = computeJacobianY(main,eqns,unsteadyResidual_element_eta) #get the Jacobian
+  JY = computeJacobianY(main,unsteadyResidual_element_eta) #get the Jacobian
   JY = np.reshape(JY, (main.nvars*main.order[1],main.nvars*main.order[1],main.order[0],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
   JY = np.rollaxis(np.rollaxis(JY ,1,9),0,8)
 
 
-  JT = computeJacobianT(main,eqns,unsteadyResidual_element_time) #get the Jacobian
+  JT = computeJacobianT(main,unsteadyResidual_element_time) #get the Jacobian
   JT = np.reshape(JT, (main.nvars*main.order[3],main.nvars*main.order[3],main.order[0],main.order[1],main.order[2],main.Npx,main.Npy,main.Npz,main.Npt))
   JT = np.rollaxis(np.rollaxis(JT ,1,9),0,8)
 
@@ -200,7 +200,7 @@ def ADISolver(unsteadyResiduals,MF_Jacobians,main,linear_solver,sparse_quadratur
     Rstarn0 = np.rollaxis(Rstarn0,2,1)
     Rstarn0 = np.reshape(Rstarn0, (main.nvars*main.order[1],main.order[0],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
     Rstarn0 = np.rollaxis(Rstarn0,0,8)
-    f[:] = np.linalg.solve(JY + rho*ImatY,-Rstarn0 - (Jf - Jyf) + rho*f)
+    #f[:] = np.linalg.solve(JY + rho*ImatY,-Rstarn0 - (Jf - Jyf) + rho*f)
     f = np.rollaxis(f,7,0)
     f = np.reshape(f, (main.nvars,main.order[1],main.order[0],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
     f = np.rollaxis(f,1,3)
@@ -344,12 +344,13 @@ def newtonSolver_MG(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadr
     newtonHook(main,mg_classes,mg_Rn,mg_an)
     mg_b[0][:] = -Rstarn.flatten()
     loc_tol = 1e-6
+    loc_tol = 0.1*Rstar_glob/Rstar_glob0
     for i in range(0,1):
       for j in range(0,n_levels):
         MF_Jacobian_args = [mg_an[j],mg_Rn[j]]
         PC_iteration = 0
         PC_args = [omega[j],loc_tol,PC_iteration]
-        mg_e[j][:] = linear_solver.solve(MF_Jacobian,mg_b[j].flatten(),np.zeros(np.size(mg_b[j])),mg_classes[j],MF_Jacobian_args,PC,PC_args,tol=1e-5,maxiter_outer=1,maxiter=10,printnorm=0)
+        mg_e[j][:] = linear_solver.solve(MF_Jacobian,mg_b[j].flatten(),np.zeros(np.size(mg_b[j])),mg_classes[j],MF_Jacobian_args,PC,PC_args,tol=loc_tol,maxiter_outer=1,maxiter=iterations[j],printnorm=0)
         #mg_e[j][:] = Jacobi(MF_Jacobian,mg_b[j].flatten(),np.zeros(np.size(mg_b[j])),PC,omega[j],mg_classes[j],MF_Jacobian_args,tol=1e-9,maxiter_outer=1,maxiter=iterations[j],printnorm=0)
         Resid  =  np.reshape( mv_resid(MF_Jacobian,MF_Jacobian_args,mg_classes[j],mg_e[j],mg_b[j].flatten()) , np.shape(mg_classes[j].a.a ) )
         if (j != n_levels-1):
@@ -365,7 +366,7 @@ def newtonSolver_MG(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadr
         #mg_e[j][:] = Jacobi(MF_Jacobian,mg_b[j].flatten(),etmp.flatten(),PC,omega[j],mg_classes[j],MF_Jacobian_args,tol=1e-9,maxiter_outer=1,maxiter=iterations[j],printnorm=0)
         PC_iteration = 0
         PC_args = [omega[j],loc_tol,PC_iteration]
-        mg_e[j][:] = linear_solver.solve(MF_Jacobian,mg_b[j].flatten(),etmp.flatten(),mg_classes[j],MF_Jacobian_args,PC,PC_args,tol=1e-6,maxiter_outer=1,maxiter=10,printnorm=0)
+        mg_e[j][:] = linear_solver.solve(MF_Jacobian,mg_b[j].flatten(),etmp.flatten(),mg_classes[j],MF_Jacobian_args,PC,PC_args,tol=loc_tol,maxiter_outer=1,maxiter=iterations[j],printnorm=0)
         #mg_e[j][:] = etmp.flatten()
     alpha = 1. 
     main.a.a[:] = an[:] + alpha*np.reshape(mg_e[0],np.shape(main.a.a))

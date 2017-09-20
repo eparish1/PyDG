@@ -197,14 +197,14 @@ def entropy_to_conservative(V):
   U[4] = U[0]*E
   return U
 
-mg_levels =  3#int( np.log(np.amax(main.order))/np.log(2))  
+mg_levels =  2#int( np.log(np.amax(main.order))/np.log(2))  
 coarsen = np.int32(2**np.linspace(0,mg_levels-1,mg_levels))
 main.mg_classes = []
 main.mg_Rn = []
 main.mg_an = []
 main.mg_b = []
 main.mg_e = []
-mg_iterations = np.array([5,15,30,170])
+mg_iterations = np.array([10,15,30,170])
 mg_omega = np.array([0.9,0.9,0.9,0.9])
 main.mg_args = [mg_levels,mg_iterations,mg_omega]
 for i in range(0,mg_levels):

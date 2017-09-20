@@ -182,6 +182,13 @@ class linearSolver:
       self.maxiter_outer = maxiter_outer
       self.maxiter = maxiter
       self.printnorm = printnorm
+    if (SolverType == 'ADI'):
+      if (comm.Get_rank() == 0): print('Linear solver set to ' + SolverType)
+      self.solve = ADI
+      self.tol=tol
+      self.maxiter_outer = maxiter_outer
+      self.maxiter = maxiter
+      self.printnorm = printnorm
     if (SolverType == 'fGMRes'):
       if (comm.Get_rank() == 0): print('Linear solver set to ' + SolverType)
       self.solve = fGMRes
