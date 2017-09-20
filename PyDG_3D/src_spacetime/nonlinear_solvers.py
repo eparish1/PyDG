@@ -88,19 +88,19 @@ def NEJSolver(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadrature,
   t_hist = np.zeros(0)
   tnls = time.time()
   omega = 1. 
+  PC_iteration = 1
   while (Rstar_glob >= 1e-8 and Rstar_glob/Rstar_glob0 > 1e-8):
     NLiter += 1
     ts = time.time()
     main.a.a[:] = an[:]
     loc_tol = 0.1*Rstar_glob/Rstar_glob0
-    PC_iteration = 0
     PC_args = [omega,loc_tol,PC_iteration]
     r = PC(-Rstarn.flatten(),main,PC_args)
     main.a.a[:] = omega*np.reshape(r,np.shape(main.a.a)) + an[:]
     an[:] = main.a.a[:]
     rnorm = globalNorm(r,main) #same across procs
     Rstarn,Rn,Rstar_glob = unsteadyResidual(main.a.a)
-
+    PC_iteration += 1
     resid_hist = np.append(resid_hist,Rstar_glob)
     t_hist = np.append(t_hist,time.time() - tnls)
     if (main.mpi_rank == 0):
