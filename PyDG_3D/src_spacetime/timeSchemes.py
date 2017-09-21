@@ -160,7 +160,7 @@ def spaceTime(main,MZ,eqns,args=None):
     an = args[0]
     Rn = args[1]
     vr = np.reshape(v,np.shape(main.a.a))
-    eps = 5.e-8
+    eps = 5.e-5
     main.a.a[:] = an + eps*vr
     getRHS_element(main,main,eqns)
     R1 = np.zeros(np.shape(main.RHS))
@@ -192,7 +192,7 @@ def spaceTime(main,MZ,eqns,args=None):
     Rn = args[1]
     #print(np.linalg.norm(JinvX))
     vr = np.reshape(v,np.shape(main.a.a))
-    eps = 5.e-8
+    eps = 5.e-5
 #    Rstar0,R10,Rstar_glob0 = unsteadyResidual_element(main,main.a.a)
 #    Rstar1,R11,Rstar_glob1 = unsteadyResidual_element(main,main.a.a+eps*vr)
 #    Av= 1./eps*(Rstar1 - Rstar0)
@@ -256,7 +256,7 @@ def spaceTime(main,MZ,eqns,args=None):
     #ff = np.reshape(ferror,np.shape(main.a.a))
     #ferror = GMRes_element(create_MF_Jacobian_element2, f0r2 - np.reshape(Rstarn_pc,np.shape(f0r2)), -np.reshape(a0,np.shape(f0r2)),main,MF_Jacobian_args2,None,None,1e-10,1,500,False)
     #ff = a0 + np.reshape(ferror,np.shape(main.a.a))
-    ferror = GMRes_element(create_MF_Jacobian_element2, f0r2, -np.reshape(a0,np.shape(f0r2))*0.,main,MF_Jacobian_args2,None,None,tol,1,15,False)
+    ferror = GMRes_element(create_MF_Jacobian_element2, f0r2, -np.reshape(a0,np.shape(f0r2))*0.,main,MF_Jacobian_args2,None,None,1e-9,1,120,False)
     ff = np.reshape(ferror,np.shape(main.a.a))
 
     return ff.flatten()
@@ -309,7 +309,7 @@ def spaceTime(main,MZ,eqns,args=None):
     Rn = args[1]
     #print(np.linalg.norm(JinvX))
     vr = np.reshape(v,np.shape(main.a.a))
-    eps = 5.e-8
+    eps = 5.e-5
     main.a.a[:] = an + eps*vr
     eqns.getRHS(main,main,eqns)
     R1 = np.zeros(np.shape(main.RHS))
