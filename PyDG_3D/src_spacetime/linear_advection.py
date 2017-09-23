@@ -52,7 +52,7 @@ def evalTauFluxZD_BR1(main,tau,u,fvZ,mu,dum):
 
 ######  ====== Linear advection fluxes and eigen values ==== ###########
 cx = 1.
-cy = 1.
+cy = 3.
 cz = 1.
 def evalFluxXLA(main,u,f,args):
   f[0] = cx*u[0]
