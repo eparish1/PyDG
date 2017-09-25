@@ -251,7 +251,7 @@ def spaceTime(main,MZ,eqns,args=None):
     return ff.flatten()
 
   def unsteadyResidual(v):
-    main.a.a[:] = np.reshape(v,np.shape(main.a.a))
+    main.a.a[:] = np.reshape(v*1.,np.shape(main.a.a))
     eqns.getRHS(main,main,eqns)
     R1 = np.zeros(np.shape(main.RHS))
     R1[:] = main.RHS[:]
@@ -278,7 +278,10 @@ def spaceTime(main,MZ,eqns,args=None):
     Rn = args[1]
     #print(np.linalg.norm(JinvX))
     vr = np.reshape(v,np.shape(main.a.a))
-    eps = 5.e-5
+    eps = 5.e-2
+#    Rstar0,R10,Rstar_glob0 = unsteadyResidual(main,an)
+#    Rstar1,R11,Rstar_glob1 = unsteadyResidual(main,an+eps*vr*1.)
+#    Av = 1./eps*(Rstar1 - Rstar0)
     main.a.a[:] = an + eps*vr
     eqns.getRHS(main,main,eqns)
     R1 = np.zeros(np.shape(main.RHS))

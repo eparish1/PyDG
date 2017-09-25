@@ -120,9 +120,9 @@ def zeroFSIC(x,y,z,main):
   v = np.zeros(np.shape(u))
   w = np.zeros(np.shape(u))
   E = np.zeros(np.shape(u))
-  T[:] = 1./gamma
-  rho[:] = T**(1./(gamma - 1.))
-  E[:] = Cv*T + 0.5*(u**2 + v**2)
+  rho[:] = 1. 
+  p = 1.
+  E[:] = p/(1.4 - 1.)
   q[0] = rho
   q[1] = rho*u
   q[2] = rho*v

@@ -60,15 +60,16 @@ def Jacobi(Af,b,x0,main,args,PC,PCargs,tol=1e-9,maxiter_outer=1,maxiter=20,print
   r = b - Af(x,args,main)
   rnorm = globalNorm(r,main) #same across procs
   rnorm0 = rnorm*1.
+  maxiter = 500
   #print(omega,maxiter,np.shape(main.a.a))
-  while(rnorm/rnorm0 >= tol and  k < maxiter):
+  while(rnorm/rnorm0 >= tol and  k < maxiter and rnorm > 1e-9):
     r = PC(r,main,PCargs)
     x[:] = omega*r[:] + x[:]
     r = b - Af(x,args,main)
     rnorm = globalNorm(r,main) #same across procs
     k += 1
     if (main.mpi_rank == 0 and printnorm == 1):
-      sys.stdout.write(' Iteration = ' + str(k) + ' Jacobi error = ' + str(rnorm)+ '\n')
+      sys.stdout.write(' Iteration = ' + str(k) + ' Jacobi error = ' + str(rnorm)+ ' Relative Error = ' + str(rnorm/rnorm0) + '\n')
 
   return x
 

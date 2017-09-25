@@ -206,7 +206,7 @@ class linearSolver:
       self.maxiter = maxiter
     if (SolverType == 'BICGSTAB'):
       if (comm.Get_rank() == 0): print('Linear solver set to ' + SolverType)
-      self.solve = bicgstab
+      self.solve = BICGSTAB
       self.tol=tol
       self.maxiter_outer = maxiter_outer
       self.maxiter = 50

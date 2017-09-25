@@ -8,6 +8,7 @@ def periodic_bc(Ue,UBC,args,main):
    return UBC 
 
 def isothermalwall_bc(Ue,UBC,args,main):
+  gamma = 1.4
   uw = args[0]
   vw = args[1]
   ww = args[2]
@@ -21,15 +22,14 @@ def isothermalwall_bc(Ue,UBC,args,main):
   p = (gamma - 1.)*(Ue[4] - 0.5*Ue[1]**2/Ue[0] - 0.5*Ue[2]**2/Ue[0] - 0.5*Ue[3]**2/Ue[0]) #extraploate pressure
   #print(p/(Ue[0]*R))
   T = Tw
-  E = Cv*T  + 0.5*(uw**2 + vw**2 + ww**2) #wall velocity is zero
+  #E = Cv*T  + 0.5*(uw**2 + vw**2 + ww**2) #wall velocity is zero
+  rhoE = p/(gamma - 1.) + 0.5*(uw**2 + vw**2 + ww**2)
   #p = rho R T
   UBC[0] = p/(R*T)
-  print(np.mean(UBC[0]))
-
   UBC[1] = UBC[0]*uw
   UBC[2] = UBC[0]*vw
   UBC[3] = UBC[0]*ww
-  UBC[4] = UBC[0]*E
+  UBC[4] = rhoE
   return UBC
 
 def incompwall_bc(Ue,UBC,args,main):
@@ -79,6 +79,7 @@ def adiabaticwall_bc(Ue,UBC,args,main):
   #T = p/(Ue[0]*main.gas.R) #extraplate temperature (zero heat flux)
   T = 1./Cv*(Ue[4]/Ue[0] - 0.5/Ue[0]**2*( Ue[1]**2 + Ue[2]**2 + Ue[3]**2 ) ) #extraplate temperature (zero heat flux)
   E = Cv*T  + 0.5*(uw**2 + vw**2 + ww**2) #wall velocity is zero
+
   p = (gamma - 1.)*E  #compute pressure at wall using extrapolate temp 
   #p = rho R T
   UBC[0] = p/(R*T)

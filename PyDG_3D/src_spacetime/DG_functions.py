@@ -13,13 +13,6 @@ import numexpr as ne
 import time
 
 def addSource(main):
-#  main.a.Upx,main.a.Upy,main.a.Upz = main.basis.diffU(main.a.a,main)
-#  force = np.zeros(np.shape(main.iFlux.fx))
-#  force[3] =  main.a.Upx[0]**2 + main.a.Upy[1]**2 + main.a.Upz[2]**2 + 2.*main.a.Upy[0]*main.a.Upx[1] + 2.*main.a.Upz[0]*main.a.Upx[2] + 2.*main.a.Upz[1]*main.a.Upy[2]
-#  #force[3] = main.a.Upx[0] + main.a.Upy[1] + main.a.Upz[2]
-#  vol_int = main.basis.volIntegrateGlob(main,force,main.w0,main.w1,main.w2,main.w3)*scale[None,:,:,:,:,None,None,None,None]
-#  tmp[3] += vol_int[3]
-#  #f =  main.a.Upx[0]**2 + main.a.Upy[1]**2 + main.a.Upz[2]**2 + 2.*main.a.Upy[0]*main.a.Upx[1] + 2.*main.a.Upz[0]*main.a.Upx[2] + 2.*main.a.Upz[1]*main.a.Upy[2]
   if (main.fsource):
     force = np.zeros(np.shape(main.iFlux.fx))
 #    #sources = main.cgas_field.net_production_rates[:,:]*main.cgas_field.molecular_weights[None,:]

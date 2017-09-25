@@ -46,7 +46,7 @@ def newtonSolver(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadratu
     loc_tol = 0.1*Rstar_glob/Rstar_glob0
     PC_iteration = 0
     PC_args = [1,loc_tol,PC_iteration]
-    sol = linear_solver.solve(MF_Jacobian, -Rstarn.flatten(), old.flatten(),main_coarse,MF_Jacobian_args,PC,PC_args,loc_tol,linear_solver.maxiter_outer,20,False)
+    sol = linear_solver.solve(MF_Jacobian, -Rstarn.flatten(), old.flatten(),main_coarse,MF_Jacobian_args,PC,PC_args,loc_tol,1,20,False)
     main.a.a[:] = an[:] + 1.0*np.reshape(sol,np.shape(main.a.a))
     an[:] = main.a.a[:]
     Rstarn,Rn,Rstar_glob = unsteadyResidual(main.a.a)
@@ -298,7 +298,7 @@ def psuedoTimeSolver(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quad
 
 
 
-def newtonSolver_MG(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadrature,eqns,PC=None):
+def newtonSolver_MG2(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadrature,eqns,PC=None):
   n_levels =  main.mg_args[0]#int( np.log(np.amax(main.order))/np.log(2))  
   coarsen = np.int32(2**np.linspace(0,n_levels-1,n_levels))
   mg_classes = []
@@ -382,4 +382,98 @@ def newtonSolver_MG(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadr
       sys.stdout.write('NL iteration = ' + str(NLiter) + '  NL residual = ' + str(Rstar_glob) + ' relative decrease = ' + str(Rstar_glob/Rstar_glob0) + ' Solve time = ' + str(time.time() - ts)  + '\n')
       sys.stdout.flush()
   np.savez('resid_history',resid=resid_hist,t=t_hist)
+
+
+
+def newtonSolver_MG(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadrature,eqns,PC=None):
+  n_levels =  main.mg_args[0]#int( np.log(np.amax(main.order))/np.log(2))  
+  coarsen = np.int32(2**np.linspace(0,n_levels-1,n_levels))
+  #coarsen = np.linspace(0,n_levels-1,n_levels)
+  mg_classes = []
+  mg_Rn = []
+  mg_an = []
+  #eqns2 = equations('Navier-Stokes',('roe','Inviscid'),'DNS')
+  mg_b = []
+  mg_e = []
+  iterations = main.mg_args[1]
+  omega = main.mg_args[2]
+  def newtonHook(main,mg_classes,mg_Rn,mg_an):
+    for i in range(0,n_levels):
+      order_coarsen = np.fmax(main.order/coarsen[i],1)
+      #order_coarsen = np.int32(np.fmax(main.order-coarsen[i],1))
+#      order_coarsen[-1] = main.order[-1]
+      mg_classes[i].a.a[:] = main.a.a[:,0:order_coarsen[0],0:order_coarsen[1],0:order_coarsen[2],0:order_coarsen[3]]
+      mg_classes[i].getRHS(mg_classes[i],mg_classes[i],eqns)
+      mg_Rn[i][:] = mg_classes[i].RHS[:]
+      mg_an[i][:] = mg_classes[i].a.a[:]
+      mg_e[i][:] = 0. 
+
+  def mv_resid(MF_Jacobian,args,main,v,b):
+    return b - MF_Jacobian(v,args,main)
+  Rstarn,Rn,Rstar_glob = unsteadyResidual(main.a.a)
+  NLiter = 0
+  an = np.zeros(np.shape(main.a0))
+  an[:] = main.a0[:]
+  Rstar_glob0 = Rstar_glob*1.
+  old = np.zeros(np.shape(main.a.a))
+  tnls = time.time()
+  resid_hist = np.zeros(0)
+  t_hist = np.zeros(0)
+
+  mg_classes = main.mg_classes 
+  mg_Rn = main.mg_Rn 
+  mg_an =main.mg_an 
+  mg_b = main.mg_b
+  mg_e = main.mg_e
+
+  while (Rstar_glob >= 1e-8 and Rstar_glob/Rstar_glob0 > 1e-8):
+    NLiter += 1
+    ts = time.time()
+    old[:] = 0.
+    newtonHook(main,mg_classes,mg_Rn,mg_an)
+    mg_b[0][:] = -Rstarn
+    loc_tol = 1e-6
+    loc_tol = 0.1*Rstar_glob/Rstar_glob0
+    for j in range(0,n_levels-1):
+      order_coarsen = np.int32(np.fmax(main.order/coarsen[j+1],1))
+      #order_coarsen = np.int32(np.fmax(main.order-coarsen[j+1],1))
+
+      mg_b[j+1]= mg_b[0][:,0:order_coarsen[0],0:order_coarsen[1],0:order_coarsen[2],0:order_coarsen[3]]
+      mg_b[j+1]= mg_b[0][:,0:order_coarsen[0],0:order_coarsen[1],0:order_coarsen[2],0:order_coarsen[3]]
+    for i in range(0,1):
+      for j in range(n_levels-1,n_levels):
+        print(j)
+        MF_Jacobian_args = [mg_an[j],mg_Rn[j]]
+        PC_iteration = 0
+        PC_args = [omega[j],loc_tol,PC_iteration]
+        mg_e[j][:] = linear_solver.solve(MF_Jacobian,mg_b[j].flatten(),np.zeros(np.size(mg_b[j])),mg_classes[j],MF_Jacobian_args,PC,PC_args,tol=1e-8,maxiter_outer=100,maxiter=20,printnorm=0)
+        Resid  =  np.reshape( mv_resid(MF_Jacobian,MF_Jacobian_args,mg_classes[j],mg_e[j],mg_b[j].flatten()) , np.shape(mg_classes[j].a.a ) )
+      for j in range(n_levels-2,-1,-1):
+        print(j)
+        order_coarsen = np.int32(np.fmax(main.order/coarsen[j+1],1))
+        #order_coarsen = np.int32(np.fmax(main.order-coarsen[j+1],1))
+
+        etmp = np.reshape(mg_e[j][:],np.shape(mg_classes[j].a.a))
+        etmp[:,0:order_coarsen[0],0:order_coarsen[1],0:order_coarsen[2],0:order_coarsen[3]] += np.reshape(mg_e[j+1],np.shape(mg_classes[j+1].a.a))
+        MF_Jacobian_args = [mg_an[j],mg_Rn[j]]
+        PC_iteration = 0
+        PC_args = [omega[j],loc_tol,PC_iteration]
+        mg_e[j][:] = linear_solver.solve(MF_Jacobian,mg_b[j].flatten(),etmp.flatten(),mg_classes[j],MF_Jacobian_args,PC,PC_args,tol=1e-8,maxiter_outer=1000,maxiter=20,printnorm=0)
+   
+
+    alpha = 1. 
+    main.a.a[:] = an[:] + alpha*np.reshape(mg_e[0],np.shape(main.a.a))
+    Rstar_glob_p = Rstar_glob*1.
+    Rstarn,Rn,Rstar_glob = unsteadyResidual(main.a.a)
+#    if (Rstar_glob/Rstar_glob_p <
+    an[:] = main.a.a[:]
+    Rstarn,Rn,Rstar_glob = unsteadyResidual(main.a.a)
+    resid_hist = np.append(resid_hist,Rstar_glob)
+    t_hist = np.append(t_hist,time.time() - tnls)
+
+    if (main.mpi_rank == 0):
+      sys.stdout.write('NL iteration = ' + str(NLiter) + '  NL residual = ' + str(Rstar_glob) + ' relative decrease = ' + str(Rstar_glob/Rstar_glob0) + ' Solve time = ' + str(time.time() - ts)  + '\n')
+      sys.stdout.flush()
+  np.savez('resid_history',resid=resid_hist,t=t_hist)
+
 
