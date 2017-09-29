@@ -8,9 +8,7 @@ def evalFluxXEuler_reacting(main,u,f,args):
   #f = np.zeros(np.shape(u))
   es = 1.e-30
   gamma = 1.4
-  #p = (main.a.gamma_star - 1.)*(u[4] - 0.5*u[1]**2/u[0] - 0.5*u[2]**2/u[0] - 0.5*u[3]**2/u[0])
-  #p,T = computePressure_and_Temperature_Cantera(main,u,main.cgas_field)
-  p = main.a.p
+  p = computePressure_CPG(main,u)
   f[0] = u[1]
   f[1] = u[1]*u[1]/(u[0]) + p
   f[2] = u[1]*u[2]/(u[0])
@@ -24,9 +22,7 @@ def evalFluxXEuler_reacting(main,u,f,args):
 def evalFluxYEuler_reacting(main,u,f,args):
   #f = np.zeros(np.shape(u))
   gamma = 1.4
-  #p = (main.a.gamma_star - 1.)*(u[4] - 0.5*u[1]**2/u[0] - 0.5*u[2]**2/u[0] - 0.5*u[3]**2/u[0])
-#  p,T = computePressure_and_Temperature_Cantera(main,u,main.cgas_field)
-  p = main.a.p
+  p = computePressure_CPG(main,u)
   f[0] = u[2]
   f[1] = u[1]*u[2]/u[0]
   f[2] = u[2]*u[2]/u[0] + p
@@ -42,9 +38,7 @@ def evalFluxYEuler_reacting(main,u,f,args):
 def evalFluxZEuler_reacting(main,u,f,args):
   #f = np.zeros(np.shape(u))
   gamma = 1.4
-  #p = (main.a.gamma_star - 1.)*(u[4] - 0.5*u[1]**2/u[0] - 0.5*u[2]**2/u[0] - 0.5*u[3]**2/u[0])
-#  p,T = computePressure_and_Temperature_Cantera(main,u,main.cgas_field)
-  p = main.a.p
+  p = computePressure_CPG(main,u)
   f[0] = u[3]
   f[1] = u[1]*u[3]/u[0]
   f[2] = u[2]*u[3]/u[0] 
@@ -62,7 +56,7 @@ def evalFluxZEuler_reacting(main,u,f,args):
 #== rusanov flux
 #== Roe flux
 
-def eulerCentralFlux_reacting(main,UL,UR,pL,pR,n,args=None):
+def eulerCentralFlux_reacting(F,main,UL,UR,n,args=None):
 # PURPOSE: This function calculates the flux for the Euler equations
 # using the Roe flux function
 #
@@ -84,9 +78,7 @@ def eulerCentralFlux_reacting(main,UL,UR,pL,pR,n,args=None):
   unL = uL*n[0] + vL*n[1] + wL*n[2]
 
   qL = np.sqrt(UL[1]*UL[1] + UL[2]*UL[2] + UL[3]*UL[3])/rL
-  #pL,TL = computePressure_and_Temperature_Cantera(main,UL,cgas_field)
-
-  #pL = (gamma-1)*(UL[4] - 0.5*rL*qL**2.)
+  pL = computePressure_CPG(main,UL)
   rHL = UL[4] + pL
   HL = rHL/rL
   # left flux
@@ -104,9 +96,7 @@ def eulerCentralFlux_reacting(main,UL,UR,pL,pR,n,args=None):
   wR = UR[3]/rR
   unR = uR*n[0] + vR*n[1] + wR*n[2]
   qR = np.sqrt(UR[1]*UR[1] + UR[2]*UR[2] + UR[3]*UR[3])/rR
-  #pR,TR = computePressure_and_Temperature_Cantera(main,UR,cgas_field)
-
-  #pR = (gamma-1)*(UR[4] - 0.5*rR*qR**2.)
+  pR = computePressure_CPG(main,UR)
   rHR = UR[4] + pR
   HR = rHR/rR
   # right flux
@@ -116,7 +106,6 @@ def eulerCentralFlux_reacting(main,UL,UR,pL,pR,n,args=None):
   FR[2] = UR[2]*unR + pR*n[1]
   FR[3] = UR[3]*unR + pR*n[2]
   FR[4] = rHR*unR
-  F = np.zeros(np.shape(FL))  # for allocation
   F[0]    = 0.5*(FL[0]+FR[0])#-0.5*smax*(UR[0] - UL[0])
   F[1]    = 0.5*(FL[1]+FR[1])#-0.5*smax*(UR[1] - UL[1])
   F[2]    = 0.5*(FL[2]+FR[2])#-0.5*smax*(UR[2] - UL[2])
@@ -131,7 +120,7 @@ def eulerCentralFlux_reacting(main,UL,UR,pL,pR,n,args=None):
   return F
 
 
-def rusanovFlux_reacting(main,UL,UR,pL,pR,n,args=None):
+def rusanovFlux_reacting(F,main,UL,UR,n,args=None):
 # PURPOSE: This function calculates the flux for the Euler equations
 # using the Roe flux function
 #
@@ -222,7 +211,6 @@ def rusanovFlux_reacting(main,UL,UR,pL,pR,n,args=None):
   smax = np.abs(ucp) + np.abs(cR)
   #smax = np.maximum(np.abs(l[0]),np.abs(l[1]))
   # flux assembly
-  F = np.zeros(np.shape(FL))  # for allocation
   F[0]    = 0.5*(FL[0]+FR[0])-0.5*smax*(UR[0] - UL[0])
   F[1]    = 0.5*(FL[1]+FR[1])-0.5*smax*(UR[1] - UL[1])
   F[2]    = 0.5*(FL[2]+FR[2])-0.5*smax*(UR[2] - UL[2])
@@ -250,7 +238,7 @@ def rusanovFlux_reacting(main,UL,UR,pL,pR,n,args=None):
                
 
 
-def HLLCFlux_reacting(main,UL,UR,pL,pR,n,args=None):
+def HLLCFlux_reacting(F,main,UL,UR,n,args=None):
 
   #process left state
 #  R = 8314.4621/1000.
@@ -276,6 +264,7 @@ def HLLCFlux_reacting(main,UL,UR,pL,pR,n,args=None):
   uL = UL[1]/rhoL
   vL = UL[2]/rhoL
   wL = UL[3]/rhoL
+  pL = computePressure_CPG(main,UL)
   rHL = UL[4] + pL
   HL = rHL/rhoL
   unL = uL*n[0] + vL*n[1] + wL*n[2]
@@ -284,6 +273,7 @@ def HLLCFlux_reacting(main,UL,UR,pL,pR,n,args=None):
   uR = UR[1]/rhoR
   vR = UR[2]/rhoR
   wR = UR[3]/rhoR
+  pR = computePressure_CPG(main,UR)
   rHR = UR[4] + pR
   HR = rHR/rhoR
   unR = uR*n[0] + vR*n[1] + wR*n[2]
@@ -991,7 +981,7 @@ def HLLCFlux_reacting_doubleflux2(main,UL,UR,pL,pR,rh0,gamma_star,n,args=None):
   return F
 
 
-def HLLEFlux_reacting(main,UL,UR,pL,pR,n,args=None):
+def HLLEFlux_reacting(F,main,UL,UR,n,args=None):
 # PURPOSE: This function calculates the flux for the Euler equations
 # using the Roe flux function
 #
@@ -1015,9 +1005,7 @@ def HLLEFlux_reacting(main,UL,UR,pL,pR,n,args=None):
   unL = uL*n[0] + vL*n[1] + wL*n[2]
 
   qL = np.sqrt(UL[1]*UL[1] + UL[2]*UL[2] + UL[3]*UL[3])/rL
-  #pL = (gamma-1)*(UL[4] - 0.5*rL*qL**2.)
-  #pL,TL = computePressure_and_Temperature_Cantera(main,UL,cgas_field)
-  #pL,TL = computePressure_and_Temperature(main,UL)
+  pL = computePressure_CPG(main,UL)
 
   rHL = UL[4] + pL
   HL = rHL/rL
@@ -1037,10 +1025,7 @@ def HLLEFlux_reacting(main,UL,UR,pL,pR,n,args=None):
   wR = UR[3]/rR
   unR = uR*n[0] + vR*n[1] + wR*n[2]
   qR = np.sqrt(UR[1]*UR[1] + UR[2]*UR[2] + UR[3]*UR[3])/rR
-  #pR = (gamma-1)*(UR[4] - 0.5*rR*qR**2.)
-  #pR,TR = computePressure_and_Temperature_Cantera(main,UR,cgas_field)
-  #pR,TR = computePressure_and_Temperature(main,UR)
-
+  pR = computePressure_CPG(main,UR)
   rHR = UR[4] + pR
   HR = rHR/rR
   cR = np.sqrt(gamma*pR/rR)
@@ -1074,7 +1059,6 @@ def HLLEFlux_reacting(main,UL,UR,pL,pR,n,args=None):
   #print(np.mean(smax)*main.dt*main.order[0]/main.dx/main.order[-1])
   #print((gammaL))#,np.amax(gammaL))
   # flux assembly
-  F = np.zeros(np.shape(FL))  # for allocation
   F[0]    = 0.5*(FL[0]+FR[0])-term1*(FR[0] - FL[0]) + term2*(UR[0] - UL[0])
   #Ystar = np.zeros(np.shape(F[5::]))
   #Ystar[:,F[0]<0] = UR[5::,F[0]<0]/UR[None,0,F[0]<0]
