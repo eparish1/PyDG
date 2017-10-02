@@ -15,8 +15,8 @@ import time
 
 def addSource(main):
   if (main.fsource):
-    rates = getNetProductionRates(main,main.a.u,main.W)
-    print(np.shape(rates),np.shape(main.a.u))
+#    rates = getNetProductionRates(main,main.a.u,main.W)
+#    print(np.shape(rates),np.shape(main.a.u))
     force = np.zeros(np.shape(main.iFlux.fx))
 #    #sources = main.cgas_field.net_production_rates[:,:]*main.cgas_field.molecular_weights[None,:]
 #    #main.source_hook(main,force)

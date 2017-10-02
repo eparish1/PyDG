@@ -58,9 +58,9 @@ def Jacobi(Af,b,x0,main,args,PC,PCargs,tol=1e-9,maxiter_outer=1,maxiter=20,print
   x[:] = x0[:]
   k = 0
   r = b - Af(x,args,main)
+  x[:] = x0[:]
   rnorm = globalNorm(r,main) #same across procs
   rnorm0 = rnorm*1.
-  maxiter = 500
   #print(omega,maxiter,np.shape(main.a.a))
   while(rnorm/rnorm0 >= tol and  k < maxiter and rnorm > 1e-9):
     r = PC(r,main,PCargs)
@@ -353,32 +353,34 @@ def operatorSplitting(Af,b,f0,main,MF_args,PC,PCargs,tol=1e-9,maxiter_outer=1,ma
 
 
 
-def rungeKutta(Af, b, x0,main,args,PC=None,PCargs=None,tol=1e-9,maxiter_outer=1,maxiter=20,printnorm=0):
-     dt = 0.0001
+def rungeKutta(Af,b,x0,main,args,PC,PCargs,tol=1e-9,maxiter_outer=1,maxiter=20,printnorm=0):
+     tau = -0.015
      r = b - Af(x0,args,main)
      rnorm = globalNorm(r,main) #same across procs
+     rnorm_old = rnorm*1.
      iteration = 0
      rk4const = np.array([0.15,1.0])
-     a0 = np.zeros(np.shape(x0))
-     a = np.zeros(np.shape(x0))
-     a0[:] = x0[:]
-     a[:] = x0[:]
-     print_freq = 5
-     while( rnorm > 1e-9 and iteration <= 50):
-       a0[:] = a[:]
-
-       for i in range(0,np.size(rk4const) ):
-         r = b - Af(a,args,main)
-         rnorm_old = rnorm*1.
-         rnorm = globalNorm(r,main) 
-         dt = dt*np.fmin(rnorm_old/rnorm,1.001)
-         #dt = dt*rnorm_old/rnorm
-         a[:] = a0[:] - dt*rk4const[i]*r
+     x = np.zeros(np.shape(x0))
+     x[:] = x0[:]
+     print_freq = 500
+     while( rnorm > 1e-9 and iteration <= maxiter):
+       x0[:] = x[:]
+       gamma1 = -1.
+       gamma2 = -1./3.
+       v0 = tau*r
+       x1 = x0 - gamma1*v0
+       v1 = -tau*Af(v0,args,main)
+       x = x1 - gamma2*v1
+       r = b - Af(x,args,main)
+       rnorm = globalNorm(r,main) 
+       #tau = tau*np.fmin(rnorm_old/rnorm,1.001)
+       rnorm_old = rnorm*1.
        iteration += 1
        if (main.mpi_rank == 0 and iteration%print_freq == 0):# and printnorm == 1):
-         sys.stdout.write(' Iteration = ' + str(iteration) + ' Runge Kutta error = ' + str(rnorm) + ' tau = ' + str(dt) +  '\n')
-     sys.stdout.write(' ================================== ' +  '\n')
-     return a
+         sys.stdout.write(' Iteration = ' + str(iteration) + ' Runge Kutta error = ' + str(rnorm) + ' tau = ' + str(tau) +  '\n')
+     if (main.mpi_rank == 0 and printnorm == 1):
+       sys.stdout.write(' ================================== ' +  '\n')
+     return x
 
 def GMRes(Af, b, x0,main,args,PC=None,PCargs=None,tol=1e-9,maxiter_outer=1,maxiter=20,printnorm=0):
     k_outer = 0

@@ -12,6 +12,10 @@ class timeschemes:
       check_t = 0
       self.advanceSol = ExplicitRK4
       self.args = None
+    if (time_str == 'ExplicitRK2'):
+      check_t = 0
+      self.advanceSol = ExplicitRK2
+      self.args = None
     if (time_str == 'SSP_RK3'):
       check_t = 0
       self.advanceSol = SSP_RK3
@@ -160,7 +164,11 @@ class nonlinearSolver:
       self.rtol=rtol
       self.printnorm = printnorm
     if (SolverType == 'pseudoTime'):
-      self.solve = psuedoTimeSolver
+      self.solve = pseudoTimeSolver
+      self.rtol=rtol
+      self.printnorm = printnorm
+    if (SolverType == 'pseudoTime_MG'):
+      self.solve = pseudoTimeSolver_MG
       self.rtol=rtol
       self.printnorm = printnorm
 

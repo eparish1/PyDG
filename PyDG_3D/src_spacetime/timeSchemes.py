@@ -130,7 +130,7 @@ def spaceTime(main,MZ,eqns,args=None):
     volint_t = main.basis.volIntegrateGlob(main,main.a.u[:]*main.Jdet[None,:,:,:,None,:,:,:,None],main.w0,main.w1,main.w2,main.wp3)*2./main.dt
     uFuture,uPast = main.basis.reconstructEdgesGeneralTime(main.a.a,main)
     futureFlux = main.basis.faceIntegrateGlob(main,uFuture*main.Jdet[None,:,:,:,:,:,:,None],main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
-    Rstar = volint_t - (futureFlux[:,:,:,:,None])*2./main.dt + main.RHS[:]
+    Rstar = volint_t - (futureFlux[:,:,:,:,None])*2./main.dt + R1[:]
     main.basis.applyMassMatrix(main,Rstar)
     Rstar_glob = gatherResid(Rstar,main)
     return Rstar,R1,Rstar_glob
@@ -140,7 +140,7 @@ def spaceTime(main,MZ,eqns,args=None):
     an = args[0]
     Rn = args[1]
     vr = np.reshape(v,np.shape(main.a.a))
-    eps = 5.e-5
+    eps = 5.e-3
     main.a.a[:] = an + eps*vr
     getRHS_element(main,main,eqns)
     R1 = np.zeros(np.shape(main.RHS))
@@ -202,14 +202,14 @@ def spaceTime(main,MZ,eqns,args=None):
 #  J = computeBlockJacobian(main,unsteadyResidual_element) #get the Jacobian
 #  J2 = np.zeros(np.shape(J))
 #  J2[:] = J[:]
-
+#  main.J = J
   def create_Dinv2(f,main,args=None):
     ff = np.reshape(f*1.,np.shape(main.a.a))
     main.basis.applyMassMatrix(main,ff)
     return ff.flatten()
 
 
-  def create_Dinv2(fs,main,args=None):
+  def create_Dinv(fs,main,args=None):
     f = np.zeros(np.shape(fs))
     f[:] = fs[:]
     #if (args[2]%100 == 0):
@@ -226,7 +226,7 @@ def spaceTime(main,MZ,eqns,args=None):
     #main.basis.applyMassMatrix(main,f)
     return f.flatten()
 
-  def create_Dinv(f,main,args):
+  def create_Dinv2(f,main,args):
     tol = args[1]
     a0 = np.zeros(np.shape(main.a.a))
     a0[:] = main.a.a[:]
@@ -246,11 +246,11 @@ def spaceTime(main,MZ,eqns,args=None):
     #ff = np.reshape(ferror,np.shape(main.a.a))
     #ferror = GMRes_element(create_MF_Jacobian_element2, f0r2 - np.reshape(Rstarn_pc,np.shape(f0r2)), -np.reshape(a0,np.shape(f0r2)),main,MF_Jacobian_args2,None,None,1e-10,1,500,False)
     #ff = a0 + np.reshape(ferror,np.shape(main.a.a))
-    ferror = GMRes_element(create_MF_Jacobian_element2, f0r2, -np.reshape(a0,np.shape(f0r2))*0.,main,MF_Jacobian_args2,None,None,tol,1e-10,200,False)
+    ferror = GMRes_element(create_MF_Jacobian_element2, f0r2, -np.reshape(a0,np.shape(f0r2))*0.,main,MF_Jacobian_args2,None,None,1e-10,1,50,False)
     ff = np.reshape(ferror,np.shape(main.a.a))
     return ff.flatten()
 
-  def unsteadyResidual(v):
+  def unsteadyResidual(main,v):
     main.a.a[:] = np.reshape(v*1.,np.shape(main.a.a))
     eqns.getRHS(main,main,eqns)
     R1 = np.zeros(np.shape(main.RHS))
@@ -278,7 +278,7 @@ def spaceTime(main,MZ,eqns,args=None):
     Rn = args[1]
     #print(np.linalg.norm(JinvX))
     vr = np.reshape(v,np.shape(main.a.a))
-    eps = 5.e-2
+    eps = 5.e-5
 #    Rstar0,R10,Rstar_glob0 = unsteadyResidual(main,an)
 #    Rstar1,R11,Rstar_glob1 = unsteadyResidual(main,an+eps*vr*1.)
 #    Av = 1./eps*(Rstar1 - Rstar0)
@@ -1302,6 +1302,19 @@ def SSP_RK3_DOUBLEFLUX(main,MZ,eqns,args=None):
   main.iteration += 1
   #limiter_characteristic(main)
 
+def ExplicitRK2(main,MZ,eqns,args=None):
+  main.a0[:] = main.a.a[:]
+  rk4const = np.array([1./2,1.])
+  for i in range(0,2):
+    main.rkstage = i
+    main.getRHS(main,MZ,eqns)  ## put RHS in a array since we don't need it
+    main.basis.applyMassMatrix(main,main.RHS) 
+    main.a.a[:] = main.a0 + main.dt*rk4const[i]*main.RHS
+    #limiter_MF(main)
+  main.t += main.dt
+  main.iteration += 1
+
+
  
 def ExplicitRK4(main,MZ,eqns,args=None):
   main.a0[:] = main.a.a[:]
@@ -1417,7 +1430,7 @@ def CrankNicolsonIncomp(main,MZ,eqns,args):
   eqns.getRHS(main,main,eqns)
   R0 = np.zeros(np.shape(main.RHS))
   R0[:] = main.RHS[:]
-  def unsteadyResidual(v):
+  def unsteadyResidual(main,v):
     main.a.a[:] = np.reshape(v,np.shape(main.a.a))
     eqns.getRHS(main,main,eqns)
     R1 = np.zeros(np.shape(main.RHS))
@@ -1646,7 +1659,7 @@ def CrankNicolson(main,MZ,eqns,args):
   eqns.getRHS(main,main,eqns)
   R0 = np.zeros(np.shape(main.RHS))
   R0[:] = main.RHS[:]
-  def unsteadyResidual(v):
+  def unsteadyResidual(main,v):
     main.a.a[:] = np.reshape(v,np.shape(main.a.a))
     eqns.getRHS(main,main,eqns)
     R1 = np.zeros(np.shape(main.RHS))
@@ -1662,7 +1675,7 @@ def CrankNicolson(main,MZ,eqns,args):
     an = args[0]
     Rn = args[1]
     vr = np.reshape(v,np.shape(main.a.a))
-    eps = 5.e-2
+    eps = 5.e-7
     main.a.a[:] = an + eps*vr
     eqns.getRHS(main,main,eqns)
     RHS_CN = np.zeros(np.shape(main.RHS))

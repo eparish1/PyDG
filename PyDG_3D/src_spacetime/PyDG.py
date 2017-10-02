@@ -198,21 +198,21 @@ def entropy_to_conservative(V):
   return U
 
 mg_levels =  2#int( np.log(np.amax(main.order))/np.log(2))  
-coarsen = np.int32(2**np.linspace(0,mg_levels-1,mg_levels))
-#coarsen = np.linspace(0,mg_levels-1,mg_levels)
+#coarsen = np.int32(2**np.linspace(0,mg_levels-1,mg_levels))
+coarsen = np.linspace(0,mg_levels-1,mg_levels)
 main.mg_classes = []
 main.mg_Rn = []
 main.mg_an = []
 main.mg_b = []
 main.mg_e = []
-mg_iterations = np.array([10,20,30,70])
+mg_iterations = np.array([5,10,15,20])
 mg_omega = np.array([1.,1.,1.,0.8])
 main.mg_args = [mg_levels,mg_iterations,mg_omega]
 for i in range(0,mg_levels):
-  order_coarsen = np.int32(np.fmax(main.order/coarsen[i],1))
-#  order_coarsen = np.int32(np.fmax(main.order-coarsen[i],1))
-  quadpoints_coarsen = np.int32(np.fmax(main.quadpoints/(coarsen[i]),1))
-#  quadpoints_coarsen = np.int32(np.fmax(main.quadpoints-(coarsen[i]),1))
+#  order_coarsen = np.int32(np.fmax(main.order/coarsen[i],1))
+  order_coarsen = np.int32(np.fmax(main.order-coarsen[i],1))
+#  quadpoints_coarsen = np.int32(np.fmax(main.quadpoints/(coarsen[i]),1))
+  quadpoints_coarsen = np.int32(np.fmax(main.quadpoints-(coarsen[i]),1))
 
   main.mg_classes.append( variables(main.Nel,order_coarsen,quadpoints_coarsen,eqns,main.mus,main.x,main.y,main.z,main.t,main.et,main.dt,main.iteration,main.save_freq,'DNS',main.procx,main.procy,main.BCs,main.fsource,main.source_mag,main.shock_capturing,main.mol_str,main.basis_args) )
   main.mg_classes[i].basis = main.basis
