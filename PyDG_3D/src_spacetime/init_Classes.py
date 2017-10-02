@@ -212,7 +212,6 @@ class variables:
 
 
     #xtmp,ytmp,ztmp = np.meshgrid(xG,yG,zG,indexing='ij')
-    print(np.shape(y))
     self.x,self.y,self.z = x,y,z
 
     Xtmp = np.zeros((3,Nel[0]+1,Nel[1]+1,Nel[2]+1))

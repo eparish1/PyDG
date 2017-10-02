@@ -18,7 +18,6 @@ from scipy.optimize.nonlin import InverseJacobian
 from scipy.optimize.nonlin import BroydenFirst, KrylovJacobian
 from eos_functions import *
 import time
-from pylab import *
 from tensor_products import diffCoeffs
 from jacobian_schemes import *
 def gatherResid(Rstar,main):

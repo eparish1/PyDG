@@ -8,7 +8,6 @@ from bfer_mechanism import *
 from eos_functions import *
 from tensor_products import *
 from chemistry_values import *
-import matplotlib.pyplot as plt
 from smagorinsky import *
 import numexpr as ne
 import time
