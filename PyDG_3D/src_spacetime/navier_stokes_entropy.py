@@ -4,7 +4,10 @@ import numpy as np
 
 ## Mappings between entropy variables (V) and conservative variables (U)
 def dUdV(V):
-  sz = np.shape(V[0])
+  u = entropy_to_conservative(V)
+  gamma = 1.4
+  p = (gamma - 1.)*(u[4] - 0.5*u[1]**2/u[0] - 0.5*u[2]**2/u[0] - 0.5*u[3]**2/u[0])
+  sz = np.shape(V)
   sz = np.append(5,sz)
   A0 = np.zeros(sz)
   gamma = 1.4
@@ -15,15 +18,14 @@ def dUdV(V):
   k4 = k2 - gamma_bar
   k5 = k2**2 - gamma_bar*(k1 + k2)	
   c1 = gamma_bar*V[4] - V[1]**2
-  c2 = vamma_bar*V[4] - V[2]**2
-  c3 = vamma_bar*V[4] - V[3]**2
+  c2 = gamma_bar*V[4] - V[2]**2
+  c3 = gamma_bar*V[4] - V[3]**2
   d1 = -V[1]*V[2]
   d2 = -V[1]*V[3]
   d3 = -V[2]*V[3]
   e1 = V[1]*V[4]
   e2 = V[2]*V[4]
   e3 = V[3]*V[4]
-
   A0[0,0] = -V[4]**2
   A0[0,1] = e1
   A0[0,2] = e2
@@ -34,20 +36,20 @@ def dUdV(V):
   A0[1,2] = d1
   A0[1,3] = d2
   A0[1,4] = V[1]*k2
-  A0[2,0] = A[0,2]
-  A0[2,1] = A[1,2]
+  A0[2,0] = A0[0,2]
+  A0[2,1] = A0[1,2]
   A0[2,2] = c2
   A0[2,3] = d3
   A0[2,4] = V[2]*k2
-  A0[3,0] = A[0,3]
-  A0[3,1] = A[1,3]
-  A0[3,2] = A[2,3]
+  A0[3,0] = A0[0,3]
+  A0[3,1] = A0[1,3]
+  A0[3,2] = A0[2,3]
   A0[3,3] = c3
   A0[3,4] = V[3]*k2
-  A0[4,0] = A[0,4]
-  A0[4,1] = A[1,4]
-  A0[4,2] = A[2,4]
-  A0[4,3] = A[3,4]
+  A0[4,0] = A0[0,4]
+  A0[4,1] = A0[1,4]
+  A0[4,2] = A0[2,4]
+  A0[4,3] = A0[3,4]
   A0[4,4] = -k3
   return A0 * p / ( gamma_bar**2 * V[4] )
 
@@ -165,7 +167,7 @@ def evalFluxZEulerEntropy(main,v,f,args):
 #== rusanov flux
 #== Roe flux
 
-def eulerCentralFluxEntropy(main,VL,VR,pL,pR,n,args=None):
+def eulerCentralFluxEntropy(F,main,VL,VR,n,args=None):
 # PURPOSE: This function calculates the flux for the Euler equations
 # using the Roe flux function
 #
@@ -222,7 +224,6 @@ def eulerCentralFluxEntropy(main,VL,VR,pL,pR,n,args=None):
   FR[2] = UR[2]*unR + pR*n[1]
   FR[3] = UR[3]*unR + pR*n[2]
   FR[4] = rHR*unR
-  F = np.zeros(np.shape(FL))  # for allocation
   F[0]    = 0.5*(FL[0]+FR[0])#-0.5*smax*(UR[0] - UL[0])
   F[1]    = 0.5*(FL[1]+FR[1])#-0.5*smax*(UR[1] - UL[1])
   F[2]    = 0.5*(FL[2]+FR[2])#-0.5*smax*(UR[2] - UL[2])
@@ -231,7 +232,7 @@ def eulerCentralFluxEntropy(main,VL,VR,pL,pR,n,args=None):
   return F
 
 
-def ismailFluxEntropy(main,VL,VR,pL,pR,n,args=None):
+def ismailFluxEntropy(F,main,VL,VR,n,args=None):
 # PURPOSE: This function calculates the flux for the Euler equations
 # using the ismail flux function
 #
@@ -313,7 +314,6 @@ def ismailFluxEntropy(main,VL,VR,pL,pR,n,args=None):
   Hhat = ahat_sqr/(gamma - 1.) + 0.5*V_sqr
 
   # right flux
-  F = np.zeros(np.shape(UL))  # for allocation
   rhoV_n = rhohat*V_n
   F[0]    = rhoV_n 
   F[1]    = rhoV_n*uhat + p1hat*n[0]
@@ -323,7 +323,7 @@ def ismailFluxEntropy(main,VL,VR,pL,pR,n,args=None):
   return F
 
 
-def rusanovFluxEntropy(main,VL,VR,pL,pR,n,args=None):
+def rusanovFluxEntropy(F,main,VL,VR,n,args=None):
 # PURPOSE: This function calculates the flux for the Euler equations
 # using the Roe flux function
 #
@@ -411,7 +411,6 @@ def rusanovFluxEntropy(main,VL,VR,pL,pR,n,args=None):
   smax = np.abs(ucp) + np.abs(ci)
   #smax = np.maximum(np.abs(l[0]),np.abs(l[1]))
   # flux assembly
-  F = np.zeros(np.shape(FL))  # for allocation
   F[0]    = 0.5*(FL[0]+FR[0])-0.5*smax*(UR[0] - UL[0])
   F[1]    = 0.5*(FL[1]+FR[1])-0.5*smax*(UR[1] - UL[1])
   F[2]    = 0.5*(FL[2]+FR[2])-0.5*smax*(UR[2] - UL[2])
@@ -421,7 +420,7 @@ def rusanovFluxEntropy(main,VL,VR,pL,pR,n,args=None):
                
   
 
-def kfid_roefluxEntropy(main,VL,VR,pL,pR,n,args=None):
+def kfid_roefluxEntropy(F,main,VL,VR,n,args=None):
 # PURPOSE: This function calculates the flux for the Euler equations
 # using the Roe flux function
 #

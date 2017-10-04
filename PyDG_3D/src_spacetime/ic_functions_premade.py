@@ -152,7 +152,7 @@ def vortexICS(x,y,z,main):
 
   rho[:] = T**(1./(gamma - 1.))
   u[:] = 1. + beta/(2.*pi)*np.exp( (1. - r**2)/2.)*-(y - y0)
-  v[:] = 0. +  beta/(2.*pi)*np.exp( (1. - r**2)/2.)*(x - x0)
+  v[:] = 1. +  beta/(2.*pi)*np.exp( (1. - r**2)/2.)*(x - x0)
   E[:] = Cv*T + 0.5*(u**2 + v**2)
   q[0] = rho
   q[1] = rho*u

@@ -347,7 +347,7 @@ def pseudoTimeSolver_MG(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_q
 
 def pseudoTimeSolver(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadrature,eqns,PC=None):
   NLiter = 0
-  tau = 0.005
+  tau = 0.04
   Rstarn,Rn,Rstar_glob = unsteadyResidual(main,main.a.a)
   Rstar_glob0 = Rstar_glob*1. 
 #  rk4const = np.array([1./4,1./3,1./2,1.])
