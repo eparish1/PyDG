@@ -1,17 +1,55 @@
 import numpy as np
-
+from tensor_products import *
 ##### =========== Contains all the fluxes and physics neccesary to solve the Navier-Stokes equations using entropy variables within a DG framework #### ============
-
+## mass matrix for entropy - i.e we have \int w dU(v)/dt d\Omega
+## This function computes the matrix \int w du/dv w'
+def getEntropyMassMatrix(main):
+  def getInnerMassMatrix(main,g):
+    f = main.w0[:,None,None,None,:,None,None,None]*main.w1[None,:,None,None,None,:,None,None]\
+       *main.w2[None,None,:,None,None,None,:,None]*main.w3[None,None,None,:,None,None,None,:]
+    norder = main.order[0]*main.order[1]*main.order[2]*main.order[3]
+    M2 = np.zeros((norder,norder,\
+                  main.Npx,main.Npy,main.Npz,1 ) )
+    count = 0
+    for i in range(0,main.order[0]):
+      for j in range(0,main.order[1]):
+        for k in range(0,main.order[2]):
+          for l in range(0,main.order[3]):
+            #M2[count] =np.reshape( volIntegrateGlob_einsum_2(main,(f*f[i,j,k,l])[None,:,:,:,:,:,:,:,:,None,None,None,None]*main.Jdet[None,None,None,None,None,:,:,:,None,:,:,:,None]) , np.shape(M2[0]))
+            M2[count] =np.reshape( volIntegrateGlob_tensordot(main,g*f[i,j,k,l][None,:,:,:,:,None,None,None,None]*main.Jdet[None,:,:,:,None,:,:,:,None],main.w0,main.w1,main.w2,main.w3) , np.shape(M2[0]))
+            count += 1
+    return M2
+  #=================
+  dudv = mydUdV(main.a.u)
+  norder = main.order[0]*main.order[1]*main.order[2]*main.order[3]
+  M = np.zeros((norder*5,norder*5,main.Npx,main.Npy,main.Npz,main.Npt) )
+  count = 0
+  I = np.eye(5)
+  for i in range(0,5):
+    for j in range(0,5):
+      M[i*norder:(i+1)*norder,j*norder:(j+1)*norder] = getInnerMassMatrix(main,dudv[i,j])
+#  print(np.shape(M))
+#  for i in range(0,main.Npx):
+#    for j in range(0,main.Npy):
+#      print(i,j,np.diag(M[:,:,i,j,0,0]))
+#      Mi = np.linalg.inv(M[:,:,i,j,0,0])
+  #M = np.reshape(M, (5*norder,5*norder,main.Npx,main.Npy,main.Npz,main.Npt))
+  M = np.rollaxis( np.rollaxis(M,1,6),0,5)
+  #print(np.shape(M))
+  M = np.linalg.inv(M)
+  M = np.rollaxis( np.rollaxis(M,4,0),5,1)
+  #print(np.shape(M))
+  return M
 ## Mappings between entropy variables (V) and conservative variables (U)
 def dUdV(V):
   u = entropy_to_conservative(V)
   gamma = 1.4
+  gamma_bar = gamma - 1.
+
   p = (gamma - 1.)*(u[4] - 0.5*u[1]**2/u[0] - 0.5*u[2]**2/u[0] - 0.5*u[3]**2/u[0])
   sz = np.shape(V)
   sz = np.append(5,sz)
   A0 = np.zeros(sz)
-  gamma = 1.4
-  gamma_bar = gamma - 1.
   k1 = 0.5*(V[1]**2 + V[2]**2 + V[3]**2)/V[4]
   k2 = k1 - gamma
   k3 = k1**2 - 2.*gamma*k1 + gamma
@@ -52,6 +90,42 @@ def dUdV(V):
   A0[4,3] = A0[3,4]
   A0[4,4] = -k3
   return A0 * p / ( gamma_bar**2 * V[4] )
+
+def mydUdV(V):
+  U = entropy_to_conservative(V)
+  gamma = 1.4
+  gamma_bar = gamma - 1.
+  es = 1.e-30
+  p = (gamma - 1.)*(U[4] - 0.5*U[1]**2/U[0] - 0.5*U[2]**2/U[0] - 0.5*U[3]**2/U[0])
+  H = (U[4] + p) / U[0]
+  asqr = gamma*p/U[0]
+  sz = np.shape(V)
+  sz = np.append(5,sz)
+  A0 = np.zeros(sz)
+  A0[0,:] = U[:]
+  A0[1,0] = A0[0,1]
+  A0[1,1] = U[1]**2/U[0] + p#U[1]*(1./(V[1]+es) - V[1]/V[4])
+  A0[1,2] = -U[1]*V[2]/V[4]
+  A0[1,3] = -U[1]*V[3]/V[4]
+  A0[1,4] = -U[1]/V[4] - V[1]*U[4]/V[4]
+  A0[2,0] = A0[0,2]
+  A0[2,1] = A0[1,2]
+  A0[2,2] = U[2]**2/U[0] + p#U[2]*(1./(V[2]+es) - V[2]/V[4])
+  A0[2,3] = -U[2]*V[3]/V[4]
+  A0[2,4] = -U[2]/V[4] - V[2]*U[4]/V[4]
+  A0[3,0] = A0[0,3]
+  A0[3,1] = A0[1,3]
+  A0[3,2] = A0[2,3]
+  A0[3,3] = U[3]**2/U[0] + p#U[3]*(1./(V[3]+es) - V[3]/V[4])
+  A0[3,4] = -U[3]/V[4] - V[3]*U[4]/V[4]
+  A0[4,0] = A0[0,4]
+  A0[4,1] = A0[1,4]
+  A0[4,2] = A0[2,4]
+  A0[4,3] = A0[3,4]
+  A0[4,4] = U[0]*H**2 - asqr*p/(gamma - 1.)
+  return A0 
+
+
 
 def dVdU(V):
   sz = np.shape(V[0])
@@ -529,7 +603,7 @@ def kfid_roefluxEntropy(F,main,VL,VR,n,args=None):
   C2    = G1*s2*ci1          + G2*(s1-l3)
 
   # flux assembly
-  F = np.zeros(np.shape(FL))  # for allocation
+  F[:] = 0.
   F[0]    = 0.5*(FL[0]+FR[0])-0.5*(l3*du[0] + C1   )
   F[1]    = 0.5*(FL[1]+FR[1])-0.5*(l3*du[1] + C1*ui + C2*n[0])
   F[2]    = 0.5*(FL[2]+FR[2])-0.5*(l3*du[2] + C1*vi + C2*n[1])

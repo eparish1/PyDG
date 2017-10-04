@@ -20,7 +20,7 @@ from eos_functions import *
 import time
 from tensor_products import diffCoeffs
 from jacobian_schemes import *
-from navier_stokes_entropy import dUdV, entropy_to_conservative
+from navier_stokes_entropy import dUdV, entropy_to_conservative, getEntropyMassMatrix
 def gatherResid(Rstar,main):
   ## Create Global residual
   data = main.comm.gather(np.linalg.norm(Rstar)**2,root = 0)
@@ -1197,6 +1197,38 @@ def limiter(main):
 
 #   main.basis.reconstructU(main,main.a)
 #   u1 = main.a.u*1.
+
+def SSP_RK3_Entropy(main,MZ,eqns,args=None):
+  main.getRHS(main,MZ,eqns)  ## put RHS in a array since we don't need it
+  M = getEntropyMassMatrix(main)
+  a0 = np.zeros(np.shape(main.a.a))
+  a0[:] = main.a.a[:]
+  #main.basis.applyMassMatrix(main,main.RHS)
+  R = np.reshape(main.RHS[:],(main.nvars*main.order[0]*main.order[1]*main.order[2]*main.order[3],main.Npx,main.Npy,main.Npz,main.Npt) )
+  R = np.einsum('ij...,j...->i...',M,R)
+  R = np.reshape(R,np.shape(main.a.a))
+  a1 = main.a.a[:]  + main.dt*(R[:])
+  main.a.a[:] = a1[:]
+  main.getRHS(main,MZ,eqns)
+  M = getEntropyMassMatrix(main)
+  #main.basis.applyMassMatrix(main,main.RHS)
+  R = np.reshape(main.RHS[:],(main.nvars*main.order[0]*main.order[1]*main.order[2]*main.order[3],main.Npx,main.Npy,main.Npz,main.Npt) )
+  R = np.einsum('ij...,j...->i...',M,R)
+  R = np.reshape(R,np.shape(main.a.a))
+  a1[:] = 3./4.*a0 + 1./4.*(a1 + main.dt*R[:]) #reuse a1 vector
+  main.a.a[:] = a1[:]
+
+  main.getRHS(main,MZ,eqns)  ## put RHS in a array since we don't need it
+  M = getEntropyMassMatrix(main)
+  #main.basis.applyMassMatrix(main,main.RHS)
+  R = np.reshape(main.RHS[:],(main.nvars*main.order[0]*main.order[1]*main.order[2]*main.order[3],main.Npx,main.Npy,main.Npz,main.Npt) )
+  R = np.einsum('ij...,j...->i...',M,R)
+  R = np.reshape(R,np.shape(main.a.a))
+  main.a.a[:] = 1./3.*a0 + 2./3.*(a1[:] + main.dt*R[:])
+
+  main.t += main.dt
+  main.iteration += 1
+
  
 def SSP_RK3(main,MZ,eqns,args=None):
   main.getRHS(main,MZ,eqns)  ## put RHS in a array since we don't need it
@@ -1591,7 +1623,11 @@ def CrankNicolsonEntropy(main,MZ,eqns,args):
   R0 = np.zeros(np.shape(main.RHS))
   R0[:] = main.RHS[:]
   U0 = entropy_to_conservative(main.a.u)
+  t0 = time.time()
+  M = getEntropyMassMatrix(main)
+  if (main.mpi_rank == 0): print('MM time = ' + str(time.time() - t0))
   def unsteadyResidual(main,v):
+
     main.a.a[:] = np.reshape(v,np.shape(main.a.a))
     eqns.getRHS(main,main,eqns)
     U = entropy_to_conservative(main.a.u)
@@ -1608,14 +1644,17 @@ def CrankNicolsonEntropy(main,MZ,eqns,args):
     #  dudv_modal[i] = main.basis.volIntegrateGlob(main,dudv[i],main.w0,main.w1,main.w2,main.w3)
     #print(np.shape(dudv),np.shape(Rstar))
     #Rstar = np.einsum('ij...,j...->i...',dudv_modal,Rstar)
-    main.basis.applyMassMatrix(main,Rstar)
+    #main.basis.applyMassMatrix(main,Rstar)
+    Rstar = np.reshape(Rstar,(main.nvars*main.order[0]*main.order[1]*main.order[2]*main.order[3],main.Npx,main.Npy,main.Npz,main.Npt) )
+    Rstar = np.einsum('ij...,j...->i...',M,Rstar)
+    Rstar = np.reshape(Rstar,np.shape(main.a.a))
     Rstar_glob = gatherResid(Rstar,main)
     return -Rstar,R1,Rstar_glob
 
   def create_MF_Jacobian(v,args,main):
     an = args[0]
     vr = np.reshape(v,np.shape(main.a.a))
-    eps = 5.e-8
+    eps = 5.e-5
     main.a.a[:] = an
     Rn,dum,dum = unsteadyResidual(main,main.a.a)
     main.a.a[:] = an + eps*vr

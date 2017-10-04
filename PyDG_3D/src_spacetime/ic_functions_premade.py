@@ -187,6 +187,7 @@ def vortexICSEntropy(x,y,z,main):
   p = rho*R*T
   u[:] = 1. + beta/(2.*pi)*np.exp( (1. - r**2)/2.)*-(y - y0)
   v[:] = 1. +  beta/(2.*pi)*np.exp( (1. - r**2)/2.)*(x - x0)
+  w[:] = 0.
   E[:] = Cv*T + 0.5*(u**2 + v**2)
   q[0] = rho
   q[1] = rho*u

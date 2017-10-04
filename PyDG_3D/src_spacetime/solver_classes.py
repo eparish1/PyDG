@@ -20,6 +20,10 @@ class timeschemes:
       check_t = 0
       self.advanceSol = SSP_RK3
       self.args = None
+    if (time_str == 'SSP_RK3_Entropy'):
+      check_t = 0
+      self.advanceSol = SSP_RK3_Entropy
+      self.args = None
     if (time_str == 'SSP_RK3_DOUBLEFLUX'):
       check_t = 0
       self.advanceSol = SSP_RK3_DOUBLEFLUX
