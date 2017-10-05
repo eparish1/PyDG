@@ -25,8 +25,8 @@ def getEntropyMassMatrix(main):
   M = np.zeros((norder*5,norder*5,main.Npx,main.Npy,main.Npz,main.Npt) )
   count = 0
   I = np.eye(5)
-  for i in range(0,5):
-    #for j in range(0,5):
+  #for i in range(0,5):
+  for j in range(0,5):
     #  M[i*norder:(i+1)*norder,j*norder:(j+1)*norder] = getInnerMassMatrix(main,dudv[i,j])
       M[:,j*norder:(j+1)*norder] = getInnerMassMatrix(main,dudv[:,j])
 
