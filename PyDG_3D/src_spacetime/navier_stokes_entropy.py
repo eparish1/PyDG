@@ -16,7 +16,7 @@ def getEntropyMassMatrix(main):
         for k in range(0,main.order[2]):
           for l in range(0,main.order[3]):
             #M2[count] =np.reshape( volIntegrateGlob_einsum_2(main,(f*f[i,j,k,l])[None,:,:,:,:,:,:,:,:,None,None,None,None]*main.Jdet[None,None,None,None,None,:,:,:,None,:,:,:,None]) , np.shape(M2[0]))
-            M2[count] =np.reshape( volIntegrateGlob_tensordot(main,g*f[i,j,k,l][None,:,:,:,:,None,None,None,None]*main.Jdet[None,:,:,:,None,:,:,:,None],main.w0,main.w1,main.w2,main.w3) , np.shape(M2[0]))
+            M2[:,count] =np.reshape( volIntegrateGlob_tensordot(main,g*f[i,j,k,l][None,:,:,:,:,None,None,None,None]*main.Jdet[None,:,:,:,None,:,:,:,None],main.w0,main.w1,main.w2,main.w3) , np.shape(M2[:,0]))
             count += 1
     return M2
   #=================
@@ -27,7 +27,7 @@ def getEntropyMassMatrix(main):
   I = np.eye(5)
   #for i in range(0,5):
   for j in range(0,5):
-    #  M[i*norder:(i+1)*norder,j*norder:(j+1)*norder] = getInnerMassMatrix(main,dudv[i,j])
+      #M[i*norder:(i+1)*norder,j*norder:(j+1)*norder] = getInnerMassMatrix(main,dudv[i,j])
       M[:,j*norder:(j+1)*norder] = getInnerMassMatrix(main,dudv[:,j])
 
 #  print(np.shape(M))
