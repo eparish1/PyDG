@@ -71,6 +71,42 @@ def TGVIC(x,y,z,main):
   q[4] = rho*E
   return q
 
+def TGVICEntropy(x,y,z,main):
+  Lx = 2.*np.pi 
+  Ly = 2.*np.pi
+  Lz = 2.*np.pi
+  Minf = 0.2
+  nqx,nqy,nqz,Nelx,Nely,Nelz = np.shape(x)
+  gamma = main.gas.gamma
+  T0 = 1./gamma
+  R = main.gas.R #1
+  rho = 1.
+  p0 = rho*R*T0
+  a = np.sqrt(gamma*R*T0) 
+  V0 = Minf*a
+  Cv = 5./2.*R
+  u = V0*np.sin(x*2.*np.pi/Lx)*np.cos(y*2.*np.pi/Ly)*np.cos(z*2.*np.pi/Lz)
+  v = -V0*np.cos(x*2.*np.pi/Lx)*np.sin(y*2.*np.pi/Ly)*np.cos(z*2.*np.pi/Lz)
+  w = 0
+  p = p0 + rho*V0**2/16.*(np.cos(2.*x*2.*np.pi/Lx) + np.cos(2.*y*2.*np.pi/Ly) )*(np.cos(2.*z*2.*np.pi/Lz) + 2.)
+  T = p/(rho*R)
+  E = Cv*T + 0.5*(u**2 + v**2 + w**2)
+  q = np.zeros((5,nqx,nqy,nqz,Nelx,Nely,Nelz))
+  qv = np.zeros((5,nqx,nqy,nqz,Nelx,Nely,Nelz))
+  q[0] = rho
+  q[1] = rho*u
+  q[2] = rho*v
+  q[3] = rho*w
+  q[4] = rho*E
+  s = np.log(p) - gamma*np.log(rho)
+  s2 = np.log(p/rho**gamma)
+  qv[0] = -s/(gamma - 1.) + (gamma + 1.)/(gamma - 1.) - q[4]/p
+  qv[1] = q[1]/p
+  qv[2] = q[2]/p
+  qv[3] = q[3]/p
+  qv[4] = -q[0]/p
+  return qv
+
 
 def shocktubeIC(x,y,z,main):
   nqx,nqy,nqz,Nelx,Nely,Nelz = np.shape(x)
