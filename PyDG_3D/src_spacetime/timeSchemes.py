@@ -1627,7 +1627,6 @@ def CrankNicolsonEntropy(main,MZ,eqns,args):
   M = getEntropyMassMatrix(main)
   if (main.mpi_rank == 0): print('MM time = ' + str(time.time() - t0))
   def unsteadyResidual(main,v):
-
     main.a.a[:] = np.reshape(v,np.shape(main.a.a))
     eqns.getRHS(main,main,eqns)
     U = entropy_to_conservative(main.a.u)
@@ -1649,14 +1648,15 @@ def CrankNicolsonEntropy(main,MZ,eqns,args):
     Rstar = np.einsum('ij...,j...->i...',M,Rstar)
     Rstar = np.reshape(Rstar,np.shape(main.a.a))
     Rstar_glob = gatherResid(Rstar,main)
-    return -Rstar,R1,Rstar_glob
+    return Rstar,Rstar,Rstar_glob
 
   def create_MF_Jacobian(v,args,main):
     an = args[0]
+    Rn = args[1]
     vr = np.reshape(v,np.shape(main.a.a))
     eps = 5.e-5
-    main.a.a[:] = an
-    Rn,dum,dum = unsteadyResidual(main,main.a.a)
+    #main.a.a[:] = an
+    #Rn,dum,dum = unsteadyResidual(main,main.a.a)
     main.a.a[:] = an + eps*vr
     R1,dum,dum = unsteadyResidual(main,main.a.a)
     Av = (R1 - Rn)/eps
