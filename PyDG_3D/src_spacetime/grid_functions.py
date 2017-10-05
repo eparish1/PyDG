@@ -69,7 +69,7 @@ def getGlobGrid(main,x,y,z,zeta0,zeta1,zeta2):
   x6 = z[None,None,None,0:-1,1:: ,1:: ]
   x7 = z[None,None,None,1:: ,1:: ,1:: ]
 
-  ZG = (x1*(eta - 1)*(mu - 1)*(zeta + 1))/8 - (x0*(eta - 1)*(mu - 1)*(zeta - 1))/8 + (x2*(eta + 1)*(mu - 1)*(zeta - 1))/8 - (x3*(eta + 1)*(mu - 1)*(zeta + 1))/8 + (x4*(eta - 1)*(mu + 1)*(zeta - 1))/8     - (x5*(eta - 1)*(mu + 1)*(zeta + 1))/8 - (x6*(eta + 1)*(mu + 1)*(zeta - 1))/8 + (x7*(eta + 1)*(mu + 1)*(zeta + 1))/8
+  zG = (x1*(eta - 1)*(mu - 1)*(zeta + 1))/8 - (x0*(eta - 1)*(mu - 1)*(zeta - 1))/8 + (x2*(eta + 1)*(mu - 1)*(zeta - 1))/8 - (x3*(eta + 1)*(mu - 1)*(zeta + 1))/8 + (x4*(eta - 1)*(mu + 1)*(zeta - 1))/8     - (x5*(eta - 1)*(mu + 1)*(zeta + 1))/8 - (x6*(eta + 1)*(mu + 1)*(zeta - 1))/8 + (x7*(eta + 1)*(mu + 1)*(zeta + 1))/8
 
   return xG[:,:,:,main.sx,main.sy,:],yG[:,:,:,main.sx,main.sy,:],zG[:,:,:,main.sx,main.sy,:]
 
