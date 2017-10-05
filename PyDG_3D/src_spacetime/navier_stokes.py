@@ -612,7 +612,7 @@ def getGsNS(u,main):
   v3 = u[3]/u[0]
   E = u[4]/u[0]
   vsqr = v1**2 + v2**2 + v3**2
-  mu_by_rho = main.mu[0]/u[0]
+  mu_by_rho = main.mu/u[0]
   G11[1,0] = -4./3.*v1*mu_by_rho
   G11[1,1] = 4./3.*mu_by_rho
   G11[2,0] = -v2*mu_by_rho
@@ -715,7 +715,7 @@ def getGsNSX_FAST(u,main,mu,V):
   E = u[4]/u[0]
   vsqr = v1**2 + v2**2 + v3**2
 
-  mu_by_rho = mu[0]/u[0]
+  mu_by_rho = mu/u[0]
   fvG11[1] = 4./3.*mu_by_rho*(V[1] - v1*V[0])
   fvG11[2] = mu_by_rho*(V[2] - v2*V[0])
   fvG11[3] = mu_by_rho*(V[3] - v3*V[0])
@@ -750,7 +750,7 @@ def getGsNSY_FAST(u,main,mu,V):
   E = u[4]/u[0]
   vsqr = v1**2 + v2**2 + v3**2
 
-  mu_by_rho = mu[0]/u[0]
+  mu_by_rho = mu/u[0]
   fvG12[1] = 2./3.*mu_by_rho*(v2*V[0] - V[2])
   fvG12[2] = mu_by_rho*(V[1] - v1*V[0])
   fvG12[4] = mu_by_rho*(-2./3.*v1*V[2] + v2*V[1] - 1./3.*v1*v2*V[0])
@@ -785,7 +785,7 @@ def getGsNSZ_FAST(u,main,mu,V):
   E = u[4]/u[0]
   vsqr = v1**2 + v2**2 + v3**2
 
-  mu_by_rho = mu[0]/u[0]
+  mu_by_rho = mu/u[0]
   fvG13[1] = 2./3.*mu_by_rho*(v3*V[0] - V[3])
   fvG13[3] = mu_by_rho*(V[1] - v1*V[0])
   fvG13[4] = mu_by_rho*(-2./3.*v1*V[3] + v3*V[1] - 1./3.*v1*v3*V[0])
@@ -825,7 +825,7 @@ def getGsNSX(u,main,mu):
   E = u[4]/u[0]
   vsqr = v1**2 + v2**2 + v3**2
 
-  mu_by_rho = mu[0]/u[0]
+  mu_by_rho = mu/u[0]
   G11[1,0] = -4./3.*v1*mu_by_rho
   G11[1,1] = 4./3.*mu_by_rho
   G11[2,0] = -v2*mu_by_rho
@@ -874,7 +874,7 @@ def getGsNSY(u,main,mu):
   E = u[4]/u[0]
   vsqr = v1**2 + v2**2 + v3**2
 
-  mu_by_rho = mu[0]/u[0]
+  mu_by_rho = mu/u[0]
   G12[1,0] = 2./3.*v2*mu_by_rho
   G12[1,2] = -2./3.*mu_by_rho
   G12[2,0] = -v1*mu_by_rho
@@ -920,7 +920,7 @@ def getGsNSZ(u,main,mu):
   v3 = u[3]/u[0]
   E = u[4]/u[0]
   vsqr = v1**2 + v2**2 + v3**2
-  mu_by_rho = mu[0]/u[0]
+  mu_by_rho = mu/u[0]
 
   G13[1,0] = 2./3.*v3*mu_by_rho
   G13[1,3] = -2./3.*mu_by_rho
@@ -969,15 +969,15 @@ def evalViscousFluxXNS_IP(main,u,Ux,Uy,Uz,mu):
   ## ->        =mu gamma/Pr *[ dE/dx - 0.5 d/dx(v1^2 + v2^2) ]
   ## ->        =mu gamma/Pr *[ dE/dx - (v1 v1_x + v2 v2_x) ]
   ## ->  E_x = 1/rho d/x(rho E) - rho E /rho^2 rho_x
-  kTx =( 1./u[0]*(Ux[4] - u[4]/u[0]*Ux[0] - (u[1]*ux + u[2]*vx + u[3]*wx)  ))*mu[0]*gamma/Pr
+  kTx =( 1./u[0]*(Ux[4] - u[4]/u[0]*Ux[0] - (u[1]*ux + u[2]*vx + u[3]*wx)  ))*mu*gamma/Pr
 
   fx = np.zeros(np.shape(u))
   v1 = u[1]/u[0]
   v2 = u[2]/u[0]
   v3 = u[3]/u[0]
-  fx[1] = 2./3.*mu[0]*(2.*ux - vy - wz) #tau11
-  fx[2] = mu[0]*(uy + vx)  #tau11
-  fx[3] = mu[0]*(uz + wx) #tau13
+  fx[1] = 2./3.*mu*(2.*ux - vy - wz) #tau11
+  fx[2] = mu*(uy + vx)  #tau11
+  fx[3] = mu*(uz + wx) #tau13
   fx[4] = fx[1]*v1 + fx[2]*v2 + fx[3]*v3 + kTx
   return fx
 
@@ -999,15 +999,15 @@ def evalViscousFluxYNS_IP(main,u,Ux,Uy,Uz,mu):
   ## ->        =mu gamma/Pr *[ dE/dx - 0.5 d/dx(v1^2 + v2^2) ]
   ## ->        =mu gamma/Pr *[ dE/dx - (v1 v1_x + v2 v2_x) ]
   ## ->  E_x = 1/rho d/x(rho E) - rho E /rho^2 rho_x
-  kTy =( 1./u[0]*(Uy[4] - u[4]/u[0]*Uy[0] - (u[1]*uy + u[2]*vy + u[3]*wy)  ))*mu[0]*gamma/Pr
+  kTy =( 1./u[0]*(Uy[4] - u[4]/u[0]*Uy[0] - (u[1]*uy + u[2]*vy + u[3]*wy)  ))*mu*gamma/Pr
 
   fy = np.zeros(np.shape(u))
   v1 = u[1]/u[0]
   v2 = u[2]/u[0]
   v3 = u[3]/u[0]
-  fy[1] = mu[0]*(vx + uy)  #tau12
-  fy[2] = 2./3.*mu[0]*(2.*vy - ux - wz) #tau22
-  fy[3] = mu[0]*(vz + wy) #tau23
+  fy[1] = mu*(vx + uy)  #tau12
+  fy[2] = 2./3.*mu*(2.*vy - ux - wz) #tau22
+  fy[3] = mu*(vz + wy) #tau23
   fy[4] = fy[1]*v1 + fy[2]*v2 + fy[3]*v3 + kTy
   return fy
 
@@ -1028,15 +1028,15 @@ def evalViscousFluxZNS_IP(main,u,Ux,Uy,Uz,mu):
   ## ->        =mu gamma/Pr *[ dE/dx - 0.5 d/dx(v1^2 + v2^2) ]
   ## ->        =mu gamma/Pr *[ dE/dx - (v1 v1_x + v2 v2_x) ]
   ## ->  E_x = 1/rho d/x(rho E) - rho E /rho^2 rho_x
-  kTz =( 1./u[0]*(Uz[4] - u[4]/u[0]*Uz[0] - (u[1]*uz + u[2]*vz + u[3]*wz) ) )*mu[0]*gamma/Pr
+  kTz =( 1./u[0]*(Uz[4] - u[4]/u[0]*Uz[0] - (u[1]*uz + u[2]*vz + u[3]*wz) ) )*mu*gamma/Pr
 
   fz = np.zeros(np.shape(u))
   v1 = u[1]/u[0]
   v2 = u[2]/u[0]
   v3 = u[3]/u[0]
-  fz[1] = mu[0]*(uz + wx)  #tau13
-  fz[2] = mu[0]*(vz + wy)  #tau23
-  fz[3] = 2./3.*mu[0]*(2.*wz - ux - vy)
+  fz[1] = mu*(uz + wx)  #tau13
+  fz[2] = mu*(vz + wy)  #tau23
+  fz[3] = 2./3.*mu*(2.*wz - ux - vy)
   fz[4] = fz[1]*v1 + fz[2]*v2 + fz[3]*v3 + kTz
   return fz
 
