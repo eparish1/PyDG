@@ -1088,9 +1088,69 @@ def evalViscousFluxZNS_IPEntropy(main,v,Ux,Uy,Uz,mu):
 ### Diffusion fluxes for BR1
 
 ### viscous fluxes
-def evalViscousFluxXNS_BR1Entropy(main,V,fv,cgas):
-  U = entropy_to_conservative(V)
+def evalViscousFluxNS_BR1Entropy(fv,main,VL,VR,n,args=None):
+  UL = entropy_to_conservative(VL)
+  UR = entropy_to_conservative(VR)
 
+  nvars = 9
+  sz = np.append(nvars,np.shape(UL[0]))
+  fvL = np.zeros(sz)
+  fvR = np.zeros(sz)
+#  fvZL = np.zeros(sz)
+#  fvXR = np.zeros(sz)
+#  fvYR = np.zeros(sz)
+#  fvZR = np.zeros(sz)
+
+  rhoi = 1./UL[0]
+  u = rhoi*UL[1]
+  v = rhoi*UL[2]
+  w = rhoi*UL[3]
+  T = (rhoi*UL[4] - 0.5*( u**2 + v**2 + w**2 ) ) #kinda a psuedo tmp, should divide by Cv but it's constant so this is taken care of in the tauFlux with gamma
+
+  mtwo_thirds_un = u*n[0]
+  mtwo_thirds_un += v*n[1]
+  mtwo_thirds_un += w*n[2]
+  mtwo_thirds_un *= -2./3.
+  fvL[0] = mtwo_thirds_un
+  fvL[0] += 2.*u*n[0]
+  fvL[1] = mtwo_thirds_un
+  fvL[1] += 2.*v*n[1]
+  fvL[2] = mtwo_thirds_un
+  fvL[2] += 2.*w*n[2]
+  fvL[3] = v*n[0] + u*n[1]
+  fvL[4] = w*n[0] + u*n[2] 
+  fvL[5] = w*n[1] + v*n[2]
+  fvL[6] = T*n[0]
+  fvL[7] = T*n[1]
+  fvL[8] = T*n[2]
+
+  rhoi = 1./UR[0]
+  u = rhoi*UR[1]
+  v = rhoi*UR[2]
+  w = rhoi*UR[3]
+  T = (rhoi*UR[4] - 0.5*( u**2 + v**2 + w**2 ) ) #kinda a psuedo tmp, should divide by Cv but it's constant so this is taken care of in the tauFlux with gamma
+  mtwo_thirds_un = u*n[0]
+  mtwo_thirds_un += v*n[1]
+  mtwo_thirds_un += w*n[2]
+  mtwo_thirds_un *= -2./3.
+  fvR[0] = mtwo_thirds_un
+  fvR[0] += 2.*u*n[0]
+  fvR[1] = mtwo_thirds_un
+  fvR[1] += 2.*v*n[1]
+  fvR[2] = mtwo_thirds_un
+  fvR[2] += 2.*w*n[2]
+  fvR[3] = v*n[0] + u*n[1]
+  fvR[4] = w*n[0] + u*n[2] 
+  fvR[5] = w*n[1] + v*n[2]
+  fvR[6] = T*n[0]
+  fvR[7] = T*n[1]
+  fvR[8] = T*n[2]
+  fv[:] = 0.5*(fvL + fvR)
+  return fv
+
+
+def evalViscousFluxXNS_BR1Entropy(main,V,fv):
+  U = entropy_to_conservative(V)
   u = U[1]/U[0]
   v = U[2]/U[0]
   w = U[3]/U[0]
@@ -1104,10 +1164,11 @@ def evalViscousFluxXNS_BR1Entropy(main,V,fv,cgas):
   fv[6] = T
   fv[7] = 0.
   fv[8] = 0.
-#
-def evalViscousFluxYNS_BR1Entropy(main,V,fv,cgas):
-  U = entropy_to_conservative(V)
 
+
+#
+def evalViscousFluxYNS_BR1Entropy(main,V,fv):
+  U = entropy_to_conservative(V)
   u = U[1]/U[0]
   v = U[2]/U[0]
   w = U[3]/U[0]
@@ -1122,9 +1183,8 @@ def evalViscousFluxYNS_BR1Entropy(main,V,fv,cgas):
   fv[7] = T
   fv[8] = 0.
 
-def evalViscousFluxZNS_BR1Entropy(main,V,fv,cgas):
+def evalViscousFluxZNS_BR1Entropy(main,V,fv):
   U = entropy_to_conservative(V)
-
   u = U[1]/U[0]
   v = U[2]/U[0]
   w = U[3]/U[0]
@@ -1139,9 +1199,71 @@ def evalViscousFluxZNS_BR1Entropy(main,V,fv,cgas):
   fv[7] = 0.
   fv[8] = T
 
+
+def evalTauFluxNS_BR1Entropy(fv,main,VL,VR,n,args):
+  uL = entropy_to_conservative(VL)
+  uR = entropy_to_conservative(VR)
+
+  tauL = args[0]
+  tauR = args[1]
+  mu = main.mus
+  muL,muR = mu,mu
+  sz = np.shape(uL)
+  fvL = np.zeros(sz)
+  fvR = np.zeros(sz)
+
+  Pr = 0.72
+  Pri = 1./Pr
+  gamma = 1.4
+
+  rhoinv = 1./uL[0]
+  fvL[1] = tauL[0]*n[0]
+  fvL[1] += tauL[3]*n[1]
+  fvL[1] += tauL[4]*n[2]  #tau11*n1 + tau21*n2 + tau31*n3
+
+  fvL[2] = tauL[3]*n[0]
+  fvL[2] += tauL[1]*n[1]
+  fvL[2] += tauL[5]*n[2]  #tau12*n1 + tau22*n2 + tau32*n3
+
+  fvL[3] = tauL[4]*n[0]
+  fvL[3] += tauL[5]*n[1]
+  fvL[3] += tauL[2]*n[2]  #tau12*n1 + tau22*n2 + tau32*n3
+
+  fvL[4] = fvL[1]*uL[1]
+  fvL[4] += fvL[2]*uL[2]
+  fvL[4] += fvL[3]*uL[3]
+  fvL[4] *= rhoinv
+  fvL[4] += gamma*Pri*(tauL[6]*n[0] + tauL[7]*n[1] + tauL[8]*n[2])
+
+  fvL *= mu
+
+  rhoinv = 1./uR[0]
+  fvR[1] = tauR[0]*n[0]
+  fvR[1] += tauR[3]*n[1]
+  fvR[1] += tauR[4]*n[2]  #tau11*n1 + tau21*n2 + tau31*n3
+
+  fvR[2] = tauR[3]*n[0]
+  fvR[2] += tauR[1]*n[1]
+  fvR[2] += tauR[5]*n[2]  #tau12*n1 + tau22*n2 + tau32*n3
+
+  fvR[3] = tauR[4]*n[0]
+  fvR[3] += tauR[5]*n[1]
+  fvR[3] += tauR[2]*n[2]  #tau12*n1 + tau22*n2 + tau32*n3
+
+  fvR[4] = fvR[1]*uR[1]
+  fvR[4] += fvR[2]*uR[2]
+  fvR[4] += fvR[3]*uR[3]
+  fvR[4] *= rhoinv
+  fvR[4] += gamma*Pri*(tauR[6]*n[0] + tauR[7]*n[1] + tauR[8]*n[2])
+
+  fvR *= mu
+
+  fv[:] = 0.5*(fvL + fvR)
+ 
+  return fv
+
 def evalTauFluxXNS_BR1Entropy(main,tau,v,fvX,mu,cgas):
   u = entropy_to_conservative(v)
-
   Pr = 0.72
   gamma = 1.4
   fvX[0] = 0.
@@ -1152,7 +1274,6 @@ def evalTauFluxXNS_BR1Entropy(main,tau,v,fvX,mu,cgas):
 
 def evalTauFluxYNS_BR1Entropy(main,tau,v,fvY,mu,cgas):
   u = entropy_to_conservative(v)
-
   Pr = 0.72
   gamma = 1.4
   fvY[0] = 0.
@@ -1163,7 +1284,6 @@ def evalTauFluxYNS_BR1Entropy(main,tau,v,fvY,mu,cgas):
 
 def evalTauFluxZNS_BR1Entropy(main,tau,v,fvZ,mu,cgas):
   u = entropy_to_conservative(v)
-
   Pr = 0.72
   gamma = 1.4
   fvZ[0] = 0.
