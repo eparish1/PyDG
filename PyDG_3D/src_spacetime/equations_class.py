@@ -282,10 +282,12 @@ class equations:
       if (vflux_str == 'BR1'):
         #print('Error, BR1 not completed for 3D. PyDG quitting')
         #sys.exit()
-        self.getRHS = getRHS_BR1Entropy
+        self.addViscousContribution = addViscousContribution_BR1
+        self.evalViscousFlux = evalViscousFluxNS_BR1Entropy
         self.evalViscousFluxX = evalViscousFluxXNS_BR1Entropy
         self.evalViscousFluxY = evalViscousFluxYNS_BR1Entropy
         self.evalViscousFluxZ = evalViscousFluxZNS_BR1Entropy
+        self.evalTauFlux = evalTauFluxNS_BR1Entropy
         self.evalTauFluxX = evalTauFluxXNS_BR1Entropy
         self.evalTauFluxY = evalTauFluxYNS_BR1Entropy
         self.evalTauFluxZ = evalTauFluxZNS_BR1Entropy
