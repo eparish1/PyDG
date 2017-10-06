@@ -7,35 +7,44 @@ from tensor_products import *
 def getEntropyMassMatrix(main):
   def getInnerMassMatrix(main,g):
     norder = main.order[0]*main.order[1]*main.order[2]*main.order[3]
-    M2 = np.zeros((5*norder,norder,\
+    M2 = np.zeros((norder,norder,\
                   main.Npx,main.Npy,main.Npz,1 ) )
+    M = np.zeros((main.order[0],main.order[1],main.order[2],main.order[3],main.order[0],main.order[1],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,1 ) )
+
     count = 0
-    #f = main.w0[:,None,None,None,:,None,None,None]*main.w1[None,:,None,None,None,:,None,None]\
-    #   *main.w2[None,None,:,None,None,None,:,None]*main.w3[None,None,None,:,None,None,None,:]
+    t0 = time.time()
+    f = main.w0[:,None,None,None,:,None,None,None]*main.w1[None,:,None,None,None,:,None,None]\
+       *main.w2[None,None,:,None,None,None,:,None]*main.w3[None,None,None,:,None,None,None,:]
     #for i in range(0,main.order[0]):
     #  for j in range(0,main.order[1]):
     #    for k in range(0,main.order[2]):
     #      for l in range(0,main.order[3]):
     #        #M2[count] =np.reshape( volIntegrateGlob_einsum_2(main,(f*f[i,j,k,l])[None,:,:,:,:,:,:,:,:,None,None,None,None]*main.Jdet[None,None,None,None,None,:,:,:,None,:,:,:,None]) , np.shape(M2[0]))
-    #        M2[:,count] =np.reshape( volIntegrateGlob_tensordot(main,g*f[i,j,k,l][None,:,:,:,:,None,None,None,None]*main.Jdet[None,:,:,:,None,:,:,:,None],main.w0,main.w1,main.w2,main.w3) , np.shape(M2[:,0]))
+    #        M[i,j,k,l] = volIntegrateGlob_tensordot(main,g*f[i,j,k,l][None,:,:,:,:,None,None,None,None]*main.Jdet[None,:,:,:,None,:,:,:,None],main.w0,main.w1,main.w2,main.w3)
     #        count += 1
+    t1 = time.time()
     f2 = g*main.Jdet[None,:,:,:,None,:,:,:,None] 
     M2[:] = np.reshape( volIntegrateGlob_einsumMM2(main,f2,main.w0,main.w1,main.w2,main.w3) ,np.shape(M2))
+    #print('times = ', time.time() - t1,t1-t0)
     return M2
   #=================
   dudv = mydUdV(main.a.u)
   norder = main.order[0]*main.order[1]*main.order[2]*main.order[3]
-  M = np.zeros((norder*5,norder*5,main.Npx,main.Npy,main.Npz,main.Npt) )
+  #M = np.zeros((norder*5,norder*5,main.Npx,main.Npy,main.Npz,main.Npt) )
+  main.EMM[:] = 0.
   count = 0
   I = np.eye(5)
   t0 = time.time()
-  for j in range(0,5):
-      M[:,j*norder:(j+1)*norder] = getInnerMassMatrix(main,dudv[:,j])
+  for i in range(0,5):
+    for j in range(i,5):
+      main.EMM[i*norder:(i+1)*norder,j*norder:(j+1)*norder] = getInnerMassMatrix(main,dudv[i,j])
+      main.EMM[j*norder:(j+1)*norder,i*norder:(i+1)*norder] = main.EMM[i*norder:(i+1)*norder,j*norder:(j+1)*norder]
+  #for j in range(0,5):
+  #    main.EMM[:,j*norder:(j+1)*norder] = getInnerMassMatrix(main,dudv[:,j])
   t1 = time.time()
-  M = np.rollaxis( np.rollaxis(M,1,6),0,5)
-  M = np.linalg.inv(M)
-  M = np.rollaxis( np.rollaxis(M,4,0),5,1)
-  return M
+  main.EMM = np.rollaxis( np.rollaxis(main.EMM,1,6),0,5)
+  main.EMM = np.linalg.inv(main.EMM)
+  main.EMM = np.rollaxis( np.rollaxis(main.EMM,4,0),5,1)
 
 ## mass matrix for entropy - i.e we have \int w dU(v)/dt d\Omega
 ## This function computes the matrix \int w du/dv w'

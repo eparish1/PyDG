@@ -355,3 +355,6 @@ class variables:
     self.basis = basis_class('Legendre',basis_args)
     self.mol_str = mol_str
     #self = add_reacting_to_main(self,mol_str)
+    if (eqns.eq_str == 'Navier-Stokes Entropy'):
+      norder = order[0]*order[1]*order[2]*order[3]
+      self.EMM = np.zeros((norder*5,norder*5,self.Npx,self.Npy,self.Npz,self.Npt) )

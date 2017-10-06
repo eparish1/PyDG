@@ -1636,9 +1636,7 @@ def CrankNicolsonEntropy(main,MZ,eqns,args):
   R0[:] = main.RHS[:]
   U0 = entropy_to_conservative(main.a.u)
   t0 = time.time()
-  M = getEntropyMassMatrix(main)
-  main.EMM = np.zeros(np.shape(M))
-  main.EMM[:] = M[:]
+  getEntropyMassMatrix(main)
   if (main.mpi_rank == 0): print('MM time = ' + str(time.time() - t0))
   def unsteadyResidual(main,v):
     main.a.a[:] = np.reshape(v,np.shape(main.a.a))
@@ -1651,7 +1649,7 @@ def CrankNicolsonEntropy(main,MZ,eqns,args):
     time_integral = main.basis.volIntegrateGlob(main, (U - U0)*main.Jdet[None,:,:,:,None,:,:,:,None],main.w0,main.w1,main.w2,main.w3)
     Rstar = time_integral  - 0.5*main.dt*(R0 + R1)
     Rstar = np.reshape(Rstar,(main.nvars*main.order[0]*main.order[1]*main.order[2]*main.order[3],main.Npx,main.Npy,main.Npz,main.Npt) )
-    Rstar = np.einsum('ij...,j...->i...',M,Rstar)
+    Rstar = np.einsum('ij...,j...->i...',main.EMM,Rstar)
     Rstar = np.reshape(Rstar,np.shape(main.a.a))
     Rstar_glob = gatherResid(Rstar,main)
     return Rstar,Rstar,Rstar_glob
