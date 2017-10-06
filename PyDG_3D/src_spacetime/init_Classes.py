@@ -335,6 +335,9 @@ class variables:
     if (turb_str == 'tau-modelFD'):
       self.getRHS = tauModelFD
       check = 1
+    if (turb_str == 'tau-modelFDEntropy'):
+      self.getRHS = tauModelFDEntropy
+      check = 1
     if (turb_str == 'FM1'):
       self.getRHS = FM1Linearized 
       check = 1

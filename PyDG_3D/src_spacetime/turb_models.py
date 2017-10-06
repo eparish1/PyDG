@@ -22,28 +22,61 @@ def DNS(main,MZ,eqns):
 
 
 ## Evaluate the tau model through the FD approximation. This is expensive AF
+def tauModelFDEntropy(main,MZ,eqns):
+    ### EVAL RESIDUAL AND DO MZ STUFF
+    filtarray = np.zeros(np.shape(MZ.a.a))
+    filtarray[:,0:main.order[0],0:main.order[1],0:main.order[2]] = 1.
+    eps = 1.e-5
+    MZ.a.a[:] = 0.
+    MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2],:] = main.a.a[:]
+    #eqns.getRHS(main,main,eqns)
+    eqns.getRHS(MZ,MZ,eqns)
+    RHS1 = np.zeros(np.shape(MZ.RHS))
+    Rtmp = np.zeros(np.shape(MZ.RHS))
+    RHS1[:] =MZ.RHS[:]
+    #Rtmp[:] = RHS1[:]
+    #MZ.basis.applyMassMatrix(MZ,Rtmp)
+    #MZ.a.a[:] = 0.
+    #MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2]] = main.a.a[:]
+    #MZ.a.a[:] = MZ.a.a[:] + eps*Rtmp[:]
+    #eqns.getRHS(MZ,MZ,eqns)
+    #RHS2 = np.zeros(np.shape(MZ.RHS))
+    #RHS2[:] = MZ.RHS[:]
+    #MZ.a.a[:] = 0.
+    #MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2]] = main.a.a[:]
+    #MZ.a.a[:] = MZ.a.a[:] + eps*Rtmp[:]*filtarray
+    #eqns.getRHS(MZ,MZ,eqns)
+    #RHS3 = np.zeros(np.shape(MZ.RHS))
+    #RHS3[:] = MZ.RHS[:]
+    #PLQLU = (RHS2[:,0:main.order[0],0:main.order[1],0:main.order[2]] - RHS3[:,0:main.order[0],0:main.order[1],0:main.order[2]])/(eps + 1e-30)
+    main.RHS[:] =  RHS1[:,0:main.order[0],0:main.order[1],0:main.order[2]] #+ main.dx/MZ.order[0]**2*PLQLU
 
+
+
+## Evaluate the tau model through the FD approximation. This is expensive AF
 def tauModelFD(main,MZ,eqns):
     ### EVAL RESIDUAL AND DO MZ STUFF
     filtarray = np.zeros(np.shape(MZ.a.a))
     filtarray[:,0:main.order[0],0:main.order[1],0:main.order[2]] = 1.
     eps = 1.e-5
     MZ.a.a[:] = 0.
-    MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2]] = main.a.a[:]
+    MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2],:] = main.a.a[:]
     #eqns.getRHS(main,main,eqns)
     eqns.getRHS(MZ,MZ,eqns)
     RHS1 = np.zeros(np.shape(MZ.RHS))
+    Rtmp = np.zeros(np.shape(MZ.RHS))
     RHS1[:] = MZ.RHS[:]
+    Rtmp[:] = RHS1[:]
+    MZ.basis.applyMassMatrix(MZ,Rtmp)
     MZ.a.a[:] = 0.
     MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2]] = main.a.a[:]
-    MZ.a.a[:] = MZ.a.a[:] + eps*RHS1[:]
+    MZ.a.a[:] = MZ.a.a[:] + eps*Rtmp[:]
     eqns.getRHS(MZ,MZ,eqns)
-
     RHS2 = np.zeros(np.shape(MZ.RHS))
     RHS2[:] = MZ.RHS[:]
     MZ.a.a[:] = 0.
     MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2]] = main.a.a[:]
-    MZ.a.a[:] = MZ.a.a[:] + eps*RHS1[:]*filtarray
+    MZ.a.a[:] = MZ.a.a[:] + eps*Rtmp[:]*filtarray
     eqns.getRHS(MZ,MZ,eqns)
     RHS3 = np.zeros(np.shape(MZ.RHS))
     RHS3[:] = MZ.RHS[:]

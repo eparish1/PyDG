@@ -612,13 +612,9 @@ def volIntegrateGlob_tensordot2(main,f,w0,w1,w2,w3):
 
 def volIntegrateGlob_tensordot(main,f,w0,w1,w2,w3):
   tmp = np.rollaxis(np.tensordot(w0*main.weights0[None,:],f,axes=([1],[1])),0,9)
-
   tmp = np.rollaxis(np.tensordot(w1*main.weights1[None,:],tmp,axes=([1],[1])) , 0 , 9)
-
   tmp = np.rollaxis(np.tensordot(w2*main.weights2[None,:],tmp,axes=([1],[1])) , 0 , 9)
-
   tmp = np.rollaxis(np.tensordot(w3*main.weights3[None,:],tmp,axes=([1],[1])) , 0 , 9)
-
   return np.rollaxis( np.rollaxis( np.rollaxis( np.rollaxis( tmp , -4 , 1) , -3 , 2), -2, 3), -1, 4)
 
 
@@ -628,6 +624,33 @@ def volIntegrateGlob_tensordot_collocate(main,f,w0,w1,w2,w3):
   tmp = np.tensordot(main.weights1_c[None,:,None,None,None,None,None,None,None]*tmp,w2,axes=([1],[1]))
   tmp = np.tensordot(main.weights3_c[None,:,None,None,None,None,None,None,None]*tmp,w3,axes=([1],[1]))
   return np.rollaxis( np.rollaxis( np.rollaxis( np.rollaxis( tmp , -4 , 1) , -3 , 2), -2, 3), -1, 4)
+
+def volIntegrateGlob_einsumMM2(main,f,w0,w1,w2,w3):
+  tmp = np.einsum('dos...,zpqrs...->zpqrdo...',w3[:,None]*w3[None,:]*main.weights3[None,None,:],f)
+  tmp = np.einsum('cnr...,zpqrdo...->zpqcndo...',w2[:,None]*w2[None,:]*main.weights2[None,None,:],tmp)
+  tmp = np.einsum('bmq...,zpqcndo...->zpbmcndo...',w1[:,None]*w1[None,:]*main.weights1[None,None,:],tmp)
+  tmp = np.einsum('alp...,zpbmcndo...->zalbmcndo...',w0[:,None]*w0[None,:]*main.weights0[None,None,:],tmp)
+  return np.rollaxis( np.rollaxis( np.rollaxis( np.rollaxis( tmp, 7,9) , 5,8) ,3 , 7) , 1 , 6)
+
+def volIntegrateGlob_einsumMM3(main,f,w0,w1,w2,w3):
+  tmp = np.einsum('os...,zdpqras...->zdpqrao...',w3[None,:]*main.weights3[None,None,:],f[:,:,:,:,None]*main.w3[None,None,None,None,:,:,None,None,None,None])
+  tmp = np.einsum('nr...,zdpqro...->zcdpqno...',w2[:,None]*w2[None,:]*main.weights2[None,None,:],tmp)
+  tmp = np.einsum('mq...,zcdpqno...->zbcdpmno...',w1[:,None]*w1[None,:]*main.weights1[None,None,:],tmp)
+  return np.einsum('lp...,zbcdpmno...->zabcdlmno...',w0[:,None]*w0[None,:]*main.weights0[None,None,:],tmp)
+
+
+def volIntegrateGlob_einsumMM(main,f,w0,w1,w2,w3):
+  tmp = np.einsum('os...,zabcdpqrs...->zabcdpqro...',w3*main.weights3[None,:],f)
+  tmp = np.einsum('nr...,zabcdpqro...->zabcdpqno...',w2*main.weights2[None,:],tmp)
+  tmp = np.einsum('mq...,zabcdpqno...->zabcdpmno...',w1*main.weights1[None,:],tmp)
+  return np.einsum('lp...,zabcdpmno...->zabcdlmno...',w0*main.weights0[None,:],tmp)
+
+def volIntegrateGlob_tensordotMM(main,f,w0,w1,w2,w3):
+  tmp = np.rollaxis(np.tensordot(w0*main.weights0[None,:],f,axes=([1],[5])),0,13)
+  tmp = np.rollaxis(np.tensordot(w1*main.weights1[None,:],tmp,axes=([1],[5])) , 0 , 13)
+  tmp = np.rollaxis(np.tensordot(w2*main.weights2[None,:],tmp,axes=([1],[5])) , 0 , 13)
+  tmp = np.rollaxis(np.tensordot(w3*main.weights3[None,:],tmp,axes=([1],[5])) , 0 , 13)
+  return np.rollaxis( np.rollaxis( np.rollaxis( np.rollaxis( tmp , -4 , 5) , -3 , 6), -2, 7), -1, 8)
 
 
 def volIntegrateGlob_einsum(main,f,w0,w1,w2,w3):

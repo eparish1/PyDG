@@ -1,28 +1,33 @@
 import numpy as np
 import numpy.linalg 
+import time
 from tensor_products import *
 def getMassMatrix(main):
   M = np.zeros((main.order[0],main.order[1],main.order[2],main.order[3],\
                 main.order[0],main.order[1],main.order[2],main.order[3],\
                 main.Npx,main.Npy,main.Npz,1 ) )
 
-  f = main.w0[:,None,None,None,:,None,None,None]*main.w1[None,:,None,None,None,:,None,None]\
-     *main.w2[None,None,:,None,None,None,:,None]*main.w3[None,None,None,:,None,None,None,:]
+  #f = main.w0[:,None,None,None,:,None,None,None]*main.w1[None,:,None,None,None,:,None,None]\
+  #   *main.w2[None,None,:,None,None,None,:,None]*main.w3[None,None,None,:,None,None,None,:]
   norder = main.order[0]*main.order[1]*main.order[2]*main.order[3]
   M2 = np.zeros((norder,norder,\
                 main.Npx,main.Npy,main.Npz,1 ) )
   count = 0
-  for i in range(0,main.order[0]):
-    for j in range(0,main.order[1]):
-      for k in range(0,main.order[2]):
-        for l in range(0,main.order[3]):
-          #M2[count] =np.reshape( volIntegrateGlob_einsum_2(main,(f*f[i,j,k,l])[None,:,:,:,:,:,:,:,:,None,None,None,None]*main.Jdet[None,None,None,None,None,:,:,:,None,:,:,:,None]) , np.shape(M2[0]))
-          M2[count] =np.reshape( volIntegrateGlob_tensordot(main,f[i,j,k,l][None,:,:,:,:,None,None,None,None]*main.Jdet[None,:,:,:,None,:,:,:,None],main.w0,main.w1,main.w2,main.w3) , np.shape(M2[0]))
-          count += 1
+  t0 = time.time()
+  #for i in range(0,main.order[0]):
+  #  for j in range(0,main.order[1]):
+  #    for k in range(0,main.order[2]):
+  #      for l in range(0,main.order[3]):
+  #        #M2[count] =np.reshape( volIntegrateGlob_einsum_2(main,(f*f[i,j,k,l])[None,:,:,:,:,:,:,:,:,None,None,None,None]*main.Jdet[None,None,None,None,None,:,:,:,None,:,:,:,None]) , np.shape(M2[0]))
+  #        M2[count] =np.reshape( volIntegrateGlob_tensordot(main,f[i,j,k,l][None,:,:,:,:,None,None,None,None]*main.Jdet[None,:,:,:,None,:,:,:,None],main.w0,main.w1,main.w2,main.w3) , np.shape(M2[0]))
+  #        count += 1
+  #t1 = time.time()
+  #f2 = main.Jdet[None,None,None,None,None,:,:,:,None,:,:,:,None]*f[None,:,:,:,:,:,:,:,:,None,None,None,None]
+  #M2[:] = np.reshape( volIntegrateGlob_tensordotMM(main,f2,main.w0,main.w1,main.w2,main.w3) ,np.shape(M2))
+  M2[:] = np.reshape( volIntegrateGlob_einsumMM2(main,main.Jdet[None,:,:,:,None,:,:,:,None],main.w0,main.w1,main.w2,main.w3) ,np.shape(M2))
   tmp = np.rollaxis( np.rollaxis( np.rollaxis( np.rollaxis(M2,2,0),3,1),4,2),5,3)
   tmp = np.linalg.inv(tmp)
   tmp = np.rollaxis(np.rollaxis(tmp,4,0),5,1)
-  count += 1
   return np.reshape(tmp,np.shape(M))
 
 def getGlobGrid(main,x,y,z,zeta0,zeta1,zeta2):

@@ -137,7 +137,7 @@ if (mpi_rank == 0):
 
 if (enriched):
   eqnsEnriched = eqns#equations(enriched_eqn_str,enriched_schemes,turb_str)
-  mainEnriched = variables(Nel,np.int64(order*enriched_ratio),quadpoints*2,eqnsEnriched,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,source,source_mag,shock_capturing,mol_str,basis_args)
+  mainEnriched = variables(Nel,np.int64(order*enriched_ratio),quadpoints,eqnsEnriched,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,fsource,source_mag,shock_capturing,mol_str,basis_args)
 else:
   mainEnriched = main
 
@@ -239,7 +239,7 @@ while (main.t <= main.et + main.dt/2):
       np.savez('Solution/npsol' + str(main.iteration),U=(UG),a=aG,t=main.t,iteration=main.iteration,order=order)
       sys.stdout.flush()
 
-  timescheme.advanceSol(main,main,eqns,timescheme.args)
+  timescheme.advanceSol(main,mainEnriched,eqns,timescheme.args)
   #advanceSolImplicit_MG(main,main,eqns)
 reconstructU(main,main.a)
 uG = gatherSolSlab(main,eqns,main.a)

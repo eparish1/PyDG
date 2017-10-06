@@ -1,23 +1,26 @@
 import numpy as np
+import time
 from tensor_products import *
 ##### =========== Contains all the fluxes and physics neccesary to solve the Navier-Stokes equations using entropy variables within a DG framework #### ============
 ## mass matrix for entropy - i.e we have \int w dU(v)/dt d\Omega
-## This function computes the matrix \int w du/dv w'
+## This function computes the inverse of the matrix \int w du/dv w'
 def getEntropyMassMatrix(main):
   def getInnerMassMatrix(main,g):
-    f = main.w0[:,None,None,None,:,None,None,None]*main.w1[None,:,None,None,None,:,None,None]\
-       *main.w2[None,None,:,None,None,None,:,None]*main.w3[None,None,None,:,None,None,None,:]
     norder = main.order[0]*main.order[1]*main.order[2]*main.order[3]
     M2 = np.zeros((5*norder,norder,\
                   main.Npx,main.Npy,main.Npz,1 ) )
     count = 0
-    for i in range(0,main.order[0]):
-      for j in range(0,main.order[1]):
-        for k in range(0,main.order[2]):
-          for l in range(0,main.order[3]):
-            #M2[count] =np.reshape( volIntegrateGlob_einsum_2(main,(f*f[i,j,k,l])[None,:,:,:,:,:,:,:,:,None,None,None,None]*main.Jdet[None,None,None,None,None,:,:,:,None,:,:,:,None]) , np.shape(M2[0]))
-            M2[:,count] =np.reshape( volIntegrateGlob_tensordot(main,g*f[i,j,k,l][None,:,:,:,:,None,None,None,None]*main.Jdet[None,:,:,:,None,:,:,:,None],main.w0,main.w1,main.w2,main.w3) , np.shape(M2[:,0]))
-            count += 1
+    #f = main.w0[:,None,None,None,:,None,None,None]*main.w1[None,:,None,None,None,:,None,None]\
+    #   *main.w2[None,None,:,None,None,None,:,None]*main.w3[None,None,None,:,None,None,None,:]
+    #for i in range(0,main.order[0]):
+    #  for j in range(0,main.order[1]):
+    #    for k in range(0,main.order[2]):
+    #      for l in range(0,main.order[3]):
+    #        #M2[count] =np.reshape( volIntegrateGlob_einsum_2(main,(f*f[i,j,k,l])[None,:,:,:,:,:,:,:,:,None,None,None,None]*main.Jdet[None,None,None,None,None,:,:,:,None,:,:,:,None]) , np.shape(M2[0]))
+    #        M2[:,count] =np.reshape( volIntegrateGlob_tensordot(main,g*f[i,j,k,l][None,:,:,:,:,None,None,None,None]*main.Jdet[None,:,:,:,None,:,:,:,None],main.w0,main.w1,main.w2,main.w3) , np.shape(M2[:,0]))
+    #        count += 1
+    f2 = g*main.Jdet[None,:,:,:,None,:,:,:,None] 
+    M2[:] = np.reshape( volIntegrateGlob_einsumMM2(main,f2,main.w0,main.w1,main.w2,main.w3) ,np.shape(M2))
     return M2
   #=================
   dudv = mydUdV(main.a.u)
@@ -25,23 +28,40 @@ def getEntropyMassMatrix(main):
   M = np.zeros((norder*5,norder*5,main.Npx,main.Npy,main.Npz,main.Npt) )
   count = 0
   I = np.eye(5)
-  #for i in range(0,5):
+  t0 = time.time()
   for j in range(0,5):
-      #M[i*norder:(i+1)*norder,j*norder:(j+1)*norder] = getInnerMassMatrix(main,dudv[i,j])
       M[:,j*norder:(j+1)*norder] = getInnerMassMatrix(main,dudv[:,j])
-
-#  print(np.shape(M))
-#  for i in range(0,main.Npx):
-#    for j in range(0,main.Npy):
-#      print(i,j,np.diag(M[:,:,i,j,0,0]))
-#      Mi = np.linalg.inv(M[:,:,i,j,0,0])
-  #M = np.reshape(M, (5*norder,5*norder,main.Npx,main.Npy,main.Npz,main.Npt))
+  t1 = time.time()
   M = np.rollaxis( np.rollaxis(M,1,6),0,5)
-  #print(np.shape(M))
   M = np.linalg.inv(M)
   M = np.rollaxis( np.rollaxis(M,4,0),5,1)
-  #print(np.shape(M))
   return M
+
+## mass matrix for entropy - i.e we have \int w dU(v)/dt d\Omega
+## This function computes the matrix \int w du/dv w'
+def getEntropyMassMatrix_noinvert(main):
+  def getInnerMassMatrix(main,g):
+    norder = main.order[0]*main.order[1]*main.order[2]*main.order[3]
+    M2 = np.zeros((5*norder,norder,\
+                  main.Npx,main.Npy,main.Npz,1 ) )
+    count = 0
+    f2 = g*main.Jdet[None,:,:,:,None,:,:,:,None] 
+    M2[:] = np.reshape( volIntegrateGlob_einsumMM2(main,f2,main.w0,main.w1,main.w2,main.w3) ,np.shape(M2))
+    return M2
+  #=================
+  dudv = mydUdV(main.a.u)
+  norder = main.order[0]*main.order[1]*main.order[2]*main.order[3]
+  M = np.zeros((norder*5,norder*5,main.Npx,main.Npy,main.Npz,main.Npt) )
+  count = 0
+  I = np.eye(5)
+  t0 = time.time()
+  for j in range(0,5):
+      M[:,j*norder:(j+1)*norder] = getInnerMassMatrix(main,dudv[:,j])
+  t1 = time.time()
+  M = np.rollaxis( np.rollaxis(M,1,6),0,5)
+  return M
+
+
 ## Mappings between entropy variables (V) and conservative variables (U)
 def dUdV(V):
   u = entropy_to_conservative(V)
