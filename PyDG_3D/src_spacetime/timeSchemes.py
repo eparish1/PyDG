@@ -1716,9 +1716,61 @@ def CrankNicolsonEntropyMZ(main,MZ,eqns,args):
     eqns.getRHS(MZ,MZ,eqns)
     R3 = np.zeros(np.shape(MZ.RHS))
     R3[:] =MZ.RHS[:]
-  
+    PLQLu =  1./eps*( R2 - R3)
+
+    #### Now do dynamic procedure for tau
+    #==========================================
+    testfilter = np.ones(np.shape(main.a.a))
+    testfilter[:,main.order[0]-1::,main.order[1]-1::,main.order[2]-1::] = 0.
+    testfilterMZ = np.ones(np.shape(MZ.a.a))
+    testfilterMZ[:,main.order[0]-1::,main.order[1]-1::,main.order[2]-1::] = 0.
+    # First compute M^{-1}R(a) @ a = abar
+    MZ.a.a[:] = 0.
+    MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2],:] = main.a.a[:]*testfilter
+    eqns.getRHS(MZ,MZ,eqns)
+    R1_dtau = np.zeros(np.shape(MZ.RHS))
+    R1s_dtau = np.zeros(np.shape(MZ.RHS))
+    R1_dtau[:] =MZ.RHS[:]
+    R1s_dtau[:] =MZ.RHS[:]
+    R1_dtau = np.reshape(R1_dtau,(MZ.nvars*MZ.order[0]*MZ.order[1]*MZ.order[2]*MZ.order[3],MZ.Npx,MZ.Npy,MZ.Npz,MZ.Npt) )
+    R1_dtau = np.einsum('ij...,j...->i...',MZ.EMM,R1_dtau)
+    R1_dtau = np.reshape(R1_dtau,np.shape(MZ.a.a))
+    ## now compute R(a) @ a = abar + eps M^{-1}R(abar)
+    MZ.a.a[:] = 0.
+    MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2],:] = main.a.a[:]*testfilter
+    MZ.a.a[:] += eps*R1_dtau
+    eqns.getRHS(MZ,MZ,eqns)
+    R2_dtau = np.zeros(np.shape(MZ.RHS))
+    R2_dtau[:] =MZ.RHS[:]
+    ## Now compute R(a) @ a = bar( abar + eps M^{-1}R(abar) ) 
+    MZ.a.a[:] = 0.
+    MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2],:] = main.a.a[:]*testfilter
+    MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2],:] += eps*R1_dtau[:,0:main.order[0],0:main.order[1],0:main.order[2]]*testfilter
+    eqns.getRHS(MZ,MZ,eqns)
+    R3_dtau = np.zeros(np.shape(MZ.RHS))
+    R3_dtau[:] =MZ.RHS[:]
+    PLQLu_f = 1./eps*( R2_dtau - R3_dtau)
+    # Now compute tau based on entropy transfer, (V^T,PLQLu)
+    MZ.a.a[:] = 0.
+    MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2],:] = main.a.a[:]*testfilter
+    V = MZ.basis.reconstructUGeneral(MZ,MZ.a.a)
+    PLQLu_phys = MZ.basis.reconstructUGeneral(MZ,PLQLu)
+    PLQLu_fphys = MZ.basis.reconstructUGeneral(MZ,PLQLu_f)
+    R1s_phys = MZ.basis.reconstructUGeneral(MZ,R1s*testfilterMZ)
+    R1s_dtauphys = MZ.basis.reconstructUGeneral(MZ,R1s_dtau)
+    def entropyInnerProduct(a,b):
+      tmp = (a[0]*b[0] + a[1]*b[1] + a[2]*b[2] + a[3]*b[3] + a[4]*b[4])[None,:]*main.Jdet[None,:,:,:,None,:,:,:,None]
+      return main.basis.volIntegrate(main.weights0,main.weights1,main.weights2,main.weights3,tmp)
+    numerator = np.sum( entropyInnerProduct(V,R1s_dtauphys - R1s_phys) )
+    denominator1 =np.sum( entropyInnerProduct(V,PLQLu_phys) )
+    denominator2 =np.sum( entropyInnerProduct(V,PLQLu_fphys) )
+    scale = (main.order[0]*1./(main.order[0] - 1.))**1.5
+    tau = numerator/(denominator1 - scale*denominator2 + 1e-5)
+    if (main.mpi_rank == 0): print(tau)
+    #====================================================
+ 
     ## Now form RHS
-    RHS = R1s[:,0:main.order[0],0:main.order[1],0:main.order[2]] + 0.1/eps*( R2[:,0:main.order[0],0:main.order[1],0:main.order[2]] - R3[:,0:main.order[0],0:main.order[1],0:main.order[2]])
+    RHS = R1s[:,0:main.order[0],0:main.order[1],0:main.order[2]] + tau/eps*( R2[:,0:main.order[0],0:main.order[1],0:main.order[2]] - R3[:,0:main.order[0],0:main.order[1],0:main.order[2]])
  
     main.basis.reconstructU(main,main.a)
     U = entropy_to_conservative(main.a.u)*1.
