@@ -1204,41 +1204,43 @@ def SSP_RK3_Entropy(main,MZ,eqns,args=None):
   main.getRHS(main,MZ,eqns)  
   a0 = np.zeros(np.shape(main.a.a))
   a0[:] = main.a.a[:]
-  M = getEntropyMassMatrix(main)
+  getEntropyMassMatrix(main)
   #M = getEntropyMassMatrix_noinvert(main)
   R = np.reshape(main.RHS[:],(main.nvars*main.order[0]*main.order[1]*main.order[2]*main.order[3],main.Npx,main.Npy,main.Npz,main.Npt) )
   #R = np.rollaxis(R,0,5)
   #R = np.linalg.solve(M,R)
   #R = np.rollaxis(R,0,4)
-  R = np.einsum('ij...,j...->i...',M,R)
+  R = np.einsum('ij...,j...->i...',main.EMM,R)
   R = np.reshape(R,np.shape(main.a.a))
   a1 = main.a.a[:]  + main.dt*(R[:])
+  #a1[:,main.order[0]/2::,main.order[1]/2::,:] = 0.
   main.a.a[:] = a1[:]
   #========= Second Stage
   main.getRHS(main,MZ,eqns)
-  M = getEntropyMassMatrix(main)
+  getEntropyMassMatrix(main)
   #M = getEntropyMassMatrix_noinvert(main)
   R = np.reshape(main.RHS[:],(main.nvars*main.order[0]*main.order[1]*main.order[2]*main.order[3],main.Npx,main.Npy,main.Npz,main.Npt) )
   #R = np.rollaxis(R,0,5)
   #R = np.linalg.solve(M,R)
   #R = np.rollaxis(R,0,4)
-  R = np.einsum('ij...,j...->i...',M,R)
+  R = np.einsum('ij...,j...->i...',main.EMM,R)
   R = np.reshape(R,np.shape(main.a.a))
   a1[:] = 3./4.*a0 + 1./4.*(a1 + main.dt*R[:]) #reuse a1 vector
+  #a1[:,main.order[0]/2::,main.order[1]/2::,:] = 0.
   main.a.a[:] = a1[:]
  
   #========== Third Stage
   main.getRHS(main,MZ,eqns)  
-  M = getEntropyMassMatrix(main)
+  getEntropyMassMatrix(main)
   #M = getEntropyMassMatrix_noinvert(main)
   R = np.reshape(main.RHS[:],(main.nvars*main.order[0]*main.order[1]*main.order[2]*main.order[3],main.Npx,main.Npy,main.Npz,main.Npt) )
   #R = np.rollaxis(R,0,5)
   #R = np.linalg.solve(M,R)
   #R = np.rollaxis(R,0,4)
-  R = np.einsum('ij...,j...->i...',M,R)
+  R = np.einsum('ij...,j...->i...',main.EMM,R)
   R = np.reshape(R,np.shape(main.a.a))
   main.a.a[:] = 1./3.*a0 + 2./3.*(a1[:] + main.dt*R[:])
-
+  #main.a.a[:,main.order[0]/2::,main.order[1]/2::] = 0.
   main.t += main.dt
   main.iteration += 1
 
@@ -1658,7 +1660,7 @@ def CrankNicolsonEntropy(main,MZ,eqns,args):
     an = args[0]
     Rn = args[1]
     vr = np.reshape(v,np.shape(main.a.a))
-    eps = 5.e-5
+    eps = 5.e-7
     main.a.a[:] = an + eps*vr
     R1,dum,dum = unsteadyResidual(main,main.a.a)
     Av = (R1 - Rn)/eps
@@ -1673,49 +1675,61 @@ def CrankNicolsonEntropyMZ(main,MZ,eqns,args):
   linear_solver = args[1]
   sparse_quadrature = args[2]
   main.a0[:] = main.a.a[:]
-  MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2]] = main.a.a[:]
-  eqns.getRHS(MZ,MZ,eqns)
-  R0 = np.zeros(np.shape(MZ.RHS))
-  R0[:] = MZ.RHS[:]
-  MZ.basis.reconstructU(MZ,MZ.a)
-  U0 = entropy_to_conservative(MZ.a.u)*1.
+  eqns.getRHS(main,main,eqns)
+  R0 = np.zeros(np.shape(main.RHS))
+  R0[:] = main.RHS[:]
+  main.basis.reconstructU(main,main.a)
+  U0 = entropy_to_conservative(main.a.u)*1.
   t0 = time.time()
-  #M = getEntropyMassMatrix(main)
-  M = getEntropyMassMatrix(main)
-  M_MZ = getEntropyMassMatrix(MZ)
+  getEntropyMassMatrix(main)
+  MZ.a.a[:] = 0.
+  MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2],:] = main.a.a[:]
+  MZ.basis.reconstructU(MZ,MZ.a)
+
+  getEntropyMassMatrix(MZ)
   if (main.mpi_rank == 0): print('MM time = ' + str(time.time() - t0))
+  eps = 1.e-3
   def unsteadyResidual(main,v):
     main.a.a[:] = np.reshape(v,np.shape(main.a.a))
+    ## First compute M^{-1}R(a) @ a = atilde
     MZ.a.a[:] = 0.
     MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2],:] = main.a.a[:]
     eqns.getRHS(MZ,MZ,eqns)
     R1 = np.zeros(np.shape(MZ.RHS))
+    R1s = np.zeros(np.shape(MZ.RHS))
     R1[:] =MZ.RHS[:]
-    MZ.basis.reconstructU(MZ,MZ.a)
-    U = entropy_to_conservative(MZ.a.u)*1.
-    ## compute volume integral term
-    time_integral = MZ.basis.volIntegrateGlob(main, (U - U0)*MZ.Jdet[None,:,:,:,None,:,:,:,None],MZ.w0,MZ.w1,MZ.w2,MZ.w3)
-    Rstar = time_integral  - 0.5*main.dt*(R0 + R1)
-
-    Rstarb = np.reshape(Rstar[:,0:main.order[0],0:main.order[1],0:main.order[2]],(main.nvars*main.order[0]*main.order[1]*main.order[2]*main.order[3],main.Npx,main.Npy,main.Npz,main.Npt) )
-    Rstarb = np.einsum('ij...,j...->i...',M,Rstarb)
-    Rstarb = np.reshape(Rstarb,np.shape(main.a.a))
-
+    R1s[:] =MZ.RHS[:]
+    R1 = np.reshape(R1,(MZ.nvars*MZ.order[0]*MZ.order[1]*MZ.order[2]*MZ.order[3],MZ.Npx,MZ.Npy,MZ.Npz,MZ.Npt) )
+    R1 = np.einsum('ij...,j...->i...',MZ.EMM,R1)
+    R1 = np.reshape(R1,np.shape(MZ.a.a))
+    ## now compute R(a) @ a = atilde + eps M^{-1}R(atilde)
     MZ.a.a[:] = 0.
-    MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2]] = main.a.a[:]
-    MZ.a.a[:] = MZ.a.a[:] + eps*Rstarb[:]
-    #eqns.getRHS(MZ,MZ,eqns)
-    #RHS2 = np.zeros(np.shape(MZ.RHS))
-    #RHS2[:] = MZ.RHS[:]
-
-
-    #Rstar = np.reshape(Rstar,(MZ.nvars*MZ.order[0]*MZ.order[1]*MZ.order[2]*MZ.order[3],MZ.Npx,MZ.Npy,MZ.Npz,MZ.Npt) )
-    #Rstar = np.einsum('ij...,j...->i...',M_MZ,Rstar)
-    #Rstar = np.reshape(Rstar,np.shape(MZ.a.a))
-    ##print(np.linalg.norm(Rstar[:,main.order[0]::,main.order[1]::,main.order[2]::]),np.linalg.norm(Rstarb))
-    #Rstar = Rstar[:,0:main.order[0],0:main.order[1],0:main.order[2]]
-    Rstar_glob = gatherResid(Rstarb,main)
-    return Rstarb,Rstarb,Rstar_glob
+    MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2],:] = main.a.a[:]
+    MZ.a.a[:] += eps*R1
+    eqns.getRHS(MZ,MZ,eqns)
+    R2 = np.zeros(np.shape(MZ.RHS))
+    R2[:] =MZ.RHS[:]
+    ## Now compute R(a) @ a = tilde( atilde + eps M^{-1}R(atilde) ) 
+    MZ.a.a[:] = 0.
+    MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2],:] = main.a.a[:]
+    MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2],:] += eps*R1[:,0:main.order[0],0:main.order[1],0:main.order[2]]
+    eqns.getRHS(MZ,MZ,eqns)
+    R3 = np.zeros(np.shape(MZ.RHS))
+    R3[:] =MZ.RHS[:]
+  
+    ## Now form RHS
+    RHS = R1s[:,0:main.order[0],0:main.order[1],0:main.order[2]] + 0.1/eps*( R2[:,0:main.order[0],0:main.order[1],0:main.order[2]] - R3[:,0:main.order[0],0:main.order[1],0:main.order[2]])
+ 
+    main.basis.reconstructU(main,main.a)
+    U = entropy_to_conservative(main.a.u)*1.
+    ## compute volume integral term
+    time_integral = main.basis.volIntegrateGlob(main, (U - U0)*main.Jdet[None,:,:,:,None,:,:,:,None],main.w0,main.w1,main.w2,main.w3)
+    Rstar = time_integral  - 0.5*main.dt*(R0 + RHS)
+    Rstar = np.reshape(Rstar,(main.nvars*main.order[0]*main.order[1]*main.order[2]*main.order[3],main.Npx,main.Npy,main.Npz,main.Npt) )
+    Rstar = np.einsum('ij...,j...->i...',main.EMM,Rstar)
+    Rstar = np.reshape(Rstar,np.shape(main.a.a))
+    Rstar_glob = gatherResid(Rstar,main)
+    return Rstar,Rstar,Rstar_glob
 
   def create_MF_Jacobian(v,args,main):
     an = args[0]

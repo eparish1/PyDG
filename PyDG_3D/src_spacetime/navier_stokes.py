@@ -210,7 +210,7 @@ def eulerCentralFlux(F,main,UL,UR,n,args=None):
   FR[2] = UR[2]*unR + pR*n[1]
   FR[3] = UR[3]*unR + pR*n[2]
   FR[4] = rHR*unR
-  F = np.zeros(np.shape(FL))  # for allocation
+  F[:] = 0.
   F[0]    = 0.5*(FL[0]+FR[0])#-0.5*smax*(UR[0] - UL[0])
   F[1]    = 0.5*(FL[1]+FR[1])#-0.5*smax*(UR[1] - UL[1])
   F[2]    = 0.5*(FL[2]+FR[2])#-0.5*smax*(UR[2] - UL[2])
@@ -300,7 +300,7 @@ def ismailFlux(F,main,UL,UR,n,args=None):
   Hhat = ahat_sqr/(gamma - 1.) + 0.5*V_sqr
 
   # right flux
-  F = np.zeros(np.shape(UL))  # for allocation
+  F[:] = 0.
   rhoV_n = rhohat*V_n
   F[0]    = rhoV_n 
   F[1]    = rhoV_n*uhat + p1hat*n[0]

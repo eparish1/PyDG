@@ -45,7 +45,7 @@ def getEntropyMassMatrix(main):
   main.EMM = np.rollaxis( np.rollaxis(main.EMM,1,6),0,5)
   main.EMM = np.linalg.inv(main.EMM)
   main.EMM = np.rollaxis( np.rollaxis(main.EMM,4,0),5,1)
-
+  #print('times = ' , time.time() - t1,t1 - t0)
 ## mass matrix for entropy - i.e we have \int w dU(v)/dt d\Omega
 ## This function computes the matrix \int w du/dv w'
 def getEntropyMassMatrix_noinvert(main):
@@ -634,7 +634,6 @@ def kfid_roefluxEntropy(F,main,VL,VR,n,args=None):
   C2    = G1*s2*ci1          + G2*(s1-l3)
 
   # flux assembly
-  F[:] = 0.
   F[0]    = 0.5*(FL[0]+FR[0])-0.5*(l3*du[0] + C1   )
   F[1]    = 0.5*(FL[1]+FR[1])-0.5*(l3*du[1] + C1*ui + C2*n[0])
   F[2]    = 0.5*(FL[2]+FR[2])-0.5*(l3*du[2] + C1*vi + C2*n[1])
