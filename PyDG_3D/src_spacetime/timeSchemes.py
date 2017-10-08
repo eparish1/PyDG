@@ -20,7 +20,7 @@ from eos_functions import *
 import time
 from tensor_products import diffCoeffs
 from jacobian_schemes import *
-from navier_stokes_entropy import dUdV, entropy_to_conservative, getEntropyMassMatrix,getEntropyMassMatrix_noinvert
+from navier_stokes_entropy import entropy_to_conservative, getEntropyMassMatrix,getEntropyMassMatrix_noinvert
 def gatherResid(Rstar,main):
   ## Create Global residual
   data = main.comm.gather(np.linalg.norm(Rstar)**2,root = 0)
@@ -1720,10 +1720,12 @@ def CrankNicolsonEntropyMZ(main,MZ,eqns,args):
 
     #### Now do dynamic procedure for tau
     #==========================================
-    testfilter = np.ones(np.shape(main.a.a))
-    testfilter[:,main.order[0]-1::,main.order[1]-1::,main.order[2]-1::] = 0.
-    testfilterMZ = np.ones(np.shape(MZ.a.a))
-    testfilterMZ[:,main.order[0]-1::,main.order[1]-1::,main.order[2]-1::] = 0.
+    testfilter = np.zeros(np.shape(main.a.a))
+    testfilterMZ = np.zeros(np.shape(MZ.a.a))
+    testscale = np.array([main.order[0]-1,main.order[1]-1,main.order[2]-1])
+    testscale[:] = np.fmax(1,testscale)
+    testfilter[:,0:testscale[0],0:testscale[1],0:testscale[2]] = 1.
+    testfilterMZ[:,0:testscale[0],0:testscale[1],0:testscale[2]] = 1.
     # First compute M^{-1}R(a) @ a = abar
     MZ.a.a[:] = 0.
     MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2],:] = main.a.a[:]*testfilter
@@ -1764,9 +1766,25 @@ def CrankNicolsonEntropyMZ(main,MZ,eqns,args):
     numerator = np.sum( entropyInnerProduct(V,R1s_dtauphys - R1s_phys) )
     denominator1 =np.sum( entropyInnerProduct(V,PLQLu_phys) )
     denominator2 =np.sum( entropyInnerProduct(V,PLQLu_fphys) )
-    scale = (main.order[0]*1./(main.order[0] - 1.))**1.5
-    tau = numerator/(denominator1 - scale*denominator2 + 1e-5)
-    if (main.mpi_rank == 0): print(tau)
+    scale = (main.order[0]*1./(testscale[0]))**1.5
+    def globalMean(tau,main):
+    ## Create Global residual
+      data = main.comm.gather(tau,root = 0)
+      if (main.mpi_rank == 0):
+        rn_glob = 0.
+        for j in range(0,main.num_processes):
+          rn_glob += data[j]
+        rn_glob = rn_glob/(main.num_processes*1.)
+        for j in range(1,main.num_processes):
+          main.comm.send(rn_glob, dest=j)
+      else:
+        rn_glob = main.comm.recv(source=0)
+      return rn_glob
+    tau = globalMean( numerator/(denominator1 - scale*denominator2 - 1e-8) , main )
+    #if (main.mpi_rank == 0): print(tau)
+    #tau = max(tau,0.)
+    main.tau = tau
+    #if (main.mpi_rank == 0): print(tau)
     #====================================================
  
     ## Now form RHS
@@ -1794,6 +1812,7 @@ def CrankNicolsonEntropyMZ(main,MZ,eqns,args):
     return Av.flatten()
 
   nonlinear_solver.solve(unsteadyResidual, create_MF_Jacobian,main,linear_solver,sparse_quadrature,eqns)
+  if (main.mpi_rank == 0): print(main.tau)
   main.t += main.dt
   main.iteration += 1
 
@@ -1836,6 +1855,7 @@ def CrankNicolson(main,MZ,eqns,args):
     return Av.flatten()
 
   nonlinear_solver.solve(unsteadyResidual, create_MF_Jacobian,main,linear_solver,sparse_quadrature,eqns,None)
+
   main.t += main.dt
   main.iteration += 1
 
