@@ -72,56 +72,6 @@ def getEntropyMassMatrix_noinvert(main):
 
 
 ## Mappings between entropy variables (V) and conservative variables (U)
-def dUdV(V):
-  u = entropy_to_conservative(V)
-  gamma = 1.4
-  gamma_bar = gamma - 1.
-
-  p = (gamma - 1.)*(u[4] - 0.5*u[1]**2/u[0] - 0.5*u[2]**2/u[0] - 0.5*u[3]**2/u[0])
-  sz = np.shape(V)
-  sz = np.append(5,sz)
-  A0 = np.zeros(sz)
-  k1 = 0.5*(V[1]**2 + V[2]**2 + V[3]**2)/V[4]
-  k2 = k1 - gamma
-  k3 = k1**2 - 2.*gamma*k1 + gamma
-  k4 = k2 - gamma_bar
-  k5 = k2**2 - gamma_bar*(k1 + k2)	
-  c1 = gamma_bar*V[4] - V[1]**2
-  c2 = gamma_bar*V[4] - V[2]**2
-  c3 = gamma_bar*V[4] - V[3]**2
-  d1 = -V[1]*V[2]
-  d2 = -V[1]*V[3]
-  d3 = -V[2]*V[3]
-  e1 = V[1]*V[4]
-  e2 = V[2]*V[4]
-  e3 = V[3]*V[4]
-  A0[0,0] = -V[4]**2
-  A0[0,1] = e1
-  A0[0,2] = e2
-  A0[0,3] = e3
-  A0[0,4] = V[4]*(1 - k1)
-  A0[1,0] = e1
-  A0[1,1] = c1
-  A0[1,2] = d1
-  A0[1,3] = d2
-  A0[1,4] = V[1]*k2
-  A0[2,0] = A0[0,2]
-  A0[2,1] = A0[1,2]
-  A0[2,2] = c2
-  A0[2,3] = d3
-  A0[2,4] = V[2]*k2
-  A0[3,0] = A0[0,3]
-  A0[3,1] = A0[1,3]
-  A0[3,2] = A0[2,3]
-  A0[3,3] = c3
-  A0[3,4] = V[3]*k2
-  A0[4,0] = A0[0,4]
-  A0[4,1] = A0[1,4]
-  A0[4,2] = A0[2,4]
-  A0[4,3] = A0[3,4]
-  A0[4,4] = -k3
-  return A0 * p / ( gamma_bar**2 * V[4] )
-
 def mydUdV(V):
   U = entropy_to_conservative(V)
   gamma = 1.4
@@ -157,8 +107,9 @@ def mydUdV(V):
   return A0 
 
 
-
+### This is from Hughes, probably not right
 def dVdU(V):
+  print('DONT USE THIS')
   sz = np.shape(V[0])
   sz = np.append(5,sz)
   A0inv = np.zeros(sz)
@@ -206,6 +157,7 @@ def dVdU(V):
   A0inv[4,4] = V[4]**2
   return - A0inv * gamma_bar/( p * V[4] )
 
+# function to take entropy variables V and get conservative variables U
 def entropy_to_conservative(V):
   gamma = 1.4
   U = np.zeros(np.shape(V))
@@ -231,6 +183,29 @@ def entropy_to_conservative(V):
 
 
 ###### ====== Inviscid Fluxes Fluxes and Eigen Values (Eigenvalues currently not in use) ==== ############
+def evalFluxXYZEulerEntropy(main,v,fx,fy,fz,args):
+  u = entropy_to_conservative(v) 
+  es = 1.e-30
+  gamma = 1.4
+  p = (gamma - 1.)*(u[4] - 0.5*u[1]**2/u[0] - 0.5*u[2]**2/u[0] - 0.5*u[3]**2/u[0])
+  fx[0] = u[1]
+  fx[1] = u[1]*u[1]/(u[0]) + p
+  fx[2] = u[1]*u[2]/(u[0])
+  fx[3] = u[1]*u[3]/(u[0])
+  fx[4] = (u[4] + p)*u[1]/(u[0])
+
+  fy[0] = u[2]
+  fy[1] = u[1]*u[2]/u[0]
+  fy[2] = u[2]*u[2]/u[0] + p
+  fy[3] = u[2]*u[3]/u[0] 
+  fy[4] = (u[4] + p)*u[2]/u[0]
+
+  fz[0] = u[3]
+  fz[1] = u[1]*u[3]/u[0]
+  fz[2] = u[2]*u[3]/u[0] 
+  fz[3] = u[3]*u[3]/u[0] + p 
+  fz[4] = (u[4] + p)*u[3]/u[0]
+
 
 def evalFluxXEulerEntropy(main,v,f,args):
   u = entropy_to_conservative(v) 
@@ -253,8 +228,6 @@ def evalFluxYEulerEntropy(main,v,f,args):
   f[2] = u[2]*u[2]/u[0] + p
   f[3] = u[2]*u[3]/u[0] 
   f[4] = (u[4] + p)*u[2]/u[0]
-
-
 
 def evalFluxZEulerEntropy(main,v,f,args):
   u = entropy_to_conservative(v) 

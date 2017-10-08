@@ -1722,7 +1722,7 @@ def CrankNicolsonEntropyMZ(main,MZ,eqns,args):
     #==========================================
     testfilter = np.zeros(np.shape(main.a.a))
     testfilterMZ = np.zeros(np.shape(MZ.a.a))
-    testscale = np.array([main.order[0]-1,main.order[1]-1,main.order[2]-1])
+    testscale = np.array([main.order[0]-2,main.order[1]-2,main.order[2]-2])
     testscale[:] = np.fmax(1,testscale)
     testfilter[:,0:testscale[0],0:testscale[1],0:testscale[2]] = 1.
     testfilterMZ[:,0:testscale[0],0:testscale[1],0:testscale[2]] = 1.
@@ -1756,39 +1756,40 @@ def CrankNicolsonEntropyMZ(main,MZ,eqns,args):
     MZ.a.a[:] = 0.
     MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2],:] = main.a.a[:]*testfilter
     V = MZ.basis.reconstructUGeneral(MZ,MZ.a.a)
+    MZ.basis.applyMassMatrix(MZ,PLQLu)
+    R1sf = R1s*testfilterMZ
+    MZ.basis.applyMassMatrix(MZ,PLQLu_f)
+    MZ.basis.applyMassMatrix(MZ,R1s_dtau)
+    MZ.basis.applyMassMatrix(MZ,R1sf)
+
     PLQLu_phys = MZ.basis.reconstructUGeneral(MZ,PLQLu)
     PLQLu_fphys = MZ.basis.reconstructUGeneral(MZ,PLQLu_f)
-    R1s_phys = MZ.basis.reconstructUGeneral(MZ,R1s*testfilterMZ)
+    R1s_phys = MZ.basis.reconstructUGeneral(MZ,R1sf)#*testfilterMZ)
     R1s_dtauphys = MZ.basis.reconstructUGeneral(MZ,R1s_dtau)
+
+    eqns.getRHS(main,main,eqns)
+    main.basis.applyMassMatrix(main,main.RHS)
+    test_phys = main.basis.reconstructUGeneral(main,main.RHS)
+    Vtest = main.basis.reconstructUGeneral(main,main.a.a)
     def entropyInnerProduct(a,b):
       tmp = (a[0]*b[0] + a[1]*b[1] + a[2]*b[2] + a[3]*b[3] + a[4]*b[4])[None,:]*main.Jdet[None,:,:,:,None,:,:,:,None]
       return main.basis.volIntegrate(main.weights0,main.weights1,main.weights2,main.weights3,tmp)
-    numerator = np.sum( entropyInnerProduct(V,R1s_dtauphys - R1s_phys) )
-    denominator1 =np.sum( entropyInnerProduct(V,PLQLu_phys) )
-    denominator2 =np.sum( entropyInnerProduct(V,PLQLu_fphys) )
+    tester = globalSum( entropyInnerProduct(Vtest,test_phys) , main)
+    #print(tester)
+
+    numerator = globalSum( entropyInnerProduct(V,R1s_dtauphys - R1s_phys) ,MZ)
+    denominator1 = globalSum( entropyInnerProduct(V,PLQLu_phys),MZ)
+    denominator2 = globalSum( entropyInnerProduct(V,PLQLu_fphys),MZ)
     scale = (main.order[0]*1./(testscale[0]))**1.5
-    def globalMean(tau,main):
-    ## Create Global residual
-      data = main.comm.gather(tau,root = 0)
-      if (main.mpi_rank == 0):
-        rn_glob = 0.
-        for j in range(0,main.num_processes):
-          rn_glob += data[j]
-        rn_glob = rn_glob/(main.num_processes*1.)
-        for j in range(1,main.num_processes):
-          main.comm.send(rn_glob, dest=j)
-      else:
-        rn_glob = main.comm.recv(source=0)
-      return rn_glob
-    tau = globalMean( numerator/(denominator1 - scale*denominator2 - 1e-8) , main )
+    tau =  numerator/(denominator1 - scale*denominator2 - 1e-8) 
     #if (main.mpi_rank == 0): print(tau)
-    #tau = max(tau,0.)
     main.tau = tau
+    tau = max(tau,0.)
     #if (main.mpi_rank == 0): print(tau)
     #====================================================
  
     ## Now form RHS
-    RHS = R1s[:,0:main.order[0],0:main.order[1],0:main.order[2]] + tau/eps*( R2[:,0:main.order[0],0:main.order[1],0:main.order[2]] - R3[:,0:main.order[0],0:main.order[1],0:main.order[2]])
+    RHS = R1s[:,0:main.order[0],0:main.order[1],0:main.order[2]] #tau/eps*( R2[:,0:main.order[0],0:main.order[1],0:main.order[2]] - R3[:,0:main.order[0],0:main.order[1],0:main.order[2]])
  
     main.basis.reconstructU(main,main.a)
     U = entropy_to_conservative(main.a.u)*1.
