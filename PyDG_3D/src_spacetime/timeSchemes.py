@@ -1768,14 +1768,19 @@ def CrankNicolsonEntropyMZ(main,MZ,eqns,args):
     R1s_dtauphys = MZ.basis.reconstructUGeneral(MZ,R1s_dtau)
 
     eqns.getRHS(main,main,eqns)
-    main.basis.applyMassMatrix(main,main.RHS)
-    test_phys = main.basis.reconstructUGeneral(main,main.RHS)
+    tr = np.reshape(main.RHS[:]*1.,(main.nvars*main.order[0]*main.order[1]*main.order[2]*main.order[3],main.Npx,main.Npy,main.Npz,main.Npt) )
+    tr = np.einsum('ij...,j...->i...',main.EMM,tr)
+    tr = np.reshape(tr,np.shape(main.a.a))
+    test_phys = main.basis.reconstructUGeneral(main,tr)
+    print('hi')
+
+    test_phys = entropy_to_conservative(-test_phys)
     Vtest = main.basis.reconstructUGeneral(main,main.a.a)
     def entropyInnerProduct(a,b):
       tmp = (a[0]*b[0] + a[1]*b[1] + a[2]*b[2] + a[3]*b[3] + a[4]*b[4])[None,:]*main.Jdet[None,:,:,:,None,:,:,:,None]
       return main.basis.volIntegrate(main.weights0,main.weights1,main.weights2,main.weights3,tmp)
     tester = globalSum( entropyInnerProduct(Vtest,test_phys) , main)
-    #print(tester)
+    print(tester)
 
     numerator = globalSum( entropyInnerProduct(V,R1s_dtauphys - R1s_phys) ,MZ)
     denominator1 = globalSum( entropyInnerProduct(V,PLQLu_phys),MZ)

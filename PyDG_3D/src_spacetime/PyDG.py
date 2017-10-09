@@ -90,7 +90,7 @@ if 'enriched_ratio' in globals():
   pass
 else:
   #enriched_ratio = np.array([2,2,2,1])
-  enriched_add = np.array([1,1,0,0])
+  enriched_add = np.array([4,4,0,0])
 #  enriched_ratio = np.array([(order[0]+1.)/order[0],(order[1]+1.)/order[1],(order[2]+1.)/order[2],1])
 if 'enriched' in globals():
   pass
