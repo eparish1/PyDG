@@ -1638,7 +1638,7 @@ def CrankNicolsonEntropy(main,MZ,eqns,args):
   R0[:] = main.RHS[:]
   U0 = entropy_to_conservative(main.a.u)
   t0 = time.time()
-  if (main.iteration%10 == 0):
+  if (main.iteration%100 == 0):
     getEntropyMassMatrix(main)
   if (main.mpi_rank == 0): print('MM time = ' + str(time.time() - t0))
   def unsteadyResidual(main,v):
