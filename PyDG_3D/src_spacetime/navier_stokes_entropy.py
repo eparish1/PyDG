@@ -1,6 +1,7 @@
 import numpy as np
 import time
 from tensor_products import *
+import scipy.sparse.linalg
 ##### =========== Contains all the fluxes and physics neccesary to solve the Navier-Stokes equations using entropy variables within a DG framework #### ============
 ## mass matrix for entropy - i.e we have \int w dU(v)/dt d\Omega
 ## This function computes the inverse of the matrix \int w du/dv w'
@@ -43,15 +44,31 @@ def getEntropyMassMatrix(main):
   #    main.EMM[:,j*norder:(j+1)*norder] = getInnerMassMatrix(main,dudv[:,j])
   t1 = time.time()
   main.EMM = np.rollaxis( np.rollaxis(main.EMM,1,6),0,5)
+#  test = np.reshape(main.RHS[:]*1.,(main.nvars*main.order[0]*main.order[1]*main.order[2]*main.order[3],main.Npx,main.Npy,main.Npz,main.Npt) )
+#  test = np.rollaxis(test,0,5)
+#  test = np.linalg.solve(main.EMM,test)
+#  test = np.rollaxis(test,4,0)
+#
+#  t2 = time.time()
+##  test3 = main.RHS.flatten()
+##  EMM2 = np.reshape(main.EMM,(5*norder,5*norder))
+##  test3 = scipy.linalg.lu(EMM2)
+#
+#  t3 = time.time()
   main.EMM = np.linalg.inv(main.EMM)
+#  t4 = time.time()
   main.EMM = np.rollaxis( np.rollaxis(main.EMM,4,0),5,1)
-  #print('times = ' , time.time() - t1,t1 - t0)
+#  R = np.reshape(main.RHS[:],(main.nvars*main.order[0]*main.order[1]*main.order[2]*main.order[3],main.Npx,main.Npy,main.Npz,main.Npt) )
+#  test2 = np.einsum('ij...,j...->i...',main.EMM,R*1.)
+#  if (main.mpi_rank == 0): print('times = ' , t4 - t3, t3 - t2,t2 - t1,t1-t0, 'Error = ' + str(np.linalg.norm(test2 - test) ) )
+
+
 ## mass matrix for entropy - i.e we have \int w dU(v)/dt d\Omega
 ## This function computes the matrix \int w du/dv w'
 def getEntropyMassMatrix_noinvert(main):
   def getInnerMassMatrix(main,g):
     norder = main.order[0]*main.order[1]*main.order[2]*main.order[3]
-    M2 = np.zeros((5*norder,norder,\
+    M2 = np.zeros((norder,norder,\
                   main.Npx,main.Npy,main.Npz,1 ) )
     count = 0
     f2 = g*main.Jdet[None,:,:,:,None,:,:,:,None] 
@@ -64,8 +81,10 @@ def getEntropyMassMatrix_noinvert(main):
   count = 0
   I = np.eye(5)
   t0 = time.time()
-  for j in range(0,5):
-      M[:,j*norder:(j+1)*norder] = getInnerMassMatrix(main,dudv[:,j])
+  for i in range(0,5):
+    for j in range(i,5):
+      M[i*norder:(i+1)*norder,j*norder:(j+1)*norder] = getInnerMassMatrix(main,dudv[i,j])
+      M[j*norder:(j+1)*norder,i*norder:(i+1)*norder] = M[i*norder:(i+1)*norder,j*norder:(j+1)*norder]
   t1 = time.time()
   M = np.rollaxis( np.rollaxis(M,1,6),0,5)
   return M

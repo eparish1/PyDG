@@ -1204,26 +1204,26 @@ def SSP_RK3_Entropy(main,MZ,eqns,args=None):
   main.getRHS(main,MZ,eqns)  
   a0 = np.zeros(np.shape(main.a.a))
   a0[:] = main.a.a[:]
-  getEntropyMassMatrix(main)
-  #M = getEntropyMassMatrix_noinvert(main)
+  #getEntropyMassMatrix(main)
+  M = getEntropyMassMatrix_noinvert(main)
   R = np.reshape(main.RHS[:],(main.nvars*main.order[0]*main.order[1]*main.order[2]*main.order[3],main.Npx,main.Npy,main.Npz,main.Npt) )
-  #R = np.rollaxis(R,0,5)
-  #R = np.linalg.solve(M,R)
-  #R = np.rollaxis(R,0,4)
-  R = np.einsum('ij...,j...->i...',main.EMM,R)
+  R = np.rollaxis(R,0,5)
+  R = np.linalg.solve(M,R)
+  R = np.rollaxis(R,4,0)
+  #R = np.einsum('ij...,j...->i...',main.EMM,R)
   R = np.reshape(R,np.shape(main.a.a))
   a1 = main.a.a[:]  + main.dt*(R[:])
   #a1[:,main.order[0]/2::,main.order[1]/2::,:] = 0.
   main.a.a[:] = a1[:]
   #========= Second Stage
   main.getRHS(main,MZ,eqns)
-  getEntropyMassMatrix(main)
-  #M = getEntropyMassMatrix_noinvert(main)
+  #getEntropyMassMatrix(main)
+  M = getEntropyMassMatrix_noinvert(main)
   R = np.reshape(main.RHS[:],(main.nvars*main.order[0]*main.order[1]*main.order[2]*main.order[3],main.Npx,main.Npy,main.Npz,main.Npt) )
-  #R = np.rollaxis(R,0,5)
-  #R = np.linalg.solve(M,R)
-  #R = np.rollaxis(R,0,4)
-  R = np.einsum('ij...,j...->i...',main.EMM,R)
+  R = np.rollaxis(R,0,5)
+  R = np.linalg.solve(M,R)
+  R = np.rollaxis(R,4,0)
+  #R = np.einsum('ij...,j...->i...',main.EMM,R)
   R = np.reshape(R,np.shape(main.a.a))
   a1[:] = 3./4.*a0 + 1./4.*(a1 + main.dt*R[:]) #reuse a1 vector
   #a1[:,main.order[0]/2::,main.order[1]/2::,:] = 0.
@@ -1231,13 +1231,13 @@ def SSP_RK3_Entropy(main,MZ,eqns,args=None):
  
   #========== Third Stage
   main.getRHS(main,MZ,eqns)  
-  getEntropyMassMatrix(main)
-  #M = getEntropyMassMatrix_noinvert(main)
+  #getEntropyMassMatrix(main)
+  M = getEntropyMassMatrix_noinvert(main)
   R = np.reshape(main.RHS[:],(main.nvars*main.order[0]*main.order[1]*main.order[2]*main.order[3],main.Npx,main.Npy,main.Npz,main.Npt) )
-  #R = np.rollaxis(R,0,5)
-  #R = np.linalg.solve(M,R)
-  #R = np.rollaxis(R,0,4)
-  R = np.einsum('ij...,j...->i...',main.EMM,R)
+  R = np.rollaxis(R,0,5)
+  R = np.linalg.solve(M,R)
+  R = np.rollaxis(R,4,0)
+  #R = np.einsum('ij...,j...->i...',main.EMM,R)
   R = np.reshape(R,np.shape(main.a.a))
   main.a.a[:] = 1./3.*a0 + 2./3.*(a1[:] + main.dt*R[:])
   #main.a.a[:,main.order[0]/2::,main.order[1]/2::] = 0.
