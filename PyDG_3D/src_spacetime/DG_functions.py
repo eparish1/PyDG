@@ -43,9 +43,10 @@ def addInviscidFlux(main,MZ,eqns,args=[],args_phys=[]):
   main.RHS[:] += main.iFlux.fFBI[:,:,:,None,:,:,:,0:-1]*main.altarray2[None,None,None,:,None,None,None,None,None]
 
 def addVolume_and_Viscous(main,MZ,eqns,args=[],args_phys=[]):
-  eqns.evalFluxX(main,main.a.u,main.iFlux.fx,args_phys)
-  eqns.evalFluxY(main,main.a.u,main.iFlux.fy,args_phys)
-  eqns.evalFluxZ(main,main.a.u,main.iFlux.fz,args_phys)
+  #eqns.evalFluxX(main,main.a.u,main.iFlux.fx,args_phys)
+  #eqns.evalFluxY(main,main.a.u,main.iFlux.fy,args_phys)
+  #eqns.evalFluxZ(main,main.a.u,main.iFlux.fz,args_phys)
+  eqns.evalFluxXYZ(main,main.a.u,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,args_phys)
   eqns.addViscousContribution(main,MZ,eqns) 
   main.basis.applyVolIntegral(main,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,main.RHS)
 

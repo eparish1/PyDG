@@ -207,23 +207,24 @@ def evalFluxXYZEulerEntropy(main,v,fx,fy,fz,args):
   es = 1.e-30
   gamma = 1.4
   p = (gamma - 1.)*(u[4] - 0.5*u[1]**2/u[0] - 0.5*u[2]**2/u[0] - 0.5*u[3]**2/u[0])
+  rhoi = 1./u[0]
   fx[0] = u[1]
-  fx[1] = u[1]*u[1]/(u[0]) + p
-  fx[2] = u[1]*u[2]/(u[0])
-  fx[3] = u[1]*u[3]/(u[0])
-  fx[4] = (u[4] + p)*u[1]/(u[0])
+  fx[1] = rhoi*u[1]*u[1] + p
+  fx[2] = rhoi*u[1]*u[2]
+  fx[3] = rhoi*u[1]*u[3]
+  fx[4] = rhoi*(u[4] + p)*u[1]
 
   fy[0] = u[2]
-  fy[1] = u[1]*u[2]/u[0]
-  fy[2] = u[2]*u[2]/u[0] + p
-  fy[3] = u[2]*u[3]/u[0] 
-  fy[4] = (u[4] + p)*u[2]/u[0]
+  fy[1] = fx[2]#u[1]*u[2]/u[0]
+  fy[2] = rhoi*u[2]*u[2] + p
+  fy[3] = rhoi*u[2]*u[3]
+  fy[4] = rhoi*(u[4] + p)*u[2]
 
   fz[0] = u[3]
-  fz[1] = u[1]*u[3]/u[0]
-  fz[2] = u[2]*u[3]/u[0] 
-  fz[3] = u[3]*u[3]/u[0] + p 
-  fz[4] = (u[4] + p)*u[3]/u[0]
+  fz[1] = fx[3]#$u[1]*u[3]/u[0]
+  fz[2] = fy[3]#u[2]*u[3]/u[0] 
+  fz[3] = rhoi*u[3]*u[3] + p 
+  fz[4] = rhoi*(u[4] + p)*u[3]
 
 
 def evalFluxXEulerEntropy(main,v,f,args):

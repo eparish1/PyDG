@@ -5,6 +5,33 @@ import numexpr as ne
 
 
 ###### ====== Inviscid Fluxes Fluxes and Eigen Values (Eigenvalues currently not in use) ==== ############
+def evalFluxXYZEuler(main,u,fx,fy,fz,args):
+  es = 1.e-30
+  gamma = 1.4
+  rho = u[0]
+  rhoU = u[1]
+  rhoV = u[2]
+  rhoW = u[3]
+  rhoE = u[4]
+  p = ne.evaluate("(gamma - 1.)*(rhoE - 0.5*rhoU**2/rho - 0.5*rhoV**2/rho - 0.5*rhoW**2/rho)")
+  fx[0] = u[1]
+  fx[1] = ne.evaluate("rhoU*rhoU/(rho) + p")
+  fx[2] = ne.evaluate("rhoU*rhoV/(rho) ")
+  fx[3] = ne.evaluate("rhoU*rhoW/(rho) ")
+  fx[4] = ne.evaluate("(rhoE + p)*rhoU/(rho) ")
+
+  fy[0] = u[2]
+  fy[1] = ne.evaluate("rhoU*rhoV/(rho)")
+  fy[2] = ne.evaluate("rhoV*rhoV/(rho) + p ")
+  fy[3] = ne.evaluate("rhoV*rhoW/(rho) ")
+  fy[4] = ne.evaluate("(rhoE + p)*rhoV/(rho) ")
+
+  fz[0] = u[3]
+  fz[1] = ne.evaluate("rhoU*rhoW/(rho)")
+  fz[2] = ne.evaluate("rhoV*rhoW/(rho) ")
+  fz[3] = ne.evaluate("rhoW*rhoW/(rho) + p ")
+  fz[4] = ne.evaluate("(rhoE + p)*rhoW/(rho) ")
+
 def evalFluxXEuler(main,u,f,args): 
 #  #f = np.zeros(np.shape(u))
   es = 1.e-30
