@@ -4,6 +4,11 @@ import numpy as np
 ## Flux information for linear advection, advection diffusion, and pure diffusion
 
 ######  ====== Pure Diffusion ==== ###########
+def evalFluxXYZD(main,u,fx,fy,fz,args):
+  fx[0] = u[0]*0.
+  fy[0] = u[0]*0.
+  fz[0] = u[0]*0.
+
 def evalFluxD(main,u,f,args):
   f[0] = u[0]*0.
 

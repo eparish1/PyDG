@@ -483,6 +483,7 @@ class equations:
       self.inviscidFlux = diffusionCentralFlux
       self.nvars = 1
       self.nvisc_vars = 3
+      self.evalFluxXYZ = evalFluxXYZD
       self.evalFluxX = evalFluxD
       self.evalFluxY = evalFluxD
       self.evalFluxZ = evalFluxD

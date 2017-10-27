@@ -1394,7 +1394,7 @@ def SteadyState(main,MZ,eqns,args):
   eqns.getRHS(main,main,eqns)
   R0 = np.zeros(np.shape(main.RHS))
   R0[:] = main.RHS[:]
-  def unsteadyResidual(v):
+  def unsteadyResidual(main,v):
     main.a.a[:] = np.reshape(v,np.shape(main.a.a))
     eqns.getRHS(main,main,eqns)
     R1= np.zeros(np.shape(main.RHS))

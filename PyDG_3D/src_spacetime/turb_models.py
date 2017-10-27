@@ -3,6 +3,7 @@ import numpy as np
 from MPI_functions import gatherSolSpectral
 from equations_class import *
 from tensor_products import *
+from navier_stokes import strongFormEulerXYZ
 def orthogonalDynamics(main,MZ,eqns,schemes):
     ### EVAL RESIDUAL AND DO MZ STUFF
     MZ.a.a[:,:,:,:,:,:,:] = main.a.a[:,:,:,:,:,:,:]
@@ -20,6 +21,59 @@ def orthogonalDynamics(main,MZ,eqns,schemes):
 def DNS(main,MZ,eqns):
   eqns.getRHS(main,MZ,eqns)
 
+def projection(main,U):
+  ## First perform integration in x
+  ord_arrx= np.linspace(0,main.order[0]-1,main.order[0])
+  ord_arry= np.linspace(0,main.order[1]-1,main.order[1])
+  ord_arrz= np.linspace(0,main.order[2]-1,main.order[2])
+  ord_arrt= np.linspace(0,main.order[3]-1,main.order[3])
+  scale =  (2.*ord_arrx[:,None,None,None] + 1.)*(2.*ord_arry[None,:,None,None] + 1.)*\
+           (2.*ord_arrz[None,None,:,None] + 1.)*(2.*ord_arrt[None,None,None,:] + 1.)/16.
+  a_project = volIntegrateGlob_tensordot(main,U,main.w0,main.w1,main.w2,main.w3)*scale[None,:,:,:,:,None,None,None,None]
+  return a_project
+
+def orthogonalProjection(main,U):
+  ## First perform integration in x
+  ord_arrx= np.linspace(0,main.order[0]-1,main.order[0])
+  ord_arry= np.linspace(0,main.order[1]-1,main.order[1])
+  ord_arrz= np.linspace(0,main.order[2]-1,main.order[2])
+  ord_arrt= np.linspace(0,main.order[3]-1,main.order[3])
+  scale =  (2.*ord_arrx[:,None,None,None] + 1.)*(2.*ord_arry[None,:,None,None] + 1.)*\
+           (2.*ord_arrz[None,None,:,None] + 1.)*(2.*ord_arrt[None,None,None,:] + 1.)/16.
+  a_project = volIntegrateGlob_tensordot(main,U,main.w0,main.w1,main.w2,main.w3)*scale[None,:,:,:,:,None,None,None,None]
+  U_project = main.basis.reconstructUGeneral(main,a_project)
+  U_orthogonal = U - U_project
+  return U_orthogonal
+
+def orthogonalSubscale(main,MZ,eqns):
+   eqns.getRHS(main,MZ,eqns)
+   R0 = np.zeros(np.shape(main.RHS))
+   R1 = np.zeros(np.shape(main.RHS))
+   R0[:] = main.RHS[:]
+
+
+   eps = 1.e-5
+   main.RHS[:] = 0.
+   fx,fy,fz = strongFormEulerXYZ(main,main.a.a,None)
+   u0 = main.a.u*1.
+   f = fx + fy + fz
+   f_orthogonal = orthogonalProjection(main,f)
+   main.a.u[:] = u0 - eps*f_orthogonal
+   eqns.evalFluxXYZ(main,main.a.u,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,None)
+   main.basis.applyVolIntegral(main,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,main.RHS)
+   R1  = main.RHS*1.
+
+   main.RHS[:] = 0.
+   main.a.u[:] = u0[:]
+   eqns.evalFluxXYZ(main,main.a.u,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,None)
+   main.basis.applyVolIntegral(main,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,main.RHS)
+   R2  = main.RHS*1.
+
+
+   PLQLu = (R1 - R2)/eps
+   #print(np.linalg.norm(PLQLu),np.linalg.norm(f),np.linalg.norm(f_orthogonal),np.linalg.norm(R1),np.linalg.norm(R2 - R1))
+   tau = 0.005
+   main.RHS[:] = R0[:] + tau*PLQLu
 
 ## Evaluate the tau model through the FD approximation. This is expensive AF
 def tauModelFDEntropy(main,MZ,eqns):
@@ -81,7 +135,8 @@ def tauModelFD(main,MZ,eqns):
     RHS3 = np.zeros(np.shape(MZ.RHS))
     RHS3[:] = MZ.RHS[:]
     PLQLU = (RHS2[:,0:main.order[0],0:main.order[1],0:main.order[2]] - RHS3[:,0:main.order[0],0:main.order[1],0:main.order[2]])/(eps + 1e-30)
-    main.RHS[:] =  RHS1[:,0:main.order[0],0:main.order[1],0:main.order[2]] + main.dx/MZ.order[0]**2*PLQLU
+    tau = main.dx/MZ.order[0]**2
+    main.RHS[:] =  RHS1[:,0:main.order[0],0:main.order[1],0:main.order[2]] + 0.1*PLQLU
 
 
 def FM1Linearized(main,MZ,eqns):

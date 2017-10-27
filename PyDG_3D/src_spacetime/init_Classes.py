@@ -332,6 +332,9 @@ class variables:
     if (turb_str == 'tau-model'):
       self.getRHS = tauModelLinearized
       check = 1
+    if (turb_str == 'orthogonal subscale'):
+      self.getRHS = orthogonalSubscale
+      check = 1
     if (turb_str == 'tau-modelFD'):
       self.getRHS = tauModelFD
       check = 1

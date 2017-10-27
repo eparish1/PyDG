@@ -32,6 +32,45 @@ def evalFluxXYZEuler(main,u,fx,fy,fz,args):
   fz[3] = ne.evaluate("rhoW*rhoW/(rho) + p ")
   fz[4] = ne.evaluate("(rhoE + p)*rhoW/(rho) ")
 
+
+def strongFormEulerXYZ(main,a,args):
+  es = 1.e-30
+  gamma = 1.4
+  U = main.basis.reconstructUGeneral(main,main.a.a)
+  rho = U[0]
+  rhoU = U[1]
+  rhoV = U[2]
+  rhoW = U[3]
+  rhoE = U[4]
+  p = ne.evaluate("(gamma - 1.)*(rhoE - 0.5*rhoU**2/rho - 0.5*rhoV**2/rho - 0.5*rhoW**2/rho)")
+  Ux,Uy,Uz = main.basis.diffU(main.a.a,main) 
+  px = (gamma - 1.)* (Ux[4] - 1./U[0]*(U[3]*Ux[3] + U[2]*Ux[2] + U[1]*Ux[1]) + 0.5/U[0]**2*Ux[0]*(U[3]**2 + U[2]**2 + U[1]**2) )
+  py = (gamma - 1.)* (Uy[4] - 1./U[0]*(U[3]*Uy[3] + U[2]*Uy[2] + U[1]*Uy[1]) + 0.5/U[0]**2*Uy[0]*(U[3]**2 + U[2]**2 + U[1]**2) )
+  pz = (gamma - 1.)* (Uz[4] - 1./U[0]*(U[3]*Uz[3] + U[2]*Uz[2] + U[1]*Uz[1]) + 0.5/U[0]**2*Uz[0]*(U[3]**2 + U[2]**2 + U[1]**2) )
+
+  fx = np.zeros(np.shape(main.a.u))
+  fy = np.zeros(np.shape(main.a.u))
+  fz = np.zeros(np.shape(main.a.u))
+
+  fx[0] = Ux[1]  #d/dx(rho U)
+  fx[1] = 2.*U[1]*Ux[1]/U[0] - Ux[0]*U[1]**2/U[0]**2 + px
+  fx[2] = U[1]*Ux[2]/U[0] + Ux[1]*U[2]/U[0] - Ux[0]*U[1]*U[2]/U[0]**2
+  fx[3] = U[1]*Ux[3]/U[0] + Ux[1]*U[3]/U[0] - Ux[0]*U[1]*U[3]/U[0]**2
+  fx[4] = U[1]/U[0]*(Ux[4] + px) + Ux[1]/U[0]*(U[4] + p) - Ux[0]/U[0]**2*U[1]*(U[4] + p) 
+
+  fy[0] = Uy[2]  #d/dx(rho)
+  fy[1] = U[1]*Uy[2]/U[0] + Uy[1]*U[2]/U[0] - Uy[0]*U[1]*U[2]/U[0]**2
+  fy[2] = 2.*U[2]*Uy[2]/U[0] - Uy[0]*U[2]**2/U[0]**2 + py
+  fy[3] = U[2]*Uy[3]/U[0] + Uy[2]*U[3]/U[0] - Uy[0]*U[2]*U[3]/U[0]**2
+  fy[4] = U[2]/U[0]*(Uy[4] + py) + Uy[2]/U[0]*(U[4] + p) - Uy[0]/U[0]**2*U[2]*(U[4] + p) 
+
+  fz[0] = Uz[3]  #d/dx(rho)
+  fz[1] = U[1]*Uz[3]/U[0] + Uz[1]*U[3]/U[0] - Uz[0]*U[1]*U[3]/U[0]**2
+  fz[2] = U[3]*Uz[2]/U[0] + Uz[3]*U[2]/U[0] - Uz[0]*U[3]*U[2]/U[0]**2
+  fz[3] = 2.*U[3]*Uz[3]/U[0] - Uz[0]*U[3]**2/U[0]**2 + pz
+  fz[4] = U[3]/U[0]*(Uz[4] + pz) + Uz[3]/U[0]*(U[4] + p) - Uz[0]/U[0]**2*U[3]*(U[4] + p) 
+  return fx,fy,fz
+
 def evalFluxXEuler(main,u,f,args): 
 #  #f = np.zeros(np.shape(u))
   es = 1.e-30
