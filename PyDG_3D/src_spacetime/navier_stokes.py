@@ -151,6 +151,44 @@ def evalFluxZEuler(main,u,f,args):
   f[4] = ne.evaluate("(rhoE + p)*rhoW/(rho) ")
 
 
+def evalFluxXYZEulerLin(main,U0,fx,fy,fz,args):
+  up = args[0]
+  #decompose as U = U0 + up, where up is the perturbation
+  #f = np.zeros(np.shape(u))
+  es = 1.e-30
+  gamma = 1.4
+  u = U0[1]/U0[0]
+  v = U0[2]/U0[0]
+  w = U0[3]/U0[0]
+  qsqr = u**2 + v**2 + w**2
+  # compute H in three steps (H = E + p/rho)
+  H = (gamma - 1.)*(U0[4] - 0.5*U0[0]*qsqr) #compute pressure
+  H += U0[4]
+  H /= U0[0]
+  fx[0] = up[1]
+  fx[1] = ( (gamma - 1.)/2.*qsqr - u**2)*up[0] + (3. - gamma)*u*up[1] + (1. - gamma)*v*up[2] + \
+         (1. - gamma)*w*up[3] + (gamma - 1.)*up[4]
+  fx[2] = -u*v*up[0] + v*up[1] + u*up[2]
+  fx[3] = -u*w*up[0] + w*up[1] + u*up[3]
+  fx[4] = ((gamma - 1.)/2.*qsqr - H)*u*up[0] + (H + (1. - gamma)*u**2)*up[1] + (1. - gamma)*u*v*up[2] + \
+         (1. - gamma)*u*w*up[3] + gamma*u*up[4]
+
+  fy[0] = up[2]
+  fy[1] = -v*u*up[0] + v*up[1] + u*up[2]
+  fy[2] = ( (gamma - 1.)/2.*qsqr - v**2)*up[0] + (1. - gamma)*u*up[1] + (3. - gamma)*v*up[2] + \
+         (1. - gamma)*w*up[3] + (gamma - 1.)*up[4]
+  fy[3] = -v*w*up[0] + w*up[2] + v*up[3]
+  fy[4] = ((gamma - 1.)/2.*qsqr - H)*v*up[0] + (1. - gamma)*u*v*up[1] + (H + (1. - gamma)*v**2)*up[2] + \
+         (1. - gamma)*v*w*up[3] + gamma*v*up[4]
+
+  fz[0] = up[3]
+  fz[1] = -u*w*up[0] + w*up[1] + u*up[3]
+  fz[2] = -v*w*up[0] + w*up[2] + v*up[3]
+  fz[3] = ( (gamma - 1.)/2.*qsqr - w**2)*up[0] + (1. - gamma)*u*up[1] + (1. - gamma)*v*up[2] + \
+         (3. - gamma)*w*up[3] + (gamma - 1.)*up[4]
+  fz[4] = ((gamma - 1.)/2.*qsqr - H)*w*up[0] + (1. - gamma)*u*w*up[1] + (1. - gamma)*v*w*up[2] + \
+          (H + (1. - gamma)*w**2)*up[3] + gamma*w*up[4]
+
 
 def evalFluxXEulerLin(main,U0,f,args): 
   up = args[0]

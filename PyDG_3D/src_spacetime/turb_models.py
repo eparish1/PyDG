@@ -55,25 +55,30 @@ def orthogonalSubscale(main,MZ,eqns):
    eps = 1.e-5
    main.RHS[:] = 0.
    fx,fy,fz = strongFormEulerXYZ(main,main.a.a,None)
-   u0 = main.a.u*1.
+   #u0 = main.a.u*1.
    f = fx + fy + fz
-   f_orthogonal = orthogonalProjection(main,f)
-   main.a.u[:] = u0 - eps*f_orthogonal
-   eqns.evalFluxXYZ(main,main.a.u,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,None)
-   main.basis.applyVolIntegral(main,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,main.RHS)
-   R1  = main.RHS*1.
-
-   main.RHS[:] = 0.
-   main.a.u[:] = u0[:]
-   eqns.evalFluxXYZ(main,main.a.u,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,None)
-   main.basis.applyVolIntegral(main,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,main.RHS)
-   R2  = main.RHS*1.
-
-
-   PLQLu = (R1 - R2)/eps
+   #main.a.u[:] = u0[:]
+   #f_orthogonal = orthogonalProjection(main,f)
+   #main.a.u[:] = u0 - eps*f_orthogonal
+   #eqns.evalFluxXYZ(main,main.a.u,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,None)
+   #main.basis.applyVolIntegral(main,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,main.RHS)
+   #R1  = main.RHS*1.
+   #
+   #main.RHS[:] = 0.
+   #main.a.u[:] = u0[:]
+   #eqns.evalFluxXYZ(main,main.a.u,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,None)
+   #main.basis.applyVolIntegral(main,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,main.RHS)
+   #R2  = main.RHS*1.
+   #
+   #
+   #PLQLu = (R1 - R2)/eps
+   evalFluxXYZEulerLin(main,main.a.u,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,[-f])#_orthogonal])
+   PLQLu2 = main.RHS*0.
+   main.basis.applyVolIntegral(main,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,PLQLu2)
+   #print(np.linalg.norm(PLQLu2 - PLQLu),np.linalg.norm(PLQLu[1]),np.linalg.norm(PLQLu2[1]))
    #print(np.linalg.norm(PLQLu),np.linalg.norm(f),np.linalg.norm(f_orthogonal),np.linalg.norm(R1),np.linalg.norm(R2 - R1))
    tau = 0.005
-   main.RHS[:] = R0[:] + tau*PLQLu
+   main.RHS[:] = R0[:] + tau*PLQLu2
 
 ## Evaluate the tau model through the FD approximation. This is expensive AF
 def tauModelFDEntropy(main,MZ,eqns):
