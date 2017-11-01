@@ -4,6 +4,33 @@ from eos_functions import *
 
 
 ###### ====== Inviscid Fluxes Fluxes and Eigen Values (Eigenvalues currently not in use) ==== ############
+def evalFluxXYZEuler_reacting(main,u,fx,fy,fz,args): 
+  #f = np.zeros(np.shape(u))
+  es = 1.e-30
+  p = computePressure_CPG(main,u)
+  fx[0] = u[1]
+  fx[1] = u[1]*u[1]/(u[0]) + p
+  fx[2] = u[1]*u[2]/(u[0])
+  fx[3] = u[1]*u[3]/(u[0])
+  fx[4] = (u[4] + p)*u[1]/(u[0])
+  fx[5::] = u[None,1]*u[5::]/u[None,0] 
+
+  fy[0] = u[2]
+  fy[1] = u[1]*u[2]/u[0]
+  fy[2] = u[2]*u[2]/u[0] + p
+  fy[3] = u[2]*u[3]/u[0] 
+  fy[4] = (u[4] + p)*u[2]/u[0]
+  fy[5::] = u[None,2]*u[5::]/u[None,0] 
+
+  fz[0] = u[3]
+  fz[1] = u[1]*u[3]/u[0]
+  fz[2] = u[2]*u[3]/u[0] 
+  fz[3] = u[3]*u[3]/u[0] + p 
+  fz[4] = (u[4] + p)*u[3]/u[0]
+  fz[5::] = u[None,3]*u[5::]/u[None,0] 
+
+
+
 def evalFluxXEuler_reacting(main,u,f,args): 
   #f = np.zeros(np.shape(u))
   es = 1.e-30

@@ -1,19 +1,26 @@
 import numpy as np
 from eos_functions import *
+import cantera as ct
 def getNetProductionRates(main,U,mol_weight):
   ## Reaction is
   # CH4 + 1.5 O2 => CO + 2*H2O
   # CO  + 0.5 O2 <=> CO2 
+  gas = ct.Solution('2s_ch4_bfer.xml')
   p,T = computePressure_and_Temperature_CPG(main,U)
+  pm = np.mean(p)
+  Tm = np.mean(T)
+  Ym = main.a.u[5::,0,0,0,0,0,0,0,0]/main.a.u[0,0,0,0,0,0,0,0,0] 
   Y_last = 1. - np.sum(U[5::]/U[None,0],axis=0)
+  Ym = np.append(Ym,Y_last[0,0,0,0,0,0,0,0])
+  gas.TPY =Tm,pm,Ym
   Winv =  np.einsum('i...,ijk...->jk...',1./main.W[0:-1],U[5::]/U[None,0]) + 1./main.W[-1]*Y_last
   X = 1./Winv[None]*1./main.W[0:-1,None,None,None,None,None,None,None,None] * U[5::]/U[None,0]
   X_last = 1./Winv*1./main.W[-1] * Y_last
-  conc_den = np.sum(X*main.W[0:-1],axis=0) + X_last*main.W[-1]
+  conc_den = np.sum(X*main.W[0:-1,None,None,None,None,None,None,None,None],axis=0) + X_last*main.W[-1]
   k1 = get_kf1(T,X,main.W,U[0],conc_den)
   k2 = get_kf2(T,X,main.W,U[0],conc_den)
   rates = np.zeros(np.shape(X))
-  print(np.shape(X))
+  #print(np.shape(X),np.shape(U),np.shape(k1),np.shape(T),np.shape(conc_den),np.shape(main.W))
   rates[0] -= 1.5*k1 #O2 reaction 1 
   rates[0] -= 0.5*k2 #O2 reaction 2
   rates[1] += 2.*k1  #H2O reaction 1
@@ -21,6 +28,12 @@ def getNetProductionRates(main,U,mol_weight):
   rates[3] += k1
   rates[3] -= k2
   rates[4] += k2
+
+  rates2 = gas.net_production_rates
+  print(rates[:,0,0,0,0,0,0,0,0] - rates2[0:-1])
+  print(np.linalg.norm(rates[:,0,0,0,0,0,0,0,0] - rates2[0:-1]))
+
+  #print(np.linalg.norm(rates - rates2))
   return rates
 
 def get_kf1(T,X,mol_weight,rho,conc_den):

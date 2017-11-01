@@ -14,16 +14,17 @@ import time
 
 def addSource(main):
   if (main.fsource):
-#    rates = getNetProductionRates(main,main.a.u,main.W)
+    rates = getNetProductionRates(main,main.a.u,main.W)
+    sources = rates*main.W[0:-1,None,None,None,None,None,None,None,None]*1000.
 #    print(np.shape(rates),np.shape(main.a.u))
     force = np.zeros(np.shape(main.iFlux.fx))
-#    #sources = main.cgas_field.net_production_rates[:,:]*main.cgas_field.molecular_weights[None,:]
+#    sources2 = main.cgas_field.net_production_rates[:,:]*main.cgas_field.molecular_weights[None,:]
 #    #main.source_hook(main,force)
-    for i in range(0,main.nvars):
-      force[i] = main.source_mag[i]#*main.a.u[i]
-#    for i in range(5,main.nvars):
-#      force[i] = np.reshape(sources[:,i-5],np.shape(main.a.u[0]))
-#      force[4] -= force[i]*main.delta_h0[i-5]
+#    for i in range(0,main.nvars):
+#      force[i] = main.source_mag[i]#*main.a.u[i]
+    for i in range(5,main.nvars):
+      force[i] = rates[i-5]#np.reshape(rates[:,i-5],np.shape(main.a.u[0]))
+      force[4] -= force[i]*main.delta_h0[i-5]
 #    force[4] -= main.delta_h0[-1]*np.reshape(sources[:,-1],np.shape(main.a.u[0]))
     main.RHS[:] += main.basis.volIntegrateGlob(main, force*main.Jdet[None,:,:,:,None,:,:,:,None] ,main.w0,main.w1,main.w2,main.w3)
 

@@ -224,27 +224,6 @@ class variables:
     self.Cv = self.gas.Cv
     self.Cp = self.gas.Cp
 
-#    self.wx = self.wp0[:,None,None,None,:,None,None,None,None,None,None,None]*self.Jinv[0,0][None,None,None,None,:,:,:,None,:,:,:,None]*self.w1[None,:,None,None,None,:,None,None,None,None,None,None]*\
-#       self.w2[None,None,:,None,None,None,:,None,None,None,None,None]*self.w3[None,None,None,:,None,None,None,:,None,None,None,None] + \
-#       self.w0[:,None,None,None,:,None,None,None,None,None,None,None]*self.wp1[None,:,None,None,None,:,None,None,None,None,None,None]*self.Jinv[1,0][None,None,None,None,:,:,:,None,:,:,:,None]*\
-#       self.w2[None,None,:,None,None,None,:,None,None,None,None,None]*self.w3[None,None,None,:,None,None,None,:,None,None,None,None] + \
-#       self.w0[:,None,None,None,:,None,None,None,None,None,None,None]*self.w1[None,:,None,None,None,:,None,None,None,None,None,None]*\
-#       self.wp2[None,None,:,None,None,None,:,None,None,None,None,None]*self.Jinv[2,0][None,None,None,None,:,:,:,None,:,:,:,None]*self.w3[None,None,None,:,None,None,None,:,None,None,None,None]
-#
-#    self.wy = self.wp0[:,None,None,None,:,None,None,None,None,None,None,None]*self.Jinv[0,1][None,None,None,None,:,:,:,None,:,:,:,None]*self.w1[None,:,None,None,None,:,None,None,None,None,None,None]*\
-#       self.w2[None,None,:,None,None,None,:,None,None,None,None,None]*self.w3[None,None,None,:,None,None,None,:,None,None,None,None] + \
-#       self.w0[:,None,None,None,:,None,None,None,None,None,None,None]*self.wp1[None,:,None,None,None,:,None,None,None,None,None,None]*self.Jinv[1,1][None,None,None,None,:,:,:,None,:,:,:,None]*\
-#       self.w2[None,None,:,None,None,None,:,None,None,None,None,None]*self.w3[None,None,None,:,None,None,None,:,None,None,None,None] + \
-#       self.w0[:,None,None,None,:,None,None,None,None,None,None,None]*self.w1[None,:,None,None,None,:,None,None,None,None,None,None]*\
-#       self.wp2[None,None,:,None,None,None,:,None,None,None,None,None]*self.Jinv[2,1][None,None,None,None,:,:,:,None,:,:,:,None]*self.w3[None,None,None,:,None,None,None,:,None,None,None,None]
-#
-#    self.wz = self.wp0[:,None,None,None,:,None,None,None,None,None,None,None]*self.Jinv[0,2][None,None,None,None,:,:,:,None,:,:,:,None]*self.w1[None,:,None,None,None,:,None,None,None,None,None,None]*\
-#       self.w2[None,None,:,None,None,None,:,None,None,None,None,None]*self.w3[None,None,None,:,None,None,None,:,None,None,None,None] + \
-#       self.w0[:,None,None,None,:,None,None,None,None,None,None,None]*self.wp1[None,:,None,None,None,:,None,None,None,None,None,None]*self.Jinv[1,2][None,None,None,None,:,:,:,None,:,:,:,None]*\
-#       self.w2[None,None,:,None,None,None,:,None,None,None,None,None]*self.w3[None,None,None,:,None,None,None,:,None,None,None,None] + \
-#       self.w0[:,None,None,None,:,None,None,None,None,None,None,None]*self.w1[None,:,None,None,None,:,None,None,None,None,None,None]*\
-#       self.wp2[None,None,:,None,None,None,:,None,None,None,None,None]*self.Jinv[2,2][None,None,None,None,:,:,:,None,:,:,:,None]*self.w3[None,None,None,:,None,None,None,:,None,None,None,None]
-
 
     self.reacting = False
     ## Initialize BCs
@@ -357,7 +336,8 @@ class variables:
 
     self.basis = basis_class('Legendre',basis_args)
     self.mol_str = mol_str
-    #self = add_reacting_to_main(self,mol_str)
+    if (eqns.eq_str[0:-2] == 'Navier-Stokes Reacting'):
+      self = add_reacting_to_main(self,mol_str)
     if (eqns.eq_str == 'Navier-Stokes Entropy'):
       norder = order[0]*order[1]*order[2]*order[3]
       self.EMM = np.zeros((norder*5,norder*5,self.Npx,self.Npy,self.Npz,self.Npt) )

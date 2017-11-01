@@ -94,6 +94,7 @@ class equations:
       check_eq = 1
       self.nvars = 5 + nscalars
       self.nvisc_vars = 9 + nscalars*3
+      self.evalFluxXYZ = evalFluxXYZEuler_reacting 
       self.evalFluxX = evalFluxXEuler_reacting 
       self.evalFluxY = evalFluxYEuler_reacting
       self.evalFluxZ = evalFluxZEuler_reacting
