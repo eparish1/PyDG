@@ -30,9 +30,10 @@ def getNetProductionRates(main,U,mol_weight):
   rates[4] += k2
 
   rates2 = gas.net_production_rates
-  print(rates[:,0,0,0,0,0,0,0,0] - rates2[0:-1])
+  print(rates[:,0,0,0,0,0,0,0,0] ,rates2[0:-1])
   print(np.linalg.norm(rates[:,0,0,0,0,0,0,0,0] - rates2[0:-1]))
-
+  for i in range(0,5):
+    rates[i,:] = rates2[i]
   #print(np.linalg.norm(rates - rates2))
   return rates
 

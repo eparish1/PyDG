@@ -23,7 +23,7 @@ def addSource(main):
 #    for i in range(0,main.nvars):
 #      force[i] = main.source_mag[i]#*main.a.u[i]
     for i in range(5,main.nvars):
-      force[i] = rates[i-5]#np.reshape(rates[:,i-5],np.shape(main.a.u[0]))
+      force[i] = sources[i-5]#np.reshape(rates[:,i-5],np.shape(main.a.u[0]))
       force[4] -= force[i]*main.delta_h0[i-5]
 #    force[4] -= main.delta_h0[-1]*np.reshape(sources[:,-1],np.shape(main.a.u[0]))
     main.RHS[:] += main.basis.volIntegrateGlob(main, force*main.Jdet[None,:,:,:,None,:,:,:,None] ,main.w0,main.w1,main.w2,main.w3)

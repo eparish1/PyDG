@@ -58,7 +58,7 @@ def orthogonalSubscale(main,MZ,eqns):
    #u0 = main.a.u*1.
    f = fx + fy + fz
    #main.a.u[:] = u0[:]
-   #f_orthogonal = orthogonalProjection(main,f)
+   f_orthogonal = orthogonalProjection(main,f)
    #main.a.u[:] = u0 - eps*f_orthogonal
    #eqns.evalFluxXYZ(main,main.a.u,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,None)
    #main.basis.applyVolIntegral(main,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,main.RHS)
@@ -72,12 +72,12 @@ def orthogonalSubscale(main,MZ,eqns):
    #
    #
    #PLQLu = (R1 - R2)/eps
-   evalFluxXYZEulerLin(main,main.a.u,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,[-f])#_orthogonal])
-   PLQLu2 = main.RHS*0.
+   evalFluxXYZEulerLin(main,main.a.u,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,[-f_orthogonal])
+   PLQLu2 = np.zeros(np.shape(main.RHS))
    main.basis.applyVolIntegral(main,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,PLQLu2)
    #print(np.linalg.norm(PLQLu2 - PLQLu),np.linalg.norm(PLQLu[1]),np.linalg.norm(PLQLu2[1]))
    #print(np.linalg.norm(PLQLu),np.linalg.norm(f),np.linalg.norm(f_orthogonal),np.linalg.norm(R1),np.linalg.norm(R2 - R1))
-   tau = 0.005
+   tau = 1. #tau8.0
    main.RHS[:] = R0[:] + tau*PLQLu2
 
 ## Evaluate the tau model through the FD approximation. This is expensive AF

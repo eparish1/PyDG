@@ -143,12 +143,18 @@ class boundaryConditions:
       self.BC_type = BC_type
       self.applyBC = reflectingwall_bc
       self.args = BC_args
+    if (BC_type == 'shuOscherBC'):
+      check = 1
+      self.BC_type = BC_type
+      self.applyBC = shuOscherBC
+      self.args = BC_args
 
     if (BC_type[0:6] == 'custom'):
       check = 1
       self.BC_type = BC_type 
       self.applyBC = globals()[BC_type]
       self.args = BC_args
+
 
     if (check == 0):
       if (mpi_rank == 0): print('BC type ' + BC_type + ' not found. PyDG quitting')

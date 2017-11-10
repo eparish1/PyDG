@@ -1,4 +1,12 @@
 import numpy as np
+def shuOscherBC(Ue,UBC,args,main):
+  UBC[0] = 3.8571430000000211
+  UBC[1] = 10.141852232767054
+  UBC[2] = 0.
+  UBC[3] = 0.
+  UBC[4] = 39.166669265042707
+  return UBC
+
 def dirichlet_bc(Ue,UBC,args,main):
 #  UBC[0] = args[0] 
   UBC[0] = np.sin(main.xG[:,0,:,None,:,0,:,None])

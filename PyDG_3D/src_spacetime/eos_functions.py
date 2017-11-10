@@ -208,3 +208,12 @@ def computePressure_and_Temperature_CPG(main,u):
 
   return p,T
 
+
+def nasa_get_cps(main,T):
+  T0 = 298.
+  a = main.nasa_coeffs[:,0:7]
+  R = 8314.4621/1000./main.W
+  cp = R*(a[:,0]*T + a[:,1]*T**2/2. + a[:,2]*T**3/3. + a[:,3]*T**4/4. + a[:,4]*T**5/5.)
+  cp /= T
+  #cp -= R*(a[:,0]*T0 + a[:,1]*T0**2/2. + a[:,2]*T0**3/3. + a[:,3]*T0**4/4. + a[:,4]*T0**5/5.)
+  return cp

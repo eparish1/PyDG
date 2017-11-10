@@ -37,6 +37,7 @@ def strongFormEulerXYZ(main,a,args):
   es = 1.e-30
   gamma = 1.4
   U = main.basis.reconstructUGeneral(main,main.a.a)
+  U[0] += 1e-10
   rho = U[0]
   rhoU = U[1]
   rhoV = U[2]
