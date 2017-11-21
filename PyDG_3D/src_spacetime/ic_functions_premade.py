@@ -141,6 +141,48 @@ def ShuOscherIC(x,y,z,main):
   return q
 
 
+def ShuOscherICEntropy(x,y,z,main):
+  nqx,nqy,nqz,Nelx,Nely,Nelz = np.shape(x)
+  q = np.zeros((5,nqx,nqy,nqz,Nelx,Nely,Nelz))
+  qv = np.zeros((5,nqx,nqy,nqz,Nelx,Nely,Nelz))
+  gamma = main.gas.gamma 
+  Cv = main.gas.Cv
+  Cp = Cv*gamma
+  R = Cp - Cv
+  p = np.zeros((nqx,nqy,nqz,Nelx,Nely,Nelz))
+  rho = np.zeros(np.shape(p))
+  u = np.zeros(np.shape(rho))
+  v = np.zeros(np.shape(u))
+  w = np.zeros(np.shape(u))
+  E = np.zeros(np.shape(u))
+  mp = -4
+  p[:] = 10. + 1./3.
+  rho[:] = 3.857143
+  u[:] = 2.629369
+
+  p[x>mp] = 1.
+  rho[x>mp] = (1. + 0.2*np.sin(5.*x[x>mp]) )
+  u[x>mp] = 0
+#  rho[:,:,:,0:Nelx/2,:,:] = 1.
+#  rho[:,:,:,Nelx/2::,:,:] = 0.8
+  T = p/(rho*R)
+  E[:] = Cv*T + 0.5*(u**2 + v**2)
+  q[0] = rho
+  q[1] = rho*u
+  q[2] = rho*v
+  q[3] = rho*w
+  q[4] = rho*E
+
+  s = np.log(p) - gamma*np.log(rho)
+  s2 = np.log(p/rho**gamma)
+  qv[0] = -s/(gamma - 1.) + (gamma + 1.)/(gamma - 1.) - q[4]/p
+  qv[1] = q[1]/p
+  qv[2] = q[2]/p
+  qv[3] = q[3]/p
+  qv[4] = -q[0]/p
+  return qv
+
+
 def shocktubeIC(x,y,z,main):
   nqx,nqy,nqz,Nelx,Nely,Nelz = np.shape(x)
   q = np.zeros((5,nqx,nqy,nqz,Nelx,Nely,Nelz))

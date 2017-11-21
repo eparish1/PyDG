@@ -151,7 +151,22 @@ def evalFluxZEuler(main,u,f,args):
   f[3] = ne.evaluate("rhoW*rhoW/(rho) + p ")
   f[4] = ne.evaluate("(rhoE + p)*rhoW/(rho) ")
 
+def evalFluxXYZEulerLin2(main,U0,fx,fy,fz,args):
+  up = args[0]
+  eps = 1e-5
+  fx0 = fx*0.
+  fy0 = fy*0.
+  fz0 = fz*0.
+  fx1 = fx*0.
+  fy1 = fy*0.
+  fz1 = fz*0.
 
+  evalFluxXYZEuler(main,U0,fx0,fy0,fz0,None)
+  evalFluxXYZEuler(main,U0 + eps*up,fx1,fy1,fz1,None)
+  fx[:] = 1./eps*(fx1 - fx0) 
+  fy[:] = 1./eps*(fy1 - fy0) 
+  fz[:] = 1./eps*(fz1 - fz0) 
+ 
 def evalFluxXYZEulerLin(main,U0,fx,fy,fz,args):
   up = args[0]
   #decompose as U = U0 + up, where up is the perturbation
