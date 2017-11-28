@@ -10,7 +10,6 @@ from linear_advection import *
 #from equationFluxes import *
 from DG_functions import getFlux,getRHS
 from turb_models import *
-from viscousFluxesIP import *
 from boundary_conditions import *
 from equations_class import *
 from gas import *
