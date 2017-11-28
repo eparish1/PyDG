@@ -1,6 +1,7 @@
 import numpy as np
 from chemistry_values import *
 import cantera as ct
+from eos_functions import *
 def add_reacting_to_main(main,mol_str):
   main.reacting = True
   main.nspecies = np.size(mol_str)

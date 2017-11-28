@@ -101,6 +101,21 @@ def update_state_cantera(main):
     eD_edge = main.a.uD_edge[4]*rhoiD_edge - 0.5*rhoiD_edge**2*(main.a.uD_edge[1]**2 + main.a.uD_edge[2]**2 + main.a.uD_edge[3]**2)
     eF_edge = main.a.uF_edge[4]*rhoiF_edge - 0.5*rhoiF_edge**2*(main.a.uF_edge[1]**2 + main.a.uF_edge[2]**2 + main.a.uF_edge[3]**2)
     eB_edge = main.a.uB_edge[4]*rhoiB_edge - 0.5*rhoiB_edge**2*(main.a.uB_edge[1]**2 + main.a.uB_edge[2]**2 + main.a.uB_edge[3]**2)
+    for i in range(0,np.size(main.delta_h0)-1):
+      e += main.delta_h0[i]*main.a.u[5+i]*rhoi
+      eR += main.delta_h0[i]*main.a.uR[5+i]*rhoiR
+      eL += main.delta_h0[i]*main.a.uL[5+i]*rhoiL
+      eU += main.delta_h0[i]*main.a.uU[5+i]*rhoiU
+      eD += main.delta_h0[i]*main.a.uD[5+i]*rhoiD
+      eF += main.delta_h0[i]*main.a.uF[5+i]*rhoiF
+      eB += main.delta_h0[i]*main.a.uB[5+i]*rhoiB
+      eR_edge += main.delta_h0[i]*main.a.uR_edge[5+i]*rhoiR_edge
+      eL_edge += main.delta_h0[i]*main.a.uL_edge[5+i]*rhoiL_edge
+      eU_edge += main.delta_h0[i]*main.a.uU_edge[5+i]*rhoiU_edge
+      eD_edge += main.delta_h0[i]*main.a.uD_edge[5+i]*rhoiD_edge
+      eF_edge += main.delta_h0[i]*main.a.uF_edge[5+i]*rhoiF_edge
+      eB_edge += main.delta_h0[i]*main.a.uB_edge[5+i]*rhoiB_edge
+
     main.cgas_field.UVY = e.flatten(),rhoi.flatten(),fa
     main.cgas_field_R.UVY = eR.flatten(),rhoiR.flatten(),faR
     main.cgas_field_L.UVY = eL.flatten(),rhoiL.flatten(),faL
