@@ -363,6 +363,20 @@ def limiter_characteristic(main):
   #print(np.linalg.norm(main.a.a))
 
   #print('hi') 
+def sponge_limiter(main):
+  filt_array = np.ones(np.shape(main.a.a))
+  filt_array[:,1::,:,:,:,0:10] = 0.
+  filt_array[:,:,1::,:,:,0:10] = 0.
+  filt_array[:,:,:,1::,:,0:10] = 0.
+  filt_array[:,:,:,:,1::,0:10] = 0.
+  filt_array[:,1::,:,:,:,-10::] = 0.
+  filt_array[:,:,1::,:,:,-10::] = 0.
+  filt_array[:,:,:,1::,:,-10::] = 0.
+  filt_array[:,:,:,:,1::,-10::] = 0.
+
+  main.a.a *= filt_array
+
+
 def limiter(main):
 #   main.basis.reconstructU(main,main.a)
 #   u0 = main.a.u*1.
@@ -393,18 +407,18 @@ def SSP_RK3(main,MZ,eqns,args=None):
   a1 = main.a.a[:]  + main.dt*(main.RHS[:])
   main.a.a[:] = a1[:]
   #limiter_characteristic(main)
-  #limiter_MF(main)
+  #sponge_limiter(main)
 
   main.getRHS(main,MZ,eqns)
   a1[:] = 3./4.*a0 + 1./4.*(a1 + main.dt*main.RHS[:]) #reuse a1 vector
   main.a.a[:] = a1[:]
   #limiter_characteristic(main)
-  #limiter_MF(main)
+  #sponge_limiter(main)
 
   main.getRHS(main,MZ,eqns)  ## put RHS in a array since we don't need it
   main.a.a[:] = 1./3.*a0 + 2./3.*(a1[:] + main.dt*main.RHS[:])
   #limiter_characteristic(main)
-  #limiter_MF(main)
+  #sponge_limiter(main)
 
 
   main.t += main.dt

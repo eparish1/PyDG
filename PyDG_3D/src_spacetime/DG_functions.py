@@ -4,6 +4,7 @@ from navier_stokes import evalViscousFluxZNS_IP
 from navier_stokes import evalViscousFluxYNS_IP
 from navier_stokes import evalViscousFluxXNS_IP
 from navier_stokes import getGsNSX_FAST,getGsNSY_FAST,getGsNSZ_FAST
+from flux_boundary_conditions import *
 from eos_functions import *
 from tensor_products import *
 from chemistry_values import *
@@ -102,6 +103,9 @@ def getFlux(main,MZ,eqns,args):
   #inviscidFlux_DOUBLEFLUX2(main,eqns,main.iFlux,main.a,args)
 
   # now we need to integrate along the boundary 
+#  main.iFlux.fRS[:,:,:,:,-1,:,:,:] = nonreflecting_flux_bc_right(main.a.uR[:,:,:,:,-1,:,:,:],main.iFlux.fRS[:,:,:,:,-1,:,:,:],main.iFlux.fRS[:,:,:,:,-2,:,:,:],None,main)
+#  main.iFlux.fLS[:,:,:,:,0 ,:,:,:] = nonreflecting_flux_bc_left( main.a.uL[:,:,:,:,0 ,:,:,:],main.iFlux.fLS[:,:,:,:,0 ,:,:,:],main.iFlux.fLS[:,:,:,:, 1,:,:,:],None,main)
+
   main.iFlux.fRI = main.basis.faceIntegrateGlob(main,main.iFlux.fRS,MZ.w1,MZ.w2,MZ.w3,MZ.weights1,MZ.weights2,MZ.weights3)
   main.iFlux.fLI = main.basis.faceIntegrateGlob(main,main.iFlux.fLS,MZ.w1,MZ.w2,MZ.w3,MZ.weights1,MZ.weights2,MZ.weights3)
   main.iFlux.fUI = main.basis.faceIntegrateGlob(main,main.iFlux.fUS,MZ.w0,MZ.w2,MZ.w3,MZ.weights0,MZ.weights2,MZ.weights3)

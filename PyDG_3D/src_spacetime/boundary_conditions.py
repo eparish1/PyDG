@@ -6,6 +6,8 @@ def dirichlet_bc(Ue,UBC,args,main):
 def periodic_bc(Ue,UBC,args,main):
    return UBC 
 
+
+
 def isothermalwall_bc(Ue,UBC,args,main):
   uw = args[0]
   vw = args[1]
