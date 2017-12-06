@@ -166,17 +166,17 @@ def getRHS_BR1(main,MZ,eqns,args=[],args_phys=[]):
 #  vol_int = main.basis.volIntegrateGlob(main,force,main.w0,main.w1,main.w2,main.w3)*scale[None,:,:,:,:,None,None,None,None]
 #  tmp[3] += vol_int[3]
 #  #f =  main.a.Upx[0]**2 + main.a.Upy[1]**2 + main.a.Upz[2]**2 + 2.*main.a.Upy[0]*main.a.Upx[1] + 2.*main.a.Upz[0]*main.a.Upx[2] + 2.*main.a.Upz[1]*main.a.Upy[2]
-#  if (main.fsource):
-#    force = np.zeros(np.shape(main.iFlux.fx))
-#    #sources = main.cgas_field.net_production_rates[:,:]*main.cgas_field.molecular_weights[None,:]
-#    #main.source_hook(main,force)
+  if (main.fsource):
+    force = np.zeros(np.shape(main.iFlux.fx))
+    sources = main.cgas_field.net_production_rates[:,:]*main.cgas_field.molecular_weights[None,:]
+    #main.source_hook(main,force)
 #    for i in range(0,main.nvars):
 #      force[i] = main.source_mag[i]#*main.a.u[i]
-#    for i in range(5,main.nvars):
-#      force[i] = np.reshape(sources[:,i-5],np.shape(main.a.u[0]))
-#      force[4] -= force[i]*main.delta_h0[i-5]
-#    force[4] -= main.delta_h0[-1]*np.reshape(sources[:,-1],np.shape(main.a.u[0]))
-#    tmp += main.basis.volIntegrateGlob(main, force ,main.w0,main.w1,main.w2,main.w3)*scale[None,:,:,:,:,None,None,None,None]
+    for i in range(5,main.nvars):
+      force[i] = np.reshape(sources[:,i-5],np.shape(main.a.u[0]))
+      force[4] -= force[i]*main.delta_h0[i-5]
+    force[4] -= main.delta_h0[-1]*np.reshape(sources[:,-1],np.shape(main.a.u[0]))
+    tmp += main.basis.volIntegrateGlob(main, force ,main.w0,main.w1,main.w2,main.w3)*scale[None,:,:,:,:,None,None,None,None]
   main.RHS = tmp
   main.comm.Barrier()
 

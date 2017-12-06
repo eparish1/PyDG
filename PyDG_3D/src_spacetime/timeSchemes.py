@@ -364,15 +364,35 @@ def limiter_characteristic(main):
 
   #print('hi') 
 def sponge_limiter(main):
+  # recall that BC_rank = [False/True,False/True,False/True,False/True] 
+  # the ordering is right, top, left, bottom
+  # we want to filter if we are on the edge of the domain
   filt_array = np.ones(np.shape(main.a.a))
-  filt_array[:,1::,:,:,:,0:10] = 0.
-  filt_array[:,:,1::,:,:,0:10] = 0.
-  filt_array[:,:,:,1::,:,0:10] = 0.
-  filt_array[:,:,:,:,1::,0:10] = 0.
-  filt_array[:,1::,:,:,:,-10::] = 0.
-  filt_array[:,:,1::,:,:,-10::] = 0.
-  filt_array[:,:,:,1::,:,-10::] = 0.
-  filt_array[:,:,:,:,1::,-10::] = 0.
+  # check if we are on the right side of domain. if so, filter
+  scells = 4
+  if (main.BC_rank[0]): 
+    filt_array[:,1::,:,:,:,-scells] = 0.
+    filt_array[:,:,1::,:,:,-scells] = 0.
+    filt_array[:,:,:,1::,:,-scells] = 0.
+    filt_array[:,:,:,:,1::,-scells] = 0.
+
+  if (main.BC_rank[2]):  #same for left side
+    filt_array[:,1::,:,:,:,0:scells] = 0.
+    filt_array[:,:,1::,:,:,0:scells] = 0.
+    filt_array[:,:,:,1::,:,0:scells] = 0.
+    filt_array[:,:,:,:,1::,0:scells] = 0.
+
+  if (main.BC_rank[1]): #same for top side
+    filt_array[:,1::,:,:,:,:,-scells::] = 0.
+    filt_array[:,:,1::,:,:,:,-scells::] = 0.
+    filt_array[:,:,:,1::,:,:,-scells::] = 0.
+    filt_array[:,:,:,:,1::,:,-scells::] = 0.
+
+  if (main.BC_rank[3]):  #same for bottom side
+    filt_array[:,1::,:,:,:,:,0:scells] = 0.
+    filt_array[:,:,1::,:,:,:,0:scells] = 0.
+    filt_array[:,:,:,1::,:,:,0:scells] = 0.
+    filt_array[:,:,:,:,1::,:,0:scells] = 0.
 
   main.a.a *= filt_array
 
@@ -407,18 +427,18 @@ def SSP_RK3(main,MZ,eqns,args=None):
   a1 = main.a.a[:]  + main.dt*(main.RHS[:])
   main.a.a[:] = a1[:]
   #limiter_characteristic(main)
-  #sponge_limiter(main)
+  sponge_limiter(main)
 
   main.getRHS(main,MZ,eqns)
   a1[:] = 3./4.*a0 + 1./4.*(a1 + main.dt*main.RHS[:]) #reuse a1 vector
   main.a.a[:] = a1[:]
   #limiter_characteristic(main)
-  #sponge_limiter(main)
+  sponge_limiter(main)
 
   main.getRHS(main,MZ,eqns)  ## put RHS in a array since we don't need it
   main.a.a[:] = 1./3.*a0 + 2./3.*(a1[:] + main.dt*main.RHS[:])
   #limiter_characteristic(main)
-  #sponge_limiter(main)
+  sponge_limiter(main)
 
 
   main.t += main.dt
