@@ -314,6 +314,9 @@ class variables:
     ### Check turbulence models
     self.turb_str = turb_str
     check = 0
+    if (turb_str == 'Orthogonal Dynamics'):
+      self.getRHS = orthogonalDynamics
+      check = 1
     if (turb_str == 'tau-model'):
       self.getRHS = tauModelLinearized
       check = 1

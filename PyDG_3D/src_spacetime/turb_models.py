@@ -4,18 +4,21 @@ from MPI_functions import gatherSolSpectral
 from equations_class import *
 from tensor_products import *
 from navier_stokes import strongFormEulerXYZ
-def orthogonalDynamics(main,MZ,eqns,schemes):
+def orthogonalDynamics(main,MZ,eqns):
     ### EVAL RESIDUAL AND DO MZ STUFF
-    MZ.a.a[:,:,:,:,:,:,:] = main.a.a[:,:,:,:,:,:,:]
-    MZ.getRHS(MZ,eqns,schemes)
-    RHS1 = np.zeros(np.shape(MZ.RHS))
-    RHS1[:] = MZ.RHS[:]
-    MZ.a.a[:] = 0.
-    MZ.a.a[:,0:main.rorder,0:main.rorder,0:main.rorder] = main.a.a[:,0:main.rorder,0:main.rorder,0:main.rorder]
-    MZ.getRHS(MZ,eqns,schemes)
-    RHS2 = np.zeros(np.shape(MZ.RHS))
-    RHS2[:] = MZ.RHS[:]
-    return RHS1 - RHS2,0
+    filtarray = np.ones(np.shape(main.a.a))
+    filtarray[:,main.rorder::] = 0.
+    a0 = np.zeros(np.shape(main.a.a))
+    a0[:] = main.a.a[:]
+    eqns.getRHS(main,MZ,eqns)
+    RHS1 = np.zeros(np.shape(main.RHS))
+    RHS1[:] = main.RHS[:]
+    main.a.a[:] = a0[:]*filtarray[:]
+    eqns.getRHS(main,MZ,eqns)
+    RHS2 = np.zeros(np.shape(main.RHS))
+    RHS2[:] = main.RHS[:]
+    main.RHS[:] = RHS1[:] - RHS2[:]
+    main.a.a[:] = a0[:]
 
 
 def DNS(main,MZ,eqns):

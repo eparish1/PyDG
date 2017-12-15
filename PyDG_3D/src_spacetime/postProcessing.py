@@ -21,6 +21,20 @@ class postProcessorEntropy:
             "rhoE" : U[4]} )
     self.writeAllToParaview = writeAllToParaview
 
+class postProcessorScalar:
+  def __init__(self):
+    def writeAllToParaview(self,start=0,end=100000,skip=1):
+      grid = np.load('../DGgrid.npz')
+      x,y,z = grid['x'],grid['y'],grid['z']
+      for i in range(0,end,skip):
+        sol_str = 'npsol' + str(i) + '.npz'
+        if (os.path.isfile(sol_str)):
+          print('found ' + sol_str)
+          sol = np.load('npsol' + str(i) + '.npz')
+          string = 'PVsol' + str(i)
+          gridToVTK(string, x,y,z, pointData = {"u" : sol['U'][0]} )
+    self.writeAllToParaview = writeAllToParaview
+
 
 class postProcessor:
   def __init__(self):
@@ -39,11 +53,19 @@ class postProcessor:
     self.writeAllToParaview = writeAllToParaview
 
 eqn_type = sys.argv[1:][:]
-
+check = 0
 if (eqn_type[0] == 'Entropy'):
   print('Post Processing for Entropy Variables')
   postProcess = postProcessorEntropy()
-else:
+  check = 1
+if (eqn_type[0] == 'Scalar'):
+  print('Post Processing for Scalar Equation')
+  postProcess = postProcessorScalar()
+  check = 1
+if (eqn_type[0] == 'Navier-Stokes'):
+  print('Post Processing for Navier-Stokes Equations')
   postProcess = postProcessor()
-
+  check = 1
+if (check == 0):
+  print('Error, ' + eqn_type[0] + ' not found')
 postProcess.writeAllToParaview(postProcess)
