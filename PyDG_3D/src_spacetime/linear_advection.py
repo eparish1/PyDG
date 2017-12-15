@@ -68,6 +68,10 @@ def evalFluxYLA(main,u,f,args):
 def evalFluxZLA(main,u,f,args):
   f[0] = cz*u[0]
 
+def evalFluxXYZLA(main,u,fx,fy,fz,args):
+  fx[0] = cx*u[0]
+  fy[0] = cy*u[0]
+  fz[0] = cz*u[0]
 
 
 #### ================ Flux schemes for the faces ========= ###########

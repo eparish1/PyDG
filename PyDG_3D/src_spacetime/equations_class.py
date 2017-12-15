@@ -449,6 +449,8 @@ class equations:
       self.evalFluxX = evalFluxXLA
       self.evalFluxY = evalFluxYLA
       self.evalFluxZ = evalFluxZLA
+      self.evalFluxXYZ = evalFluxXYZLA
+
       if (iflux_str == 'central'):
         self.inviscidFlux = linearAdvectionCentralFlux 
         checki = 1
