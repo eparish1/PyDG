@@ -144,8 +144,8 @@ else:
 if 'enriched_ratio' in globals():
   pass
 else:
-#  enriched_ratio = np.array([2,2,2,1])
-  enriched_ratio = np.array([(order[0]+1.)/order[0],(order[1]+1.)/order[1],(order[2]+1.)/order[2],1])
+  enriched_ratio = np.array([2,1,1,1])
+#  enriched_ratio = np.array([(order[0]*2)/order[0],(order[1])/order[1],(order[2]+1.)/order[2],1])
 if 'enriched' in globals():
   pass
 else:

@@ -25,31 +25,54 @@ def DNS(main,MZ,eqns):
 
 def tauModelFD(main,MZ,eqns):
     ### EVAL RESIDUAL AND DO MZ STUFF
+    MZ.fsource = True
     filtarray = np.zeros(np.shape(MZ.a.a))
     filtarray[:,0:main.order[0],0:main.order[1],0:main.order[2]] = 1.
-    eps = 1.e-5
+    eps =1e-5# 1e-0
+    taus = 1e-6
     MZ.a.a[:] = 0.
     MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2]] = main.a.a[:]
-    #eqns.getRHS(main,main,eqns)
+    eqns.getRHS(main,main,eqns)
+#    print('Eval 1')
     eqns.getRHS(MZ,MZ,eqns)
     RHS1 = np.zeros(np.shape(MZ.RHS))
     RHS1[:] = MZ.RHS[:]
+
+
     MZ.a.a[:] = 0.
     MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2]] = main.a.a[:]
-    MZ.a.a[:] = MZ.a.a[:] + eps*RHS1[:]
+    MZ.fsource = False
     eqns.getRHS(MZ,MZ,eqns)
+    RHS1b = np.zeros(np.shape(MZ.RHS))
+    RHS1b[:] = MZ.RHS[:]
 
+    MZ.a.a[:] = 0.
+    MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2]] = main.a.a[:]
+    MZ.a.a[:] = MZ.a.a[:] + eps*(RHS1b[:] - RHS1b[:]*filtarray)
+#    print('Eval 3')
+    eqns.getRHS(MZ,MZ,eqns)
     RHS2 = np.zeros(np.shape(MZ.RHS))
     RHS2[:] = MZ.RHS[:]
+    #print(np.linalg.norm(RHS[0]),np.linalg.norm(RHS[1]),np.linalg.norm(RHS[2]),np.linalg.norm(RHS[3]),np.linalg.norm(RHS[4]))
+    PLQLU = (RHS2[:,0:main.order[0],0:main.order[1],0:main.order[2]] - RHS1b[:,0:main.order[0],0:main.order[1],0:main.order[2]])/(eps )
+    print('PLQLU norm = ', np.linalg.norm(PLQLU[0]),np.linalg.norm(PLQLU[1]),np.linalg.norm(PLQLU[4]),np.linalg.norm(PLQLU[5]))
+    print('PLQLU norm = ',np.linalg.norm(PLQLU))
+    print('RHS norm = ',np.linalg.norm(RHS1b))
+    print('a  norm = ',np.linalg.norm(main.a.a))
+    print('ratio = ',1./(np.linalg.norm(PLQLU)/np.linalg.norm(RHS1b)))
+#    MZ.a.a[:] = 0.
+#    MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2]] = main.a.a[:]
+#    MZ.a.a[:] = MZ.a.a[:] + eps*RHS1[:]*filtarray
+#    eqns.getRHS(MZ,MZ,eqns)
+#    RHS3 = np.zeros(np.shape(MZ.RHS))
+#    RHS3[:] = MZ.RHS[:]
+#    PLQLU = (RHS2[:,0:main.order[0],0:main.order[1],0:main.order[2]] - RHS3[:,0:main.order[0],0:main.order[1],0:main.order[2]])/(eps + 1e-30)
+#    main.RHS[:] =  RHS1[:,0:main.order[0],0:main.order[1],0:main.order[2]] + main.dx/MZ.order[0]**2*PLQLU*taus#300.
+    main.RHS[:] =  RHS1[:,0:main.order[0],0:main.order[1],0:main.order[2]] + PLQLU*taus#300.
+
     MZ.a.a[:] = 0.
     MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2]] = main.a.a[:]
-    MZ.a.a[:] = MZ.a.a[:] + eps*RHS1[:]*filtarray
-    eqns.getRHS(MZ,MZ,eqns)
-    RHS3 = np.zeros(np.shape(MZ.RHS))
-    RHS3[:] = MZ.RHS[:]
-    PLQLU = (RHS2[:,0:main.order[0],0:main.order[1],0:main.order[2]] - RHS3[:,0:main.order[0],0:main.order[1],0:main.order[2]])/(eps + 1e-30)
-    main.RHS[:] =  RHS1[:,0:main.order[0],0:main.order[1],0:main.order[2]] + main.dx/MZ.order[0]**2*PLQLU
-
+   
 
 def FM1Linearized(main,MZ,eqns):
    filtarray = np.zeros(np.shape(MZ.a.a))

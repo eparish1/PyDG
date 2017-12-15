@@ -382,13 +382,13 @@ def sponge_limiter(main):
     filt_array[:,:,:,1::,:,0:scells] = 0.
     filt_array[:,:,:,:,1::,0:scells] = 0.
 
-  if (main.BC_rank[1]): #same for top side
+  if (main.BC_rank[1] and main.Nel[1] > scells): #same for top side
     filt_array[:,1::,:,:,:,:,-scells::] = 0.
     filt_array[:,:,1::,:,:,:,-scells::] = 0.
     filt_array[:,:,:,1::,:,:,-scells::] = 0.
     filt_array[:,:,:,:,1::,:,-scells::] = 0.
 
-  if (main.BC_rank[3]):  #same for bottom side
+  if (main.BC_rank[3] and main.Nel[1] > scells):  #same for bottom side
     filt_array[:,1::,:,:,:,:,0:scells] = 0.
     filt_array[:,:,1::,:,:,:,0:scells] = 0.
     filt_array[:,:,:,1::,:,:,0:scells] = 0.

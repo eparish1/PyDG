@@ -27,7 +27,8 @@ def update_state(main):
     for i in range(0,np.shape(main.a.u)[0]-5):
       fa[:,i] = ( main.a.u[5+i]/main.a.u[0] ).flatten()
     fa[:,-1] = 1. - np.sum(fa[:,0:-1],axis=1)
-    main.cgas_field.TPY = main.a.T.flatten(),main.a.p.flatten(),fa 
+    if (main.fsource):
+     main.cgas_field.TPY = main.a.T.flatten(),main.a.p.flatten(),fa 
 
 def update_state_cantera(main):
     rhoi = 1./main.a.u[0]
