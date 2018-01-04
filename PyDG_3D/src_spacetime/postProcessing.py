@@ -39,17 +39,32 @@ class postProcessorScalar:
 class postProcessor:
   def __init__(self):
     def writeAllToParaview(self,start=0,end=100000,skip=1):
-      grid = np.load('../DGgrid.npz')
-      x,y,z = grid['x'],grid['y'],grid['z']
+      n_blocks = 0
+      check = 0
+      x = []
+      y = []
+      z = []
+      while (check == 0):
+        grid_str = '../DGgrid_block' + str(n_blocks) + '.npz'
+        if (os.path.isfile(grid_str)):
+          grid = np.load('../DGgrid_block' + str(n_blocks) + '.npz')
+          x.append(grid['x'])
+          y.append(grid['z'])
+          z.append(grid['y'])
+          n_blocks += 1
+
+        else:
+          check = 1
       for i in range(0,end,skip):
-        sol_str = 'npsol' + str(i) + '.npz'
-        if (os.path.isfile(sol_str)):
-          print('found ' + sol_str)
-          sol = np.load('npsol' + str(i) + '.npz')
-          string = 'PVsol' + str(i)
-          gridToVTK(string, x,y,z, pointData = {"rho" : sol['U'][0] , \
-            "u" : sol['U'][1]/sol['U'][0] , "v" : sol['U'][2], "w" : sol['U'][3]/sol['U'][0], \
-            "rhoE" : sol['U'][4]} )
+        for j in range(0,n_blocks):
+          sol_str = 'npsol_block' + str(j) + '_'  + str(i) + '.npz'
+          if (os.path.isfile(sol_str)):
+            print('found ' + sol_str)
+            sol = np.load('npsol_block' + str(j) + '_' + str(i) + '.npz')
+            string = 'PVsol_block' + str(j) + '_' + str(i)
+            gridToVTK(string, x[j],y[j],z[j], pointData = {"rho" : sol['U'][0] , \
+              "u" : sol['U'][1]/sol['U'][0] , "v" : sol['U'][2], "w" : sol['U'][3]/sol['U'][0], \
+              "rhoE" : sol['U'][4]} )
     self.writeAllToParaview = writeAllToParaview
 
 eqn_type = sys.argv[1:][:]

@@ -108,6 +108,11 @@ class boundaryConditions:
   mpi_rank = comm.Get_rank()
   def __init__(self,BC_type='periodic',BC_args=[]):
     check = 0
+    if (BC_type == 'patch'):
+      check = 1
+      self.BC_type = BC_type
+      self.applyBC = periodic_bc
+      self.args = BC_args
     if (BC_type == 'periodic'):
       check = 1
       self.BC_type = BC_type
@@ -164,8 +169,9 @@ class boundaryConditions:
     
 
 class variables:
-  def __init__(self,Nel,order,quadpoints,eqns,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,source,source_mag,shock_capturing,mol_str,basis_args):
+  def __init__(self,region_number,Nel,order,quadpoints,eqns,mu,x,y,z,turb_str,procx,procy,BCs,source,source_mag,shock_capturing,mol_str,basis_args):
     ## DG scheme information
+    self.region_number = region_number
     self.basis_args = basis_args
     self.eq_str = eqns.eq_str
     self.Nel = Nel

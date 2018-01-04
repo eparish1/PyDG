@@ -1363,27 +1363,20 @@ def ExplicitRK2(main,MZ,eqns,args=None):
 
 
  
-def ExplicitRK4(main,MZ,eqns,args=None):
-  main.a0[:] = main.a.a[:]
+def ExplicitRK4(regionManager,eqns,args=None):
+  for j in range(0,regionManager.nblocks):
+    regionManager.region[j].a0[:] = regionManager.region[j].a.a[:]
   rk4const = np.array([1./4,1./3,1./2,1.])
-#  main.basis.reconstructU(main,main.a)
-#  main.a.p[:],main.a.T[:] = computePressure_and_Temperature(main,main.a.u)
-#  Y_N2 = 1. - np.sum(main.a.u[5::]/main.a.u[None,0],axis=0)
-#  gamma = np.einsum('i...,ijk...->jk...',main.gamma[0:-1],main.a.u[5::]/main.a.u[None,0]) + main.gamma[-1]*Y_N2
-#  c = np.amax(np.sqrt(gamma*main.a.p/main.a.u[0]))
-#  umax = np.sqrt( np.amax( (main.a.u[1]/main.a.u[0])**2 ) + np.amax(  (main.a.u[2]/main.a.u[0])**2 ) + np.amax( (main.a.u[3]/main.a.u[0])**2 ) )
-#  #CFL = c*dt/dx -> dt = CFL*dx/c
-#  main.dt = 0.1*main.dx/(c + umax)
-#  if (main.mpi_rank == 0):
-#    print(main.dt)
   for i in range(0,4):
-    main.rkstage = i
-    main.getRHS(main,MZ,eqns)  ## put RHS in a array since we don't need it
-    main.basis.applyMassMatrix(main,main.RHS) 
-    main.a.a[:] = main.a0 + main.dt*rk4const[i]*main.RHS
+    for j in range(0,regionManager.nblocks):
+      main = regionManager.region[j]
+      main.rkstage = i
+      main.getRHS(regionManager,main,main,eqns)  ## put RHS in a array since we don't need it
+      main.basis.applyMassMatrix(main,main.RHS) 
+      main.a.a[:] = main.a0 + regionManager.dt*rk4const[i]*main.RHS
     #limiter_MF(main)
-  main.t += main.dt
-  main.iteration += 1
+  regionManager.t += main.dt
+  regionManager.iteration += 1
 
 
 def SteadyState(main,MZ,eqns,args):

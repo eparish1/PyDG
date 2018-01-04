@@ -71,7 +71,7 @@ def sendaEdgesGeneralSlab(a,main):
   return aR_edge,aL_edge,aU_edge,aD_edge,aF_edge,aB_edge
 
 
-def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main):
+def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main,regionManager):
   uR = np.zeros(np.shape(fL[:,:,:,:,0,:,:]))
   uL = np.zeros(np.shape(fR[:,:,:,:,0,:,:]))
   uU = np.zeros(np.shape(fD[:,:,:,:,:,0,:]))
@@ -79,11 +79,21 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main):
   uF = np.zeros(np.shape(fB[:,:,:,:,:,:,0]))
   uB = np.zeros(np.shape(fF[:,:,:,:,:,:,0]))
 
+  ## If only using one processor ================
   if (main.rank_connect[0] == main.mpi_rank and main.rank_connect[1] == main.mpi_rank):
     uR[:] = fL[:,:,:,:,0, :,:]
     uL[:] = fR[:,:,:,:,-1,:,:]
-    uR[:] = main.rightBC.applyBC(fR[:,:,:,:,-1,:,:],uR,main.rightBC.args,main)
-    uL[:] = main.leftBC.applyBC(fL[:,:,:,:,0 ,:,:],uL,main.leftBC.args,main)
+    ### Boundary conditions. Overright uL and uR if we are on a boundary. 
+    if (main.rightBC.BC_type == 'patch'):
+      uR[:] = regionManager.region[main.rightBC.args[0]].a.uL[:,:,:,:,0,:,:]
+    else:
+      uR[:] = main.rightBC.applyBC(fR[:,:,:,:,-1,:,:],uR,main.rightBC.args,main)
+    if (main.leftBC.BC_type == 'patch'):
+      uL[:] = regionManager.region[main.leftBC.args[0]].a.uR[:,:,:,:,-1,:,:]
+    else:
+      uL[:] = main.leftBC.applyBC(fL[:,:,:,:,0 ,:,:],uL,main.leftBC.args,main)
+
+  #======================================================
   else:
     ## Send right and left fluxes
 
@@ -107,8 +117,14 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main):
   if (main.rank_connect[2] == main.mpi_rank and main.rank_connect[3] == main.mpi_rank):
     uU[:] = fD[:,:,:,:,:,0 ,:]
     uD[:] = fU[:,:,:,:,:,-1,:]
-    uU[:] = main.topBC.applyBC(fU[:,:,:,:,:,-1,:],uU,main.topBC.args,main)
-    uD[:] = main.bottomBC.applyBC(fD[:,:,:,:,:,0,:],uD,main.bottomBC.args,main)
+    if (main.topBC.BC_type == 'patch'):
+      uU[:] = regionManager.region[main.topBC.args[0]].a.uD[:,:,:,:,:,0 ,:]
+    else:
+      uU[:] = main.topBC.applyBC(fU[:,:,:,:,:,-1,:],uU,main.topBC.args,main)
+    if (main.bottomBC.BC_type == 'patch'):
+      uD[:] = regionManager.region[main.bottomBC.args[0]].a.uU[:,:,:,:,:,-1,:]
+    else:
+      uD[:] = main.bottomBC.applyBC(fD[:,:,:,:,:,0,:],uD,main.bottomBC.args,main)
 
   else:
     ## Send up and down fluxes
@@ -251,13 +267,40 @@ def gatherSolSpectral(a,main):
   else:
     main.comm.Send(a.flatten(),dest=0,tag=main.mpi_rank)
 
+
+def regionConnector():
+    if (rightBC.BC_type == 'patch'):
+      row = (int(mpi_rank) - int(region.mpi_starting_rank))/int(region.procx)
+      region_connect = rightBC.BC_args[0]
+      shift = region_connect.mpi_starting_rank - region.mpi_startin_rank
+      rank_connect[1] = shift + region_connect.procx*row
+
+     if (leftBC.BC_type == 'patch'):
+      row = (int(mpi_rank) - int(region.mpi_starting_rank))/int(region.procx)
+      region_connect = leftBC.BC_args[0]
+      shift = region_connect.mpi_starting_rank - region.mpi_startin_rank
+      rank_connect[0] = shift + region_connect.procx*(row + 1) - 1
+
+     if (top.BC_type == 'patch'):
+      column = (int(mpi_rank) - int(region.mpi_starting_rank))%int(region.procx)
+      region_connect = top.BC_args[0]
+      shift = region_connect.mpi_starting_rank - region.mpi_startin_rank
+      rank_connect[3] = shift + column
+
+     if (bottom.BC_type == 'patch'):
+      column = (int(mpi_rank) - int(region.mpi_starting_rank))%int(region.procx)
+      region_connect = bottom.BC_args[0]
+      shift = region_connect.mpi_starting_rank - region.mpi_startin_rank
+      rank_connect[3] = shift + region_connect.nprocs - region.procx + column
+
+
 def getRankConnectionsSlab(mpi_rank,num_processes,procx,procy):
   ##============== MPI INFORMATION ===================
   if (procx*procy != num_processes):
     if (mpi_rank == 0):
       print('Error, correct x/y proc decomposition, now quitting!')
     sys.exit()
-  rank_connect = np.zeros((4))
+  rank_connect = np.zeros((4)) ##I'm an idiot and ordering for this is left right bottom top
   rank_connect[0] = mpi_rank - 1
   rank_connect[1] = mpi_rank+1
   rank_connect[2] = mpi_rank-procx
