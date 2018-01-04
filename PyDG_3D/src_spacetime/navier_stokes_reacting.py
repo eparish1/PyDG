@@ -1500,7 +1500,7 @@ def evalTauFluxXNS_BR1_reacting(main,tau,u,fvX,mu,cgas_field):
   Pr = 0.72
   gamma = 1.4
   kappa_by_mu = np.reshape(cgas_field.cp/Pr,np.shape(u[0]))
-  D = 2.328448e-5/u[0]
+  D = 2.328448e-2/u[0]
   kappa = u[0]*main.cgas.cp*D
   fvX[0] = 0.
   fvX[1] = mu*tau[0] #tau11
@@ -1518,7 +1518,7 @@ def evalTauFluxYNS_BR1_reacting(main,tau,u,fvY,mu,cgas_field):
   Pr = 0.72
   gamma = 1.4
   #D = 1
-  D = 2.328448e-5/u[0]
+  D = 2.328448e-2/u[0]
   kappa = u[0]*main.cgas.cp*D
   kappa_by_mu = np.reshape(cgas_field.cp/Pr,np.shape(u[0]))
   fvY[0] = 0.
@@ -1537,7 +1537,7 @@ def evalTauFluxZNS_BR1_reacting(main,tau,u,fvZ,mu,cgas_field):
   gamma = 1.4
   kappa_by_mu = np.reshape(cgas_field.cp/Pr,np.shape(u[0]))
   #D = 1
-  D = 2.328448e-5/u[0]
+  D = 2.328448e-2/u[0]
   kappa = u[0]*main.cgas.cp*D
   fvZ[0] = 0.
   fvZ[1] = mu*tau[4] #tau31
