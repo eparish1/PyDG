@@ -218,6 +218,7 @@ def zeroFSIC_incomp(x,y,z,main):
   return q
 
 
+
 def zeroFSIC(x,y,z,main):
   nqx,nqy,nqz,Nelx,Nely,Nelz = np.shape(x)
   q = np.zeros((5,nqx,nqy,nqz,Nelx,Nely,Nelz))

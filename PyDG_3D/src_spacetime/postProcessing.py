@@ -62,9 +62,10 @@ class postProcessor:
             print('found ' + sol_str)
             sol = np.load('npsol_block' + str(j) + '_' + str(i) + '.npz')
             string = 'PVsol_block' + str(j) + '_' + str(i)
+            p = (1.4 - 1.)*(sol['U'][4] - 0.5*sol['U'][1]**2/sol['U'][0] - 0.5*sol['U'][2]**2/sol['U'][0] - 0.5*sol['U'][3]**2/sol['U'][0])
             gridToVTK(string, x[j],y[j],z[j], pointData = {"rho" : sol['U'][0] , \
               "u" : sol['U'][1]/sol['U'][0] , "v" : sol['U'][2], "w" : sol['U'][3]/sol['U'][0], \
-              "rhoE" : sol['U'][4]} )
+              "rhoE" : sol['U'][4], "p" : p} )
     self.writeAllToParaview = writeAllToParaview
 
 eqn_type = sys.argv[1:][:]

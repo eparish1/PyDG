@@ -1364,18 +1364,22 @@ def ExplicitRK2(main,MZ,eqns,args=None):
 
  
 def ExplicitRK4(regionManager,eqns,args=None):
-  for j in range(0,regionManager.nblocks):
-    regionManager.region[j].a0[:] = regionManager.region[j].a.a[:]
+  region_counter = 0
+  for j in regionManager.mpi_regions_owned:
+    regionManager.region[region_counter].a0[:] = regionManager.region[region_counter].a.a[:]
+    region_counter += 1
   rk4const = np.array([1./4,1./3,1./2,1.])
   for i in range(0,4):
-    for j in range(0,regionManager.nblocks):
-      main = regionManager.region[j]
+    region_counter = 0
+    for j in regionManager.mpi_regions_owned:
+      main = regionManager.region[region_counter]
+      region_counter += 1
       main.rkstage = i
       main.getRHS(regionManager,main,main,eqns)  ## put RHS in a array since we don't need it
       main.basis.applyMassMatrix(main,main.RHS) 
       main.a.a[:] = main.a0 + regionManager.dt*rk4const[i]*main.RHS
     #limiter_MF(main)
-  regionManager.t += main.dt
+  regionManager.t += regionManager.dt
   regionManager.iteration += 1
 
 

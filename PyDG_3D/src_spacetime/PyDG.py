@@ -14,6 +14,31 @@ from scipy import interpolate
 from scipy.interpolate import RegularGridInterpolator
 from basis_class import *
 from block_classes import *
+comm = MPI.COMM_WORLD
+mpi_rank = comm.Get_rank()
+
+if (len(BCs) != n_blocks):
+  if (mpi_rank == 0): 
+    print('==================================')
+    print('Size of BCs in inputfile.py is not the same as the number of blocks. Add information for other blocks. PyDG quitting')
+    print('==================================')
+  sys.exit()
+
+if (len(procx) != n_blocks):
+  if (mpi_rank == 0): 
+    print('==================================')
+    print('Size of procx in inputfile.py is not the same as the number of blocks. Add information for other blocks. PyDG quitting')
+    print('==================================')
+  sys.exit()
+
+if (len(procy) != n_blocks):
+  if (mpi_rank == 0): 
+    print('==================================')
+    print('Size of procy in inputfile.py is not the same as the number of blocks. Add information for other blocks. PyDG quitting')
+    print('==================================')
+  sys.exit()
+
+
 def getGlobU_scalar(u):
   quadpoints0,quadpoints1,quadpoints2,quadpoints3,Nelx,Nely,Nelz,Nelt = np.shape(u)
   uG = np.zeros((quadpoints0*Nelx,quadpoints1*Nely,quadpoints2*Nelz))
@@ -130,19 +155,25 @@ iteration = 0
 eqns = equations(eqn_str,schemes,turb_str)
 #main = variables(Nel,order,quadpoints,eqns,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,fsource,source_mag,shock_capturing,mol_str,basis_args)
 
-regionManager = blockClass(n_blocks)
-for i in range(0,regionManager.nblocks):
-  regionManager.region.append( variables(i,Nel_block[i],order,quadpoints,eqns,mu,x_block[i],y_block[i],z_block[i],turb_str,procx,procy,BCs[i],fsource,source_mag,shock_capturing,mol_str,basis_args) )
+regionManager = blockClass(n_blocks,starting_rank,procx,procy,et,dt,save_freq)
+for i in regionManager.mpi_regions_owned:
+  regionManager.region.append( variables(i,Nel_block[i],order,quadpoints,eqns,mu,x_block[i],y_block[i],z_block[i],turb_str,procx[i],procy[i],starting_rank[i],BCs[i],fsource,source_mag,shock_capturing,mol_str,basis_args) )
+regionConnector(regionManager)
+print('==============')
+print('MPI INFO',regionManager.region[0].mpi_rank,regionManager.region[0].rank_connect[3])
+print('==============')
 
-for i in range(0,regionManager.nblocks):
-  main = regionManager.region[i]
+#for i in range(0,regionManager.nblocks):
+region_counter = 0
+for i in regionManager.mpi_regions_owned:
+  main = regionManager.region[region_counter]
+  region_counter += 1
   main.x,main.y,main.z = x_block[i],y_block[i],z_block[i]
   vol_min = (np.amin(main.Jdet))**(1./3.)
   CFL = ( np.amin(main.J_edge_det[0])*4. + np.amin(main.J_edge_det[1])*4 + np.amin(main.J_edge_det[2])*4. ) / (np.amin(main.Jdet)*8 )
-  if (mpi_rank == 0):
-    print('dt*p/(Nt*dx) = ' + str(1.*dt*order[0]*CFL/order[-1] ))
-    print('dt*(p/dx)**2*mu = ' + str(dt*order[0]**2*CFL**2*mu/order[-1] ))
-  
+#  if (mpi_rank == starting_rank[i]):
+#    print('dt*p/(Nt*dx) = ' + str(1.*dt*order[0]*CFL/order[-1] ))
+#    print('dt*(p/dx)**2*mu = ' + str(dt*order[0]**2*CFL**2*mu/order[-1] ))
   if (enriched):
     eqnsEnriched = eqns#equations(enriched_eqn_str,enriched_schemes,turb_str)
     mainEnriched = variables(Nel,np.int64(order + enriched_add),quadpoints,eqnsEnriched,mu,x,y,z,turb_str,procx,procy,BCs,fsource,source_mag,shock_capturing,mol_str,basis_args)
@@ -157,11 +188,13 @@ for i in range(0,regionManager.nblocks):
   
   timescheme = timeschemes(time_integration,linear_solver_str,nonlinear_solver_str)
   #main.source_hook = source_hook
+
   xG_global = gatherSolScalar(main,main.xG[:,:,:,None,:,:,:,None])
   yG_global = gatherSolScalar(main,main.yG[:,:,:,None,:,:,:,None])
   zG_global = gatherSolScalar(main,main.zG[:,:,:,None,:,:,:,None])
+
   Nel = Nel_block[i]
-  if (main.mpi_rank == 0):
+  if (main.mpi_rank == starting_rank[i]):
     xG_global = np.reshape( np.rollaxis(np.rollaxis(np.rollaxis(xG_global[:,:,:,0,:,:,:,0],3,0),4,2),5,4), (Nel[0]*quadpoints[0],Nel[1]*quadpoints[1],Nel[2]*quadpoints[2]) )
     yG_global = np.reshape( np.rollaxis(np.rollaxis(np.rollaxis(yG_global[:,:,:,0,:,:,:,0],3,0),4,2),5,4), (Nel[0]*quadpoints[0],Nel[1]*quadpoints[1],Nel[2]*quadpoints[2]) )
     zG_global = np.reshape( np.rollaxis(np.rollaxis(np.rollaxis(zG_global[:,:,:,0,:,:,:,0],3,0),4,2),5,4), (Nel[0]*quadpoints[0],Nel[1]*quadpoints[1],Nel[2]*quadpoints[2]) )
@@ -171,28 +204,35 @@ for i in range(0,regionManager.nblocks):
   
   
   t0 = time.time()
-  
+ 
   ord_arrx= np.linspace(0,order[0]-1,order[0])
   ord_arry= np.linspace(0,order[1]-1,order[1])
   ord_arrz= np.linspace(0,order[2]-1,order[2])
   ord_arrt= np.linspace(0,order[3]-1,order[3])
   scale =  (2.*ord_arrx[:,None,None,None] + 1.)*(2.*ord_arry[None,:,None,None] + 1.)*(2.*ord_arrz[None,None,:,None] + 1.)*(2.*ord_arrt[None,None,None,:] + 1.)/16.
 
+
 while (regionManager.t <= regionManager.et + regionManager.dt/2):
   if (regionManager.iteration%regionManager.save_freq == 0):
-    for z in range(0,regionManager.nblocks):
-      main = regionManager.region[z]
+    #for z in range(0,regionManager.nblocks):
+    region_counter = 0
+    for z in regionManager.mpi_regions_owned:
+      main = regionManager.region[region_counter]
+      region_counter += 1
       reconstructU(main,main.a)
       uG = gatherSolSlab(main,eqns,main.a)
       aG = gatherSolSpectral(main.a.a,main)
       savehook(main)
+
       UG = getGlobU(uG)
+
       #uGF = getGlobU(uG)
       sys.stdout.write('======================================' + '\n')
       sys.stdout.write('wall time = ' + str(time.time() - t0) + '\n' )
       sys.stdout.write('t = ' + str(regionManager.t) +  '\n')
-      np.savez('Solution/npsol_block' + str(z) + '_' + str(regionManager.iteration),U=(UG),a=aG,t=main.t,iteration=regionManager.iteration,order=order)
+      np.savez('Solution/npsol_block' + str(z) + '_' + str(regionManager.iteration),U=(UG),a=aG,t=regionManager.t,iteration=regionManager.iteration,order=order)
       sys.stdout.flush()
+
   timescheme.advanceSol(regionManager,eqns,timescheme.args)
   #advanceSolImplicit_MG(main,main,eqns)
 reconstructU(main,main.a)

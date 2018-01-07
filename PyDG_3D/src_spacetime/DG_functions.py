@@ -43,26 +43,26 @@ def addInviscidFlux(main,MZ,eqns,args=[],args_phys=[]):
   main.RHS[:] -= main.iFlux.fFBI[:,:,:,None,:,:,:,1::] 
   main.RHS[:] += main.iFlux.fFBI[:,:,:,None,:,:,:,0:-1]*main.altarray2[None,None,None,:,None,None,None,None,None]
 
-def addVolume_and_Viscous(main,MZ,eqns,args=[],args_phys=[]):
+def addVolume_and_Viscous(regionManager,main,MZ,eqns,args=[],args_phys=[]):
   #eqns.evalFluxX(main,main.a.u,main.iFlux.fx,args_phys)
   #eqns.evalFluxY(main,main.a.u,main.iFlux.fy,args_phys)
   #eqns.evalFluxZ(main,main.a.u,main.iFlux.fz,args_phys)
   eqns.evalFluxXYZ(main,main.a.u,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,args_phys)
-  eqns.addViscousContribution(main,MZ,eqns) 
+  eqns.addViscousContribution(regionManager,main,MZ,eqns) 
   main.basis.applyVolIntegral(main,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,main.RHS)
 
 
-def getRHS(mainBlock,main,MZ,eqns,args=[],args_phys=[]):
+def getRHS(regionManager,main,MZ,eqns,args=[],args_phys=[]):
   t0 = time.time()
   main.basis.reconstructU(main,main.a)
   main.a.uR[:],main.a.uL[:],main.a.uU[:],main.a.uD[:],main.a.uF[:],main.a.uB[:] = main.basis.reconstructEdgesGeneral(main.a.a,main)
-  main.a.uR_edge[:],main.a.uL_edge[:],main.a.uU_edge[:],main.a.uD_edge[:],main.a.uF_edge[:],main.a.uB_edge[:] = sendEdgesGeneralSlab(main.a.uL,main.a.uR,main.a.uD,main.a.uU,main.a.uB,main.a.uF,main,mainBlock)
+  main.a.uR_edge[:],main.a.uL_edge[:],main.a.uU_edge[:],main.a.uD_edge[:],main.a.uF_edge[:],main.a.uB_edge[:] = sendEdgesGeneralSlab(main.a.uL,main.a.uR,main.a.uD,main.a.uU,main.a.uB,main.a.uF,main,regionManager)
   #if (main.eq_str[0:-2] == 'Navier-Stokes Reacting'):
   #  update_state(main)
   #  #main.a.p[:],main.a.T[:] = computePressure_and_Temperature(main,main.a.u)
   # evaluate inviscid flux and add contribution to RHS
   addInviscidFlux(main,MZ,eqns,args,args_phys)
-  addVolume_and_Viscous(main,MZ,eqns,args,args_phys)
+  addVolume_and_Viscous(regionManager,main,MZ,eqns,args,args_phys)
   ### Get interior vol terms
   addSource(main)
   main.comm.Barrier()

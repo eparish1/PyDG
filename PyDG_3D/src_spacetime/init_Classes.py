@@ -104,14 +104,19 @@ class fluxvariable:
     self.fB_edge = np.zeros((nvars,quadpoints[0],quadpoints[1],quadpoints[3],Npx,Npy,Npt))
 
 class boundaryConditions:
-  comm = MPI.COMM_WORLD
-  mpi_rank = comm.Get_rank()
   def __init__(self,BC_type='periodic',BC_args=[]):
     check = 0
+    comm = MPI.COMM_WORLD
+    mpi_rank = comm.Get_rank()
     if (BC_type == 'patch'):
       check = 1
       self.BC_type = BC_type
       self.applyBC = periodic_bc
+      self.args = BC_args
+    if (BC_type == 'freestream_temp'):
+      check = 1
+      self.BC_type = BC_type
+      self.applyBC = freestream_temp_bc
       self.args = BC_args
     if (BC_type == 'periodic'):
       check = 1
@@ -169,37 +174,35 @@ class boundaryConditions:
     
 
 class variables:
-  def __init__(self,region_number,Nel,order,quadpoints,eqns,mu,x,y,z,turb_str,procx,procy,BCs,source,source_mag,shock_capturing,mol_str,basis_args):
+  def __init__(self,region_number,Nel,order,quadpoints,eqns,mu,x,y,z,turb_str,procx,procy,starting_rank,BCs,source,source_mag,shock_capturing,mol_str,basis_args):
     ## DG scheme information
+    self.starting_rank = starting_rank
+    self.all_mpi_ranks = range(starting_rank,starting_rank + procx*procy)
     self.region_number = region_number
     self.basis_args = basis_args
     self.eq_str = eqns.eq_str
     self.Nel = Nel
     self.order = order
     self.quadpoints = quadpoints 
-    self.t = t
-    self.et = et
-    self.dt = dt
-    self.iteration = iteration
-    self.save_freq = save_freq
     self.shock_capturing = shock_capturing
     ##============== MPI INFORMATION ===================
     self.procx = procx
     self.procy = procy
     self.comm = MPI.COMM_WORLD
-    self.num_processes = self.comm.Get_size()
+    self.num_processes = self.procx*self.procy#self.comm.Get_size()
+    self.num_processes_global = self.comm.Get_size()
     self.mpi_rank = self.comm.Get_rank()
-    if (procx*procy != self.num_processes):
-      if (self.mpi_rank == 0):
-        print('Error, correct x/y proc decomposition, now quitting!')
-      sys.exit()
+#    if (procx*procy != self.num_processes):
+#      if (self.mpi_rank == 0):
+#        print('Error, correct x/y proc decomposition, now quitting!')
+#      sys.exit()
     self.Npy = int(float(Nel[1] / procy)) #number of points on each x plane. MUST BE UNIFORM BETWEEN PROCS
     self.Npx = int(float(Nel[0] / procx))
     self.Npz = int(Nel[2])
     self.Npt = Nel[-1]
-    self.sy = slice(int(self.mpi_rank)/int(self.procx)*self.Npy,(int(self.mpi_rank)/int(self.procx) + 1)*self.Npy)  ##slicing in y direction
-    self.sx = slice(int(self.mpi_rank%self.procx)*self.Npx,int(self.mpi_rank%self.procx + 1)*self.Npx)
-    self.rank_connect,self.BC_rank = getRankConnectionsSlab(self.mpi_rank,self.num_processes,self.procx,self.procy)
+    self.sy = slice(int(self.mpi_rank - starting_rank)/int(self.procx)*self.Npy,(int(self.mpi_rank - starting_rank)/int(self.procx) + 1)*self.Npy)  ##slicing in y direction
+    self.sx = slice(int( (self.mpi_rank - starting_rank)%self.procx)*self.Npx,int( (self.mpi_rank - starting_rank)%self.procx + 1)*self.Npx)
+    self.rank_connect,self.BC_rank = getRankConnectionsSlab(self.mpi_rank,self.num_processes,self.procx,self.procy,self.starting_rank)
     self.w,self.wp,self.wpedge,self.weights,self.zeta = gaussPoints(self.order[0],self.quadpoints[0])
     self.altarray = (-np.ones(self.order[0]))**(np.linspace(0,self.order[0]-1,self.order[0]))
 

@@ -1,4 +1,4 @@
 import numpy as np
 
-def addViscousContribution_inviscid(main,MZ,eqns):
+def addViscousContribution_inviscid(regionManager,main,MZ,eqns):
   pass
