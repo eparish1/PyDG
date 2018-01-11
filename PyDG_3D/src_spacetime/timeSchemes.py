@@ -371,10 +371,10 @@ def sponge_limiter(main):
   # check if we are on the right side of domain. if so, filter
   scells = 4
   if (main.BC_rank[0]): 
-    filt_array[:,1::,:,:,:,-scells] = 0.
-    filt_array[:,:,1::,:,:,-scells] = 0.
-    filt_array[:,:,:,1::,:,-scells] = 0.
-    filt_array[:,:,:,:,1::,-scells] = 0.
+    filt_array[:,1::,:,:,:,-scells::] = 0.
+    filt_array[:,:,1::,:,:,-scells::] = 0.
+    filt_array[:,:,:,1::,:,-scells::] = 0.
+    filt_array[:,:,:,:,1::,-scells::] = 0.
 
   if (main.BC_rank[2]):  #same for left side
     filt_array[:,1::,:,:,:,0:scells] = 0.
