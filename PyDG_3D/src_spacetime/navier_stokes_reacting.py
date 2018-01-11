@@ -1445,7 +1445,6 @@ def evalViscousFluxXNS_BR1_reacting(main,U,fv,T):
   fv[4] = w         #tau13 = (du/dz + dw/dx)
   fv[5] = 0.           #tau23 = (dv/dz + dw/dy)
   #p,T = computePressure_and_Temperature_Cantera(main,U,cgas_field)
-  #T = (U[4]/U[0] - 0.5*( u**2 + v**2 + w**2 ) ) #kinda a psuedo tmp, should divide by Cv but it's constant so this is taken care of in the tauFlux with gamma
   fv[6] = T
   fv[7] = 0.
   fv[8] = 0.
@@ -1466,7 +1465,6 @@ def evalViscousFluxYNS_BR1_reacting(main,U,fv,T):
   fv[5] = w         #tau23 = (dv/dz + dw/dy)
   fv[6] = 0.
   #p,T = computePressure_and_Temperature_Cantera(main,U,cgas_field)
-  #T = (U[4]/U[0] - 0.5*( u**2 + v**2 + w**2 ) )
   fv[7] = T
   fv[8] = 0.
   fv[9::3] = 0. 
@@ -1484,7 +1482,6 @@ def evalViscousFluxZNS_BR1_reacting(main,U,fv,T):
   fv[4] = u         #tau13 = (du/dz + dw/dx)
   fv[5] = v        #tau23 = (dv/dz + dw/dy)
 #  p,T = computePressure_and_Temperature_Cantera(main,U,cgas_field)
-#  T = (U[4]/U[0] - 0.5*( u**2 + v**2 + w**2 ) )
   fv[6] = 0.
   fv[7] = 0.
   fv[8] = T
@@ -1498,9 +1495,8 @@ def evalViscousFluxZNS_BR1_reacting(main,U,fv,T):
 
 def evalTauFluxXNS_BR1_reacting(main,tau,u,fvX,mu,cgas_field):
   Pr = 0.72
-  gamma = 1.4
   kappa_by_mu = np.reshape(cgas_field.cp/Pr,np.shape(u[0]))
-  D = 2.328448e-2/u[0]
+  D = 2.328448e-5/u[0]
   kappa = u[0]*main.cgas.cp*D
   fvX[0] = 0.
   fvX[1] = mu*tau[0] #tau11
@@ -1516,9 +1512,8 @@ def evalTauFluxXNS_BR1_reacting(main,tau,u,fvX,mu,cgas_field):
 
 def evalTauFluxYNS_BR1_reacting(main,tau,u,fvY,mu,cgas_field):
   Pr = 0.72
-  gamma = 1.4
   #D = 1
-  D = 2.328448e-2/u[0]
+  D = 2.328448e-5/u[0]
   kappa = u[0]*main.cgas.cp*D
   kappa_by_mu = np.reshape(cgas_field.cp/Pr,np.shape(u[0]))
   fvY[0] = 0.
@@ -1534,10 +1529,9 @@ def evalTauFluxYNS_BR1_reacting(main,tau,u,fvY,mu,cgas_field):
 
 def evalTauFluxZNS_BR1_reacting(main,tau,u,fvZ,mu,cgas_field):
   Pr = 0.72
-  gamma = 1.4
   kappa_by_mu = np.reshape(cgas_field.cp/Pr,np.shape(u[0]))
   #D = 1
-  D = 2.328448e-2/u[0]
+  D = 2.328448e-5/u[0]
   kappa = u[0]*main.cgas.cp*D
   fvZ[0] = 0.
   fvZ[1] = mu*tau[4] #tau31
