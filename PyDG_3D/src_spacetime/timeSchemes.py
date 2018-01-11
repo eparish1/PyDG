@@ -1371,12 +1371,13 @@ def ExplicitRK4(regionManager,eqns,args=None):
   rk4const = np.array([1./4,1./3,1./2,1.])
   for i in range(0,4):
     region_counter = 0
+    regionManager.getRHS_REGION(regionManager,eqns)
     for j in regionManager.mpi_regions_owned:
       main = regionManager.region[region_counter]
-      region_counter += 1
-      main.rkstage = i
-      main.getRHS(regionManager,main,main,eqns)  ## put RHS in a array since we don't need it
-      main.basis.applyMassMatrix(main,main.RHS) 
+#      region_counter += 1
+#      main.rkstage = i
+#      main.getRHS(regionManager,main,main,eqns)  ## put RHS in a array since we don't need it
+#      main.basis.applyMassMatrix(main,main.RHS) 
       main.a.a[:] = main.a0 + regionManager.dt*rk4const[i]*main.RHS
     #limiter_MF(main)
   regionManager.t += regionManager.dt

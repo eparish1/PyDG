@@ -30,7 +30,31 @@ class blockClass:
     self.save_freq = save_freq
     def getRHS_REGION(self,eqns):
       nblocks = np.size(self.nblocks)
-      for i in range(0,self.nblocks):
+   
+      i = 0
+      for j in self.mpi_regions_owned:
+        region = self.region[i]
+        region.basis.reconstructU(region,region.a)
+        i += 1
+
+      i = 0
+      for j in self.mpi_regions_owned:
+        region = self.region[i]
+        region.a.uR[:],region.a.uL[:],region.a.uU[:],region.a.uD[:],region.a.uF[:],region.a.uB[:] = region.basis.reconstructEdgesGeneral(region.a.a,region)
+        i += 1
+
+      i = 0
+      for j in self.mpi_regions_owned:
+        region = self.region[i]
+        region.a.uR_edge[:],region.a.uL_edge[:],region.a.uU_edge[:],region.a.uD_edge[:],region.a.uF_edge[:],region.a.uB_edge[:] = sendEdgesGeneralSlab(region.a.uL,region.a.uR,region.a.uD,region.a.uU,region.a.uB,region.a.uF,region,regionManager)
+
+        i += 1
+
+      i = 0
+      for j in self.mpi_regions_owned:
         self.region[i].getRHS(self.region[i],self.region[i],eqns,args=None)
+        self.region[i].basis.applyMassMatrix(self.region[i],self.region[i].RHS)
+        i += 1
+
     self.getRHS_REGION = getRHS_REGION    
 

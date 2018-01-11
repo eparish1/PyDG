@@ -20,7 +20,9 @@ def addSecondaryViscousContribution_BR1(main,MZ,eqns):
   eqns.evalViscousFluxY(main,main.a.u,main.vFlux.fy)
   eqns.evalViscousFluxZ(main,main.a.u,main.vFlux.fz)
   # first reconstruct states
+
   generalFluxGen(main,eqns,main.vFlux,main.a,eqns.evalViscousFlux,[])
+#  print('test')
 
   # now we need to integrate along the boundary
   a = main.vFlux.fRLS
@@ -54,8 +56,6 @@ def addSecondaryViscousContribution_BR1(main,MZ,eqns):
 
 def addViscousContribution_BR1(regionManager,main,MZ,eqns):
   ##first do quadrature
-  print('test')
-
   addSecondaryViscousContribution_BR1(main,MZ,eqns)
 
   main.basis.applyVolIntegral(main,-main.vFlux.fx,-main.vFlux.fy,-main.vFlux.fz,main.b.a)
