@@ -100,7 +100,7 @@ def getFlux(main,MZ,eqns,args):
   #main.a.aR_edge[:],main.a.aL_edge[:],main.a.aU_edge[:],main.a.aD_edge[:],main.a.aF_edge[:],main.a.aB_edge[:] = sendaEdgesGeneralSlab(main.a.a,main)
   #main.a.uR_edge[:],main.a.uL_edge[:],main.a.uU_edge[:],main.a.uD_edge[:],main.a.uF_edge[:],main.a.uB_edge[:] = reconstructEdgeEdgesGeneral(main)
   inviscidFlux(main,eqns,main.iFlux,main.a,args)
-  #inviscidFlux_DOUBLEFLUX2(main,eqns,main.iFlux,main.a,args)
+  #tinviscidFlux_DOUBLEFLUX2(main,eqns,main.iFlux,main.a,args)
 
   # now we need to integrate along the boundary 
 #  main.iFlux.fRS[:,:,:,:,-1,:,:,:] = nonreflecting_flux_bc_right(main.a.uR[:,:,:,:,-1,:,:,:],main.iFlux.fRS[:,:,:,:,-1,:,:,:],main.iFlux.fRS[:,:,:,:,-2,:,:,:],None,main)
