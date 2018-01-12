@@ -1133,7 +1133,9 @@ def limiter_characteristic(main):
   R[4,3] = ql
   R[4,4] = qm
 
-
+  test = np.einsum('ij...,jk...->ik...',L[0:5],R[0:5])
+  print(np.mean(test))
+  #print(np.linalg.norm(FR2[0:5] - FR[0:5] ))
   w = np.einsum('ij...,j...->i...',L,main.a.u[0:5])
   ord_arrx= np.linspace(0,main.order[0]-1,main.order[0])
   ord_arry= np.linspace(0,main.order[1]-1,main.order[1])
