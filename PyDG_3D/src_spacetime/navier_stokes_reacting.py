@@ -1497,7 +1497,11 @@ def evalTauFluxXNS_BR1_reacting(main,tau,u,fvX,mu,cgas_field):
   Pr = 0.72
   kappa_by_mu = np.reshape(cgas_field.cp/Pr,np.shape(u[0]))
   D = 2.328448e-2#/u[0]
-  kappa = u[0]*main.cgas.cp*D
+  #kappa = u[0]*main.cgas.cp*D
+  Y_last = 1. - np.sum(u[5::]/u[None,0],axis=0)
+  Winv =  np.einsum('i...,ijk...->jk...',1./main.W[0:-1],u[5::]/u[None,0]) + 1./main.W[-1]*Y_last
+  Cp = np.einsum('i...,ijk...->jk...',main.Cp[0:-1],u[5::]/u[None,0]) + main.Cp[-1]*Y_last
+  kappa = u[0]*Cp*D
   fvX[0] = 0.
   fvX[1] = mu*tau[0] #tau11
   fvX[2] = mu*tau[3] #tau21
@@ -1514,8 +1518,12 @@ def evalTauFluxYNS_BR1_reacting(main,tau,u,fvY,mu,cgas_field):
   Pr = 0.72
   #D = 1
   D = 2.328448e-2#/u[0]
-  kappa = u[0]*main.cgas.cp*D
-  kappa_by_mu = np.reshape(cgas_field.cp/Pr,np.shape(u[0]))
+  #kappa = u[0]*main.cgas.cp*D
+  Y_last = 1. - np.sum(u[5::]/u[None,0],axis=0)
+  Winv =  np.einsum('i...,ijk...->jk...',1./main.W[0:-1],u[5::]/u[None,0]) + 1./main.W[-1]*Y_last
+  Cp = np.einsum('i...,ijk...->jk...',main.Cp[0:-1],u[5::]/u[None,0]) + main.Cp[-1]*Y_last
+  kappa = u[0]*Cp*D
+
   fvY[0] = 0.
   fvY[1] = mu*tau[3] #tau21
   fvY[2] = mu*tau[1] #tau22
@@ -1532,7 +1540,10 @@ def evalTauFluxZNS_BR1_reacting(main,tau,u,fvZ,mu,cgas_field):
   kappa_by_mu = np.reshape(cgas_field.cp/Pr,np.shape(u[0]))
   #D = 1
   D = 2.328448e-2#/u[0]
-  kappa = u[0]*main.cgas.cp*D
+  Y_last = 1. - np.sum(u[5::]/u[None,0],axis=0)
+  Winv =  np.einsum('i...,ijk...->jk...',1./main.W[0:-1],u[5::]/u[None,0]) + 1./main.W[-1]*Y_last
+  Cp = np.einsum('i...,ijk...->jk...',main.Cp[0:-1],u[5::]/u[None,0]) + main.Cp[-1]*Y_last
+  kappa = u[0]*Cp*D
   fvZ[0] = 0.
   fvZ[1] = mu*tau[4] #tau31
   fvZ[2] = mu*tau[5] #tau32
