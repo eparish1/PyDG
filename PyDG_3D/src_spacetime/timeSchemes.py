@@ -1,4 +1,5 @@
 import numpy as np
+from pylab import *
 #import sys, petsc4py
 #petsc4py.init(sys.argv)
 #from petsc4py import PETSc
@@ -1039,22 +1040,9 @@ def limiter_MF(main):
 
 def limiter_characteristic(main):
   gamma = 1.4
-#  R = 8314.4621/1000.
   atmp = np.zeros(np.shape(main.a.a))
-#  atmp[:,0,0,0] = main.a.a[:,0,0,0]
   atmp[:] = main.a.a[:] 
-#  main.basis.reconstructU(main,main.a)
-#  u0 = np.zeros(np.shape(main.a.u))
-#  u0[:] = main.a.u[:]
-#  Y0 = np.zeros(np.shape(main.a.u[5::]))
-#  Y0[:] = main.a.u[5::]/main.a.u[None,0]
   U = main.basis.reconstructUGeneral(main,atmp)
-#  Y_N2 = 1. - np.sum(U[5::]/U[None,0],axis=0)
-#  Winv =  np.einsum('i...,ijk...->jk...',1./main.W[0:-1],U[5::]/U[None,0]) + 1./main.W[-1]*Y_N2
-#  Cp = np.einsum('i...,ijk...->jk...',main.Cp[0:-1],U[5::]/U[None,0]) + main.Cp[-1]*Y_N2
-#  Cv = Cp - R*Winv
-#  gamma = Cp/Cv
-  
   p = (gamma - 1.)*(U[4] - 0.5*U[1]**2/U[0] - 0.5*U[2]**2/U[0] - 0.5*U[3]**2/U[0])
   c = np.sqrt(gamma*p/U[0])
   u = U[1] / U[0]
@@ -1069,10 +1057,10 @@ def limiter_characteristic(main):
   lx = 0.
   ly = 0.
   lz = 1.
-  K = gamma - 1. 
-  ql = u*1.
-  qm = u*1.
-  qn = u*1.
+  K = gamma - 1.
+  ql = 0
+  qm = 0
+  qn = u
 
   sizeu = np.array([5,5])#np.shape(main.a.u)[0]
   sizeu = np.append(sizeu,np.shape(main.a.u[0]))
@@ -1133,10 +1121,7 @@ def limiter_characteristic(main):
   R[4,3] = ql
   R[4,4] = qm
 
-  test = np.einsum('ij...,jk...->ik...',L[0:5],R[0:5])
-  print(np.mean(test))
-  #print(np.linalg.norm(FR2[0:5] - FR[0:5] ))
-  w = np.einsum('ij...,j...->i...',L,main.a.u[0:5])
+  w = np.einsum('ij...,j...->i...',L,U)#main.a.u[0:5])
   ord_arrx= np.linspace(0,main.order[0]-1,main.order[0])
   ord_arry= np.linspace(0,main.order[1]-1,main.order[1])
   ord_arrz= np.linspace(0,main.order[2]-1,main.order[2])
@@ -1160,7 +1145,6 @@ def limiter_characteristic(main):
   while (pindx >= 1 and check == 0):
     Cwf0[:] = Cwf[:]
     indx = (np.sign(Cwf0[:,pindx])==np.sign(dcR[:,pindx-1])) & (np.sign(dcR[:,pindx-1])==np.sign(dcL[:,pindx-1] ))
-    #print(np.size(Cw[:,-1][indx]),pindx) 
     w_limit = np.zeros(np.shape(main.a.u) )
     alpha = 1.#2./(main.dx*main.order[0])
     Cwf[:,pindx] = 0.
@@ -1173,8 +1157,10 @@ def limiter_characteristic(main):
   u2 = np.zeros(np.shape(main.a.u))
   u2[0:5] = np.einsum('ij...,j...->i...',R,w)
 #  u2[5::] = u2[None,0]*Y0
-
-  #print(np.linalg.norm(main.a.a))
+#  plot(U[4,0,0,0,0,:,0,0,0] - u2[4,0,0,0,0,:,0,0,0])
+  print('diff = ' ,norm(U - u2))
+#  pause(0.001)
+#  clf()
   main.a.a[:] = main.basis.volIntegrateGlob(main,u2,main.w0,main.w1,main.w2,main.w3)*scale[None,:,:,:,:,None,None,None,None]
   #print(np.linalg.norm(main.a.a))
 
