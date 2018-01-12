@@ -147,8 +147,6 @@ def generalFluxGen(main,eqns,fluxVar,var,fluxFunction,args):
   for i in range(0,nargs):
     fluxArgs.append(argsR[i][:,:,:,:,-1,:,:])
     fluxArgs.append(argsR_edge[i])
-  #print('test')
-  #print(np.linalg.norm(var.uR_edge))
 
   fluxFunction(fluxVar.fRLS[:,:,:,:,  -1,:,:],main,var.uR[:,:,:,:,  -1,:,:],var.uR_edge,main.normals[0][:,None,None,None,-1,:,:,None],fluxArgs)
   fluxArgs = []

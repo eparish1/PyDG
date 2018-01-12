@@ -1371,13 +1371,10 @@ def ExplicitRK4(regionManager,eqns,args=None):
   rk4const = np.array([1./4,1./3,1./2,1.])
   for i in range(0,4):
     region_counter = 0
-    regionManager.getRHS_REGION(regionManager,eqns)
-    for j in regionManager.mpi_regions_owned:
-      main = regionManager.region[region_counter]
-#      region_counter += 1
-#      main.rkstage = i
-#      main.getRHS(regionManager,main,main,eqns)  ## put RHS in a array since we don't need it
-#      main.basis.applyMassMatrix(main,main.RHS) 
+    eqns.getRHS(regionManager,eqns)
+    for main in regionManager.region:
+      main.rkstage = i
+      main.basis.applyMassMatrix(main,main.RHS) 
       main.a.a[:] = main.a0 + regionManager.dt*rk4const[i]*main.RHS
     #limiter_MF(main)
   regionManager.t += regionManager.dt
@@ -1471,37 +1468,54 @@ def CrankNicolsonIncomp(main,MZ,eqns,args):
   nonlinear_solver = args[0]
   linear_solver = args[1]
   sparse_quadrature = args[2]
-  main.a0[:] = main.a.a[:]
   eqns.getRHS(main,main,eqns)
-  R0 = np.zeros(np.shape(main.RHS))
-  R0[:] = main.RHS[:]
-  def unsteadyResidual(main,v):
-    main.a.a[:] = np.reshape(v,np.shape(main.a.a))
-    eqns.getRHS(main,main,eqns)
-    R1 = np.zeros(np.shape(main.RHS))
-    R1[:] = main.RHS[:]
-    Rstar_time = ( main.a.a[:] - main.a0 )
-    Rstar_time[-1] = 0.
-    Rstar = ( main.a.a[:] - main.a0 ) - 0.5*main.dt*(R0 + R1)
-    Rstar[-1] = R1[-1]/50.
+  a0 = np.zeros(0)
+  R0 = np.zeros(0)
+  for region in regionManager.region:
+    a0[:] = np.append(a0,region.a.a[:].flatten())
+    R0 = np.append(R0,region.RHS.flatten())
+  def unsteadyResidual(regionManager,v):
+    ind1 = 0
+    for region in regionManager.region:
+      ind2 = ind1 + np.size(region.a.a)
+      region.a.a[:] = np.reshape(v[ind1:ind2],np.shape(region.a.a))
+      ind1 += np.size(region.a.a)
+
+    eqns.getRHS(regionManager,eqns)
+    R1 = np.zeros(0)
+    for region in regionManager.region:
+      R1 = np.append(R1,region.RHS.flatten()) 
+
+
+    Rstar_time = np.zeros(0)
+    for region in regionManager.region:
+      Rstar_time = np.append(Rstar_time,region.a.a.flatten())
+
+    Rstar_time -= a0 
+    Rstar = Rstar_time - 0.5*main.dt*(R0 + R1)
+
     Rstar_glob = gatherResid(Rstar,main)
     return Rstar,R1,Rstar_glob
 
   def create_MF_Jacobian(v,args,main):
     an = args[0]
     Rn = args[1]
-    vr = np.reshape(v,np.shape(main.a.a))
+
+    ind1 = 0
     eps = 5.e-3
-    main.a.a[:] = an + eps*vr
+    for region in regionManager.region:
+      ind2 = ind1 + np.size(region.a.a)
+      region.a.a[:] = np.reshape( an[ind1:ind2] + eps*vr[ind1:ind2] , np.shape(region.a.a))
+      ind1 += np.size(region.a.a) 
+
     eqns.getRHS(main,main,eqns)
-    R1 = np.zeros(np.shape(main.RHS))
-    R1[:] = main.RHS[:]
-    vrtmp = np.zeros(np.shape(vr))
-    vrtmp[:] = vr[:]
-    vrtmp[-1] = 0.
-    Av = vrtmp - main.dt/2.*(R1 - Rn)/eps
-    Av[-1] = (R1[-1] - Rn[-1])/eps/50.
-    return Av.flatten()
+
+    R1 = np.zeros(0)
+    for region in regionManager.region:
+      R1 = np.append(R1,region.RHS.flatten()) 
+
+    Av = vr - main.dt/2.*(R1 - Rn)/eps
+    return Av
 
   nonlinear_solver.solve(unsteadyResidual, create_MF_Jacobian,main,linear_solver,sparse_quadrature,eqns)
   main.t += main.dt

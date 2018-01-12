@@ -54,36 +54,39 @@ def addSecondaryViscousContribution_BR1(main,MZ,eqns):
 #  alt2 = main.altarray2[None,None,None,:,None,None,None,None,None]
 #  main.b.a[:] -= ne.evaluate("fRLI*alt0 + fUDI*alt1 + fFBI*alt2")  
 
-def addViscousContribution_BR1(regionManager,main,MZ,eqns):
+def addViscousContribution_BR1(regionManager,eqns):
   ##first do quadrature
-  addSecondaryViscousContribution_BR1(main,MZ,eqns)
+  for main in regionManager.region:
+    addSecondaryViscousContribution_BR1(main,main,eqns)
+    main.basis.applyVolIntegral(main,-main.vFlux.fx,-main.vFlux.fy,-main.vFlux.fz,main.b.a)
+    main.basis.applyMassMatrix(main,main.b.a)
+    ## Now reconstruct tau and get edge states for later flux computations
+    main.basis.reconstructU(main,main.b)
+    main.b.uR[:],main.b.uL[:],main.b.uU[:],main.b.uD[:],main.b.uF[:],main.b.uB[:] = main.basis.reconstructEdgesGeneral(main.b.a,main)
 
-  main.basis.applyVolIntegral(main,-main.vFlux.fx,-main.vFlux.fy,-main.vFlux.fz,main.b.a)
-  main.basis.applyMassMatrix(main,main.b.a)
+  for main in regionManager.region:
+    main.b.uR_edge[:],main.b.uL_edge[:],main.b.uU_edge[:],main.b.uD_edge[:],main.b.uF_edge[:],main.b.uB_edge[:] = sendEdgesGeneralSlab_Derivs(main.b.uL,main.b.uR,main.b.uD,main.b.uU,main.b.uB,main.b.uF,main,regionManager)
 
-  ## Now reconstruct tau and get edge states for later flux computations
-  main.basis.reconstructU(main,main.b)
-  main.b.uR[:],main.b.uL[:],main.b.uU[:],main.b.uD[:],main.b.uF[:],main.b.uB[:] = main.basis.reconstructEdgesGeneral(main.b.a,main)
-  main.b.uR_edge[:],main.b.uL_edge[:],main.b.uU_edge[:],main.b.uD_edge[:],main.b.uF_edge[:],main.b.uB_edge[:] = sendEdgesGeneralSlab_Derivs(main.b.uL,main.b.uR,main.b.uD,main.b.uU,main.b.uB,main.b.uF,main,regionManager)
-  generalFluxGen(main,eqns,main.iFlux,main.a,eqns.evalTauFlux,[main.b])
-  eqns.evalTauFluxX(main,main.b.u,main.a.u,main.vFlux2.fx,main.mus,main.cgas_field)
-  eqns.evalTauFluxY(main,main.b.u,main.a.u,main.vFlux2.fy,main.mus,main.cgas_field)
-  eqns.evalTauFluxZ(main,main.b.u,main.a.u,main.vFlux2.fz,main.mus,main.cgas_field)
-  main.iFlux.fx -= main.vFlux2.fx
-  main.iFlux.fy -= main.vFlux2.fy
-  main.iFlux.fz -= main.vFlux2.fz
-  #ne.evaluate("ifx - vfx",out=main.iFlux.fx, local_dict = {'ifx':main.iFlux.fx, 'vfx': main.vFlux2.fx})
-  #ne.evaluate("ify - vfy",out=main.iFlux.fy, local_dict = {'ify':main.iFlux.fy, 'vfy': main.vFlux2.fy})
-  #ne.evaluate("ifz - vfz",out=main.iFlux.fz, local_dict = {'ifz':main.iFlux.fz, 'vfz': main.vFlux2.fz})
-
-  main.iFlux.fRLI = main.basis.faceIntegrateGlob(main,main.iFlux.fRLS*main.J_edge_det[0][None,:,:,None,:,:,:,None],MZ.w1,MZ.w2,MZ.w3,MZ.weights1,MZ.weights2,MZ.weights3)
-  main.iFlux.fUDI = main.basis.faceIntegrateGlob(main,main.iFlux.fUDS*main.J_edge_det[1][None,:,:,None,:,:,:,None],MZ.w0,MZ.w2,MZ.w3,MZ.weights0,MZ.weights2,MZ.weights3)
-  main.iFlux.fFBI = main.basis.faceIntegrateGlob(main,main.iFlux.fFBS*main.J_edge_det[2][None,:,:,None,:,:,:,None],MZ.w0,MZ.w1,MZ.w3,MZ.weights0,MZ.weights1,MZ.weights3)
-  print(main.mu)
-  main.RHS[:] +=  main.iFlux.fRLI[:,None,:,:,:,1::] 
-  main.RHS[:] -=  main.iFlux.fRLI[:,None,:,:,:,0:-1]*main.altarray0[None,:,None,None,None,None,None,None,None]
-  main.RHS[:] +=  main.iFlux.fUDI[:,:,None,:,:,:,1::] 
-  main.RHS[:] -=  main.iFlux.fUDI[:,:,None,:,:,:,0:-1]*main.altarray1[None,None,:,None,None,None,None,None,None]
-  main.RHS[:] +=  main.iFlux.fFBI[:,:,:,None,:,:,:,1::] 
-  main.RHS[:] -=  main.iFlux.fFBI[:,:,:,None,:,:,:,0:-1]*main.altarray2[None,None,None,:,None,None,None,None,None]
-
+  for main in regionManager.region:
+    MZ = main
+    generalFluxGen(main,eqns,main.iFlux,main.a,eqns.evalTauFlux,[main.b])
+    eqns.evalTauFluxX(main,main.b.u,main.a.u,main.vFlux2.fx,main.mus,main.cgas_field)
+    eqns.evalTauFluxY(main,main.b.u,main.a.u,main.vFlux2.fy,main.mus,main.cgas_field)
+    eqns.evalTauFluxZ(main,main.b.u,main.a.u,main.vFlux2.fz,main.mus,main.cgas_field)
+    main.iFlux.fx -= main.vFlux2.fx
+    main.iFlux.fy -= main.vFlux2.fy
+    main.iFlux.fz -= main.vFlux2.fz
+    #ne.evaluate("ifx - vfx",out=main.iFlux.fx, local_dict = {'ifx':main.iFlux.fx, 'vfx': main.vFlux2.fx})
+    #ne.evaluate("ify - vfy",out=main.iFlux.fy, local_dict = {'ify':main.iFlux.fy, 'vfy': main.vFlux2.fy})
+    #ne.evaluate("ifz - vfz",out=main.iFlux.fz, local_dict = {'ifz':main.iFlux.fz, 'vfz': main.vFlux2.fz})
+  
+    main.iFlux.fRLI = main.basis.faceIntegrateGlob(main,main.iFlux.fRLS*main.J_edge_det[0][None,:,:,None,:,:,:,None],MZ.w1,MZ.w2,MZ.w3,MZ.weights1,MZ.weights2,MZ.weights3)
+    main.iFlux.fUDI = main.basis.faceIntegrateGlob(main,main.iFlux.fUDS*main.J_edge_det[1][None,:,:,None,:,:,:,None],MZ.w0,MZ.w2,MZ.w3,MZ.weights0,MZ.weights2,MZ.weights3)
+    main.iFlux.fFBI = main.basis.faceIntegrateGlob(main,main.iFlux.fFBS*main.J_edge_det[2][None,:,:,None,:,:,:,None],MZ.w0,MZ.w1,MZ.w3,MZ.weights0,MZ.weights1,MZ.weights3)
+    main.RHS[:] +=  main.iFlux.fRLI[:,None,:,:,:,1::] 
+    main.RHS[:] -=  main.iFlux.fRLI[:,None,:,:,:,0:-1]*main.altarray0[None,:,None,None,None,None,None,None,None]
+    main.RHS[:] +=  main.iFlux.fUDI[:,:,None,:,:,:,1::] 
+    main.RHS[:] -=  main.iFlux.fUDI[:,:,None,:,:,:,0:-1]*main.altarray1[None,None,:,None,None,None,None,None,None]
+    main.RHS[:] +=  main.iFlux.fFBI[:,:,:,None,:,:,:,1::] 
+    main.RHS[:] -=  main.iFlux.fFBI[:,:,:,None,:,:,:,0:-1]*main.altarray2[None,None,None,:,None,None,None,None,None]
+  

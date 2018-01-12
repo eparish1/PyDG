@@ -28,45 +28,48 @@ def addSource(main):
 #    force[4] -= main.delta_h0[-1]*np.reshape(sources[:,-1],np.shape(main.a.u[0]))
     main.RHS[:] += main.basis.volIntegrateGlob(main, force*main.Jdet[None,:,:,:,None,:,:,:,None] ,main.w0,main.w1,main.w2,main.w3)
 
-def addInviscidFlux(main,MZ,eqns,args=[],args_phys=[]):
-  # first compute contribution from flux at faces
-  generalFluxGen(main,eqns,main.iFlux,main.a,eqns.inviscidFlux,args)
-  # now we need to integrate along the boundary 
-  main.iFlux.fRLI = main.basis.faceIntegrateGlob(main,main.iFlux.fRLS*main.J_edge_det[0][None,:,:,None,:,:,:,None],MZ.w1,MZ.w2,MZ.w3,MZ.weights1,MZ.weights2,MZ.weights3)
-  main.iFlux.fUDI = main.basis.faceIntegrateGlob(main,main.iFlux.fUDS*main.J_edge_det[1][None,:,:,None,:,:,:,None],MZ.w0,MZ.w2,MZ.w3,MZ.weights0,MZ.weights2,MZ.weights3)
-  main.iFlux.fFBI = main.basis.faceIntegrateGlob(main,main.iFlux.fFBS*main.J_edge_det[2][None,:,:,None,:,:,:,None],MZ.w0,MZ.w1,MZ.w3,MZ.weights0,MZ.weights1,MZ.weights3)
-  # now add inviscid flux contribution to the RHS
-  main.RHS[:] =  -main.iFlux.fRLI[:,None,:,:,:,1::] 
-  main.RHS[:] += main.iFlux.fRLI[:,None,:,:,:,0:-1]*main.altarray0[None,:,None,None,None,None,None,None,None]
-  main.RHS[:] -= main.iFlux.fUDI[:,:,None,:,:,:,1::]
-  main.RHS[:] += main.iFlux.fUDI[:,:,None,:,:,:,0:-1]*main.altarray1[None,None,:,None,None,None,None,None,None]
-  main.RHS[:] -= main.iFlux.fFBI[:,:,:,None,:,:,:,1::] 
-  main.RHS[:] += main.iFlux.fFBI[:,:,:,None,:,:,:,0:-1]*main.altarray2[None,None,None,:,None,None,None,None,None]
+def addInviscidFlux(regionManager,eqns,args=[],args_phys=[]):
+  for main in regionManager.region:
+    MZ = main
+    # first compute contribution from flux at faces
+    generalFluxGen(main,eqns,main.iFlux,main.a,eqns.inviscidFlux,args)
+    # now we need to integrate along the boundary 
+    main.iFlux.fRLI = main.basis.faceIntegrateGlob(main,main.iFlux.fRLS*main.J_edge_det[0][None,:,:,None,:,:,:,None],MZ.w1,MZ.w2,MZ.w3,MZ.weights1,MZ.weights2,MZ.weights3)
+    main.iFlux.fUDI = main.basis.faceIntegrateGlob(main,main.iFlux.fUDS*main.J_edge_det[1][None,:,:,None,:,:,:,None],MZ.w0,MZ.w2,MZ.w3,MZ.weights0,MZ.weights2,MZ.weights3)
+    main.iFlux.fFBI = main.basis.faceIntegrateGlob(main,main.iFlux.fFBS*main.J_edge_det[2][None,:,:,None,:,:,:,None],MZ.w0,MZ.w1,MZ.w3,MZ.weights0,MZ.weights1,MZ.weights3)
+    # now add inviscid flux contribution to the RHS
+    main.RHS[:] =  -main.iFlux.fRLI[:,None,:,:,:,1::] 
+    main.RHS[:] += main.iFlux.fRLI[:,None,:,:,:,0:-1]*main.altarray0[None,:,None,None,None,None,None,None,None]
+    main.RHS[:] -= main.iFlux.fUDI[:,:,None,:,:,:,1::]
+    main.RHS[:] += main.iFlux.fUDI[:,:,None,:,:,:,0:-1]*main.altarray1[None,None,:,None,None,None,None,None,None]
+    main.RHS[:] -= main.iFlux.fFBI[:,:,:,None,:,:,:,1::] 
+    main.RHS[:] += main.iFlux.fFBI[:,:,:,None,:,:,:,0:-1]*main.altarray2[None,None,None,:,None,None,None,None,None]
 
-def addVolume_and_Viscous(regionManager,main,MZ,eqns,args=[],args_phys=[]):
-  #eqns.evalFluxX(main,main.a.u,main.iFlux.fx,args_phys)
-  #eqns.evalFluxY(main,main.a.u,main.iFlux.fy,args_phys)
-  #eqns.evalFluxZ(main,main.a.u,main.iFlux.fz,args_phys)
-  eqns.evalFluxXYZ(main,main.a.u,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,args_phys)
-  eqns.addViscousContribution(regionManager,main,MZ,eqns) 
-  main.basis.applyVolIntegral(main,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,main.RHS)
+def addVolume_and_Viscous(regionManager,eqns,args=[],args_phys=[]):
+  for main in regionManager.region:
+    eqns.evalFluxXYZ(main,main.a.u,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,args_phys)
+
+  eqns.addViscousContribution(regionManager,eqns) 
+
+  for main in regionManager.region:
+    main.basis.applyVolIntegral(main,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,main.RHS)
 
 
-def getRHS(regionManager,main,MZ,eqns,args=[],args_phys=[]):
+def getRHS(regionManager,eqns,args=[],args_phys=[]):
   t0 = time.time()
-  main.basis.reconstructU(main,main.a)
-  main.a.uR[:],main.a.uL[:],main.a.uU[:],main.a.uD[:],main.a.uF[:],main.a.uB[:] = main.basis.reconstructEdgesGeneral(main.a.a,main)
-  main.a.uR_edge[:],main.a.uL_edge[:],main.a.uU_edge[:],main.a.uD_edge[:],main.a.uF_edge[:],main.a.uB_edge[:] = sendEdgesGeneralSlab(main.a.uL,main.a.uR,main.a.uD,main.a.uU,main.a.uB,main.a.uF,main,regionManager)
-  print(np.linalg.norm(main.a.uR),np.linalg.norm(main.a.uR_edge),main.region_number)
-  #if (main.eq_str[0:-2] == 'Navier-Stokes Reacting'):
-  #  update_state(main)
-  #  #main.a.p[:],main.a.T[:] = computePressure_and_Temperature(main,main.a.u)
-  # evaluate inviscid flux and add contribution to RHS
-  addInviscidFlux(main,MZ,eqns,args,args_phys)
-  addVolume_and_Viscous(regionManager,main,MZ,eqns,args,args_phys)
+  for main in regionManager.region:
+    main.basis.reconstructU(main,main.a)
+    main.a.uR[:],main.a.uL[:],main.a.uU[:],main.a.uD[:],main.a.uF[:],main.a.uB[:] = main.basis.reconstructEdgesGeneral(main.a.a,main)
+
+  for main in regionManager.region:
+    main.a.uR_edge[:],main.a.uL_edge[:],main.a.uU_edge[:],main.a.uD_edge[:],main.a.uF_edge[:],main.a.uB_edge[:] = sendEdgesGeneralSlab(main.a.uL,main.a.uR,main.a.uD,main.a.uU,main.a.uB,main.a.uF,main,regionManager)
+
+  addInviscidFlux(regionManager,eqns,args,args_phys)
+  addVolume_and_Viscous(regionManager,eqns,args,args_phys)
   ### Get interior vol terms
-  addSource(main)
-  main.comm.Barrier()
+  for main in regionManager.region:
+    addSource(main)
+    main.comm.Barrier()
 
 
 def getRHS_zeta(main,MZ,eqns,args=[],args_phys=[]):
