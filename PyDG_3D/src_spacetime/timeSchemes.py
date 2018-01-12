@@ -1063,12 +1063,12 @@ def limiter_characteristic(main):
   nx = 1.
   ny = 0.
   nz = 0.
-  mx = 1.
-  my = 0.
+  mx = 0.
+  my = 1.
   mz = 0.
-  lx = 1.
+  lx = 0.
   ly = 0.
-  lz = 0.
+  lz = 1.
   K = gamma - 1. 
   ql = u*1.
   qm = u*1.
@@ -1254,7 +1254,7 @@ def SSP_RK3(main,MZ,eqns,args=None):
   main.basis.applyMassMatrix(main,main.RHS)
   a1 = main.a.a[:]  + main.dt*(main.RHS[:])
   main.a.a[:] = a1[:]
-  #limiter_characteristic(main)
+  limiter_characteristic(main)
   #limiter_MF(main)
 
   main.getRHS(main,MZ,eqns)
@@ -1262,13 +1262,13 @@ def SSP_RK3(main,MZ,eqns,args=None):
 
   a1[:] = 3./4.*a0 + 1./4.*(a1 + main.dt*main.RHS[:]) #reuse a1 vector
   main.a.a[:] = a1[:]
-  #limiter_characteristic(main)
+  limiter_characteristic(main)
   #limiter_MF(main)
 
   main.getRHS(main,MZ,eqns)  ## put RHS in a array since we don't need it
   main.basis.applyMassMatrix(main,main.RHS)
   main.a.a[:] = 1./3.*a0 + 2./3.*(a1[:] + main.dt*main.RHS[:])
-#  limiter_characteristic(main)
+  limiter_characteristic(main)
   #limiter_MF(main)
 
 
