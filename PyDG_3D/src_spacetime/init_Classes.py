@@ -346,4 +346,4 @@ class variables:
 
     self.basis = basis_class('Legendre',['TensorDot'])
 
-#    self = add_reacting_to_main(self,mol_str)
+    self = add_reacting_to_main(self,mol_str)
