@@ -126,56 +126,6 @@ def mydUdV(V):
   return A0 
 
 
-### This is from Hughes, probably not right
-def dVdU(V):
-  print('DONT USE THIS')
-  sz = np.shape(V[0])
-  sz = np.append(5,sz)
-  A0inv = np.zeros(sz)
-  gamma = 1.4
-  gamma_bar = gamma - 1.
-  k1 = 0.5*(V[1]**2 + V[2]**2 + V[3]**2)/V[4]
-  k2 = k1 - gamma
-  k3 = k1**2 - 2.*gamma*k1 + gamma
-  k4 = k2 - gamma_bar
-  k5 = k2**2 - gamma_bar*(k1 + k2)	
-  c1 = gamma_bar*V[4] - V[1]**2
-  c2 = vamma_bar*V[4] - V[2]**2
-  c3 = vamma_bar*V[4] - V[3]**2
-  d1 = -V[1]*V[2]
-  d2 = -V[1]*V[3]
-  d3 = -V[2]*V[3]
-  e1 = V[1]*V[4]
-  e2 = V[2]*V[4]
-  e3 = V[3]*V[4]
-
-  A0inv[0,0] = k1**2 + gamma
-  A0inv[0,1] = K1*V[1]
-  A0inv[0,2] = k1*V[2]
-  A0inv[0,3] = k1*V[3]
-  A0inv[0,4] = (k1 + 1.)*V[4]
-  A0inv[1,0] = A0inv[0,1]
-  A0inv[1,1] = -V[1]**2 - V[4]
-  A0inv[1,2] = -d1
-  A0inv[1,3] = -d2
-  A0inv[1,4] = e1
-  A0inv[2,0] = A0inv[0,2]
-  A0inv[2,1] = A0inv[1,2]
-  A0inv[2,2] = -V[2]**2 - V[4]
-  A0inv[2,3] = -d3
-  A0inv[2,4] = e2
-  A0inv[3,0] = A0inv[0,3]
-  A0inv[3,1] = A0inv[1,3]
-  A0inv[3,2] = A0inv[2,3]
-  A0inv[3,3] = V[3]**2 - V[4]
-  A0inv[3,4] = e3
-  A0inv[4,0] = A0inv[0,4]
-  A0inv[4,1] = A0inv[1,4]
-  A0inv[4,2] = A0inv[2,4]
-  A0inv[4,3] = A0inv[3,4]
-  A0inv[4,4] = V[4]**2
-  return - A0inv * gamma_bar/( p * V[4] )
-
 # function to take entropy variables V and get conservative variables U
 def entropy_to_conservative(V):
   gamma = 1.4
@@ -199,6 +149,17 @@ def entropy_to_conservative(V):
   U[3] = U[0]*w
   U[4] = U[0]*E
   return U
+
+# function to take conservative variables and compute entropy variables U
+#def conservative_to_entropy(U)
+#  s = np.log(p) - gamma*np.log(rho)
+#  s2 = np.log(p/rho**gamma)
+#  qv[0] = -s/(gamma - 1.) + (gamma + 1.)/(gamma - 1.) - q[4]/p
+#  qv[1] = q[1]/p
+#  qv[2] = q[2]/p
+#  qv[3] = q[3]/p
+#  qv[4] = -q[0]/p
+#  return qv
 
 
 ###### ====== Inviscid Fluxes Fluxes and Eigen Values (Eigenvalues currently not in use) ==== ############
@@ -259,6 +220,116 @@ def evalFluxZEulerEntropy(main,v,f,args):
   f[3] = u[3]*u[3]/u[0] + p 
   f[4] = (u[4] + p)*u[3]/u[0]
 
+
+## strong form of the residual
+def strongFormEulerXYZEntropy(main,a,args):
+  es = 1.e-30
+  gamma = 1.4
+  V = main.basis.reconstructUGeneral(main,main.a.a)
+  VR,VL,VU,VD,VF,VB = main.basis.reconstructEdgesGeneral(main.a.a,main)
+  U = entropy_to_conservative(V) 
+  #UR = entropy_to_conservative(VR) 
+  #UL = entropy_to_conservative(VL) 
+  #UU = entropy_to_conservative(VU) 
+  #UD = entropy_to_conservative(VD) 
+  #UF = entropy_to_conservative(VF) 
+  #UB = entropy_to_conservative(VB) 
+  rho = U[0]
+  rhoU = U[1]
+  rhoV = U[2]
+  rhoW = U[3]
+  rhoE = U[4]
+  dUdV = mydUdV(V)
+  p = ne.evaluate("(gamma - 1.)*(rhoE - 0.5*rhoU**2/rho - 0.5*rhoV**2/rho - 0.5*rhoW**2/rho)")
+  Vx,Vy,Vz = main.basis.diffU(main.a.a,main) 
+  Ux = np.einsum('ij...,j...->i...',dUdV,Vx)
+  Uy = np.einsum('ij...,j...->i...',dUdV,Vy)
+  Uz = np.einsum('ij...,j...->i...',dUdV,Vz)
+
+  #UxR,UxL,UxU,UxD,UxF,UxB = main.basis.diffUX_edge(main.a.a,main)
+  #UyR,UyL,UyU,UyD,UyF,UyB = main.basis.diffUY_edge(main.a.a,main)
+  #UzR,UzL,UzU,UzD,UzF,UzB = main.basis.diffUZ_edge(main.a.a,main)
+
+  def computeResid(U,Ux,Uy,Uz):
+    p = (gamma - 1.)*(U[4] - 0.5*U[1]**2/U[0] - 0.5*U[2]**2/U[0] - 0.5*U[3]**2/U[0])
+
+    px = (gamma - 1.)* (Ux[4] - 1./U[0]*(U[3]*Ux[3] + U[2]*Ux[2] + U[1]*Ux[1]) + 0.5/U[0]**2*Ux[0]*(U[3]**2 + U[2]**2 + U[1]**2) )
+    py = (gamma - 1.)* (Uy[4] - 1./U[0]*(U[3]*Uy[3] + U[2]*Uy[2] + U[1]*Uy[1]) + 0.5/U[0]**2*Uy[0]*(U[3]**2 + U[2]**2 + U[1]**2) )
+    pz = (gamma - 1.)* (Uz[4] - 1./U[0]*(U[3]*Uz[3] + U[2]*Uz[2] + U[1]*Uz[1]) + 0.5/U[0]**2*Uz[0]*(U[3]**2 + U[2]**2 + U[1]**2) )
+  
+    fx = np.zeros(np.shape(U))
+    fy = np.zeros(np.shape(U))
+    fz = np.zeros(np.shape(U))
+  
+    fx[0] = Ux[1]  #d/dx(rho U)
+    fx[1] = 2.*U[1]*Ux[1]/U[0] - Ux[0]*U[1]**2/U[0]**2 + px
+    fx[2] = U[1]*Ux[2]/U[0] + Ux[1]*U[2]/U[0] - Ux[0]*U[1]*U[2]/U[0]**2
+    fx[3] = U[1]*Ux[3]/U[0] + Ux[1]*U[3]/U[0] - Ux[0]*U[1]*U[3]/U[0]**2
+    fx[4] = U[1]/U[0]*(Ux[4] + px) + Ux[1]/U[0]*(U[4] + p) - Ux[0]/U[0]**2*U[1]*(U[4] + p) 
+  
+    fy[0] = Uy[2]  #d/dx(rho)
+    fy[1] = U[1]*Uy[2]/U[0] + Uy[1]*U[2]/U[0] - Uy[0]*U[1]*U[2]/U[0]**2
+    fy[2] = 2.*U[2]*Uy[2]/U[0] - Uy[0]*U[2]**2/U[0]**2 + py
+    fy[3] = U[2]*Uy[3]/U[0] + Uy[2]*U[3]/U[0] - Uy[0]*U[2]*U[3]/U[0]**2
+    fy[4] = U[2]/U[0]*(Uy[4] + py) + Uy[2]/U[0]*(U[4] + p) - Uy[0]/U[0]**2*U[2]*(U[4] + p) 
+  
+    fz[0] = Uz[3]  #d/dx(rho)
+    fz[1] = U[1]*Uz[3]/U[0] + Uz[1]*U[3]/U[0] - Uz[0]*U[1]*U[3]/U[0]**2
+    fz[2] = U[3]*Uz[2]/U[0] + Uz[3]*U[2]/U[0] - Uz[0]*U[3]*U[2]/U[0]**2
+    fz[3] = 2.*U[3]*Uz[3]/U[0] - Uz[0]*U[3]**2/U[0]**2 + pz
+    fz[4] = U[3]/U[0]*(Uz[4] + pz) + Uz[3]/U[0]*(U[4] + p) - Uz[0]/U[0]**2*U[3]*(U[4] + p) 
+    return fx + fy + fz
+  
+  resid_vol = computeResid(U,Ux,Uy,Uz)
+  #resid_R = computeResid(UR,UxR,UyR,UzR)
+  #resid_L = computeResid(UL,UxL,UyL,UzL)
+
+  #resid_U = computeResid(UU,UxU,UyU,UzU)
+  #resid_D = computeResid(UD,UxD,UyD,UzD)
+
+  #resid_F = computeResid(UF,UxF,UyF,UzF)
+  #resid_B = computeResid(UB,UxB,UyB,UzB)
+
+  return resid_vol#,resid_R,resid_L,resid_U,resid_D,resid_F,resid_B
+
+def evalFluxXYZEulerLinEntropy(main,V0,fx,fy,fz,args):
+  U0 = entropy_to_conservative(V0)
+  up = args[0]
+  #decompose as U = U0 + up, where up is the perturbation
+  #f = np.zeros(np.shape(u))
+  es = 1.e-30
+  gamma = 1.4
+  u = U0[1]/U0[0]
+  v = U0[2]/U0[0]
+  w = U0[3]/U0[0]
+  qsqr = u**2 + v**2 + w**2
+  # compute H in three steps (H = E + p/rho)
+  H = (gamma - 1.)*(U0[4] - 0.5*U0[0]*qsqr) #compute pressure
+  H += U0[4]
+  H /= U0[0]
+  fx[0] = up[1]
+  fx[1] = ( (gamma - 1.)/2.*qsqr - u**2)*up[0] + (3. - gamma)*u*up[1] + (1. - gamma)*v*up[2] + \
+         (1. - gamma)*w*up[3] + (gamma - 1.)*up[4]
+  fx[2] = -u*v*up[0] + v*up[1] + u*up[2]
+  fx[3] = -u*w*up[0] + w*up[1] + u*up[3]
+  fx[4] = ((gamma - 1.)/2.*qsqr - H)*u*up[0] + (H + (1. - gamma)*u**2)*up[1] + (1. - gamma)*u*v*up[2] + \
+         (1. - gamma)*u*w*up[3] + gamma*u*up[4]
+
+  fy[0] = up[2]
+  fy[1] = -v*u*up[0] + v*up[1] + u*up[2]
+  fy[2] = ( (gamma - 1.)/2.*qsqr - v**2)*up[0] + (1. - gamma)*u*up[1] + (3. - gamma)*v*up[2] + \
+         (1. - gamma)*w*up[3] + (gamma - 1.)*up[4]
+  fy[3] = -v*w*up[0] + w*up[2] + v*up[3]
+  fy[4] = ((gamma - 1.)/2.*qsqr - H)*v*up[0] + (1. - gamma)*u*v*up[1] + (H + (1. - gamma)*v**2)*up[2] + \
+         (1. - gamma)*v*w*up[3] + gamma*v*up[4]
+
+  fz[0] = up[3]
+  fz[1] = -u*w*up[0] + w*up[1] + u*up[3]
+  fz[2] = -v*w*up[0] + w*up[2] + v*up[3]
+  fz[3] = ( (gamma - 1.)/2.*qsqr - w**2)*up[0] + (1. - gamma)*u*up[1] + (1. - gamma)*v*up[2] + \
+         (3. - gamma)*w*up[3] + (gamma - 1.)*up[4]
+  fz[4] = ((gamma - 1.)/2.*qsqr - H)*w*up[0] + (1. - gamma)*u*w*up[1] + (1. - gamma)*v*w*up[2] + \
+          (H + (1. - gamma)*w**2)*up[3] + gamma*w*up[4]
 
 #==================== Numerical Fluxes for the Faces =====================
 #== central flux

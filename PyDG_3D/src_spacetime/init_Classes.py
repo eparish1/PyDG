@@ -282,6 +282,9 @@ class variables:
 
     self.a0 = np.zeros((eqns.nvars,self.order[0],self.order[1],self.order[2],self.order[3],self.Npx,self.Npy,self.Npz,self.Npt))
     self.a = variable(eqns.nvars,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz,self.Npt)
+
+    self.adum = variable(eqns.nvars,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz,self.Npt)
+
     self.b = variable(eqns.nvisc_vars,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz,self.Npt)
 
     self.iFlux = fluxvariable(eqns.nvars,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz,self.Npt)
@@ -323,8 +326,12 @@ class variables:
     if (turb_str == 'orthogonal subscale'):
       self.getRHS = orthogonalSubscale
       check = 1
+    if (turb_str == 'orthogonal subscale entropy'):
+      self.getRHS = orthogonalSubscaleEntropy
+      check = 1
     if (turb_str == 'tau-modelFD'):
       self.getRHS = tauModelFD
+      if (self.mpi_rank == 0): print('Using finite difference tau model')
       check = 1
     if (turb_str == 'tau-modelFDEntropy'):
       self.getRHS = tauModelFDEntropy

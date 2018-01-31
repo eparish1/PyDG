@@ -7,6 +7,7 @@ def computePressure_and_Temperature_euler(main,u):
   p = (gamma - 1.)*(u[4] - 0.5*u[1]**2/u[0] - 0.5*u[2]**2/u[0] - 0.5*u[3]**2/u[0]) 
   return p,T
 
+
 def update_state(main):
     main.a.p[:],main.a.T[:] = computePressure_and_Temperature(main,main.a.u)
     main.a.pR[:],main.a.TR[:] = computePressure_and_Temperature(main,main.a.uR)
@@ -27,7 +28,8 @@ def update_state(main):
     for i in range(0,np.shape(main.a.u)[0]-5):
       fa[:,i] = ( main.a.u[5+i]/main.a.u[0] ).flatten()
     fa[:,-1] = 1. - np.sum(fa[:,0:-1],axis=1)
-    main.cgas_field.TPY = main.a.T.flatten(),main.a.p.flatten(),fa 
+    if (main.fsource):
+     main.cgas_field.TPY = main.a.T.flatten(),main.a.p.flatten(),fa 
 
 def update_state_cantera(main):
     rhoi = 1./main.a.u[0]
@@ -191,7 +193,7 @@ def computePressure_CPG(main,u):
   p = (gamma - 1.)*(u[4] - 0.5*u[1]**2/u[0] - 0.5*u[2]**2/u[0] - 0.5*u[3]**2/u[0])
   return p
 
-def computePressure_and_Temperature_CPG(main,u):
+def computePressure_and_Temperature(main,u):
   R = 8314.4621/1000.
   T0 = 298.15*0.
   n_reacting = np.size(main.delta_h0)
@@ -200,12 +202,12 @@ def computePressure_and_Temperature_CPG(main,u):
   Cp = np.einsum('i...,ijk...->jk...',main.Cp[0:-1],u[5::]/u[None,0]) + main.Cp[-1]*Y_last
   Cv = Cp - R*Winv
   gamma = Cp/Cv
+  # sensible + chemical
   T = u[4]/u[0] - 0.5/u[0]**2*( u[1]**2 + u[2]**2 + u[3]**2 )
   T += R * T0 * Winv 
   T /= Cv
   T += T0
   p = (gamma - 1.)*(u[4] - 0.5*u[1]**2/u[0] - 0.5*u[2]**2/u[0] - 0.5*u[3]**2/u[0])
-
   return p,T
 
 

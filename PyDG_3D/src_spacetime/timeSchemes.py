@@ -113,6 +113,63 @@ def spaceTimeIncomp(main,MZ,eqns,args=None):
   main.iteration += 1
   main.a.uFuture[:],uPast = main.basis.reconstructEdgesGeneralTime(main.a.a,main)
 
+### spaceTimeSolver with entropy var preconditioning
+def spaceTimeEntropy(main,MZ,eqns,args=None):
+  nonlinear_solver = args[0]
+  linear_solver = args[1]
+  sparse_quadrature = args[2]
+  main.a0[:] = main.a.a[:]
+  alpha = 0.1
+  #if (main.iteration%1 == 0):
+  getEntropyMassMatrix(main)
+
+  def residTime(main):
+    #main.basis.reconstructU(main,main.a)
+    U = entropy_to_conservative(main.a.u)
+    volint_t = main.basis.volIntegrateGlob(main,U*main.Jdet[None,:,:,:,None,:,:,:,None],main.w0,main.w1,main.w2,main.wp3)
+    vFuture,vPast = main.basis.reconstructEdgesGeneralTime(main.a.a,main)
+    uFuture = entropy_to_conservative(vFuture)
+    uPast = entropy_to_conservative(vPast)
+    futureFlux = main.basis.faceIntegrateGlob(main,uFuture*main.Jdet[None,:,:,:,:,:,:,None],main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
+    uPast[:,:,:,:,:,:,:,0] = entropy_to_conservative( main.a.uFuture[:,:,:,:,:,:,:,-1] )
+    if (main.Npt > 1):
+      uPast[:,:,:,:,:,:,:,1::] = uFuture[:,:,:,:,:,:,:,0:-1]
+    pastFlux   = main.basis.faceIntegrateGlob(main,uPast*main.Jdet[None,:,:,:,:,:,:,None] ,main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
+    Rstar = volint_t - (futureFlux[:,:,:,:,None] - pastFlux[:,:,:,:,None]*main.altarray3[None,None,None,None,:,None,None,None,None])
+    return Rstar
+
+  def unsteadyResidual(main,v):
+
+    main.a.a[:] = np.reshape(v*1.,np.shape(main.a.a))
+    eqns.getRHS(main,main,eqns)
+    R1 = np.zeros(np.shape(main.RHS))
+    R1[:] = main.RHS[:]
+    Rt = residTime(main)
+    Rstar = Rt + R1[:]*main.dt/2.
+    Rstar = np.reshape(Rstar,(main.nvars*main.order[0]*main.order[1]*main.order[2]*main.order[3],main.Npx,main.Npy,main.Npz,main.Npt) )
+    Rstar = np.einsum('ij...,j...->i...',main.EMM,Rstar)
+    Rstar = np.reshape(Rstar,np.shape(main.a.a))
+
+    #main.basis.applyMassMatrix(main,Rstar)
+    Rstar_glob = gatherResid(Rstar,main)
+    return Rstar,R1,Rstar_glob
+    #return Rstar.flatten()
+
+  def create_MF_Jacobian(v,args,main):
+    an = args[0]
+    Rn = args[1]
+    vr = np.reshape(v,np.shape(main.a.a))
+    eps = 1e-9
+    main.a.a[:] = an + eps*vr
+    R1,dum,dum = unsteadyResidual(main,main.a.a)
+    Av = (R1 - Rn)/eps
+    return Av.flatten()
+
+  nonlinear_solver.solve(unsteadyResidual, create_MF_Jacobian,main,linear_solver,sparse_quadrature,eqns)
+
+  main.t += main.dt*main.Npt
+  main.iteration += 1
+  main.a.uFuture[:],uPast = main.basis.reconstructEdgesGeneralTime(main.a.a,main)
 
 
 def spaceTime(main,MZ,eqns,args=None):
@@ -1142,25 +1199,29 @@ def limiter_characteristic(main):
   Cwf0 = np.zeros(np.shape(main.a.a[0:5]))
   check = 0
   indx_eq = np.zeros(np.shape(main.a.a[0:5,0]),dtype=bool)
-  while (pindx >= 1 and check == 0):
-    Cwf0[:] = Cwf[:]
-    indx = (np.sign(Cwf0[:,pindx])==np.sign(dcR[:,pindx-1])) & (np.sign(dcR[:,pindx-1])==np.sign(dcL[:,pindx-1] ))
-    w_limit = np.zeros(np.shape(main.a.u) )
-    alpha = 1.#2./(main.dx*main.order[0])
-    Cwf[:,pindx] = 0.
-    Cwf[:,pindx][indx] = np.sign(Cwf0[:,pindx][indx])*np.fmin( np.abs(Cwf0[:,pindx][indx]), np.fmin(np.abs(alpha*dcR[:,pindx-1][indx]),np.abs(alpha*dcL[:,pindx-1][indx]) ))
-    #print(np.size(Cwf[indx_eq]),pindx)
-    Cwf[:,pindx][indx_eq] = Cwf0[:,pindx][indx_eq]
-    indx_eq = np.isclose(Cwf[:,pindx],Cwf0[:,pindx],rtol=1e-7,atol = 1e-11)
-    pindx -= 1
+  #Cwf[:,1::] = 0.
+  #while (pindx >= 1 and check == 0):
+  #  Cwf0[:] = Cwf[:]
+  #  indx = (np.sign(Cwf0[:,pindx])==np.sign(dcR[:,pindx-1])) & (np.sign(dcR[:,pindx-1])==np.sign(dcL[:,pindx-1] ))
+  #  indx[:] = True#True
+  #  w_limit = np.zeros(np.shape(main.a.u) )
+  #  alpha = 0.01#2./(main.dx*main.order[0])
+  #  Cwf[:,pindx] = 0.
+  #  Cwf[:,pindx][indx] = np.sign(Cwf0[:,pindx][indx])*np.fmin( np.abs(Cwf0[:,pindx][indx]), np.fmin(np.abs(alpha*dcR[:,pindx-1][indx]),np.abs(alpha*dcL[:,pindx-1][indx]) ))
+  #  #print(np.size(Cwf[indx_eq]),pindx)
+  #  #Cwf[:,pindx][indx_eq] = Cwf0[:,pindx][indx_eq]
+  #  #indx_eq = np.isclose(Cwf[:,pindx],Cwf0[:,pindx],rtol=1e-7,atol = 1e-11)
+  #  pindx -= 1
+  print('p1norm' ,np.linalg.norm(Cwf[:,1::]) )
   w = main.basis.reconstructUGeneral(main,Cwf)
   u2 = np.zeros(np.shape(main.a.u))
   u2[0:5] = np.einsum('ij...,j...->i...',R,w)
 #  u2[5::] = u2[None,0]*Y0
-#  plot(U[4,0,0,0,0,:,0,0,0] - u2[4,0,0,0,0,:,0,0,0])
+  plot(U[4,0,0,0,0,:,0,0,0])
+  plot(u2[4,0,0,0,0,:,0,0,0])
   print('diff = ' ,norm(U - u2))
-#  pause(0.001)
-#  clf()
+  pause(0.001)
+  clf()
   main.a.a[:] = main.basis.volIntegrateGlob(main,u2,main.w0,main.w1,main.w2,main.w3)*scale[None,:,:,:,:,None,None,None,None]
   #print(np.linalg.norm(main.a.a))
 
@@ -1242,7 +1303,7 @@ def SSP_RK3(main,MZ,eqns,args=None):
   main.basis.applyMassMatrix(main,main.RHS)
   a1 = main.a.a[:]  + main.dt*(main.RHS[:])
   main.a.a[:] = a1[:]
-  limiter_characteristic(main)
+  #limiter_characteristic(main)
   #limiter_MF(main)
 
   main.getRHS(main,MZ,eqns)
@@ -1250,13 +1311,13 @@ def SSP_RK3(main,MZ,eqns,args=None):
 
   a1[:] = 3./4.*a0 + 1./4.*(a1 + main.dt*main.RHS[:]) #reuse a1 vector
   main.a.a[:] = a1[:]
-  limiter_characteristic(main)
+  #limiter_characteristic(main)
   #limiter_MF(main)
 
   main.getRHS(main,MZ,eqns)  ## put RHS in a array since we don't need it
   main.basis.applyMassMatrix(main,main.RHS)
   main.a.a[:] = 1./3.*a0 + 2./3.*(a1[:] + main.dt*main.RHS[:])
-  limiter_characteristic(main)
+  #limiter_characteristic(main)
   #limiter_MF(main)
 
 

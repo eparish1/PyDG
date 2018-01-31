@@ -90,7 +90,9 @@ if 'enriched_ratio' in globals():
   pass
 else:
   #enriched_ratio = np.array([2,2,2,1])
-  enriched_add = np.array([1,1,1,0])
+  enriched_add = np.array([4,0,0,0])
+  quadpoints_ratio = np.array([2,1,1,1])
+
 #  enriched_ratio = np.array([(order[0]+1.)/order[0],(order[1]+1.)/order[1],(order[2]+1.)/order[2],1])
 if 'enriched' in globals():
   pass
@@ -138,7 +140,7 @@ if (mpi_rank == 0):
 
 if (enriched):
   eqnsEnriched = eqns#equations(enriched_eqn_str,enriched_schemes,turb_str)
-  mainEnriched = variables(Nel,np.int64(order + enriched_add),quadpoints,eqnsEnriched,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,fsource,source_mag,shock_capturing,mol_str,basis_args)
+  mainEnriched = variables(Nel,np.int64(order + enriched_add),quadpoints*quadpoints_ratio,eqnsEnriched,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,fsource,source_mag,shock_capturing,mol_str,basis_args)
 else:
   mainEnriched = main
 
