@@ -197,10 +197,10 @@ def sendEdgesGeneralSlab_Derivs(fL,fR,fD,fU,fB,fF,main):
     
   uF[:] = fB[:,:,:,:,:,:,0]
   uB[:] = fF[:,:,:,:,:,:,-1]
-    if (main.frontBC.BC_type != 'periodic'):
-      uF[:] = fF[:,:,:,:,:,:,-1]
-    if (main.backBC.BC_type != 'periodic'):
-      uB[:] = fB[:,:,:,:,:,:,0]
+  if (main.frontBC.BC_type != 'periodic'):
+    uF[:] = fF[:,:,:,:,:,:,-1]
+  if (main.backBC.BC_type != 'periodic'):
+    uB[:] = fB[:,:,:,:,:,:,0]
   return uR,uL,uU,uD,uF,uB
 
 def gatherSolScalar(main,u):
