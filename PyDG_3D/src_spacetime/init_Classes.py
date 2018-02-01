@@ -248,6 +248,8 @@ class variables:
     self.topBC = boundaryConditions(BCs[2],BCs[3])
     self.leftBC = boundaryConditions(BCs[4],BCs[5])
     self.bottomBC = boundaryConditions(BCs[6],BCs[7])
+    self.frontBC = boundaryConditions(BCs[8],BCs[9])
+    self.backBC = boundaryConditions(BCs[10],BCs[11])
 
     self.cgas = False 
     self.cgas_field = False 

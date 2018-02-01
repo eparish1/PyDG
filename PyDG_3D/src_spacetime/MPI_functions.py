@@ -97,7 +97,7 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main):
     #uL = np.reshape(tmp,(main.nvars,main.quadpoints,main.quadpoints,main.Npy,main.Npz))
     uL[:] = np.reshape(tmp,np.shape(fL[:,:,:,:,-1,:,:]))
 
-    ### Boundary conditions. Overright uL and uR if we are on a boundary. 
+    ### Boundary conditions. Overwrite uL and uR if we are on a boundary. 
     if (main.BC_rank[0]):
       uR[:] = main.rightBC.applyBC(fR[:,:,:,:,-1,:,:],uR,main.rightBC.args,main)
     if (main.BC_rank[2]):
@@ -121,15 +121,17 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main):
                        recvbuf=tmp,source=main.rank_connect[2],recvtag=main.rank_connect[2]*100)
     uD[:] = np.reshape(tmp,np.shape(fU[:,:,:,:,:,-1,:]))
 
-    ### Boundary conditions. Overright uU and uD if we are on a boundary. 
+    ### Boundary conditions. Overwrite uU and uD if we are on a boundary. 
     if (main.BC_rank[1]):
       uU[:] = main.topBC.applyBC(fU[:,:,:,:,:,-1,:],uU,main.topBC.args,main)
     if (main.BC_rank[3]):
       uD[:] = main.bottomBC.applyBC(fD[:,:,:,:,:,0,:],uD,main.bottomBC.args,main)
 
-    
   uF[:] = fB[:,:,:,:,:,:,0]
   uB[:] = fF[:,:,:,:,:,:,-1]
+  ## overwrite since on boundary. Note that in a periodic BC the applyBC functions don't do anything
+  uF[:] = main.frontBC.applyBC(fF[:,:,:,:,:,:,-1],uF,main.frontBC.args,main)
+  uB[:] = main.backBC.applyBC(fB[:,:,:,:,:,:,0],uB,main.backBC.args,main)
   return uR,uL,uU,uD,uF,uB
 
 
@@ -195,6 +197,10 @@ def sendEdgesGeneralSlab_Derivs(fL,fR,fD,fU,fB,fF,main):
     
   uF[:] = fB[:,:,:,:,:,:,0]
   uB[:] = fF[:,:,:,:,:,:,-1]
+    if (main.frontBC.BC_type != 'periodic'):
+      uF[:] = fF[:,:,:,:,:,:,-1]
+    if (main.backBC.BC_type != 'periodic'):
+      uB[:] = fB[:,:,:,:,:,:,0]
   return uR,uL,uU,uD,uF,uB
 
 def gatherSolScalar(main,u):
