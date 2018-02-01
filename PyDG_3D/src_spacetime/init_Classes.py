@@ -15,7 +15,7 @@ from equations_class import *
 from gas import *
 from basis_class import *
 from grid_functions import *
-from init_reacting_additions import add_reacting_to_main
+#from init_reacting_additions import add_reacting_to_main
 class variable:
   def __init__(self,nvars,order,quadpoints,Npx,Npy,Npz,Npt):
       self.nvars = nvars
@@ -142,6 +142,16 @@ class boundaryConditions:
       check = 1
       self.BC_type = BC_type
       self.applyBC = reflectingwall_bc
+      self.args = BC_args
+    if (BC_type == 'reflecting_wall_x'):
+      check = 1
+      self.BC_type = BC_type
+      self.applyBC = reflectingwall_x_bc
+      self.args = BC_args
+    if (BC_type == 'slipwall_y'):
+      check = 1
+      self.BC_type = BC_type
+      self.applyBC = slipwall_y_bc
       self.args = BC_args
     if (BC_type == 'shuOscherBC'):
       check = 1

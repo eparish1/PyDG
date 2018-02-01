@@ -89,24 +89,23 @@ def orthogonalSubscale(main,MZ,eqns):
    main.RHS[:] = 0.
 #   R,RR,RL,RU,RD,RF,RB = strongFormEulerXYZ(main,main.a.a,None)
 #   R_orthogonal,R_orthoR,R_orthoL,R_orthoU,R_orthoD,R_orthoF,R_orthoB = orthogonalProjection(main,R,RR,RL,RU,RD,RF,RB)
-   R = strongFormEulerXYZ(main,main.a.a,None)
+   R = eqns.strongFormResidual(main,main.a.a,None)
    R_orthogonal= orthogonalProjection(main,R)
 
    PLQLu2 = np.zeros(np.shape(main.RHS))
    u0 = main.a.u*1.
 
    main.a.u[:] = u0[:]
-   evalFluxXYZEulerLin(main,main.a.u,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,[-R_orthogonal])
+   eqns.evalFluxXYZLin(main,main.a.u,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,[-R_orthogonal])
    main.basis.applyVolIntegral(main,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,PLQLu2)
    main.RHS[:] = R0[:] 
    #indx0 = abs(PLQLu2[0,1,0,0,0,:,0,0,0]) >  abs(R0[0,1,0,0,0,:,0,0,0])
    #indx1 = abs(PLQLu2[1,1,0,0,0,:,0,0,0]) >  abs(R0[1,1,0,0,0,:,0,0,0])
    #indx2 = abs(PLQLu2[2,1,0,0,0,:,0,0,0]) >  abs(R0[2,1,0,0,0,:,0,0,0])
    #indx3 = abs(PLQLu2[3,1,0,0,0,:,0,0,0]) >  abs(R0[3,1,0,0,0,:,0,0,0])
-   indx = 100.*abs(PLQLu2[4]) > (  abs(R0[4]) + 1e-3)
+   indx = 100.*abs(PLQLu2[1]) > (  abs(R0[1]) + 1e-3)
    main.a.a[:,indx] = 0.
    main.RHS[:,indx] = 0.
-
 #   for i in range(main.order[0]-1,0,-1):
 #     indx = np.ones(np.shape(PLQLu2[4,0]),dtype=bool)  #initialize an array with all trues
 #     for j in range(main.order[0] - 1, i-1,-1):

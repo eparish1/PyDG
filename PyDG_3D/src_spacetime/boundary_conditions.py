@@ -172,9 +172,6 @@ def incompwall_bc(Ue,UBC,args,main):
 
 
 def reflectingwall_bc(Ue,UBC,args,main):
-  uw = args[0]
-  vw = args[1]
-  ww = args[2]
   gamma = main.gas.gamma
   Cv = main.gas.Cv
   Cp = main.gas.Cp
@@ -184,10 +181,24 @@ def reflectingwall_bc(Ue,UBC,args,main):
   UBC[1] = -Ue[1]
   UBC[2] = -Ue[2]
   UBC[3] = -Ue[3]
-  UBC[4] = Ue[4]
+  UBC[4::] = Ue[4::]
   return UBC
 
+def reflectingwall_x_bc(Ue,UBC,args,main):
+  UBC[0] = Ue[0] 
+  UBC[1] = -Ue[1]
+  UBC[2] = Ue[2]
+  UBC[3] = Ue[3]
+  UBC[4::] = Ue[4::]
+  return UBC
 
+def slipwall_y_bc(Ue,UBC,args,main):
+  UBC[0] = Ue[0] 
+  UBC[1] = Ue[1]
+  UBC[2] = 0.
+  UBC[3] = Ue[3]
+  UBC[4::] = Ue[4::]
+  return UBC
 
 
 def adiabaticwall_bc(Ue,UBC,args,main):

@@ -95,6 +95,8 @@ class equations:
       self.nvars = 5 + nscalars
       self.nvisc_vars = 9 + nscalars*3
       self.evalFluxXYZ = evalFluxXYZEuler_reacting 
+      self.evalFluxXYZLin = evalFluxXYZEulerLin_reacting 
+      self.strongFormResidual = strongFormEulerXYZ_reacting
       self.evalFluxX = evalFluxXEuler_reacting 
       self.evalFluxY = evalFluxYEuler_reacting
       self.evalFluxZ = evalFluxZEuler_reacting
@@ -324,6 +326,8 @@ class equations:
       self.nvars = 5
       self.nvisc_vars = 9
       self.evalFluxXYZ = evalFluxXYZEuler 
+      self.evalFluxXYZLin = evalFluxXYZEulerLin 
+      self.strongFormResidual = strongFormEulerXYZ
       self.evalFluxX = evalFluxXEuler 
       self.evalFluxY = evalFluxYEuler
       self.evalFluxZ = evalFluxZEuler

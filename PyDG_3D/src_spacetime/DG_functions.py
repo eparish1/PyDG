@@ -4,7 +4,7 @@ from navier_stokes import evalViscousFluxZNS_IP
 from navier_stokes import evalViscousFluxYNS_IP
 from navier_stokes import evalViscousFluxXNS_IP
 from navier_stokes import getGsNSX_FAST,getGsNSY_FAST,getGsNSZ_FAST
-from bfer_mechanism import *
+#from bfer_mechanism import *
 from eos_functions import *
 from tensor_products import *
 from chemistry_values import *

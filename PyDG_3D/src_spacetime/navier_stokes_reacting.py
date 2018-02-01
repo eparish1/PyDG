@@ -73,10 +73,107 @@ def evalFluxZEuler_reacting(main,u,f,args):
   f[4] = (u[4] + p)*u[3]/u[0]
   f[5::] = u[None,3]*u[5::]/u[None,0] 
 
-#  for i in range(0,np.shape(u)[0]-5):
-#    f[5] = u[3]*u[5+i]/u[0]
+def strongFormEulerXYZ_reacting(main,a,args):
+  U = main.basis.reconstructUGeneral(main,main.a.a)
+  U[0] += 1e-10
+  Ux,Uy,Uz = main.basis.diffU(main.a.a,main) 
+  R = 8314.4621/1000.
+  T0 = 298.15*0.
+  n_reacting = np.size(main.delta_h0)
+  Y_last = 1. - np.sum(U[5::]/U[None,0],axis=0)
+  Winv =  np.einsum('i...,ijk...->jk...',1./main.W[0:-1],U[5::]/U[None,0]) + 1./main.W[-1]*Y_last
+  Cp = np.einsum('i...,ijk...->jk...',main.Cp[0:-1],U[5::]/U[None,0]) + main.Cp[-1]*Y_last
+  Cv = Cp - R*Winv
+  gamma = Cp/Cv
+
+  def computeResid(U,Ux,Uy,Uz):
+    ## right now assume gamma is constant, need to add gamma variation
+    p = (gamma - 1.)*(U[4] - 0.5*U[1]**2/U[0] - 0.5*U[2]**2/U[0] - 0.5*U[3]**2/U[0])
+
+    px = (gamma - 1.)* (Ux[4] - 1./U[0]*(U[3]*Ux[3] + U[2]*Ux[2] + U[1]*Ux[1]) + 0.5/U[0]**2*Ux[0]*(U[3]**2 + U[2]**2 + U[1]**2) )
+    py = (gamma - 1.)* (Uy[4] - 1./U[0]*(U[3]*Uy[3] + U[2]*Uy[2] + U[1]*Uy[1]) + 0.5/U[0]**2*Uy[0]*(U[3]**2 + U[2]**2 + U[1]**2) )
+    pz = (gamma - 1.)* (Uz[4] - 1./U[0]*(U[3]*Uz[3] + U[2]*Uz[2] + U[1]*Uz[1]) + 0.5/U[0]**2*Uz[0]*(U[3]**2 + U[2]**2 + U[1]**2) )
+  
+    fx = np.zeros(np.shape(U))
+    fy = np.zeros(np.shape(U))
+    fz = np.zeros(np.shape(U))
+  
+    fx[0] = Ux[1]  #d/dx(rho U)
+    fx[1] = 2.*U[1]*Ux[1]/U[0] - Ux[0]*U[1]**2/U[0]**2 + px
+    fx[2] = U[1]*Ux[2]/U[0] + Ux[1]*U[2]/U[0] - Ux[0]*U[1]*U[2]/U[0]**2
+    fx[3] = U[1]*Ux[3]/U[0] + Ux[1]*U[3]/U[0] - Ux[0]*U[1]*U[3]/U[0]**2
+    fx[4] = U[1]/U[0]*(Ux[4] + px) + Ux[1]/U[0]*(U[4] + p) - Ux[0]/U[0]**2*U[1]*(U[4] + p) 
+    fx[5::] = U[1,None]*Ux[5::]/U[0,None] + Ux[1,None]*U[5::]/U[0,None] - Ux[0,None]*U[1,None]*U[5::]/U[0,None]**2
+ 
+    fy[0] = Uy[2]  #d/dx(rho)
+    fy[1] = U[1]*Uy[2]/U[0] + Uy[1]*U[2]/U[0] - Uy[0]*U[1]*U[2]/U[0]**2
+    fy[2] = 2.*U[2]*Uy[2]/U[0] - Uy[0]*U[2]**2/U[0]**2 + py
+    fy[3] = U[2]*Uy[3]/U[0] + Uy[2]*U[3]/U[0] - Uy[0]*U[2]*U[3]/U[0]**2
+    fy[4] = U[2]/U[0]*(Uy[4] + py) + Uy[2]/U[0]*(U[4] + p) - Uy[0]/U[0]**2*U[2]*(U[4] + p) 
+    fy[5::] = U[2,None]*Uy[5::]/U[0,None] + Uy[2,None]*U[5::]/U[0,None] - Uy[0,None]*U[2,None]*U[5::]/U[0,None]**2
+ 
+    fz[0] = Uz[3]  #d/dx(rho)
+    fz[1] = U[1]*Uz[3]/U[0] + Uz[1]*U[3]/U[0] - Uz[0]*U[1]*U[3]/U[0]**2
+    fz[2] = U[3]*Uz[2]/U[0] + Uz[3]*U[2]/U[0] - Uz[0]*U[3]*U[2]/U[0]**2
+    fz[3] = 2.*U[3]*Uz[3]/U[0] - Uz[0]*U[3]**2/U[0]**2 + pz
+    fz[4] = U[3]/U[0]*(Uz[4] + pz) + Uz[3]/U[0]*(U[4] + p) - Uz[0]/U[0]**2*U[3]*(U[4] + p) 
+    fz[5::] = U[3,None]*Uz[5::]/U[0,None] + Uz[3,None]*U[5::]/U[0,None] - Uz[0,None]*U[3,None]*U[5::]/U[0,None]**2
+
+    return fx + fy + fz
+  
+  resid_vol = computeResid(U,Ux,Uy,Uz)
+  return resid_vol
 
 
+def evalFluxXYZEulerLin_reacting(main,U0,fx,fy,fz,args):
+  up = args[0]
+  #decompose as U = U0 + up, where up is the perturbation
+  #f = np.zeros(np.shape(u))
+  es = 1.e-30
+  R = 8314.4621/1000.
+  T0 = 298.15*0.
+  n_reacting = np.size(main.delta_h0)
+  Y_last = 1. - np.sum(U0[5::]/U0[None,0],axis=0)
+  Winv =  np.einsum('i...,ijk...->jk...',1./main.W[0:-1],U0[5::]/U0[None,0]) + 1./main.W[-1]*Y_last
+  Cp = np.einsum('i...,ijk...->jk...',main.Cp[0:-1],U0[5::]/U0[None,0]) + main.Cp[-1]*Y_last
+  Cv = Cp - R*Winv
+  gamma = Cp/Cv
+
+  u = U0[1]/U0[0]
+  v = U0[2]/U0[0]
+  w = U0[3]/U0[0]
+  Y = U0[5::]/U0[None,0]
+  qsqr = u**2 + v**2 + w**2
+  # compute H in three steps (H = E + p/rho)
+  H = (gamma - 1.)*(U0[4] - 0.5*U0[0]*qsqr) #compute pressure
+  H += U0[4]
+  H /= U0[0]
+  fx[0] = up[1]
+  fx[1] = ( (gamma - 1.)/2.*qsqr - u**2)*up[0] + (3. - gamma)*u*up[1] + (1. - gamma)*v*up[2] + \
+         (1. - gamma)*w*up[3] + (gamma - 1.)*up[4]
+  fx[2] = -u*v*up[0] + v*up[1] + u*up[2]
+  fx[3] = -u*w*up[0] + w*up[1] + u*up[3]
+  fx[4] = ((gamma - 1.)/2.*qsqr - H)*u*up[0] + (H + (1. - gamma)*u**2)*up[1] + (1. - gamma)*u*v*up[2] + \
+         (1. - gamma)*u*w*up[3] + gamma*u*up[4]
+  fx[5::] = -u[None]*U0[5::]*up[None,0] + U0[5::]*up[None,1] + u[None]*up[5::]
+
+  fy[0] = up[2]
+  fy[1] = -v*u*up[0] + v*up[1] + u*up[2]
+  fy[2] = ( (gamma - 1.)/2.*qsqr - v**2)*up[0] + (1. - gamma)*u*up[1] + (3. - gamma)*v*up[2] + \
+         (1. - gamma)*w*up[3] + (gamma - 1.)*up[4]
+  fy[3] = -v*w*up[0] + w*up[2] + v*up[3]
+  fy[4] = ((gamma - 1.)/2.*qsqr - H)*v*up[0] + (1. - gamma)*u*v*up[1] + (H + (1. - gamma)*v**2)*up[2] + \
+         (1. - gamma)*v*w*up[3] + gamma*v*up[4]
+  fy[5::] = -v*U0[5::]*up[0] + U0[5::]*up[2] + v*up[5::]
+
+  fz[0] = up[3]
+  fz[1] = -u*w*up[0] + w*up[1] + u*up[3]
+  fz[2] = -v*w*up[0] + w*up[2] + v*up[3]
+  fz[3] = ( (gamma - 1.)/2.*qsqr - w**2)*up[0] + (1. - gamma)*u*up[1] + (1. - gamma)*v*up[2] + \
+         (3. - gamma)*w*up[3] + (gamma - 1.)*up[4]
+  fz[4] = ((gamma - 1.)/2.*qsqr - H)*w*up[0] + (1. - gamma)*u*w*up[1] + (1. - gamma)*v*w*up[2] + \
+          (H + (1. - gamma)*w**2)*up[3] + gamma*w*up[4]
+  fz[5::] = -w*U0[5::]*up[0] + U0[5::]*up[3] + w*up[5::]
 
 #==================== Numerical Fluxes for the Faces =====================
 #== central flux
@@ -380,7 +477,7 @@ def HLLCFlux_reacting(F,main,UL,UR,n,args=None):
   indx1 = (SL <= 0) & (0 < S_star)
   indx2 = (S_star <= 0) & (0 < SR)
   indx3 = SR <= 0
-  F = np.zeros(np.shape(UR))
+  F[:] = 0. 
   F[:,indx0] = FL[:,indx0]
   F[:,indx1] = (FL + SL[None,:]*(UstarL - UL) )[:,indx1]
   F[:,indx2] = (FR + SR[None,:]*(UstarR - UR) )[:,indx2]
