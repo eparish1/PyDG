@@ -241,12 +241,13 @@ def subsonic_outflow(Ue,UBC,args,main,n):
   v_inflow = args[2]
   w_inflow = args[3]
 
-  UBC[0] = Ue[0]
-  UBC[1] = Ue[0]*u_inflow
-  UBC[2] = Ue[1]*u_inflow
-  UBC[3] = Ue[2]*u_inflow
-  UBC[4] = P_b/(gamma - 1.) + 0.5*Ue[0]*(u_inflow**2 + v_inflow**2 + w_inflow**2)
+  #UBC[0] = Ue[0]
+  #UBC[1] = Ue[0]*u_inflow
+  #UBC[2] = Ue[0]*v_inflow
+  #UBC[3] = Ue[0]*w_inflow
+  #UBC[4] = P_b/(gamma - 1.) + 0.5*Ue[0]*(u_inflow**2 + v_inflow**2 + w_inflow**2)
 
+  UBC[:] = isothermalwall_bc(Ue,UBC,args[1::],main,n)
   rho_plus = Ue[0]
   u_plus = Ue[1]/Ue[0]
   v_plus = Ue[2]/Ue[0]
@@ -261,13 +262,13 @@ def subsonic_outflow(Ue,UBC,args,main,n):
   c_b = np.sqrt(gamma*P_b/rho_b)
   Jplus = Un + 2.*c_plus/(gamma - 1.)
   Unb = Jplus - 2.*c_b/(gamma - 1.)
-  u_plus_tang = u_plus - u_plus*n[0,None,None,None,:,:,None]
-  v_plus_tang = v_plus - v_plus*n[1,None,None,None,:,:,None]
-  w_plus_tang = w_plus - w_plus*n[2,None,None,None,:,:,None]
+  u_plus_tang = u_plus - Un*n[0,None,None,None,:,:,None]
+  v_plus_tang = v_plus - Un*n[1,None,None,None,:,:,None]
+  w_plus_tang = w_plus - Un*n[2,None,None,None,:,:,None]
 
-  u_b = u_plus_tang + Un*n[0,None,None,None,:,:,None]
-  v_b = w_plus_tang + Un*n[1,None,None,None,:,:,None]
-  w_b = w_plus_tang + Un*n[2,None,None,None,:,:,None]
+  u_b = u_plus_tang + Unb*n[0,None,None,None,:,:,None]
+  v_b = w_plus_tang + Unb*n[1,None,None,None,:,:,None]
+  w_b = w_plus_tang + Unb*n[2,None,None,None,:,:,None]
 
   #print(np.shape(rho_b))
   #print(np.shape(rho_b[outflow_indx]))
