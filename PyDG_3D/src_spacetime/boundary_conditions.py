@@ -230,19 +230,54 @@ def adiabaticwall_bc(Ue,UBC,args,main,normals):
 def neumann_bc(Ue,UBC,args,main,normals):
   return Ue
 
-def subsonic_outflow(Ue,UBC,args,main,normals):
+## boundary conditions for subsonic outflow. State is calculated 
+## from the Rieman invariant Jplus, interior entropy Splus, and interior
+## tangential velocity. Taken from Fidkowski notes
+def subsonic_outflow(Ue,UBC,args,main,n):
   gamma = 1.4
-  #p,T = computePressure_and_Temperature(main,Ue)
-  #pB = p
+
+  P_b = args[0]
+  u_inflow = args[1]
+  v_inflow = args[2]
+  w_inflow = args[3]
+
+  UBC[0] = Ue[0]
+  UBC[1] = Ue[0]*u_inflow
+  UBC[2] = Ue[1]*u_inflow
+  UBC[3] = Ue[2]*u_inflow
+  UBC[4] = P_b/(gamma - 1.) + 0.5*Ue[0]*(u_inflow**2 + v_inflow**2 + w_inflow**2)
+
+  rho_plus = Ue[0]
+  u_plus = Ue[1]/Ue[0]
+  v_plus = Ue[2]/Ue[0]
+  w_plus = Ue[3]/Ue[0]
+  Un = u_plus*n[0,None,None,None,:,:,None] + v_plus*n[1,None,None,None,:,:,None] + w_plus*n[2,None,None,None,:,:,None]
+  outflow_indx = Un > 0
+
+  P_plus = (gamma - 1.)*(Ue[4] - 0.5*Ue[1]**2/Ue[0] - 0.5*Ue[2]**2/Ue[0] - 0.5*Ue[3]**2/Ue[0])
   S_plus = P_plus/Ue[0]**gamma
   rho_b = (P_b/S_plus)**(1./gamma)
   c_plus = np.sqrt(gamma*P_plus/rho_plus)
   c_b = np.sqrt(gamma*P_b/rho_b)
-  Un = u_plus*n[0] + v_plus*n[1] + w_plus*n[2]
   Jplus = Un + 2.*c_plus/(gamma - 1.)
   Unb = Jplus - 2.*c_b/(gamma - 1.)
-  u_plus_tang = u_plus - u_plus*n[0] 
-  v_plus_tang = v_plus - v_plus*n[1] 
-  w_plus_tang = w_plus - w_plus*n[2] 
+  u_plus_tang = u_plus - u_plus*n[0,None,None,None,:,:,None]
+  v_plus_tang = v_plus - v_plus*n[1,None,None,None,:,:,None]
+  w_plus_tang = w_plus - w_plus*n[2,None,None,None,:,:,None]
 
-  u_b = u_plus_
+  u_b = u_plus_tang + Un*n[0,None,None,None,:,:,None]
+  v_b = w_plus_tang + Un*n[1,None,None,None,:,:,None]
+  w_b = w_plus_tang + Un*n[2,None,None,None,:,:,None]
+
+  #print(np.shape(rho_b))
+  #print(np.shape(rho_b[outflow_indx]))
+  #print(np.amin(Un),np.amax(Un),np.amin(n[0]),np.amax(n[0]))
+
+
+  UBC[0][outflow_indx] = rho_b[outflow_indx]
+  UBC[1][outflow_indx] = rho_b[outflow_indx]*u_b[outflow_indx]
+  UBC[2][outflow_indx] = rho_b[outflow_indx]*v_b[outflow_indx]
+  UBC[3][outflow_indx] = rho_b[outflow_indx]*w_b[outflow_indx]
+  UBC[4][outflow_indx] = P_b/(gamma - 1.) + 0.5*rho_b[outflow_indx]*(u_b[outflow_indx]**2 + v_b[outflow_indx]**2 + w_b[outflow_indx]**2)
+  return UBC
+                                   
