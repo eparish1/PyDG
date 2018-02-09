@@ -231,7 +231,18 @@ def neumann_bc(Ue,UBC,args,main,normals):
   return Ue
 
 def subsonic_outflow(Ue,UBC,args,main,normals):
-  p,T = computePressure_and_Temperature(main,Ue)
-  pB = p
-  S_plus = p/Ue[0]**main.gamma
+  gamma = 1.4
+  #p,T = computePressure_and_Temperature(main,Ue)
+  #pB = p
+  S_plus = P_plus/Ue[0]**gamma
+  rho_b = (P_b/S_plus)**(1./gamma)
+  c_plus = np.sqrt(gamma*P_plus/rho_plus)
+  c_b = np.sqrt(gamma*P_b/rho_b)
+  Un = u_plus*n[0] + v_plus*n[1] + w_plus*n[2]
+  Jplus = Un + 2.*c_plus/(gamma - 1.)
+  Unb = Jplus - 2.*c_b/(gamma - 1.)
+  u_plus_tang = u_plus - u_plus*n[0] 
+  v_plus_tang = v_plus - v_plus*n[1] 
+  w_plus_tang = w_plus - w_plus*n[2] 
 
+  u_b = u_plus_
