@@ -1,5 +1,5 @@
 import numpy as np
-def shuOscherBC(Ue,UBC,args,main):
+def shuOscherBC(Ue,UBC,args,main,normals):
   UBC[0] = 3.8571430000000211
   UBC[1] = 10.141852232767054
   UBC[2] = 0.
@@ -8,7 +8,7 @@ def shuOscherBC(Ue,UBC,args,main):
   return UBC
 
 
-def nonreflecting_bc(Ue,UBC,args,main):
+def nonreflecting_bc(Ue,UBC,args,main,normals):
   ## Compute right and left eigenvectors
   # A = R Lam L (I do like CFD vol2  pg 77,78)
   gamma = 1.4
@@ -97,17 +97,17 @@ def nonreflecting_bc(Ue,UBC,args,main):
   wc  =  np.einsum('ij...,j...->i...',L,F)
  
 
-def dirichlet_bc(Ue,UBC,args,main):
+def dirichlet_bc(Ue,UBC,args,main,normals):
   for i in range(0,np.shape(UBC)[0]):
     UBC[i] = args[i] 
 #  UBC[0] = np.sin(main.xG[:,0,:,None,:,0,:,None])
   return UBC
 
-def periodic_bc(Ue,UBC,args,main):
+def periodic_bc(Ue,UBC,args,main,normals):
    return UBC 
 
 
-def freestream_temp_bc(Ue,UBC,args,main):
+def freestream_temp_bc(Ue,UBC,args,main,normals):
   gamma = 1.4
   uw = args[0]
   vw = args[1]
@@ -133,7 +133,7 @@ def freestream_temp_bc(Ue,UBC,args,main):
   return UBC
 
 
-def isothermalwall_bc(Ue,UBC,args,main):
+def isothermalwall_bc(Ue,UBC,args,main,normals):
   gamma = 1.4
   uw = args[0]
   vw = args[1]
@@ -158,7 +158,7 @@ def isothermalwall_bc(Ue,UBC,args,main):
   UBC[4] = rhoE
   return UBC
 
-def incompwall_bc(Ue,UBC,args,main):
+def incompwall_bc(Ue,UBC,args,main,normals):
   uw = args[0]
   vw = args[1]
   ww = args[2]
@@ -171,7 +171,7 @@ def incompwall_bc(Ue,UBC,args,main):
 
 
 
-def reflectingwall_bc(Ue,UBC,args,main):
+def reflectingwall_bc(Ue,UBC,args,main,normals):
   gamma = main.gas.gamma
   Cv = main.gas.Cv
   Cp = main.gas.Cp
@@ -184,7 +184,7 @@ def reflectingwall_bc(Ue,UBC,args,main):
   UBC[4::] = Ue[4::]
   return UBC
 
-def reflectingwall_x_bc(Ue,UBC,args,main):
+def reflectingwall_x_bc(Ue,UBC,args,main,normals):
   UBC[0] = Ue[0] 
   UBC[1] = -Ue[1]
   UBC[2] = Ue[2]
@@ -192,7 +192,7 @@ def reflectingwall_x_bc(Ue,UBC,args,main):
   UBC[4::] = Ue[4::]
   return UBC
 
-def slipwall_y_bc(Ue,UBC,args,main):
+def slipwall_y_bc(Ue,UBC,args,main,normals):
   UBC[0] = Ue[0] 
   UBC[1] = Ue[1]
   UBC[2] = 0.
@@ -201,7 +201,7 @@ def slipwall_y_bc(Ue,UBC,args,main):
   return UBC
 
 
-def adiabaticwall_bc(Ue,UBC,args,main):
+def adiabaticwall_bc(Ue,UBC,args,main,normals):
   uw = args[0]
   vw = args[1]
   ww = args[2]
@@ -227,10 +227,10 @@ def adiabaticwall_bc(Ue,UBC,args,main):
   return UBC
 
 
-def neumann_bc(Ue,UBC,args,main):
+def neumann_bc(Ue,UBC,args,main,normals):
   return Ue
 
-def subsonic_outflow(Ue,UBC,args,main):
+def subsonic_outflow(Ue,UBC,args,main,normals):
   p,T = computePressure_and_Temperature(main,Ue)
   pB = p
   S_plus = p/Ue[0]**main.gamma
