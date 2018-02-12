@@ -1335,7 +1335,7 @@ def SSP_RK3(main,MZ,eqns,args=None):
   main.a.a[:] = a1[:]
   #limiter_characteristic(main)
   #limiter_MF(main)
-  sponge_limiter(main)
+  #sponge_limiter(main)
 
   main.getRHS(main,MZ,eqns)
   main.basis.applyMassMatrix(main,main.RHS)
@@ -1344,14 +1344,14 @@ def SSP_RK3(main,MZ,eqns,args=None):
   main.a.a[:] = a1[:]
   #limiter_characteristic(main)
   #limiter_MF(main)
-  sponge_limiter(main)
+  #sponge_limiter(main)
 
   main.getRHS(main,MZ,eqns)  ## put RHS in a array since we don't need it
   main.basis.applyMassMatrix(main,main.RHS)
   main.a.a[:] = 1./3.*a0 + 2./3.*(a1[:] + main.dt*main.RHS[:])
   #limiter_characteristic(main)
   #limiter_MF(main)
-  sponge_limiter(main)
+  #sponge_limiter(main)
 
 
   main.t += main.dt

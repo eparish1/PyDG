@@ -1,4 +1,7 @@
 import numpy as np
+## Ue is basically the solution at grid edge
+## UBC is your BC array you want to fill
+
 def shuOscherBC(Ue,UBC,args,main,normals):
   UBC[0] = 3.8571430000000211
   UBC[1] = 10.141852232767054
