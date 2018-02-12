@@ -182,7 +182,7 @@ for i in regionManager.mpi_regions_owned:
   
   
   
-  getIC(main,IC_function,main.xG,main.yG,main.zG,main.zeta3,main.Npt)
+  getIC(main,IC_function[i],main.xG,main.yG,main.zG,main.zeta3,main.Npt)
   
   reconstructU(main,main.a)
   

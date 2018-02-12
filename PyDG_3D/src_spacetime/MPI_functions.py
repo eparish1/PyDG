@@ -155,7 +155,6 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main,regionManager):
   uD = np.zeros(np.shape(fU[:,:,:,:,:,0,:]))
   uF = np.zeros(np.shape(fB[:,:,:,:,:,:,0]))
   uB = np.zeros(np.shape(fF[:,:,:,:,:,:,0]))
-
   ## If only using one processor ================
   if (main.rank_connect[0] == main.mpi_rank and main.rank_connect[1] == main.mpi_rank):
     uR[:] = fL[:,:,:,:,0, :,:]
@@ -173,22 +172,35 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main,regionManager):
   #======================================================
   else:
     ## Send right and left fluxes
-    tmp = np.zeros(np.size(fL[:,:,:,:,0,:,:]))
-    main.comm.Sendrecv(fL[:,:,:,:,0,:,:].flatten(),dest=main.rank_connect[0],sendtag=main.mpi_rank,\
-                       recvbuf=tmp,source=main.rank_connect[1],recvtag=main.rank_connect[1])
-    uR[:] = np.reshape(tmp,np.shape(fL[:,:,:,:,0,:,:]))
-    tmp = np.zeros(np.size(fL[:,:,:,:,-1,:,:]))
-    main.comm.Sendrecv(fR[:,:,:,:,-1,:,:].flatten(),dest=main.rank_connect[1],sendtag=main.mpi_rank*10,\
-                       recvbuf=tmp,source=main.rank_connect[0],recvtag=main.rank_connect[0]*10)
-    #uL = np.reshape(tmp,(main.nvars,main.quadpoints,main.quadpoints,main.Npy,main.Npz))
-    uL[:] = np.reshape(tmp,np.shape(fL[:,:,:,:,-1,:,:]))
+    if (main.rank_connect[0] != main.mpi_rank):
+      tmp = np.zeros(np.size(fL[:,:,:,:,0,:,:]))
+      main.comm.Send(fL[:,:,:,:,0,:,:].flatten(),dest=main.rank_connect[0],tag=main.mpi_rank)
+    if (main.rank_connect[1] != main.mpi_rank):
+      tmp = np.zeros(np.size(fL[:,:,:,:,0,:,:]))
+      main.comm.Recv(tmp,source=main.rank_connect[1],tag=main.rank_connect[1])
+      uR[:] = np.reshape(tmp,np.shape(fL[:,:,:,:,0,:,:]))
 
+    if (main.rank_connect[1] != main.mpi_rank):
+      main.comm.Send(fR[:,:,:,:,-1,:,:].flatten(),dest=main.rank_connect[1],tag=main.mpi_rank*10)
+    if (main.rank_connect[0] != main.mpi_rank):
+      tmp = np.zeros(np.size(fL[:,:,:,:,0,:,:]))
+      main.comm.Recv(tmp,source=main.rank_connect[0],tag=main.rank_connect[0]*10)
+      uL[:] = np.reshape(tmp,np.shape(fL[:,:,:,:,-1,:,:]))
+
+#    tmp = np.zeros(np.size(fL[:,:,:,:,0,:,:]))
+#    main.comm.Sendrecv(fL[:,:,:,:,0,:,:].flatten(),dest=main.rank_connect[0],sendtag=main.mpi_rank,\
+#                       recvbuf=tmp,source=main.rank_connect[1],recvtag=main.rank_connect[1])
+#    uR[:] = np.reshape(tmp,np.shape(fL[:,:,:,:,0,:,:]))
+#    tmp = np.zeros(np.size(fL[:,:,:,:,-1,:,:]))
+#    main.comm.Sendrecv(fR[:,:,:,:,-1,:,:].flatten(),dest=main.rank_connect[1],sendtag=main.mpi_rank*10,\
+#                       recvbuf=tmp,source=main.rank_connect[0],recvtag=main.rank_connect[0]*10)
+#    #uL = np.reshape(tmp,(main.nvars,main.quadpoints,main.quadpoints,main.Npy,main.Npz))
+#    uL[:] = np.reshape(tmp,np.shape(fL[:,:,:,:,-1,:,:]))
     ### Boundary conditions. Overright uL and uR if we are on a boundary. 
     if (main.BC_rank[0]):
       uR[:] = main.rightBC.applyBC(fR[:,:,:,:,-1,:,:],uR,main.rightBC.args,main)
     if (main.BC_rank[2]):
       uL[:] = main.leftBC.applyBC(fL[:,:,:,:,0 ,:,:],uL,main.leftBC.args,main)
-
 
   if (main.rank_connect[2] == main.mpi_rank and main.rank_connect[3] == main.mpi_rank):
     uU[:] = fD[:,:,:,:,:,0 ,:]
@@ -204,14 +216,28 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main,regionManager):
 
   else:
     ## Send up and down fluxes
-    tmp = np.zeros(np.size(fD[:,:,:,:,:,0,:]))
-    main.comm.Sendrecv(fD[:,:,:,:,:,0,:].flatten(),dest=main.rank_connect[2],sendtag=main.mpi_rank,\
-                       recvbuf=tmp,source=main.rank_connect[3],recvtag=main.rank_connect[3])
-    uU[:] = np.reshape(tmp,np.shape(fD[:,:,:,:,:,0,:]))
-    tmp = np.zeros(np.size(fU[:,:,:,:,:,-1,:]))
-    main.comm.Sendrecv(fU[:,:,:,:,:,-1,:].flatten(),dest=main.rank_connect[3],sendtag=main.mpi_rank*100,\
-                       recvbuf=tmp,source=main.rank_connect[2],recvtag=main.rank_connect[2]*100)
-    uD[:] = np.reshape(tmp,np.shape(fU[:,:,:,:,:,-1,:]))
+    if (main.rank_connect[2] != main.mpi_rank):
+      main.comm.Send(fD[:,:,:,:,:,0,:].flatten(),dest=main.rank_connect[2],tag=main.mpi_rank)
+    if (main.rank_connect[3] != main.mpi_rank): 
+      tmp = np.zeros(np.size(fD[:,:,:,:,:,0,:]))
+      main.comm.Recv(tmp,source=main.rank_connect[3],tag=main.rank_connect[3])
+      uU[:] = np.reshape(tmp,np.shape(fD[:,:,:,:,:,0,:]))
+
+    if (main.rank_connect[3] != main.mpi_rank):
+      main.comm.Send(fU[:,:,:,:,:,-1,:].flatten(),dest=main.rank_connect[3],tag=main.mpi_rank*100)
+    if (main.rank_connect[2] != main.mpi_rank):
+      tmp = np.zeros(np.size(fD[:,:,:,:,:,0,:]))
+      main.comm.Recv(tmp,source=main.rank_connect[2],tag=main.rank_connect[2]*100)
+      uD[:] = np.reshape(tmp,np.shape(fU[:,:,:,:,:,-1,:]))
+
+#    tmp = np.zeros(np.size(fD[:,:,:,:,:,0,:]))
+#    main.comm.Sendrecv(fD[:,:,:,:,:,0,:].flatten(),dest=main.rank_connect[2],sendtag=main.mpi_rank,\
+#                       recvbuf=tmp,source=main.rank_connect[3],recvtag=main.rank_connect[3])
+#    uU[:] = np.reshape(tmp,np.shape(fD[:,:,:,:,:,0,:]))
+#    tmp = np.zeros(np.size(fU[:,:,:,:,:,-1,:]))
+#    main.comm.Sendrecv(fU[:,:,:,:,:,-1,:].flatten(),dest=main.rank_connect[3],sendtag=main.mpi_rank*100,\
+#                       recvbuf=tmp,source=main.rank_connect[2],recvtag=main.rank_connect[2]*100)
+#    uD[:] = np.reshape(tmp,np.shape(fU[:,:,:,:,:,-1,:]))
 
     ### Boundary conditions. Overright uU and uD if we are on a boundary. 
     if (main.BC_rank[1]):
@@ -219,9 +245,9 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main,regionManager):
     if (main.BC_rank[3]):
       uD[:] = main.bottomBC.applyBC(fD[:,:,:,:,:,0,:],uD,main.bottomBC.args,main)
 
-    
   uF[:] = fB[:,:,:,:,:,:,0]
   uB[:] = fF[:,:,:,:,:,:,-1]
+  #print('mpi_rank ' , main.mpi_rank )
   return uR,uL,uU,uD,uF,uB
 
 
@@ -247,15 +273,31 @@ def sendEdgesGeneralSlab_Derivs(fL,fR,fD,fU,fB,fF,main,regionManager):
 
   else:
     ## Send right and left fluxes
-    tmp = np.zeros(np.size(fL[:,:,:,:,0,:,:]))
-    main.comm.Sendrecv(fL[:,:,:,:,0,:,:].flatten(),dest=main.rank_connect[0],sendtag=main.mpi_rank,\
-                       recvbuf=tmp,source=main.rank_connect[1],recvtag=main.rank_connect[1])
-    uR[:] = np.reshape(tmp,np.shape(fL[:,:,:,:,0,:,:]))
-    tmp = np.zeros(np.size(fL[:,:,:,:,-1,:,:]))
-    main.comm.Sendrecv(fR[:,:,:,:,-1,:,:].flatten(),dest=main.rank_connect[1],sendtag=main.mpi_rank*10,\
-                       recvbuf=tmp,source=main.rank_connect[0],recvtag=main.rank_connect[0]*10)
-    #uL = np.reshape(tmp,(main.nvars,main.quadpoints,main.quadpoints,main.Npy,main.Npz))
-    uL[:] = np.reshape(tmp,np.shape(fL[:,:,:,:,-1,:,:]))
+    if (main.rank_connect[0] != main.mpi_rank):
+      tmp = np.zeros(np.size(fL[:,:,:,:,0,:,:]))
+      main.comm.Send(fL[:,:,:,:,0,:,:].flatten(),dest=main.rank_connect[0],tag=main.mpi_rank)
+    if (main.rank_connect[1] != main.mpi_rank):
+      tmp = np.zeros(np.size(fL[:,:,:,:,0,:,:]))
+      main.comm.Recv(tmp,source=main.rank_connect[1],tag=main.rank_connect[1])
+      uR[:] = np.reshape(tmp,np.shape(fL[:,:,:,:,0,:,:]))
+
+    if (main.rank_connect[1] != main.mpi_rank):
+      main.comm.Send(fR[:,:,:,:,-1,:,:].flatten(),dest=main.rank_connect[1],tag=main.mpi_rank*10)
+    if (main.rank_connect[0] != main.mpi_rank):
+      tmp = np.zeros(np.size(fL[:,:,:,:,0,:,:]))
+      main.comm.Recv(tmp,source=main.rank_connect[0],tag=main.rank_connect[0]*10)
+      uL[:] = np.reshape(tmp,np.shape(fL[:,:,:,:,-1,:,:]))
+
+    ## Send right and left fluxes
+#    tmp = np.zeros(np.size(fL[:,:,:,:,0,:,:]))
+#    main.comm.Sendrecv(fL[:,:,:,:,0,:,:].flatten(),dest=main.rank_connect[0],sendtag=main.mpi_rank,\
+#                       recvbuf=tmp,source=main.rank_connect[1],recvtag=main.rank_connect[1])
+#    uR[:] = np.reshape(tmp,np.shape(fL[:,:,:,:,0,:,:]))
+#    tmp = np.zeros(np.size(fL[:,:,:,:,-1,:,:]))
+#    main.comm.Sendrecv(fR[:,:,:,:,-1,:,:].flatten(),dest=main.rank_connect[1],sendtag=main.mpi_rank*10,\
+#                       recvbuf=tmp,source=main.rank_connect[0],recvtag=main.rank_connect[0]*10)
+#    #uL = np.reshape(tmp,(main.nvars,main.quadpoints,main.quadpoints,main.Npy,main.Npz))
+#    uL[:] = np.reshape(tmp,np.shape(fL[:,:,:,:,-1,:,:]))
 
     ### Boundary conditions. Set uL and uR to interior values if on a boundary 
     if (main.BC_rank[0] and main.rightBC.BC_type != 'periodic'):
@@ -280,14 +322,29 @@ def sendEdgesGeneralSlab_Derivs(fL,fR,fD,fU,fB,fF,main,regionManager):
 
   else:
     ## Send up and down fluxes
-    tmp = np.zeros(np.size(fD[:,:,:,:,:,0,:]))
-    main.comm.Sendrecv(fD[:,:,:,:,:,0,:].flatten(),dest=main.rank_connect[2],sendtag=main.mpi_rank,\
-                       recvbuf=tmp,source=main.rank_connect[3],recvtag=main.rank_connect[3])
-    uU[:] = np.reshape(tmp,np.shape(fD[:,:,:,:,:,0,:]))
-    tmp = np.zeros(np.size(fU[:,:,:,:,:,-1,:]))
-    main.comm.Sendrecv(fU[:,:,:,:,:,-1,:].flatten(),dest=main.rank_connect[3],sendtag=main.mpi_rank*100,\
-                       recvbuf=tmp,source=main.rank_connect[2],recvtag=main.rank_connect[2]*100)
-    uD[:] = np.reshape(tmp,np.shape(fU[:,:,:,:,:,-1,:]))
+    if (main.rank_connect[2] != main.mpi_rank):
+      main.comm.Send(fD[:,:,:,:,:,0,:].flatten(),dest=main.rank_connect[2],tag=main.mpi_rank)
+    if (main.rank_connect[3] != main.mpi_rank): 
+      tmp = np.zeros(np.size(fD[:,:,:,:,:,0,:]))
+      main.comm.Recv(tmp,source=main.rank_connect[3],tag=main.rank_connect[3])
+      uU[:] = np.reshape(tmp,np.shape(fD[:,:,:,:,:,0,:]))
+
+    if (main.rank_connect[3] != main.mpi_rank):
+      main.comm.Send(fU[:,:,:,:,:,-1,:].flatten(),dest=main.rank_connect[3],tag=main.mpi_rank*100)
+    if (main.rank_connect[2] != main.mpi_rank):
+      tmp = np.zeros(np.size(fD[:,:,:,:,:,0,:]))
+      main.comm.Recv(tmp,source=main.rank_connect[2],tag=main.rank_connect[2]*100)
+      uD[:] = np.reshape(tmp,np.shape(fU[:,:,:,:,:,-1,:]))
+
+
+#    tmp = np.zeros(np.size(fD[:,:,:,:,:,0,:]))
+#    main.comm.Sendrecv(fD[:,:,:,:,:,0,:].flatten(),dest=main.rank_connect[2],sendtag=main.mpi_rank,\
+#                       recvbuf=tmp,source=main.rank_connect[3],recvtag=main.rank_connect[3])
+#    uU[:] = np.reshape(tmp,np.shape(fD[:,:,:,:,:,0,:]))
+#    tmp = np.zeros(np.size(fU[:,:,:,:,:,-1,:]))
+#    main.comm.Sendrecv(fU[:,:,:,:,:,-1,:].flatten(),dest=main.rank_connect[3],sendtag=main.mpi_rank*100,\
+#                       recvbuf=tmp,source=main.rank_connect[2],recvtag=main.rank_connect[2]*100)
+#    uD[:] = np.reshape(tmp,np.shape(fU[:,:,:,:,:,-1,:]))
 
     ### Boundary conditions. Overright uU and uD if we are on a boundary. 
     if (main.BC_rank[1] and main.topBC.BC_type != 'periodic'): 
@@ -386,7 +443,7 @@ def regionConnector(regionManager):
       region_connect = region.bottomBC.args[0]
       shift = regionManager.starting_rank[region_connect] - regionManager.starting_rank[region.region_number]
       region.rank_connect[2] =region.mpi_rank +  shift + regionManager.nprocs[region_connect] - region.procx + column
-
+    #print(region.mpi_rank,region.rank_connect)
 
 def getRankConnectionsSlab(mpi_rank,num_processes,procx,procy,starting_rank):
   ##============== MPI INFORMATION ===================
