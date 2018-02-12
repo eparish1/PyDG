@@ -1,21 +1,26 @@
 import numpy as np
 import sys
-sys.path.append("../../src") #link the the source directory for PyDG
+sys.path.append("../../src_spacetime") #link the the source directory for PyDG
 from ic_functions_premade import vortexICS  #import the IC for taylor green vortex.
-
+def savehook(main):
+  pass
 ## Make square grid
 L = 10.                       #|  length
-Nel = np.array([2**4,2**4,1])   #|  elements in x,y,z
-order =np.array([4,4,1])                       #|  spatial order
-quadpoints = order*2               #|  number of quadrature points. 2x the order is reccomended
-mu = 0.01                       #|  viscocity
+Nel = np.array([32,32,1,1])   #|  elements in x,y,z
+order =np.array([2,2,1,1])                       #|  spatial order
+quadpoints = np.array([order[0],order[1],order[2],order[3] ])  #|  number of quadrature points. 2x the order is reccomended
+mu = 0.#5                       #|  viscocity
+#x = -np.cos( np.pi*np.linspace(0,Nel[0]+1 - 1 ,Nel[0] + 1) /(Nel[0] + 1 -1) )*L/2. + L/2.
+#y = -np.cos( np.pi*np.linspace(0,Nel[1]+1 - 1 ,Nel[1] + 1) /(Nel[1] + 1 -1) )*L/2. + L/2.
+#z = -np.cos( np.pi*np.linspace(0,Nel[2]+1 - 1 ,Nel[2] + 1) /(Nel[2] + 1 -1) )*L/2. + L/2.
 x = np.linspace(0,L,Nel[0]+1)      #|  x, y, and z
 y = np.linspace(0,L,Nel[1]+1)      #|
 z = np.linspace(0,L,Nel[2]+1)      #|
+x,y,z = np.meshgrid(x,y,z,indexing='ij')
 t = 0                              #|  simulation start time
-dt = 0.005                        #|  simulation time step
+dt = 0.0125
 et = 10.                           #|  simulation end time
-save_freq = 100                      #|  frequency to save output and print to screen
+save_freq = 10.                      #|  frequency to save output and print to screen
 eqn_str = 'Navier-Stokes'          #|  equation set
 schemes = ('roe','Inviscid')             #|  inviscid and viscous flux schemes
 procx = 2                         #|  processor decomposition in x
@@ -27,14 +32,14 @@ left_bc = 'periodic'
 top_bc = 'periodic'
 bottom_bc = 'periodic'
 
-T_wall = 1
 right_bc_args = []
 left_bc_args = []
 top_bc_args = []
 bottom_bc_args = []
 BCs = [right_bc,right_bc_args,top_bc,top_bc_args,left_bc,left_bc_args,bottom_bc,bottom_bc_args]
-				   #|
-time_integration = 'ExplicitRK4'   #| 
+source_mag= False
+mol_str = False				   #|
+time_integration = 'SSP_RK3'
 linear_solver_str = 'GMRes'
 nonlinear_solver_str = 'Newton'
 
@@ -42,4 +47,4 @@ nonlinear_solver_str = 'Newton'
 #== function layout is my_ic_function(x,y,z), where x,y,z are the decomposed quadrature points
 IC_function = vortexICS                #|
                                    #|
-execfile('../../src/PyDG.py')      #|  call the solver
+execfile('../../src_spacetime/PyDG.py')      #|  call the solver
