@@ -3,7 +3,10 @@ import numpy as np
 from MPI_functions import gatherSolSpectral
 from equations_class import *
 from tensor_products import *
-from navier_stokes import strongFormEulerXYZ
+from navier_stokes import *#strongFormEulerXYZ
+from fluxSchemes import generalFluxGen
+from MPI_functions import sendEdgesGeneralSlab,sendEdgesGeneralSlab_Derivs
+#from pylab import *
 def orthogonalDynamics(main,MZ,eqns):
     ### EVAL RESIDUAL AND DO MZ STUFF
     filtarray = np.ones(np.shape(main.a.a))
@@ -35,7 +38,7 @@ def projection(main,U):
   a_project = volIntegrateGlob_tensordot(main,U,main.w0,main.w1,main.w2,main.w3)*scale[None,:,:,:,:,None,None,None,None]
   return a_project
 
-def orthogonalProjection(main,U):
+def orthogonalProjection(main,U):#,UR,UL,UU,UD,UF,UB):
   ## First perform integration in x
   ord_arrx= np.linspace(0,main.order[0]-1,main.order[0])
   ord_arry= np.linspace(0,main.order[1]-1,main.order[1])
@@ -44,6 +47,34 @@ def orthogonalProjection(main,U):
   scale =  (2.*ord_arrx[:,None,None,None] + 1.)*(2.*ord_arry[None,:,None,None] + 1.)*\
            (2.*ord_arrz[None,None,:,None] + 1.)*(2.*ord_arrt[None,None,None,:] + 1.)/16.
   a_project = volIntegrateGlob_tensordot(main,U,main.w0,main.w1,main.w2,main.w3)*scale[None,:,:,:,:,None,None,None,None]
+  filta = np.zeros(np.shape(a_project))
+  #filta[:,0:1,0:1,0:1,:] = 1.
+  #a_project *= filta
+#  U_projectR,U_projectL,U_projectU,U_projectD,U_projectF,U_projectB = main.basis.reconstructEdgesGeneral(a_project,main)
+
+  U_project = main.basis.reconstructUGeneral(main,a_project)
+  U_orthogonal = U - U_project
+#  U_orthogonalR = UR - U_projectR
+#  U_orthogonalL = UL - U_projectL
+#  U_orthogonalU = UU - U_projectU
+#  U_orthogonalD = UD - U_projectD
+#  U_orthogonalF = UF - U_projectF
+#  U_orthogonalB = UB - U_projectB
+  return U_orthogonal#,U_orthogonalR,U_orthogonalL,U_orthogonalU,U_orthogonalD,U_orthogonalF,U_orthogonalB
+
+def orthogonalProjectionVol(main,U):
+  ## First perform integration in x
+  ord_arrx= np.linspace(0,main.order[0]-1,main.order[0])
+  ord_arry= np.linspace(0,main.order[1]-1,main.order[1])
+  ord_arrz= np.linspace(0,main.order[2]-1,main.order[2])
+  ord_arrt= np.linspace(0,main.order[3]-1,main.order[3])
+  scale =  (2.*ord_arrx[:,None,None,None] + 1.)*(2.*ord_arry[None,:,None,None] + 1.)*\
+           (2.*ord_arrz[None,None,:,None] + 1.)*(2.*ord_arrt[None,None,None,:] + 1.)/16.
+  a_project = volIntegrateGlob_tensordot(main,U,main.w0,main.w1,main.w2,main.w3)*scale[None,:,:,:,:,None,None,None,None]
+  filta = np.zeros(np.shape(a_project))
+  #filta[:,0:1,0:1,0:1,:] = 1.
+  #a_project *= filta
+  #U_projectR,U_projectL,U_projectU,U_projectD,U_projectF,U_projectB = main.basis.reconstructEdgesGeneral(a_project,main)
   U_project = main.basis.reconstructUGeneral(main,a_project)
   U_orthogonal = U - U_project
   return U_orthogonal
@@ -55,33 +86,178 @@ def orthogonalSubscale(main,MZ,eqns):
    R0[:] = main.RHS[:]
 
 
-   eps = 1.e-5
    main.RHS[:] = 0.
-   fx,fy,fz = strongFormEulerXYZ(main,main.a.a,None)
-   #u0 = main.a.u*1.
-   f = fx + fy + fz
-   #main.a.u[:] = u0[:]
-   f_orthogonal = orthogonalProjection(main,f)
-   #main.a.u[:] = u0 - eps*f_orthogonal
-   #eqns.evalFluxXYZ(main,main.a.u,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,None)
-   #main.basis.applyVolIntegral(main,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,main.RHS)
-   #R1  = main.RHS*1.
-   #
-   #main.RHS[:] = 0.
-   #main.a.u[:] = u0[:]
-   #eqns.evalFluxXYZ(main,main.a.u,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,None)
-   #main.basis.applyVolIntegral(main,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,main.RHS)
-   #R2  = main.RHS*1.
-   #
-   #
-   #PLQLu = (R1 - R2)/eps
-   evalFluxXYZEulerLin(main,main.a.u,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,[-f_orthogonal])
+#   R,RR,RL,RU,RD,RF,RB = strongFormEulerXYZ(main,main.a.a,None)
+#   R_orthogonal,R_orthoR,R_orthoL,R_orthoU,R_orthoD,R_orthoF,R_orthoB = orthogonalProjection(main,R,RR,RL,RU,RD,RF,RB)
+   R = eqns.strongFormResidual(main,main.a.a,None)
+   R_orthogonal= orthogonalProjection(main,R)
+
    PLQLu2 = np.zeros(np.shape(main.RHS))
+   u0 = main.a.u*1.
+
+   main.a.u[:] = u0[:]
+   eqns.evalFluxXYZLin(main,main.a.u,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,[-R_orthogonal])
    main.basis.applyVolIntegral(main,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,PLQLu2)
-   #print(np.linalg.norm(PLQLu2 - PLQLu),np.linalg.norm(PLQLu[1]),np.linalg.norm(PLQLu2[1]))
+   main.RHS[:] = R0[:] 
+   #indx0 = abs(PLQLu2[0,1,0,0,0,:,0,0,0]) >  abs(R0[0,1,0,0,0,:,0,0,0])
+   #indx1 = abs(PLQLu2[1,1,0,0,0,:,0,0,0]) >  abs(R0[1,1,0,0,0,:,0,0,0])
+   #indx2 = abs(PLQLu2[2,1,0,0,0,:,0,0,0]) >  abs(R0[2,1,0,0,0,:,0,0,0])
+   #indx3 = abs(PLQLu2[3,1,0,0,0,:,0,0,0]) >  abs(R0[3,1,0,0,0,:,0,0,0])
+   indx = 100.*abs(PLQLu2[1]) > (  abs(R0[1]) + 1e-3)
+   main.a.a[:,indx] = 0.
+   main.RHS[:,indx] = 0.
+#   for i in range(main.order[0]-1,0,-1):
+#     indx = np.ones(np.shape(PLQLu2[4,0]),dtype=bool)  #initialize an array with all trues
+#     for j in range(main.order[0] - 1, i-1,-1):
+#       chk = 100.*abs(PLQLu2[4,j]) > (  abs(R0[4,j]) + 1e-3)
+#       indx = indx & chk 
+#     main.a.a[0,i,indx] = 0.
+#     main.RHS[0,i,indx] = 0.
+#     main.a.a[1,i,indx] = 0.
+#     main.RHS[1,i,indx] = 0.
+#     main.a.a[2,i,indx] = 0.
+#     main.RHS[2,i,indx] = 0.
+#     main.a.a[3,i,indx] = 0.
+#     main.RHS[3,i,indx] = 0.
+#     main.a.a[4,i,indx] = 0.
+#     main.RHS[4,i,indx] = 0.
+
+
+def orthogonalSubscale2(main,MZ,eqns):
+   eqns.getRHS(main,MZ,eqns)
+   R0 = np.zeros(np.shape(main.RHS))
+   R1 = np.zeros(np.shape(main.RHS))
+   R0[:] = main.RHS[:]
+
+
+   eps = 1.e-7
+   main.RHS[:] = 0.
+   R,RR,RL,RU,RD,RF,RB = strongFormEulerXYZ(main,main.a.a,None)
+   #u0 = main.a.u*1.
+   #main.a.u[:] = u0[:]
+   R_orthogonal,R_orthoR,R_orthoL,R_orthoU,R_orthoD,R_orthoF,R_orthoB = orthogonalProjection(main,R,RR,RL,RU,RD,RF,RB)
+   main.adum.uR[:] = -R_orthoR
+   main.adum.uL[:] = -R_orthoL
+   main.adum.uU[:] = -R_orthoU
+   main.adum.uD[:] = -R_orthoD
+   main.adum.uB[:] = -R_orthoF
+   main.adum.uF[:] = -R_orthoB
+
+#   R_orthogonal = R#orthogonalProjection(main,f)
+#   main.adum.uR[:] = -RR
+#   main.adum.uL[:] = -RL
+#   main.adum.uU[:] = -RU
+#   main.adum.uD[:] = -RD
+#   main.adum.uB[:] = -RF
+#   main.adum.uF[:] = -RB
+
+
+   main.adum.uR_edge[:],main.adum.uL_edge[:],main.adum.uU_edge[:],main.adum.uD_edge[:],main.adum.uF_edge[:],main.adum.uB_edge[:] = sendEdgesGeneralSlab_Derivs(main.adum.uL,main.adum.uR,main.adum.uD,main.adum.uU,main.adum.uB,main.adum.uF,main)
+
+   generalFluxGen(main,eqns,main.iFlux,main.a,eulerCentralFluxLinearized,[main.adum])
+#   # now we need to integrate along the boundary 
+   main.iFlux.fRLI = main.basis.faceIntegrateGlob(main,main.iFlux.fRLS*main.J_edge_det[0][None,:,:,None,:,:,:,None],MZ.w1,MZ.w2,MZ.w3,MZ.weights1,MZ.weights2,MZ.weights3)
+   main.iFlux.fUDI = main.basis.faceIntegrateGlob(main,main.iFlux.fUDS*main.J_edge_det[1][None,:,:,None,:,:,:,None],MZ.w0,MZ.w2,MZ.w3,MZ.weights0,MZ.weights2,MZ.weights3)
+   main.iFlux.fFBI = main.basis.faceIntegrateGlob(main,main.iFlux.fFBS*main.J_edge_det[2][None,:,:,None,:,:,:,None],MZ.w0,MZ.w1,MZ.w3,MZ.weights0,MZ.weights1,MZ.weights3)
+#   # now add inviscid flux contribution to the RHS
+   PLQLu2 = np.zeros(np.shape(main.RHS))
+
+   PLQLu2[:] =  -main.iFlux.fRLI[:,None,:,:,:,1::] 
+   PLQLu2[:] += main.iFlux.fRLI[:,None,:,:,:,0:-1]*main.altarray0[None,:,None,None,None,None,None,None,None]
+   PLQLu2[:] -= main.iFlux.fUDI[:,:,None,:,:,:,1::]
+   PLQLu2[:] += main.iFlux.fUDI[:,:,None,:,:,:,0:-1]*main.altarray1[None,None,:,None,None,None,None,None,None]
+   PLQLu2[:] -= main.iFlux.fFBI[:,:,:,None,:,:,:,1::] 
+   PLQLu2[:] += main.iFlux.fFBI[:,:,:,None,:,:,:,0:-1]*main.altarray2[None,None,None,:,None,None,None,None,None]
+
+#   main.RHS[:] = 0.
+   u0 = main.a.u*1.
+#   main.a.u[:] = u0 - eps*R_orthogonal
+#   eqns.evalFluxXYZ(main,main.a.u,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,None)
+#   main.basis.applyVolIntegral(main,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,main.RHS)
+#   R1  = main.RHS*1.
+#   #
+#   main.RHS[:] = 0.
+#   main.a.u[:] = u0[:]
+#   eqns.evalFluxXYZ(main,main.a.u,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,None)
+#   main.basis.applyVolIntegral(main,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,main.RHS)
+#   R2  = main.RHS*1.
+#   #
+#   #
+#   main.RHS[:] = 0.
+#   PLQLu = (R1 - R2)/eps
+
+   main.a.u[:] = u0[:]
+   evalFluxXYZEulerLin(main,main.a.u,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,[-R_orthogonal])
+   main.basis.applyVolIntegral(main,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,PLQLu2)
+  
+   #print(np.amax(PLQLu2 - PLQLu) )#,np.linalg.norm(PLQLu[1]),np.linalg.norm(PLQLu2[1]))
    #print(np.linalg.norm(PLQLu),np.linalg.norm(f),np.linalg.norm(f_orthogonal),np.linalg.norm(R1),np.linalg.norm(R2 - R1))
-   tau = 1. #tau8.0
+   tau = 0.001 #tau8.0
    main.RHS[:] = R0[:] + tau*PLQLu2
+
+
+def orthogonalSubscaleEntropy(main,MZ,eqns):
+   eqns.getRHS(main,MZ,eqns)
+   R0 = np.zeros(np.shape(main.RHS))
+   R1 = np.zeros(np.shape(main.RHS))
+   R0[:] = main.RHS[:]
+   PLQLu2 = np.zeros(np.shape(main.RHS))
+   main.RHS[:] = 0.
+   R= strongFormEulerXYZEntropy(main,main.a.a,None)
+   u0 = main.a.u*1.
+   R_orthogonal= orthogonalProjectionVol(main,R)
+   main.a.u[:] = u0[:]
+   evalFluxXYZEulerLinEntropy(main,main.a.u,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,[-R_orthogonal])
+   main.basis.applyVolIntegral(main,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,PLQLu2)
+#   plot(abs(PLQLu2[1,1,0,0,0,:,0,0,0]) / abs( R0[1,1,0,0,0,:,0,0,0]) )
+#   plot(abs(PLQLu2[1,2,0,0,0,:,0,0,0]) / abs( R0[1,2,0,0,0,:,0,0,0]) )
+#   plot(abs(PLQLu2[1,3,0,0,0,:,0,0,0]) / abs( R0[1,3,0,0,0,:,0,0,0]) )
+#   yscale('log')
+#   pause(0.001)
+#   clf()
+   main.RHS[:] = R0[:] #+ tau*PLQLu2
+   indx0 = abs(PLQLu2[0,1,0,0,0,:,0,0,0]) >  abs(R0[0,1,0,0,0,:,0,0,0])
+   indx1 = abs(PLQLu2[1,1,0,0,0,:,0,0,0]) >  abs(R0[1,1,0,0,0,:,0,0,0])
+   indx2 = abs(PLQLu2[2,1,0,0,0,:,0,0,0]) >  abs(R0[2,1,0,0,0,:,0,0,0])
+   indx3 = abs(PLQLu2[3,1,0,0,0,:,0,0,0]) >  abs(R0[3,1,0,0,0,:,0,0,0])
+   indx4 = abs(PLQLu2[4,1,0,0,0,:,0,0,0]) >  abs(R0[4,1,0,0,0,:,0,0,0])
+   #print(indx4)
+   main.a.a[0,1,0,0,0,indx4,0,0,0] = 0.
+   main.RHS[0,1,0,0,0,indx4,0,0,0] = 0.
+   main.a.a[1,1,0,0,0,indx4,0,0,0] = 0.
+   main.RHS[1,1,0,0,0,indx4,0,0,0] = 0.
+   main.a.a[2,1,0,0,0,indx4,0,0,0] = 0.
+   main.RHS[2,1,0,0,0,indx4,0,0,0] = 0.
+   main.a.a[3,1,0,0,0,indx4,0,0,0] = 0.
+   main.RHS[3,1,0,0,0,indx4,0,0,0] = 0.
+   main.a.a[4,1,0,0,0,indx4,0,0,0] = 0.
+   main.RHS[4,1,0,0,0,indx4,0,0,0] = 0.
+
+def orthogonalSubscaleEntropyb(main,MZ,eqns):
+   eqns.getRHS(main,MZ,eqns)
+   R0 = np.zeros(np.shape(main.RHS))
+   R1 = np.zeros(np.shape(main.RHS))
+   R0[:] = main.RHS[:]
+   PLQLu2 = np.zeros(np.shape(main.RHS))
+   main.RHS[:] = 0.
+   R= strongFormEulerXYZEntropy(main,main.a.a,None)
+   u0 = main.a.u*1.
+   #R = np.reshape(R,(main.nvars*main.order[0]*main.order[1]*main.order[2]*main.order[3],main.Npx,main.Npy,main.Npz,main.Npt) )
+   #R = np.einsum('ij...,j...->i...',main.EMM,R)
+   #R_s = np.reshape(Rstar,np.shape(main.a.a))
+   R_orthogonal= orthogonalProjectionVol(main,R)
+   #M = getEntropyMassMatrix_noinvert(main)#
+   #R_orthogonal = np.reshape(R_orthogonal,(main.nvars*main.order[0]*main.order[1]*main.order[2]*main.order[3],main.Npx,main.Npy,main.Npz,main.Npt) )
+   #R_orthogonal = np.einsum('ij...,j...->i...',M,R_orthogonal)
+   #R_orthogonal = np.reshape(R_orthogonal,np.shape(main.a.a))
+   main.a.u[:] = u0[:]
+   evalFluxXYZEulerLinEntropy(main,main.a.u,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,[-R_orthogonal])
+   main.basis.applyVolIntegral(main,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,PLQLu2)
+   #tau = 0.00002 #tau8.0
+   #plot(R0[1,1,0,0,0,:,0,0,0])
+   #plot(PLQLu2[1,1,0,0,0,:,0,0,0])
+   main.RHS[:] = R0[:] #+ tau*PLQLu2
+
 
 ## Evaluate the tau model through the FD approximation. This is expensive AF
 def tauModelFDEntropy(main,MZ,eqns):
@@ -114,37 +290,6 @@ def tauModelFDEntropy(main,MZ,eqns):
     main.RHS[:] =  RHS1[:,0:main.order[0],0:main.order[1],0:main.order[2]] #+ main.dx/MZ.order[0]**2*PLQLU
 
 
-## Evaluate the tau model for only volume residual through the FD approximation. This is expensive AF
-def tauModelFD(main,MZ,eqns):
-    ### EVAL RESIDUAL AND DO MZ STUFF
-    filtarray = np.zeros(np.shape(MZ.a.a))
-    filtarray[:,0:main.order[0],0:main.order[1],0:main.order[2]] = 1.
-    eps = 1.e-5
-    MZ.a.a[:] = 0.
-    MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2],:] = main.a.a[:]
-    #eqns.getRHS(main,main,eqns)
-    eqns.getRHS(MZ,MZ,eqns)
-    RHS1 = np.zeros(np.shape(MZ.RHS))
-    Rtmp = np.zeros(np.shape(MZ.RHS))
-    RHS1[:] = MZ.RHS[:]
-    Rtmp[:] = RHS1[:]
-    MZ.basis.applyMassMatrix(MZ,Rtmp)
-    MZ.a.a[:] = 0.
-    MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2]] = main.a.a[:]
-    MZ.a.a[:] = MZ.a.a[:] + eps*Rtmp[:]
-    eqns.getRHS(MZ,MZ,eqns)
-    RHS2 = np.zeros(np.shape(MZ.RHS))
-    RHS2[:] = MZ.RHS[:]
-    MZ.a.a[:] = 0.
-    MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2]] = main.a.a[:]
-    MZ.a.a[:] = MZ.a.a[:] + eps*Rtmp[:]*filtarray
-    eqns.getRHS(MZ,MZ,eqns)
-    RHS3 = np.zeros(np.shape(MZ.RHS))
-    RHS3[:] = MZ.RHS[:]
-    PLQLU = (RHS2[:,0:main.order[0],0:main.order[1],0:main.order[2]] - RHS3[:,0:main.order[0],0:main.order[1],0:main.order[2]])/(eps + 1e-30)
-    tau = main.dx/MZ.order[0]**2
-    main.RHS[:] =  RHS1[:,0:main.order[0],0:main.order[1],0:main.order[2]] + 0.1*PLQLU
-
 
 ## Evaluate the tau model through the FD approximation. This is expensive AF
 def tauModelFD(main,MZ,eqns):
@@ -175,7 +320,7 @@ def tauModelFD(main,MZ,eqns):
     RHS3[:] = MZ.RHS[:]
     PLQLU = (RHS2[:,0:main.order[0],0:main.order[1],0:main.order[2]] - RHS3[:,0:main.order[0],0:main.order[1],0:main.order[2]])/(eps + 1e-30)
     tau = main.dx/MZ.order[0]**2
-    main.RHS[:] =  RHS1[:,0:main.order[0],0:main.order[1],0:main.order[2]] + 0.1*PLQLU
+    main.RHS[:] =  RHS1[:,0:main.order[0],0:main.order[1],0:main.order[2]] + 1.*tau*PLQLU
 
 
 def FM1Linearized(main,MZ,eqns):
@@ -300,10 +445,6 @@ def tauModelValidateLinearized(main,MZ,eqns):
     print(np.linalg.norm(PLQLULin[4] - PLQLUFD[4] ))
     main.RHS[:] =  RHS1[:,0:main.order[0],0:main.order[1],0:main.order[2]] #+ 0.0001*MZ.RHS[:,0:main.order[0],0:main.order[1],0:main.order[2]]
 
-    plt.clf()
-    plt.plot(PLQLULin[4,1,0,0,:,0,0])
-    plt.plot( PLQLUFD[4,1,0,0,:,0,0],'o')
-    plt.pause(0.001)
     main.comm.Barrier()
 
 

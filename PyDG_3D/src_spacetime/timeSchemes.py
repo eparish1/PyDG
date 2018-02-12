@@ -1,4 +1,5 @@
 import numpy as np
+from pylab import *
 #import sys, petsc4py
 #petsc4py.init(sys.argv)
 #from petsc4py import PETSc
@@ -112,6 +113,63 @@ def spaceTimeIncomp(main,MZ,eqns,args=None):
   main.iteration += 1
   main.a.uFuture[:],uPast = main.basis.reconstructEdgesGeneralTime(main.a.a,main)
 
+### spaceTimeSolver with entropy var preconditioning
+def spaceTimeEntropy(main,MZ,eqns,args=None):
+  nonlinear_solver = args[0]
+  linear_solver = args[1]
+  sparse_quadrature = args[2]
+  main.a0[:] = main.a.a[:]
+  alpha = 0.1
+  #if (main.iteration%1 == 0):
+  getEntropyMassMatrix(main)
+
+  def residTime(main):
+    #main.basis.reconstructU(main,main.a)
+    U = entropy_to_conservative(main.a.u)
+    volint_t = main.basis.volIntegrateGlob(main,U*main.Jdet[None,:,:,:,None,:,:,:,None],main.w0,main.w1,main.w2,main.wp3)
+    vFuture,vPast = main.basis.reconstructEdgesGeneralTime(main.a.a,main)
+    uFuture = entropy_to_conservative(vFuture)
+    uPast = entropy_to_conservative(vPast)
+    futureFlux = main.basis.faceIntegrateGlob(main,uFuture*main.Jdet[None,:,:,:,:,:,:,None],main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
+    uPast[:,:,:,:,:,:,:,0] = entropy_to_conservative( main.a.uFuture[:,:,:,:,:,:,:,-1] )
+    if (main.Npt > 1):
+      uPast[:,:,:,:,:,:,:,1::] = uFuture[:,:,:,:,:,:,:,0:-1]
+    pastFlux   = main.basis.faceIntegrateGlob(main,uPast*main.Jdet[None,:,:,:,:,:,:,None] ,main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
+    Rstar = volint_t - (futureFlux[:,:,:,:,None] - pastFlux[:,:,:,:,None]*main.altarray3[None,None,None,None,:,None,None,None,None])
+    return Rstar
+
+  def unsteadyResidual(main,v):
+
+    main.a.a[:] = np.reshape(v*1.,np.shape(main.a.a))
+    eqns.getRHS(main,main,eqns)
+    R1 = np.zeros(np.shape(main.RHS))
+    R1[:] = main.RHS[:]
+    Rt = residTime(main)
+    Rstar = Rt + R1[:]*main.dt/2.
+    Rstar = np.reshape(Rstar,(main.nvars*main.order[0]*main.order[1]*main.order[2]*main.order[3],main.Npx,main.Npy,main.Npz,main.Npt) )
+    Rstar = np.einsum('ij...,j...->i...',main.EMM,Rstar)
+    Rstar = np.reshape(Rstar,np.shape(main.a.a))
+
+    #main.basis.applyMassMatrix(main,Rstar)
+    Rstar_glob = gatherResid(Rstar,main)
+    return Rstar,R1,Rstar_glob
+    #return Rstar.flatten()
+
+  def create_MF_Jacobian(v,args,main):
+    an = args[0]
+    Rn = args[1]
+    vr = np.reshape(v,np.shape(main.a.a))
+    eps = 1e-9
+    main.a.a[:] = an + eps*vr
+    R1,dum,dum = unsteadyResidual(main,main.a.a)
+    Av = (R1 - Rn)/eps
+    return Av.flatten()
+
+  nonlinear_solver.solve(unsteadyResidual, create_MF_Jacobian,main,linear_solver,sparse_quadrature,eqns)
+
+  main.t += main.dt*main.Npt
+  main.iteration += 1
+  main.a.uFuture[:],uPast = main.basis.reconstructEdgesGeneralTime(main.a.a,main)
 
 
 def spaceTime(main,MZ,eqns,args=None):
@@ -1019,8 +1077,38 @@ def spaceTimePC(main,MZ,eqns,args=None):
 
 
 
+def sponge_limiter(main):
+  # recall that BC_rank = [False/True,False/True,False/True,False/True] 
+  # the ordering is right, top, left, bottom
+  # we want to filter if we are on the edge of the domain
+  filt_array = np.ones(np.shape(main.a.a))
+  # check if we are on the right side of domain. if so, filter
+  scells = 4
+#  if (main.BC_rank[0]):
+#    filt_array[:,1::,:,:,:,-scells::] = 0.
+#    filt_array[:,:,1::,:,:,-scells::] = 0.
+#    filt_array[:,:,:,1::,:,-scells::] = 0.
+#    filt_array[:,:,:,:,1::,-scells::] = 0.
 
+#  if (main.BC_rank[2]):  #same for left side
+#    filt_array[:,1::,:,:,:,0:scells] = 0.
+#    filt_array[:,:,1::,:,:,0:scells] = 0.
+#    filt_array[:,:,:,1::,:,0:scells] = 0.
+#    filt_array[:,:,:,:,1::,0:scells] = 0.
 
+  if (main.BC_rank[1] and main.Nel[1] > scells): #same for top side
+    filt_array[:,1::,:,:,:,:,-scells::] = 0.
+    filt_array[:,:,1::,:,:,:,-scells::] = 0.
+    filt_array[:,:,:,1::,:,:,-scells::] = 0.
+    filt_array[:,:,:,:,1::,:,-scells::] = 0.
+
+#  if (main.BC_rank[3] and main.Nel[1] > scells):  #same for bottom side
+#    filt_array[:,1::,:,:,:,:,0:scells] = 0.
+#    filt_array[:,:,1::,:,:,:,0:scells] = 0.
+#    filt_array[:,:,:,1::,:,:,0:scells] = 0.
+#    filt_array[:,:,:,:,1::,:,0:scells] = 0.
+
+  main.a.a *= filt_array
 
 
 
@@ -1039,22 +1127,9 @@ def limiter_MF(main):
 
 def limiter_characteristic(main):
   gamma = 1.4
-#  R = 8314.4621/1000.
   atmp = np.zeros(np.shape(main.a.a))
-#  atmp[:,0,0,0] = main.a.a[:,0,0,0]
   atmp[:] = main.a.a[:] 
-#  main.basis.reconstructU(main,main.a)
-#  u0 = np.zeros(np.shape(main.a.u))
-#  u0[:] = main.a.u[:]
-#  Y0 = np.zeros(np.shape(main.a.u[5::]))
-#  Y0[:] = main.a.u[5::]/main.a.u[None,0]
   U = main.basis.reconstructUGeneral(main,atmp)
-#  Y_N2 = 1. - np.sum(U[5::]/U[None,0],axis=0)
-#  Winv =  np.einsum('i...,ijk...->jk...',1./main.W[0:-1],U[5::]/U[None,0]) + 1./main.W[-1]*Y_N2
-#  Cp = np.einsum('i...,ijk...->jk...',main.Cp[0:-1],U[5::]/U[None,0]) + main.Cp[-1]*Y_N2
-#  Cv = Cp - R*Winv
-#  gamma = Cp/Cv
-  
   p = (gamma - 1.)*(U[4] - 0.5*U[1]**2/U[0] - 0.5*U[2]**2/U[0] - 0.5*U[3]**2/U[0])
   c = np.sqrt(gamma*p/U[0])
   u = U[1] / U[0]
@@ -1063,16 +1138,16 @@ def limiter_characteristic(main):
   nx = 1.
   ny = 0.
   nz = 0.
-  mx = 1.
-  my = 0.
+  mx = 0.
+  my = 1.
   mz = 0.
-  lx = 1.
+  lx = 0.
   ly = 0.
-  lz = 0.
-  K = gamma - 1. 
-  ql = u*1.
-  qm = u*1.
-  qn = u*1.
+  lz = 1.
+  K = gamma - 1.
+  ql = 0
+  qm = 0
+  qn = u
 
   sizeu = np.array([5,5])#np.shape(main.a.u)[0]
   sizeu = np.append(sizeu,np.shape(main.a.u[0]))
@@ -1133,8 +1208,7 @@ def limiter_characteristic(main):
   R[4,3] = ql
   R[4,4] = qm
 
-
-  w = np.einsum('ij...,j...->i...',L,main.a.u[0:5])
+  w = np.einsum('ij...,j...->i...',L,U)#main.a.u[0:5])
   ord_arrx= np.linspace(0,main.order[0]-1,main.order[0])
   ord_arry= np.linspace(0,main.order[1]-1,main.order[1])
   ord_arrz= np.linspace(0,main.order[2]-1,main.order[2])
@@ -1155,24 +1229,29 @@ def limiter_characteristic(main):
   Cwf0 = np.zeros(np.shape(main.a.a[0:5]))
   check = 0
   indx_eq = np.zeros(np.shape(main.a.a[0:5,0]),dtype=bool)
-  while (pindx >= 1 and check == 0):
-    Cwf0[:] = Cwf[:]
-    indx = (np.sign(Cwf0[:,pindx])==np.sign(dcR[:,pindx-1])) & (np.sign(dcR[:,pindx-1])==np.sign(dcL[:,pindx-1] ))
-    #print(np.size(Cw[:,-1][indx]),pindx) 
-    w_limit = np.zeros(np.shape(main.a.u) )
-    alpha = 1.#2./(main.dx*main.order[0])
-    Cwf[:,pindx] = 0.
-    Cwf[:,pindx][indx] = np.sign(Cwf0[:,pindx][indx])*np.fmin( np.abs(Cwf0[:,pindx][indx]), np.fmin(np.abs(alpha*dcR[:,pindx-1][indx]),np.abs(alpha*dcL[:,pindx-1][indx]) ))
-    #print(np.size(Cwf[indx_eq]),pindx)
-    Cwf[:,pindx][indx_eq] = Cwf0[:,pindx][indx_eq]
-    indx_eq = np.isclose(Cwf[:,pindx],Cwf0[:,pindx],rtol=1e-7,atol = 1e-11)
-    pindx -= 1
+  #Cwf[:,1::] = 0.
+  #while (pindx >= 1 and check == 0):
+  #  Cwf0[:] = Cwf[:]
+  #  indx = (np.sign(Cwf0[:,pindx])==np.sign(dcR[:,pindx-1])) & (np.sign(dcR[:,pindx-1])==np.sign(dcL[:,pindx-1] ))
+  #  indx[:] = True#True
+  #  w_limit = np.zeros(np.shape(main.a.u) )
+  #  alpha = 0.01#2./(main.dx*main.order[0])
+  #  Cwf[:,pindx] = 0.
+  #  Cwf[:,pindx][indx] = np.sign(Cwf0[:,pindx][indx])*np.fmin( np.abs(Cwf0[:,pindx][indx]), np.fmin(np.abs(alpha*dcR[:,pindx-1][indx]),np.abs(alpha*dcL[:,pindx-1][indx]) ))
+  #  #print(np.size(Cwf[indx_eq]),pindx)
+  #  #Cwf[:,pindx][indx_eq] = Cwf0[:,pindx][indx_eq]
+  #  #indx_eq = np.isclose(Cwf[:,pindx],Cwf0[:,pindx],rtol=1e-7,atol = 1e-11)
+  #  pindx -= 1
+  print('p1norm' ,np.linalg.norm(Cwf[:,1::]) )
   w = main.basis.reconstructUGeneral(main,Cwf)
   u2 = np.zeros(np.shape(main.a.u))
   u2[0:5] = np.einsum('ij...,j...->i...',R,w)
 #  u2[5::] = u2[None,0]*Y0
-
-  #print(np.linalg.norm(main.a.a))
+  plot(U[4,0,0,0,0,:,0,0,0])
+  plot(u2[4,0,0,0,0,:,0,0,0])
+  print('diff = ' ,norm(U - u2))
+  pause(0.001)
+  clf()
   main.a.a[:] = main.basis.volIntegrateGlob(main,u2,main.w0,main.w1,main.w2,main.w3)*scale[None,:,:,:,:,None,None,None,None]
   #print(np.linalg.norm(main.a.a))
 
@@ -1256,6 +1335,7 @@ def SSP_RK3(main,MZ,eqns,args=None):
   main.a.a[:] = a1[:]
   #limiter_characteristic(main)
   #limiter_MF(main)
+  sponge_limiter(main)
 
   main.getRHS(main,MZ,eqns)
   main.basis.applyMassMatrix(main,main.RHS)
@@ -1264,12 +1344,14 @@ def SSP_RK3(main,MZ,eqns,args=None):
   main.a.a[:] = a1[:]
   #limiter_characteristic(main)
   #limiter_MF(main)
+  sponge_limiter(main)
 
   main.getRHS(main,MZ,eqns)  ## put RHS in a array since we don't need it
   main.basis.applyMassMatrix(main,main.RHS)
   main.a.a[:] = 1./3.*a0 + 2./3.*(a1[:] + main.dt*main.RHS[:])
-#  limiter_characteristic(main)
+  #limiter_characteristic(main)
   #limiter_MF(main)
+  sponge_limiter(main)
 
 
   main.t += main.dt

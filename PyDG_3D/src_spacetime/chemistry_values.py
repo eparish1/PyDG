@@ -86,7 +86,8 @@ def getEnthalpyOfFormation(mol_str):
   CO = -1110.5
   O2 = 0.
   H2 = 0.
-  N2 = 00.
+  He = 0.
+  N2 = 0.
   for i in range(0,np.size(mol_str)):
     if mol_str[i] in locals():
       delta_h0[i] = locals()[mol_str[i]]
@@ -107,6 +108,11 @@ def getNASAPolys(mol_str):
                  -9.68129509E-09, 3.24372837E-12, -1.06394356E+03, 3.65767573E+00]) 
 
   H = np.array([2.50000001E+00, -2.30842973E-11, 1.61561948E-14, -4.73515235E-18, 4.98197357E-22,\
+                2.54736599E+04, -4.46682914E-01, 2.50000000E+00, 7.05332819E-13, -1.99591964E-15,\
+                2.30081632E-18, -9.27732332E-22, 2.54736599E+04, -4.46682853E-01])
+
+  ### This is not correct for He. Can't find this one anywhere
+  He = np.array([2.50000001E+00, -2.30842973E-11, 1.61561948E-14, -4.73515235E-18, 4.98197357E-22,\
                 2.54736599E+04, -4.46682914E-01, 2.50000000E+00, 7.05332819E-13, -1.99591964E-15,\
                 2.30081632E-18, -9.27732332E-22, 2.54736599E+04, -4.46682853E-01])
 
@@ -157,6 +163,7 @@ def getConstantCvs(mol_str):
   H2O = 1.46
   N2 = 0.743
   H2 = 10.06
+  He = 3.1156
   for i in range(0,np.size(mol_str)):
     if mol_str[i] in locals():
       Cv[i] = locals()[mol_str[i]]
@@ -178,6 +185,7 @@ def getConstantCps(mol_str):
   H2O = 1.93
   N2 = 1.04
   H2 = 14.32
+  He = 5.1926
   for i in range(0,np.size(mol_str)):
     if mol_str[i] in locals():
       Cp[i] = locals()[mol_str[i]]

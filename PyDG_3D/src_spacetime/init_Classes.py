@@ -15,7 +15,7 @@ from equations_class import *
 from gas import *
 from basis_class import *
 from grid_functions import *
-from init_reacting_additions import add_reacting_to_main
+#from init_reacting_additions import add_reacting_to_main
 class variable:
   def __init__(self,nvars,order,quadpoints,Npx,Npy,Npz,Npt):
       self.nvars = nvars
@@ -143,10 +143,25 @@ class boundaryConditions:
       self.BC_type = BC_type
       self.applyBC = reflectingwall_bc
       self.args = BC_args
+    if (BC_type == 'reflecting_wall_x'):
+      check = 1
+      self.BC_type = BC_type
+      self.applyBC = reflectingwall_x_bc
+      self.args = BC_args
+    if (BC_type == 'slipwall_y'):
+      check = 1
+      self.BC_type = BC_type
+      self.applyBC = slipwall_y_bc
+      self.args = BC_args
     if (BC_type == 'shuOscherBC'):
       check = 1
       self.BC_type = BC_type
       self.applyBC = shuOscherBC
+      self.args = BC_args
+    if (BC_type == 'subsonic_outflow'):
+      check = 1
+      self.BC_type = BC_type
+      self.applyBC = subsonic_outflow
       self.args = BC_args
 
     if (BC_type[0:6] == 'custom'):
@@ -238,6 +253,8 @@ class variables:
     self.topBC = boundaryConditions(BCs[2],BCs[3])
     self.leftBC = boundaryConditions(BCs[4],BCs[5])
     self.bottomBC = boundaryConditions(BCs[6],BCs[7])
+    self.frontBC = boundaryConditions(BCs[8],BCs[9])
+    self.backBC = boundaryConditions(BCs[10],BCs[11])
 
     self.cgas = False 
     self.cgas_field = False 
@@ -282,6 +299,9 @@ class variables:
 
     self.a0 = np.zeros((eqns.nvars,self.order[0],self.order[1],self.order[2],self.order[3],self.Npx,self.Npy,self.Npz,self.Npt))
     self.a = variable(eqns.nvars,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz,self.Npt)
+
+    self.adum = variable(eqns.nvars,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz,self.Npt)
+
     self.b = variable(eqns.nvisc_vars,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz,self.Npt)
 
     self.iFlux = fluxvariable(eqns.nvars,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz,self.Npt)
@@ -323,8 +343,12 @@ class variables:
     if (turb_str == 'orthogonal subscale'):
       self.getRHS = orthogonalSubscale
       check = 1
+    if (turb_str == 'orthogonal subscale entropy'):
+      self.getRHS = orthogonalSubscaleEntropy
+      check = 1
     if (turb_str == 'tau-modelFD'):
       self.getRHS = tauModelFD
+      if (self.mpi_rank == 0): print('Using finite difference tau model')
       check = 1
     if (turb_str == 'tau-modelFDEntropy'):
       self.getRHS = tauModelFDEntropy

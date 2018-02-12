@@ -37,6 +37,7 @@ def strongFormEulerXYZ(main,a,args):
   es = 1.e-30
   gamma = 1.4
   U = main.basis.reconstructUGeneral(main,main.a.a)
+  UR,UL,UU,UD,UF,UB = main.basis.reconstructEdgesGeneral(main.a.a,main)
   U[0] += 1e-10
   rho = U[0]
   rhoU = U[1]
@@ -45,32 +46,51 @@ def strongFormEulerXYZ(main,a,args):
   rhoE = U[4]
   p = ne.evaluate("(gamma - 1.)*(rhoE - 0.5*rhoU**2/rho - 0.5*rhoV**2/rho - 0.5*rhoW**2/rho)")
   Ux,Uy,Uz = main.basis.diffU(main.a.a,main) 
-  px = (gamma - 1.)* (Ux[4] - 1./U[0]*(U[3]*Ux[3] + U[2]*Ux[2] + U[1]*Ux[1]) + 0.5/U[0]**2*Ux[0]*(U[3]**2 + U[2]**2 + U[1]**2) )
-  py = (gamma - 1.)* (Uy[4] - 1./U[0]*(U[3]*Uy[3] + U[2]*Uy[2] + U[1]*Uy[1]) + 0.5/U[0]**2*Uy[0]*(U[3]**2 + U[2]**2 + U[1]**2) )
-  pz = (gamma - 1.)* (Uz[4] - 1./U[0]*(U[3]*Uz[3] + U[2]*Uz[2] + U[1]*Uz[1]) + 0.5/U[0]**2*Uz[0]*(U[3]**2 + U[2]**2 + U[1]**2) )
+  #UxR,UxL,UxU,UxD,UxF,UxB = main.basis.diffUX_edge(main.a.a,main)
+  #UyR,UyL,UyU,UyD,UyF,UyB = main.basis.diffUY_edge(main.a.a,main)
+  #UzR,UzL,UzU,UzD,UzF,UzB = main.basis.diffUZ_edge(main.a.a,main)
 
-  fx = np.zeros(np.shape(main.a.u))
-  fy = np.zeros(np.shape(main.a.u))
-  fz = np.zeros(np.shape(main.a.u))
+  def computeResid(U,Ux,Uy,Uz):
+    p = (gamma - 1.)*(U[4] - 0.5*U[1]**2/U[0] - 0.5*U[2]**2/U[0] - 0.5*U[3]**2/U[0])
 
-  fx[0] = Ux[1]  #d/dx(rho U)
-  fx[1] = 2.*U[1]*Ux[1]/U[0] - Ux[0]*U[1]**2/U[0]**2 + px
-  fx[2] = U[1]*Ux[2]/U[0] + Ux[1]*U[2]/U[0] - Ux[0]*U[1]*U[2]/U[0]**2
-  fx[3] = U[1]*Ux[3]/U[0] + Ux[1]*U[3]/U[0] - Ux[0]*U[1]*U[3]/U[0]**2
-  fx[4] = U[1]/U[0]*(Ux[4] + px) + Ux[1]/U[0]*(U[4] + p) - Ux[0]/U[0]**2*U[1]*(U[4] + p) 
+    px = (gamma - 1.)* (Ux[4] - 1./U[0]*(U[3]*Ux[3] + U[2]*Ux[2] + U[1]*Ux[1]) + 0.5/U[0]**2*Ux[0]*(U[3]**2 + U[2]**2 + U[1]**2) )
+    py = (gamma - 1.)* (Uy[4] - 1./U[0]*(U[3]*Uy[3] + U[2]*Uy[2] + U[1]*Uy[1]) + 0.5/U[0]**2*Uy[0]*(U[3]**2 + U[2]**2 + U[1]**2) )
+    pz = (gamma - 1.)* (Uz[4] - 1./U[0]*(U[3]*Uz[3] + U[2]*Uz[2] + U[1]*Uz[1]) + 0.5/U[0]**2*Uz[0]*(U[3]**2 + U[2]**2 + U[1]**2) )
+  
+    fx = np.zeros(np.shape(U))
+    fy = np.zeros(np.shape(U))
+    fz = np.zeros(np.shape(U))
+  
+    fx[0] = Ux[1]  #d/dx(rho U)
+    fx[1] = 2.*U[1]*Ux[1]/U[0] - Ux[0]*U[1]**2/U[0]**2 + px
+    fx[2] = U[1]*Ux[2]/U[0] + Ux[1]*U[2]/U[0] - Ux[0]*U[1]*U[2]/U[0]**2
+    fx[3] = U[1]*Ux[3]/U[0] + Ux[1]*U[3]/U[0] - Ux[0]*U[1]*U[3]/U[0]**2
+    fx[4] = U[1]/U[0]*(Ux[4] + px) + Ux[1]/U[0]*(U[4] + p) - Ux[0]/U[0]**2*U[1]*(U[4] + p) 
+  
+    fy[0] = Uy[2]  #d/dx(rho)
+    fy[1] = U[1]*Uy[2]/U[0] + Uy[1]*U[2]/U[0] - Uy[0]*U[1]*U[2]/U[0]**2
+    fy[2] = 2.*U[2]*Uy[2]/U[0] - Uy[0]*U[2]**2/U[0]**2 + py
+    fy[3] = U[2]*Uy[3]/U[0] + Uy[2]*U[3]/U[0] - Uy[0]*U[2]*U[3]/U[0]**2
+    fy[4] = U[2]/U[0]*(Uy[4] + py) + Uy[2]/U[0]*(U[4] + p) - Uy[0]/U[0]**2*U[2]*(U[4] + p) 
+  
+    fz[0] = Uz[3]  #d/dx(rho)
+    fz[1] = U[1]*Uz[3]/U[0] + Uz[1]*U[3]/U[0] - Uz[0]*U[1]*U[3]/U[0]**2
+    fz[2] = U[3]*Uz[2]/U[0] + Uz[3]*U[2]/U[0] - Uz[0]*U[3]*U[2]/U[0]**2
+    fz[3] = 2.*U[3]*Uz[3]/U[0] - Uz[0]*U[3]**2/U[0]**2 + pz
+    fz[4] = U[3]/U[0]*(Uz[4] + pz) + Uz[3]/U[0]*(U[4] + p) - Uz[0]/U[0]**2*U[3]*(U[4] + p) 
+    return fx + fy + fz
+  
+  resid_vol = computeResid(U,Ux,Uy,Uz)
+  #resid_R = computeResid(UR,UxR,UyR,UzR)
+  #resid_L = computeResid(UL,UxL,UyL,UzL)
 
-  fy[0] = Uy[2]  #d/dx(rho)
-  fy[1] = U[1]*Uy[2]/U[0] + Uy[1]*U[2]/U[0] - Uy[0]*U[1]*U[2]/U[0]**2
-  fy[2] = 2.*U[2]*Uy[2]/U[0] - Uy[0]*U[2]**2/U[0]**2 + py
-  fy[3] = U[2]*Uy[3]/U[0] + Uy[2]*U[3]/U[0] - Uy[0]*U[2]*U[3]/U[0]**2
-  fy[4] = U[2]/U[0]*(Uy[4] + py) + Uy[2]/U[0]*(U[4] + p) - Uy[0]/U[0]**2*U[2]*(U[4] + p) 
+  #resid_U = computeResid(UU,UxU,UyU,UzU)
+  #resid_D = computeResid(UD,UxD,UyD,UzD)
 
-  fz[0] = Uz[3]  #d/dx(rho)
-  fz[1] = U[1]*Uz[3]/U[0] + Uz[1]*U[3]/U[0] - Uz[0]*U[1]*U[3]/U[0]**2
-  fz[2] = U[3]*Uz[2]/U[0] + Uz[3]*U[2]/U[0] - Uz[0]*U[3]*U[2]/U[0]**2
-  fz[3] = 2.*U[3]*Uz[3]/U[0] - Uz[0]*U[3]**2/U[0]**2 + pz
-  fz[4] = U[3]/U[0]*(Uz[4] + pz) + Uz[3]/U[0]*(U[4] + p) - Uz[0]/U[0]**2*U[3]*(U[4] + p) 
-  return fx,fy,fz
+  #resid_F = computeResid(UF,UxF,UyF,UzF)
+  #resid_B = computeResid(UB,UxB,UyB,UzB)
+
+  return resid_vol#,resid_R,resid_L,resid_U,resid_D,resid_F,resid_B
 
 def evalFluxXEuler(main,u,f,args): 
 #  #f = np.zeros(np.shape(u))
@@ -430,8 +450,8 @@ def ismailFlux(F,main,UL,UR,n,args=None):
   return F
 
 
-
-def eulerCentralFluxLinearized(main,U0L,U0R,n,args):
+#def ismailFlux(F,main,UL,UR,n,args=None):
+def eulerCentralFluxLinearized(F,main,U0L,U0R,n,args):
   gamma = 1.4
   upL = args[0]
   upR = args[1]
@@ -472,7 +492,7 @@ def eulerCentralFluxLinearized(main,U0L,U0R,n,args):
   FR[3] = (K/2.*qsqrR*n[2] - wR*qnR)*upR[0] + (wR*n[0] - K*uR*n[2])*upR[1] + (wR*n[1] - K*vR*n[2])*upR[2] + (wR*n[2] - K*wR*n[2] + qnR)*upR[3] + K*n[2]*upR[4]
   FR[4] = (K/2.*qsqrR - HR)*qnR*upR[0] + (HR*n[0] - K*uR*qnR)*upR[1] + (HR*n[1] - K*vR*qnR)*upR[2] + (HR*n[2] - K*wR*qnR)*upR[3] + gamma*qnR*upR[4]
 
-  F = np.zeros(np.shape(FL))  
+  F[:] = 0. 
   F[0]    = 0.5*(FL[0]+FR[0])
   F[1]    = 0.5*(FL[1]+FR[1])
   F[2]    = 0.5*(FL[2]+FR[2])
@@ -567,7 +587,7 @@ def rusanovFlux(F,main,UL,UR,n,args=None):
   smax = np.abs(ucp) + np.abs(ci)
   #smax = np.maximum(np.abs(l[0]),np.abs(l[1]))
   # flux assembly
-  F = np.zeros(np.shape(FL))  # for allocation
+  F[:] = 0.
   F[0]    = 0.5*(FL[0]+FR[0])-0.5*smax*(UR[0] - UL[0])
   F[1]    = 0.5*(FL[1]+FR[1])-0.5*smax*(UR[1] - UL[1])
   F[2]    = 0.5*(FL[2]+FR[2])-0.5*smax*(UR[2] - UL[2])

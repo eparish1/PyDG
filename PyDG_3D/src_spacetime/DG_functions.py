@@ -4,29 +4,14 @@ from navier_stokes import evalViscousFluxZNS_IP
 from navier_stokes import evalViscousFluxYNS_IP
 from navier_stokes import evalViscousFluxXNS_IP
 from navier_stokes import getGsNSX_FAST,getGsNSY_FAST,getGsNSZ_FAST
-from bfer_mechanism import *
+#from bfer_mechanism import *
 from eos_functions import *
 from tensor_products import *
 from chemistry_values import *
 from smagorinsky import *
+from source_functions import combustionForcing as addSource
 import numexpr as ne
 import time
-
-def addSource(main):
-  if (main.fsource):
-#    rates = getNetProductionRates(main,main.a.u,main.W)
-#    sources = rates*main.W[0:-1,None,None,None,None,None,None,None,None]*1000.
-#    print(np.shape(rates),np.shape(main.a.u))
-    force = np.zeros(np.shape(main.iFlux.fx))
-#    sources2 = main.cgas_field.net_production_rates[:,:]*main.cgas_field.molecular_weights[None,:]
-#    #main.source_hook(main,force)
-    for i in range(0,main.nvars):
-      force[i] = main.source_mag[i]#*main.a.u[i]
-#    for i in range(5,main.nvars):
-#      force[i] = sources[i-5]#np.reshape(rates[:,i-5],np.shape(main.a.u[0]))
-#      force[4] -= force[i]*main.delta_h0[i-5]
-#    force[4] -= main.delta_h0[-1]*np.reshape(sources[:,-1],np.shape(main.a.u[0]))
-    main.RHS[:] += main.basis.volIntegrateGlob(main, force*main.Jdet[None,:,:,:,None,:,:,:,None] ,main.w0,main.w1,main.w2,main.w3)
 
 def addInviscidFlux(main,MZ,eqns,args=[],args_phys=[]):
   # first compute contribution from flux at faces
@@ -57,8 +42,8 @@ def getRHS(main,MZ,eqns,args=[],args_phys=[]):
   main.basis.reconstructU(main,main.a)
   main.a.uR[:],main.a.uL[:],main.a.uU[:],main.a.uD[:],main.a.uF[:],main.a.uB[:] = main.basis.reconstructEdgesGeneral(main.a.a,main)
   main.a.uR_edge[:],main.a.uL_edge[:],main.a.uU_edge[:],main.a.uD_edge[:],main.a.uF_edge[:],main.a.uB_edge[:] = sendEdgesGeneralSlab(main.a.uL,main.a.uR,main.a.uD,main.a.uU,main.a.uB,main.a.uF,main)
-  #if (main.eq_str[0:-2] == 'Navier-Stokes Reacting'):
-  #  update_state(main)
+  if (main.eq_str[0:-2] == 'Navier-Stokes Reacting'):
+    update_state(main)
   #  #main.a.p[:],main.a.T[:] = computePressure_and_Temperature(main,main.a.u)
   # evaluate inviscid flux and add contribution to RHS
   addInviscidFlux(main,MZ,eqns,args,args_phys)
