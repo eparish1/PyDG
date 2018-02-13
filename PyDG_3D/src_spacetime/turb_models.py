@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from MPI_functions import gatherSolSpectral
+from MPI_functions import gatherSolSpectral, globalDot
 from equations_class import *
 from tensor_products import *
 from navier_stokes import *#strongFormEulerXYZ
@@ -195,14 +195,10 @@ def orthogonalSubscale2(main,MZ,eqns):
    tau = 0.001 #tau8.0
    main.RHS[:] = R0[:] + tau*PLQLu2
 
-#V = np.load('pod_basis.npz')['V']
-#Pi = np.dot(V,V.transpose())
-#nbasis = np.shape(V)[1]
-#Pi_test = np.dot(V[:,nbasis/2],V[:,nbasis/2].transpose())
 
-def projection_pod(u,V):
-  tmp = np.dot(V.transpose(),u.flatten())
-  u_proj = np.dot(V, tmp)
+def projection_pod(u,V,main):
+  tmp = globalDot(V.transpose(),u.flatten(),main)
+  u_proj = np.dot(V, tmp.flatten())
   #u_proj = np.reshape( np.dot(Pi,u.flatten() ), np.shape(u)) 
   return u_proj
  
@@ -213,7 +209,8 @@ def orthogonalSubscale_POD(main,MZ,eqns):
   a0 = main.a.a*1.
   eqns.getRHS(main,MZ,eqns)
   #==================================================
-  R_ortho = main.RHS - projection_pod(main.RHS,main.V)
+  R_proj = projection_pod(main.RHS,main.V,main)
+  R_ortho = main.RHS - np.reshape(R_proj,np.shape(main.a.a))
   ##print(np.linalg.norm(R_ortho))
   RHS0 = main.RHS*1.
   main.a.a[:] = a0[:] + eps*R_ortho
@@ -221,7 +218,7 @@ def orthogonalSubscale_POD(main,MZ,eqns):
   #main.basis.applyMassMatrix(main,main.RHS)
   PLQLu = (main.RHS - RHS0)/eps
   main.PLQLu[:] = PLQLu
-  tau = 0.001
+  tau = 0.1
   #print(np.linalg.norm(PLQLu))
   #=====================================
   main.RHS[:] =  RHS0[:]+ tau*PLQLu

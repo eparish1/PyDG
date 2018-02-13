@@ -349,11 +349,6 @@ class variables:
       check = 1
     if (turb_str == 'orthogonal subscale entropy'):
       self.getRHS = orthogonalSubscaleEntropy
-      #n_basis = np.shape(V)[1]
-      #V2 = np.zeros((self.nvars,self.order[0],self.order[1],self.order[2],self.order[3],self.Npx,self.Npy,self.Npz,self.Npt))
-      #for i in range(0,n_basis):
-      #  V2[:,:,:,:,:,:,:,:,:,i] = V[:,i].flatten() 
-      #V2 = V2[
       check = 1
     if (turb_str == 'tau-modelFD'):
       self.getRHS = tauModelFD
