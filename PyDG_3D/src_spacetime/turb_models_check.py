@@ -200,20 +200,19 @@ def orthogonalSubscale2(main,MZ,eqns):
 #nbasis = np.shape(V)[1]
 #Pi_test = np.dot(V[:,nbasis/2],V[:,nbasis/2].transpose())
 
-def projection_pod(u,V):
-  tmp = np.dot(V.transpose(),u.flatten())
-  u_proj = np.dot(V, tmp)
-  #u_proj = np.reshape( np.dot(Pi,u.flatten() ), np.shape(u)) 
+def projection_pod(u):
+  u_proj = np.reshape( np.dot(Pi,u.flatten() ), np.shape(u)) 
   return u_proj
  
 
 
 def orthogonalSubscale_POD(main,MZ,eqns):
+  V = np.load('pod_basis.npz')['V']
   eps = 1e-5
   a0 = main.a.a*1.
   eqns.getRHS(main,MZ,eqns)
   #==================================================
-  R_ortho = main.RHS - projection_pod(main.RHS,main.V)
+  R_ortho = main.RHS - projection_pod(main.RHS)
   ##print(np.linalg.norm(R_ortho))
   RHS0 = main.RHS*1.
   main.a.a[:] = a0[:] + eps*R_ortho

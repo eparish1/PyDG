@@ -4,7 +4,7 @@ from timeSchemes import *
 from linear_solvers import *
 from nonlinear_solvers import *
 class timeschemes:
-  def __init__(self,main,time_str='ExplicitRK4',lsolver_str='GMRes',nlsolver_str='Newton'):
+  def __init__(self,time_str='ExplicitRK4',lsolver_str='GMRes',nlsolver_str='Newton'):
     comm = MPI.COMM_WORLD
     check_t = 0
     if (comm.Get_rank() == 0): print('Time marching is set to ' + time_str)
@@ -32,14 +32,6 @@ class timeschemes:
       check_t = 0
       self.advanceSol = SSP_RK3_POD
       self.args = None
-      V = np.load('pod_basis.npz')['V']
-      #main.V = np.zeros(np.shape(V))
-      #main.V[:] = V 
-      n_basis = np.shape(V)[1]
-      V2 = np.zeros((main.nvars,main.order[0],main.order[1],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt,n_basis))
-      for i in range(0,n_basis):
-        V2[:,:,:,:,:,:,:,:,:,i] = np.reshape(V[:,i],(main.nvars,main.order[0],main.order[1],main.order[2],main.order[3],main.Nel[0],main.Nel[1],main.Nel[2],main.Nel[3]))[:,:,:,:,:,main.sx,main.sy,:,:] 
-      main.V = np.reshape(V2,(np.size(main.a.a),n_basis) ) 
     if (time_str == 'SpaceTime'):
       check_t = 0
       self.advanceSol = spaceTime 

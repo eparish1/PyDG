@@ -1363,28 +1363,29 @@ def SSP_RK3(main,MZ,eqns,args=None):
   #limiter_characteristic(main)
  
 def SSP_RK3_POD(main,MZ,eqns,args=None):
+  V = np.load('pod_basis.npz')['V']
+
   main.getRHS(main,MZ,eqns)  ## put RHS in a array since we don't need it
   a0 = np.zeros(np.shape(main.a.a))
   a0[:] = main.a.a[:]
-  a0_pod = globalDot(main.V.transpose(),a0.flatten(),main)
+  a0_pod = np.dot(V.transpose(),a0.flatten())
   main.basis.applyMassMatrix(main,main.RHS)
-  a1_pod = a0_pod  + main.dt*( globalDot(main.V.transpose(),main.RHS[:].flatten(),main) )
-  main.a.a[:] = np.reshape( np.dot(main.V,a1_pod) , np.shape(main.a.a) )
+  a1_pod = a0_pod  + main.dt*( np.dot(V.transpose(),main.RHS[:].flatten()) )
+  main.a.a[:] = np.reshape( np.dot(V,a1_pod) , np.shape(main.a.a) )
 
   main.getRHS(main,MZ,eqns)
   main.basis.applyMassMatrix(main,main.RHS)
 
-  a1_pod = 3./4.*a0_pod + 1./4.*(a1_pod + globalDot(main.V.transpose(),main.dt*main.RHS[:].flatten(),main ) ) #reuse a1 vector
-  main.a.a[:] = np.reshape( np.dot(main.V,a1_pod) , np.shape(main.a.a) )
+  a1_pod = 3./4.*a0_pod + 1./4.*(a1_pod + np.dot(V.transpose(),main.dt*main.RHS[:].flatten() ) ) #reuse a1 vector
+  main.a.a[:] = np.reshape( np.dot(V,a1_pod) , np.shape(main.a.a) )
 
   main.getRHS(main,MZ,eqns)  ## put RHS in a array since we don't need it
   main.basis.applyMassMatrix(main,main.RHS)
-  af_pod = 1./3.*a0_pod + 2./3.*(a1_pod[:] + main.dt*globalDot(main.V.transpose(), main.RHS[:].flatten(),main) )
-  main.a.a[:] =np.reshape(  np.dot(main.V,af_pod) , np.shape(main.a.a) )
+  af_pod = 1./3.*a0_pod + 2./3.*(a1_pod[:] + main.dt*np.dot(V.transpose(), main.RHS[:].flatten()) )
+  main.a.a[:] =np.reshape(  np.dot(V,af_pod) , np.shape(main.a.a) )
 
   main.t += main.dt
   main.iteration += 1
-
 
 
 

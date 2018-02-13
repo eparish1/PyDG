@@ -27,6 +27,20 @@ def globalSum(r,main):
     rn_glob = main.comm.recv(source=0)
   return rn_glob
 
+## MPI dot product for when decomposition is on the columns of V and R
+def globalDot(V,r,main):
+  ## Create Global residual
+  data = main.comm.gather(np.dot(V,r),root = 0)
+  #print(np.shape(data))
+  if (main.mpi_rank == 0):
+    rn_glob = np.zeros(np.size(data[0]))
+    for j in range(0,main.num_processes):
+      rn_glob[:] += data[j]
+    for j in range(1,main.num_processes):
+      main.comm.send(rn_glob, dest=j)
+  else:
+    rn_glob = main.comm.recv(source=0)
+  return rn_glob
 
 
 def sendaEdgesGeneralSlab(a,main):
