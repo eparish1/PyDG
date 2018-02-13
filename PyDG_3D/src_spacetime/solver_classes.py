@@ -28,7 +28,10 @@ class timeschemes:
       check_t = 0
       self.advanceSol = SSP_RK3_DOUBLEFLUX
       self.args = None
-
+    if (time_str == 'SSP_RK3_POD'):
+      check_t = 0
+      self.advanceSol = SSP_RK3_POD
+      self.args = None
     if (time_str == 'SpaceTime'):
       check_t = 0
       self.advanceSol = spaceTime 
