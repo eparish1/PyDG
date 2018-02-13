@@ -48,7 +48,7 @@ class postProcessor:
           sol = np.load('npsol' + str(i) + '.npz')
           string = 'PVsol' + str(i)
           gridToVTK(string, x,y,z, pointData = {"rho" : sol['U'][0] , \
-            "u" : sol['U'][1]/sol['U'][0] , "v" : sol['U'][2], "w" : sol['U'][3]/sol['U'][0], \
+            "u" : sol['U'][1]/sol['U'][0] , "v" : sol['U'][2]/sol['U'][0], "w" : sol['U'][3]/sol['U'][0], \
             "rhoE" : sol['U'][4]} )
     self.writeAllToParaview = writeAllToParaview
 
