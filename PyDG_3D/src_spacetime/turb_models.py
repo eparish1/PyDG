@@ -218,7 +218,7 @@ def orthogonalSubscale_POD(main,MZ,eqns):
   #main.basis.applyMassMatrix(main,main.RHS)
   PLQLu = (main.RHS - RHS0)/eps
   main.PLQLu[:] = PLQLu
-  tau = 0.1
+  tau = 0.25
   #print(np.linalg.norm(PLQLu))
   #=====================================
   main.RHS[:] =  RHS0[:]+ tau*PLQLu
