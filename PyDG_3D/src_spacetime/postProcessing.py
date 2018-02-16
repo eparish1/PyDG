@@ -49,8 +49,8 @@ class postProcessor:
         if (os.path.isfile(grid_str)):
           grid = np.load('../DGgrid_block' + str(n_blocks) + '.npz')
           x.append(grid['x'])
-          y.append(grid['z'])
-          z.append(grid['y'])
+          y.append(grid['y'])
+          z.append(grid['z'])
           n_blocks += 1
 
         else:
