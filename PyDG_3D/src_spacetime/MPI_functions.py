@@ -156,6 +156,7 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main,regionManager):
   uF = np.zeros(np.shape(fB[:,:,:,:,:,:,0]))
   uB = np.zeros(np.shape(fF[:,:,:,:,:,:,0]))
   ## If only using one processor ================
+  print(main.mpi_rank,main.rank_connect[2])
   if (main.rank_connect[0] == main.mpi_rank and main.rank_connect[1] == main.mpi_rank):
     uR[:] = fL[:,:,:,:,0, :,:]
     uL[:] = fR[:,:,:,:,-1,:,:]
@@ -168,7 +169,7 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main,regionManager):
       uL[:] = regionManager.region[main.leftBC.args[0]].a.uR[:,:,:,:,main.leftBC.args[1],:,:]
     else:
       uL[:] = main.leftBC.applyBC(fL[:,:,:,:,0 ,:,:],uL,main.leftBC.args,main)
-
+ 
   #======================================================
   else:
     ## Send right and left fluxes
@@ -201,6 +202,7 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main,regionManager):
       uR[:] = main.rightBC.applyBC(fR[:,:,:,:,-1,:,:],uR,main.rightBC.args,main)
     if (main.BC_rank[2]):
       uL[:] = main.leftBC.applyBC(fL[:,:,:,:,0 ,:,:],uL,main.leftBC.args,main)
+
 
   if (main.rank_connect[2] == main.mpi_rank and main.rank_connect[3] == main.mpi_rank):
     uU[:] = fD[:,:,:,:,:,0 ,:]
@@ -247,6 +249,7 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main,regionManager):
 
   uF[:] = fB[:,:,:,:,:,:,0]
   uB[:] = fF[:,:,:,:,:,:,-1]
+
   #print('mpi_rank ' , main.mpi_rank )
   return uR,uL,uU,uD,uF,uB
 
@@ -363,9 +366,9 @@ def gatherSolScalar(main,u):
     uG[:,:,:,:,0:main.Npx,0:main.Npy,:] = u[:]
     #for i in range(1,main.num_processes):
     for i in main.all_mpi_ranks[1::]:
-      loc_rank = i - starting_rank
+      loc_rank = i - main.starting_rank
       data = np.zeros(np.shape(u)).flatten()
-      main.comm.Recv(data,source=loc_rank + starting_rank,tag = loc_rank + starting_rank)
+      main.comm.Recv(data,source=loc_rank + main.starting_rank,tag = loc_rank + main.starting_rank)
       xL = int( (loc_rank%main.procx)*main.Npx)
       xR = int(((loc_rank%main.procx) +1)*main.Npx)
       yD = int(loc_rank)/int(main.procx)*main.Npy
@@ -373,7 +376,7 @@ def gatherSolScalar(main,u):
       uG[:,:,:,:,xL:xR,yD:yU,:] = np.reshape(data,np.shape(u))
     return uG
   else:
-    main.comm.Send(u.flatten(),dest=starting_rank,tag=main.mpi_rank)
+    main.comm.Send(u.flatten(),dest=main.starting_rank,tag=main.mpi_rank)
 
 
 def gatherSolSlab(main,eqns,var):
@@ -382,9 +385,9 @@ def gatherSolSlab(main,eqns,var):
     uG[:,:,:,:,:,0:main.Npx,0:main.Npy,:] = var.u[:]
     #for i in range(1,main.num_processes):
     for i in main.all_mpi_ranks[1::]:
-      loc_rank = i - starting_rank
+      loc_rank = i - main.starting_rank
       data = np.zeros(np.shape(var.u)).flatten()
-      main.comm.Recv(data,source=loc_rank + starting_rank,tag = loc_rank + starting_rank)
+      main.comm.Recv(data,source=loc_rank + main.starting_rank,tag = loc_rank + main.starting_rank)
       xL = int( (loc_rank%main.procx)*main.Npx)
       xR = int(((loc_rank%main.procx) +1)*main.Npx)
       yD = int(loc_rank)/int(main.procx)*main.Npy
@@ -402,9 +405,9 @@ def gatherSolSpectral(a,main):
     aG[:,:,:,:,:,0:main.Npx,0:main.Npy,:] = a[:]
     #for i in range(1,main.num_processes):
     for i in main.all_mpi_ranks[1::]:
-      loc_rank = i - starting_rank
+      loc_rank = i - main.starting_rank
       data = np.zeros(np.shape(a)).flatten()
-      main.comm.Recv(data,source=loc_rank + starting_rank,tag = loc_rank + starting_rank)
+      main.comm.Recv(data,source=loc_rank + main.starting_rank,tag = loc_rank + main.starting_rank)
       xL = int( (loc_rank%main.procx)*main.Npx)
       xR = int(((loc_rank%main.procx) +1)*main.Npx)
       yD = int(loc_rank)/int(main.procx)*main.Npy
@@ -423,7 +426,7 @@ def regionConnector(regionManager):
       row = (int(region.mpi_rank) - int(region.starting_rank))/int(region.procx)
       region_connect = region.rightBC.args[0]
       shift = regionManager.starting_rank[region_connect] - regionManager.starting_rank[region.region_number]
-      region.rank_connect[1] = region.mpi_rank + shift + regionManager.procx[region_connect]*row
+      region.rank_connect[1] = regionManager.starting_rank[region.region_number] + shift + regionManager.procx[region_connect]*row
 
     if (region.leftBC.BC_type == 'patch' and region.BC_rank[2]):
       row = (int(region.mpi_rank) - int(region.starting_rank))/int(region.procx)

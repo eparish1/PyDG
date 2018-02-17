@@ -91,7 +91,6 @@ def getIC_collocate(main,f,x,y,z,zeta3,Npt):
   ord_arrz= np.linspace(0,order[2]-1,order[2])
   ord_arrt= np.linspace(0,order[3]-1,order[3])
   scale =  (2.*ord_arrx[:,None,None,None] + 1.)*(2.*ord_arry[None,:,None,None] + 1.)*(2.*ord_arrz[None,None,:,None] + 1.)*(2.*ord_arrt[None,None,None,:] + 1.)/16.
-  print(np.shape(y))
   U = np.zeros((Nvars,nqx,nqy,nqz,1,Nelx,Nely,Nelz,1))
   U[:,:,:,:,0,:,:,:,0] = f(x,y,z,main)
   for i in range(0,nt):
@@ -155,13 +154,13 @@ iteration = 0
 eqns = equations(eqn_str,schemes,turb_str)
 #main = variables(Nel,order,quadpoints,eqns,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,fsource,source_mag,shock_capturing,mol_str,basis_args)
 
-regionManager = blockClass(n_blocks,starting_rank,procx,procy,et,dt,save_freq)
+regionManager = blockClass(n_blocks,starting_rank,procx,procy,et,dt,save_freq,turb_str)
 for i in regionManager.mpi_regions_owned:
   regionManager.region.append( variables(i,Nel_block[i],order,quadpoints,eqns,mu,x_block[i],y_block[i],z_block[i],turb_str,procx[i],procy[i],starting_rank[i],BCs[i],fsource,source_mag,shock_capturing,mol_str,basis_args) )
 regionConnector(regionManager)
-print('==============')
-print('MPI INFO',regionManager.region[0].mpi_rank,regionManager.region[0].rank_connect[3])
-print('==============')
+#print('==============')
+#print('MPI INFO',regionManager.region[0].mpi_rank,regionManager.region[0].rank_connect[3])
+#print('==============')
 
 #for i in range(0,regionManager.nblocks):
 region_counter = 0
@@ -211,7 +210,6 @@ for i in regionManager.mpi_regions_owned:
   ord_arrt= np.linspace(0,order[3]-1,order[3])
   scale =  (2.*ord_arrx[:,None,None,None] + 1.)*(2.*ord_arry[None,:,None,None] + 1.)*(2.*ord_arrz[None,None,:,None] + 1.)*(2.*ord_arrt[None,None,None,:] + 1.)/16.
 
-
 while (regionManager.t <= regionManager.et + regionManager.dt/2):
   if (regionManager.iteration%regionManager.save_freq == 0):
     #for z in range(0,regionManager.nblocks):
@@ -220,19 +218,17 @@ while (regionManager.t <= regionManager.et + regionManager.dt/2):
       main = regionManager.region[region_counter]
       region_counter += 1
       reconstructU(main,main.a)
+
       uG = gatherSolSlab(main,eqns,main.a)
       aG = gatherSolSpectral(main.a.a,main)
       savehook(main)
-
-      UG = getGlobU(uG)
-
-      #uGF = getGlobU(uG)
-      sys.stdout.write('======================================' + '\n')
-      sys.stdout.write('wall time = ' + str(time.time() - t0) + '\n' )
-      sys.stdout.write('t = ' + str(regionManager.t) +  '\n')
-      np.savez('Solution/npsol_block' + str(z) + '_' + str(regionManager.iteration),U=(UG),a=aG,t=regionManager.t,iteration=regionManager.iteration,order=order)
-      sys.stdout.flush()
-
+      if (main.mpi_rank - main.starting_rank == 0):
+        UG = getGlobU(uG)
+        sys.stdout.write('======================================' + '\n')
+        sys.stdout.write('wall time = ' + str(time.time() - t0) + '\n' )
+        sys.stdout.write('t = ' + str(regionManager.t) +  '\n')
+        np.savez('Solution/npsol_block' + str(z) + '_' + str(regionManager.iteration),U=(UG),a=aG,t=regionManager.t,iteration=regionManager.iteration,order=order)
+        sys.stdout.flush()
   timescheme.advanceSol(regionManager,eqns,timescheme.args)
   #advanceSolImplicit_MG(main,main,eqns)
 reconstructU(main,main.a)

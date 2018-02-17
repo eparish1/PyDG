@@ -21,8 +21,8 @@ def orthogonalDynamics(main,MZ,eqns):
     main.a.a[:] = a0[:]
 
 
-def DNS(mainBlock,main,MZ,eqns):
-  eqns.getRHS(mainBlock,main,MZ,eqns)
+def DNS(regionManager,eqns):
+  regionManager.getRHS_REGION_INNER(regionManager,eqns)
 
 def projection(main,U):
   ## First perform integration in x

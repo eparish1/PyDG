@@ -57,13 +57,6 @@ def addVolume_and_Viscous(regionManager,eqns,args=[],args_phys=[]):
 
 def getRHS(regionManager,eqns,args=[],args_phys=[]):
   t0 = time.time()
-  for main in regionManager.region:
-    main.basis.reconstructU(main,main.a)
-    main.a.uR[:],main.a.uL[:],main.a.uU[:],main.a.uD[:],main.a.uF[:],main.a.uB[:] = main.basis.reconstructEdgesGeneral(main.a.a,main)
-
-  for main in regionManager.region:
-    main.a.uR_edge[:],main.a.uL_edge[:],main.a.uU_edge[:],main.a.uD_edge[:],main.a.uF_edge[:],main.a.uB_edge[:] = sendEdgesGeneralSlab(main.a.uL,main.a.uR,main.a.uD,main.a.uU,main.a.uB,main.a.uF,main,regionManager)
-
   addInviscidFlux(regionManager,eqns,args,args_phys)
   addVolume_and_Viscous(regionManager,eqns,args,args_phys)
   ### Get interior vol terms
