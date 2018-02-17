@@ -86,6 +86,14 @@ else:
   fsource = False
   fsource_mag = []
 
+if 'tau' in globals():
+  if (mpi_rank == 0):
+    print('Setting tau =' + str(main.tau))
+else:
+  tau = 0.25
+  if (mpi_rank == 0):
+    print('Setting tau = 0.25')
+
 if 'enriched_ratio' in globals():
   pass
 else:
@@ -131,6 +139,7 @@ iteration = 0
 
 eqns = equations(eqn_str,schemes,turb_str)
 main = variables(Nel,order,quadpoints,eqns,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,fsource,source_mag,shock_capturing,mol_str,basis_args)
+main.tau = tau
 main.x,main.y,main.z = x,y,z
 vol_min = (np.amin(main.Jdet))**(1./3.)
 CFL = ( np.amin(main.J_edge_det[0])*4. + np.amin(main.J_edge_det[1])*4 + np.amin(main.J_edge_det[2])*4. ) / (np.amin(main.Jdet)*8 )
@@ -239,7 +248,7 @@ while (main.t <= main.et + main.dt/2):
       sys.stdout.write('======================================' + '\n')
       sys.stdout.write('wall time = ' + str(time.time() - t0) + '\n' )
       sys.stdout.write('t = ' + str(main.t) +  '\n')
-      np.savez('Solution/npsol' + str(main.iteration),U=(UG),a=aG,t=main.t,iteration=main.iteration,order=order)
+      np.savez('Solution/npsol' + str(main.iteration),U=(UG),a=aG,t=main.t,iteration=main.iteration,order=order,tau=main.tau)
       sys.stdout.flush()
 
   timescheme.advanceSol(main,mainEnriched,eqns,timescheme.args)
