@@ -88,7 +88,7 @@ else:
 
 if 'tau' in globals():
   if (mpi_rank == 0):
-    print('Setting tau =' + str(main.tau))
+    print('Setting tau =' + str(tau))
 else:
   tau = 0.25
   if (mpi_rank == 0):

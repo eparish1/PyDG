@@ -1931,6 +1931,48 @@ def CrankNicolsonEntropyMZ(main,MZ,eqns,args):
   main.t += main.dt
   main.iteration += 1
 
+def CrankNicolson_POD(main,MZ,eqns,args):
+  nonlinear_solver = args[0]
+  linear_solver = args[1]
+  sparse_quadrature = args[2]
+  main.a0[:] = main.a.a[:]
+  main.getRHS(main,MZ,eqns)
+  R0 = np.zeros(np.shape(main.RHS))
+  R0[:] = main.RHS[:]
+  def unsteadyResidual(main,v):
+    main.a.a[:] = np.reshape(v,np.shape(main.a.a))
+    main.getRHS(main,MZ,eqns)
+    R1 = np.zeros(np.shape(main.RHS))
+    RHS_CN = np.zeros(np.shape(main.RHS))
+    R1[:] = main.RHS[:]
+    RHS_CN[:] = 0.5*main.dt*(R0 + R1)
+    main.basis.applyMassMatrix(main,RHS_CN)
+    Rstar = ( main.a.a[:] - main.a0 ) - RHS_CN 
+    Rstar = globalDot(main.V.transpose(),Rstar[:].flatten(),main) 
+    Rstar_glob = np.linalg.norm(Rstar)**2
+    return Rstar,R1,Rstar_glob
+
+  def create_MF_Jacobian(v,args,main):
+    an = args[0]
+    Rn = args[1]
+    #vr = np.reshape(v,np.shape(main.a.a))
+    vr = np.reshape( np.dot(main.V,v) ,np.shape(main.a.a))
+    eps = 5.e-7
+    main.a.a[:] = an + np.reshape(eps*vr,np.shape(main.a.a))
+    main.getRHS(main,MZ,eqns)
+    RHS_CN = np.zeros(np.shape(main.RHS))
+    R1 = np.zeros(np.shape(main.RHS))
+    R1[:] = main.RHS[:]
+    RHS_CN[:] = 0.5*main.dt*(R1 - Rn)/eps
+    main.basis.applyMassMatrix(main,RHS_CN)
+    Av = vr - RHS_CN
+    Av = globalDot(main.V.transpose(),Av[:].flatten(),main) 
+    return Av.flatten()
+
+  nonlinear_solver.solve(unsteadyResidual, create_MF_Jacobian,main,linear_solver,sparse_quadrature,eqns,None)
+
+  main.t += main.dt
+  main.iteration += 1
 
 
 def CrankNicolson(main,MZ,eqns,args):
