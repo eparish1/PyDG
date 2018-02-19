@@ -156,7 +156,7 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main,regionManager):
   uF = np.zeros(np.shape(fB[:,:,:,:,:,:,0]))
   uB = np.zeros(np.shape(fF[:,:,:,:,:,:,0]))
   ## If only using one processor ================
-  print(main.mpi_rank,main.rank_connect[2])
+  #print(main.mpi_rank,main.rank_connect[0])
   if (main.rank_connect[0] == main.mpi_rank and main.rank_connect[1] == main.mpi_rank):
     uR[:] = fL[:,:,:,:,0, :,:]
     uL[:] = fR[:,:,:,:,-1,:,:]
@@ -421,31 +421,40 @@ def gatherSolSpectral(a,main):
 def regionConnector(regionManager):
 #  for i in regionManager.mpi_regions_owned:
     region = regionManager.region[0]
-
+    #print(region.mpi_rank,region.BC_rank[0])
     if (region.rightBC.BC_type == 'patch' and region.BC_rank[0]):
       row = (int(region.mpi_rank) - int(region.starting_rank))/int(region.procx)
       region_connect = region.rightBC.args[0]
       shift = regionManager.starting_rank[region_connect] - regionManager.starting_rank[region.region_number]
       region.rank_connect[1] = regionManager.starting_rank[region.region_number] + shift + regionManager.procx[region_connect]*row
+      #print(region.mpi_rank,region.rank_connect[1])
 
     if (region.leftBC.BC_type == 'patch' and region.BC_rank[2]):
       row = (int(region.mpi_rank) - int(region.starting_rank))/int(region.procx)
       region_connect = region.leftBC.args[0]
+      #print(region.mpi_rank)
       shift = regionManager.starting_rank[region_connect] - regionManager.starting_rank[region.region_number]
-      region.rank_connect[0] = region.mpi_rank + shift + regionManager.procx[region_connect]*(row + 1) - 1
+      #region.rank_connect[0] = region.mpi_rank + shift + regionManager.procx[region_connect]*(row + 1) - 1
+      region.rank_connect[0] = region.mpi_rank + shift + regionManager.procx[region_connect] - 1
+      #print(region.mpi_rank,region.rank_connect[0])
       #print('shift',region.mpi_rank,shift)
 
     if (region.topBC.BC_type == 'patch' and region.BC_rank[1]):
       column = (int(region.mpi_rank) - int(region.starting_rank))%int(region.procx)
       region_connect = region.topBC.args[0]
       shift = regionManager.starting_rank[region_connect] - regionManager.starting_rank[region.region_number]
-      region.rank_connect[3] = region.mpi_rank + shift + column
+      #region.rank_connect[3] = region.mpi_rank + shift + column
+      region.rank_connect[3] = regionManager.starting_rank[region.region_number] + shift + column
+      #print(region.mpi_rank,region.rank_connect[3])
 
     if (region.bottomBC.BC_type == 'patch' and region.BC_rank[3]):
       column = (int(region.mpi_rank) - int(region.starting_rank))%int(region.procx)
       region_connect = region.bottomBC.args[0]
       shift = regionManager.starting_rank[region_connect] - regionManager.starting_rank[region.region_number]
-      region.rank_connect[2] =region.mpi_rank +  shift + regionManager.nprocs[region_connect] - region.procx + column
+      #region.rank_connect[2] =region.mpi_rank +  shift + regionManager.nprocs[region_connect] - region.procx + column
+      region.rank_connect[2] = regionManager.starting_rank[region.region_number] +  shift + regionManager.nprocs[region_connect] - region.procx + column
+
+
     #print(region.mpi_rank,region.rank_connect)
 
 def getRankConnectionsSlab(mpi_rank,num_processes,procx,procy,starting_rank):
@@ -488,7 +497,7 @@ def getRankConnectionsSlab(mpi_rank,num_processes,procx,procy,starting_rank):
     rank_connect[3] = mpi_rank - num_processes + procx
     BC_rank[1] = True,True
   #
-  if ( (mpi_rank + 1 - starting_rank)%procx == 0 and mpi_rank < (starting_rank + num_processes - 1) and mpi_rank > (starting_rank + procx)): #right row
+  if ( (mpi_rank + 1 - starting_rank)%procx == 0 and mpi_rank < (starting_rank + num_processes - 1) and mpi_rank > (starting_rank + procx - 1)): #right row
     rank_connect[1] = mpi_rank - procx + 1
     BC_rank[0] = True,True
   #
