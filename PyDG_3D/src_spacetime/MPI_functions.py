@@ -172,6 +172,8 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main,regionManager):
  
   #======================================================
   else:
+    #print(main.mpi_rank,main.rank_connect[2])
+
     ## Send right and left fluxes
     if (main.rank_connect[0] != main.mpi_rank):
       tmp = np.zeros(np.size(fL[:,:,:,:,0,:,:]))
@@ -203,7 +205,7 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main,regionManager):
     if (main.BC_rank[2]):
       uL[:] = main.leftBC.applyBC(fL[:,:,:,:,0 ,:,:],uL,main.leftBC.args,main)
 
-
+#  print(main.mpi_rank,'here')
   if (main.rank_connect[2] == main.mpi_rank and main.rank_connect[3] == main.mpi_rank):
     uU[:] = fD[:,:,:,:,:,0 ,:]
     uD[:] = fU[:,:,:,:,:,-1,:]
@@ -453,6 +455,18 @@ def regionConnector(regionManager):
       shift = regionManager.starting_rank[region_connect] - regionManager.starting_rank[region.region_number]
       #region.rank_connect[2] =region.mpi_rank +  shift + regionManager.nprocs[region_connect] - region.procx + column
       region.rank_connect[2] = regionManager.starting_rank[region.region_number] +  shift + regionManager.nprocs[region_connect] - region.procx + column
+
+    if ( (region.BC_rank[0] and region.rightBC.BC_type != 'patch') and region.rightBC.BC_type != 'periodic' ):
+      region.rank_connect[1] = region.mpi_rank
+
+    if ( (region.BC_rank[2] and region.leftBC.BC_type != 'patch') and region.leftBC.BC_type != 'periodic' ):
+      region.rank_connect[0] = region.mpi_rank
+
+    if ( (region.BC_rank[1] and region.topBC.BC_type != 'patch') and region.topBC.BC_type != 'periodic' ):
+      region.rank_connect[3] = region.mpi_rank
+
+    if ( (region.BC_rank[3] and region.bottomBC.BC_type != 'patch') and region.bottomBC.BC_type != 'periodic' ):
+      region.rank_connect[2] = region.mpi_rank
 
 
     #print(region.mpi_rank,region.rank_connect)
