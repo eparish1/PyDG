@@ -202,6 +202,24 @@ def projection_pod(u,V,main):
   #u_proj = np.reshape( np.dot(Pi,u.flatten() ), np.shape(u)) 
   return u_proj
  
+def LSPG_POD(main,MZ,eqns):
+  eps = 1e-5
+  a0 = main.a.a*1.
+  eqns.getRHS(main,MZ,eqns)
+  #==================================================
+  #R_proj = projection_pod(main.RHS,main.V,main)
+  R_ortho = main.RHS
+  ##print(np.linalg.norm(R_ortho))
+  RHS0 = main.RHS*1.
+  main.a.a[:] = a0[:] + eps*R_ortho
+  eqns.getRHS(main,MZ,eqns)  ## put RHS in a array since we don't need it
+  #main.basis.applyMassMatrix(main,main.RHS)
+  PLQLu = (main.RHS - RHS0)/eps
+  main.PLQLu[:] = PLQLu
+  tau = main.tau
+  #print(np.linalg.norm(PLQLu))
+  #=====================================
+  main.RHS[:] =  RHS0[:]+ tau*PLQLu
 
 
 def orthogonalSubscale_POD(main,MZ,eqns):

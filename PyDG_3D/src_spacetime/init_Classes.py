@@ -347,6 +347,10 @@ class variables:
       self.getRHS = orthogonalSubscale_POD
       self.PLQLu = np.zeros(np.shape(self.a.a))
       check = 1
+    if (turb_str == 'LSPG POD'):
+      self.getRHS = LSPG_POD
+      self.PLQLu = np.zeros(np.shape(self.a.a))
+      check = 1
     if (turb_str == 'orthogonal subscale entropy'):
       self.getRHS = orthogonalSubscaleEntropy
       check = 1
