@@ -13,6 +13,32 @@ from source_functions import combustionForcing as addSource
 import numexpr as ne
 import time
 
+##  non-conservative case, where fL != fR.
+def addInviscidFlux_DOUBLEFLUX(main,MZ,eqns,args=[],args_phys=[]):
+  inviscidFlux_DOUBLEFLUX(main,eqns,main.iFlux,main.a,eqns.inviscidFlux,args)
+  #main.iFlux.fRI = main.basis.faceIntegrateGlob(main,main.iFlux.fRS,MZ.w1,MZ.w2,MZ.w3,MZ.weights1,MZ.weights2,MZ.weights3)
+  #main.iFlux.fLI = main.basis.faceIntegrateGlob(main,main.iFlux.fLS,MZ.w1,MZ.w2,MZ.w3,MZ.weights1,MZ.weights2,MZ.weights3)
+  #main.iFlux.fUI = main.basis.faceIntegrateGlob(main,main.iFlux.fUS,MZ.w0,MZ.w2,MZ.w3,MZ.weights0,MZ.weights2,MZ.weights3)
+  #main.iFlux.fDI = main.basis.faceIntegrateGlob(main,main.iFlux.fDS,MZ.w0,MZ.w2,MZ.w3,MZ.weights0,MZ.weights2,MZ.weights3)
+  #main.iFlux.fFI = main.basis.faceIntegrateGlob(main,main.iFlux.fFS,MZ.w0,MZ.w1,MZ.w3,MZ.weights0,MZ.weights1,MZ.weights3)
+  #main.iFlux.fBI = main.basis.faceIntegrateGlob(main,main.iFlux.fBS,MZ.w0,MZ.w1,MZ.w3,MZ.weights0,MZ.weights1,MZ.weights3)
+  main.iFlux.fRI = main.basis.faceIntegrateGlob(main,main.iFlux.fRS*main.J_edge_det[0][None,:,:,None,1::,:,:,None],MZ.w1,MZ.w2,MZ.w3,MZ.weights1,MZ.weights2,MZ.weights3)
+  main.iFlux.fUI = main.basis.faceIntegrateGlob(main,main.iFlux.fUS*main.J_edge_det[1][None,:,:,None,:,1::,:,None],MZ.w0,MZ.w2,MZ.w3,MZ.weights0,MZ.weights2,MZ.weights3)
+  main.iFlux.fFI = main.basis.faceIntegrateGlob(main,main.iFlux.fFS*main.J_edge_det[2][None,:,:,None,:,:,1::,None],MZ.w0,MZ.w1,MZ.w3,MZ.weights0,MZ.weights1,MZ.weights3)
+  main.iFlux.fLI = main.basis.faceIntegrateGlob(main,main.iFlux.fLS*main.J_edge_det[0][None,:,:,None,0:-1:,:,:,None],MZ.w1,MZ.w2,MZ.w3,MZ.weights1,MZ.weights2,MZ.weights3)
+  main.iFlux.fDI = main.basis.faceIntegrateGlob(main,main.iFlux.fDS*main.J_edge_det[1][None,:,:,None,:,0:-1:,:,None],MZ.w0,MZ.w2,MZ.w3,MZ.weights0,MZ.weights2,MZ.weights3)
+  main.iFlux.fBI = main.basis.faceIntegrateGlob(main,main.iFlux.fBS*main.J_edge_det[2][None,:,:,None,:,:,0:-1:,None],MZ.w0,MZ.w1,MZ.w3,MZ.weights0,MZ.weights1,MZ.weights3)
+
+
+  # now add inviscid flux contribution to the RHS
+  main.RHS[:] =  -main.iFlux.fRI[:,None,:,:,:,:] 
+  main.RHS[:] += main.iFlux.fLI[:,None,:,:,:,:]*main.altarray0[None,:,None,None,None,None,None,None,None]
+  main.RHS[:] -= main.iFlux.fUI[:,:,None,:,:,:,:]
+  main.RHS[:] += main.iFlux.fDI[:,:,None,:,:,:,:]*main.altarray1[None,None,:,None,None,None,None,None,None]
+  main.RHS[:] -= main.iFlux.fFI[:,:,:,None,:,:,:,:] 
+  main.RHS[:] += main.iFlux.fBI[:,:,:,None,:,:,:,:]*main.altarray2[None,None,None,:,None,None,None,None,None]
+
+## Schemes for conservative viscous fluxes, where fRp = fLm.
 def addInviscidFlux(main,MZ,eqns,args=[],args_phys=[]):
   # first compute contribution from flux at faces
   generalFluxGen(main,eqns,main.iFlux,main.a,eqns.inviscidFlux,args)
@@ -46,7 +72,7 @@ def getRHS(main,MZ,eqns,args=[],args_phys=[]):
     update_state(main)
   #  #main.a.p[:],main.a.T[:] = computePressure_and_Temperature(main,main.a.u)
   # evaluate inviscid flux and add contribution to RHS
-  addInviscidFlux(main,MZ,eqns,args,args_phys)
+  addInviscidFlux_DOUBLEFLUX(main,MZ,eqns,args,args_phys)
   addVolume_and_Viscous(main,MZ,eqns,args,args_phys)
   ### Get interior vol terms
   addSource(main)

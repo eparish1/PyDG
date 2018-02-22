@@ -800,7 +800,7 @@ def HLLCFlux_reacting_doubleflux(main,UL,UR,pL,pR,rh0,gamma_star,n,args=None):
   F[:,indx3] = FR[:,indx3]
   return F
 
-def HLLCFlux_reacting_doublefluxL(main,UL,UR,pL,pR,rh0,gamma_star,n,args=None):
+def HLLCFlux_reacting_doublefluxL2(main,UL,UR,rh0,gamma_star,n,args=None):
   R = 8314.4621/1000.
 
   Y_N2_R = 1. - np.sum(UR[5::]/UR[None,0],axis=0)
@@ -903,8 +903,63 @@ def HLLCFlux_reacting_doublefluxL(main,UL,UR,pL,pR,rh0,gamma_star,n,args=None):
   F[:,indx3] = FR[:,indx3]
   return F
 
+def HLLCFlux_reacting_doublefluxR(main,Up,Um,rh0,gamma_star,n,args=None):
+  R = 8314.4621/1000.
+  def f(gamma1,gamma2,U):
+    gamma_rat = (gamma2 - 1.)/(gamma1 - 1.)
+    Eterm = 1./U[0]*0.5*(U[1]**2 + U[2]**2 + U[3]**2)
+    U4mod = gamma_rat*(U[4] - Eterm) + Eterm 
+    return U4mod
+  ## compute gammap and gamma m
+  Y_N2_m = 1. - np.sum(Um[5::]/Um[None,0],axis=0)
+  Winvm =  np.einsum('i...,ijk...->jk...',1./main.W[0:-1],Um[5::]/Um[None,0]) + 1./main.W[-1]*Y_N2_m
+  Cpm = np.einsum('i...,ijk...->jk...',main.Cp[0:-1],Um[5::]/Um[None,0]) + main.Cp[-1]*Y_N2_m
+  Cvm = Cpm - R*Winvm
+  gammam = Cpm/Cvm
+ 
+  Y_N2_p = 1. - np.sum(Up[5::]/Up[None,0],axis=0)
+  Winvp =  np.einsum('i...,ijk...->jk...',1./main.W[0:-1],Up[5::]/Up[None,0]) + 1./main.W[-1]*Y_N2_p
+  Cpp = np.einsum('i...,ijk...->jk...',main.Cp[0:-1],Up[5::]/Up[None,0]) + main.Cp[-1]*Y_N2_p
+  Cvp = Cpp - R*Winvp
+  gammap = Cpp/Cvp
+  
+  ## Modify um state
+  Um[4] = f(gammap,gammam,Um)
+  
+  F = np.zeros(np.shape(Um))
+  HLLCFlux_reacting(F[:],main,Up,Um,n,None)
+  return F
 
-def HLLCFlux_reacting_doublefluxR(main,UL,UR,pL,pR,rh0,gamma_star,n,args=None):
+
+def HLLCFlux_reacting_doublefluxL(main,Um,Up,rh0,gamma_star,n,args=None):
+  R = 8314.4621/1000.
+  def f(gamma1,gamma2,U):
+    gamma_rat = (gamma2 - 1.)/(gamma1 - 1.)
+    Eterm = 1./U[0]*0.5*(U[1]**2 + U[2]**2 + U[3]**2)
+    U4mod = gamma_rat*(U[4] - Eterm) + Eterm 
+    return U4mod
+  ## compute gammap and gamma m
+  Y_N2_m = 1. - np.sum(Um[5::]/Um[None,0],axis=0)
+  Winvm =  np.einsum('i...,ijk...->jk...',1./main.W[0:-1],Um[5::]/Um[None,0]) + 1./main.W[-1]*Y_N2_m
+  Cpm = np.einsum('i...,ijk...->jk...',main.Cp[0:-1],Um[5::]/Um[None,0]) + main.Cp[-1]*Y_N2_m
+  Cvm = Cpm - R*Winvm
+  gammam = Cpm/Cvm
+ 
+  Y_N2_p = 1. - np.sum(Up[5::]/Up[None,0],axis=0)
+  Winvp =  np.einsum('i...,ijk...->jk...',1./main.W[0:-1],Up[5::]/Up[None,0]) + 1./main.W[-1]*Y_N2_p
+  Cpp = np.einsum('i...,ijk...->jk...',main.Cp[0:-1],Up[5::]/Up[None,0]) + main.Cp[-1]*Y_N2_p
+  Cvp = Cpp - R*Winvp
+  gammap = Cpp/Cvp
+  
+  ## Modify um state
+  Up[4] = f(gammam,gammap,Up)
+  
+  F = np.zeros(np.shape(Um))
+  HLLCFlux_reacting(F[:],main,Um,Up,n,None)
+  return F
+
+
+def HLLCFlux_reacting_doublefluxR2(main,UL,UR,rh0,gamma_star,n,args=None):
   R = 8314.4621/1000.
 
   Y_N2_R = 1. - np.sum(UR[5::]/UR[None,0],axis=0)
@@ -1604,11 +1659,12 @@ def evalViscousFluxZNS_BR1_reacting(main,U,fv,T):
 
 
 
-def evalTauFluxXNS_BR1_reacting(main,tau,u,fvX,mu,cgas_field):
+def evalTauFluxXNS_BR1_reacting(main,tau,u,fvX):#,mu,cgas_field):
   Pr = 0.72
   gamma = 1.4
-  kappa_by_mu = np.reshape(cgas_field.cp/Pr,np.shape(u[0]))
-  D = 2.328448e-5/u[0]
+  #kappa_by_mu = np.reshape(cgas_field.cp/Pr,np.shape(u[0]))
+  #D = 2.328448e-5/u[0]
+  D = main.mu/u[0]
   kappa = u[0]*main.cgas.cp*D
   fvX[0] = 0.
   fvX[1] = mu*tau[0] #tau11
@@ -1622,13 +1678,14 @@ def evalTauFluxXNS_BR1_reacting(main,tau,u,fvX,mu,cgas_field):
   fvX[4] = mu*(tau[0]*u[1]/u[0] + tau[3]*u[2]/u[0] + tau[4]*u[3]/u[0]) + q
   fvX[5::] = u[None,0]*D*tau[9::3]
 
-def evalTauFluxYNS_BR1_reacting(main,tau,u,fvY,mu,cgas_field):
+def evalTauFluxYNS_BR1_reacting(main,tau,u,fvY):#,mu,cgas_field):
   Pr = 0.72
   gamma = 1.4
   #D = 1
-  D = 2.328448e-5/u[0]
+  D = main.mu/u[0]
+  #D = 2.328448e-5/u[0]
   kappa = u[0]*main.cgas.cp*D
-  kappa_by_mu = np.reshape(cgas_field.cp/Pr,np.shape(u[0]))
+  #kappa_by_mu = np.reshape(cgas_field.cp/Pr,np.shape(u[0]))
   fvY[0] = 0.
   fvY[1] = mu*tau[3] #tau21
   fvY[2] = mu*tau[1] #tau22
@@ -1640,12 +1697,13 @@ def evalTauFluxYNS_BR1_reacting(main,tau,u,fvY,mu,cgas_field):
   fvY[4] = mu*(tau[3]*u[1]/u[0] + tau[1]*u[2]/u[0] + tau[5]*u[3]/u[0]) + q
   fvY[5::] = u[None,0]*D*tau[10::3]
 
-def evalTauFluxZNS_BR1_reacting(main,tau,u,fvZ,mu,cgas_field):
+def evalTauFluxZNS_BR1_reacting(main,tau,u,fvZ):#,mu,cgas_field):
   Pr = 0.72
   gamma = 1.4
-  kappa_by_mu = np.reshape(cgas_field.cp/Pr,np.shape(u[0]))
+  #kappa_by_mu = np.reshape(cgas_field.cp/Pr,np.shape(u[0]))
   #D = 1
-  D = 2.328448e-5/u[0]
+  D = main.mu/u[0]
+  #D = 2.328448e-5/u[0]
   kappa = u[0]*main.cgas.cp*D
   fvZ[0] = 0.
   fvZ[1] = mu*tau[4] #tau31
