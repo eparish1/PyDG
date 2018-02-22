@@ -7,7 +7,7 @@ from solver_classes import *
 from DG_functions import reconstructU_tensordot as reconstructU
 from DG_functions import volIntegrateGlob_tensordot as volIntegrateGlob
 from MPI_functions import gatherSolSlab,gatherSolSpectral,gatherSolScalar,globalSum
-#from init_reacting_additions import *
+from init_reacting_additions import *
 from timeSchemes import *#advanceSol,advanceSolImplicitMG,advanceSolImplicit,advanceSolImplicitPC
 import time
 from scipy import interpolate

@@ -15,7 +15,7 @@ from equations_class import *
 from gas import *
 from basis_class import *
 from grid_functions import *
-#from init_reacting_additions import add_reacting_to_main
+from init_reacting_additions import add_reacting_to_main
 class variable:
   def __init__(self,nvars,order,quadpoints,Npx,Npy,Npz,Npt):
       self.nvars = nvars
