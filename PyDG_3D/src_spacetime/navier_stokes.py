@@ -1,5 +1,5 @@
 import numpy as np
-import numexpr as ne 
+#import numexpr as ne 
 
 ##### =========== Contains all the fluxes and physics neccesary to solve the Navier-Stokes equations within a DG framework #### ============
 
@@ -13,24 +13,43 @@ def evalFluxXYZEuler(main,u,fx,fy,fz,args):
   rhoV = u[2]
   rhoW = u[3]
   rhoE = u[4]
-  p = ne.evaluate("(gamma - 1.)*(rhoE - 0.5*rhoU**2/rho - 0.5*rhoV**2/rho - 0.5*rhoW**2/rho)")
+#  p = ne.evaluate("(gamma - 1.)*(rhoE - 0.5*rhoU**2/rho - 0.5*rhoV**2/rho - 0.5*rhoW**2/rho)")
+#  fx[0] = u[1]
+#  fx[1] = ne.evaluate("rhoU*rhoU/(rho) + p")
+#  fx[2] = ne.evaluate("rhoU*rhoV/(rho) ")
+#  fx[3] = ne.evaluate("rhoU*rhoW/(rho) ")
+#  fx[4] = ne.evaluate("(rhoE + p)*rhoU/(rho) ")
+#
+#  fy[0] = u[2]
+#  fy[1] = ne.evaluate("rhoU*rhoV/(rho)")
+#  fy[2] = ne.evaluate("rhoV*rhoV/(rho) + p ")
+#  fy[3] = ne.evaluate("rhoV*rhoW/(rho) ")
+#  fy[4] = ne.evaluate("(rhoE + p)*rhoV/(rho) ")
+#
+#  fz[0] = u[3]
+#  fz[1] = ne.evaluate("rhoU*rhoW/(rho)")
+#  fz[2] = ne.evaluate("rhoV*rhoW/(rho) ")
+#  fz[3] = ne.evaluate("rhoW*rhoW/(rho) + p ")
+#  fz[4] = ne.evaluate("(rhoE + p)*rhoW/(rho) ")
+  p = (gamma - 1.)*(rhoE - 0.5*rhoU**2/rho - 0.5*rhoV**2/rho - 0.5*rhoW**2/rho)
   fx[0] = u[1]
-  fx[1] = ne.evaluate("rhoU*rhoU/(rho) + p")
-  fx[2] = ne.evaluate("rhoU*rhoV/(rho) ")
-  fx[3] = ne.evaluate("rhoU*rhoW/(rho) ")
-  fx[4] = ne.evaluate("(rhoE + p)*rhoU/(rho) ")
-
+  fx[1] = rhoU*rhoU/(rho) + p
+  fx[2] = rhoU*rhoV/(rho) 
+  fx[3] = rhoU*rhoW/(rho)
+  fx[4] = (rhoE + p)*rhoU/(rho) 
+#
   fy[0] = u[2]
-  fy[1] = ne.evaluate("rhoU*rhoV/(rho)")
-  fy[2] = ne.evaluate("rhoV*rhoV/(rho) + p ")
-  fy[3] = ne.evaluate("rhoV*rhoW/(rho) ")
-  fy[4] = ne.evaluate("(rhoE + p)*rhoV/(rho) ")
-
+  fy[1] = rhoU*rhoV/(rho)
+  fy[2] = rhoV*rhoV/(rho) + p 
+  fy[3] = rhoV*rhoW/(rho) 
+  fy[4] = (rhoE + p)*rhoV/(rho) 
+#
   fz[0] = u[3]
-  fz[1] = ne.evaluate("rhoU*rhoW/(rho)")
-  fz[2] = ne.evaluate("rhoV*rhoW/(rho) ")
-  fz[3] = ne.evaluate("rhoW*rhoW/(rho) + p ")
-  fz[4] = ne.evaluate("(rhoE + p)*rhoW/(rho) ")
+  fz[1] = rhoU*rhoW/(rho)
+  fz[2] = rhoV*rhoW/(rho) 
+  fz[3] = rhoW*rhoW/(rho) + p 
+  fz[4] = (rhoE + p)*rhoW/(rho) 
+
 
 
 def strongFormEulerXYZ(main,a,args):
