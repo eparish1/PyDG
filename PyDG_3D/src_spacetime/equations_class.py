@@ -324,6 +324,8 @@ class equations:
       self.nvars = 5
       self.nvisc_vars = 9
       self.evalFluxXYZ = evalFluxXYZEuler 
+      self.evalFluxXYZLin = evalFluxXYZEulerLin 
+      self.strongFormResidual = strongFormEulerXYZ
       self.evalFluxX = evalFluxXEuler 
       self.evalFluxY = evalFluxYEuler
       self.evalFluxZ = evalFluxZEuler

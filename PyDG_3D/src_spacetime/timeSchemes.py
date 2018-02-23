@@ -1245,41 +1245,6 @@ def SSP_RK3_Entropy(main,MZ,eqns,args=None):
   main.iteration += 1
 
  
-def SSP_RK3(main,MZ,eqns,args=None):
-  main.getRHS(main,MZ,eqns)  ## put RHS in a array since we don't need it
-  #print(np.amax(main.a.p) - np.amin(main.a.p))
-
-  a0 = np.zeros(np.shape(main.a.a))
-  a0[:] = main.a.a[:]
-  main.basis.applyMassMatrix(main,main.RHS)
-  a1 = main.a.a[:]  + main.dt*(main.RHS[:])
-  main.a.a[:] = a1[:]
-  #limiter_characteristic(main)
-  #limiter_MF(main)
-
-  main.getRHS(main,MZ,eqns)
-  main.basis.applyMassMatrix(main,main.RHS)
-
-  a1[:] = 3./4.*a0 + 1./4.*(a1 + main.dt*main.RHS[:]) #reuse a1 vector
-  main.a.a[:] = a1[:]
-  #limiter_characteristic(main)
-  #limiter_MF(main)
-
-  main.getRHS(main,MZ,eqns)  ## put RHS in a array since we don't need it
-  main.basis.applyMassMatrix(main,main.RHS)
-  main.a.a[:] = 1./3.*a0 + 2./3.*(a1[:] + main.dt*main.RHS[:])
-#  limiter_characteristic(main)
-  #limiter_MF(main)
-
-
-  main.t += main.dt
-  main.iteration += 1
-#  plot(main.a.p[0,0,0,0,:,0,0,0]/1000.,color='green')
-#  ylim([99.95,100.05]) 
-#  pause(0.001)
-
-  #limiter_characteristic(main)
-
 def SSP_RK3_DOUBLEFLUX(main,MZ,eqns,args=None):
   R = 8314.4621/1000.
   af = np.zeros(np.shape(main.a.a))

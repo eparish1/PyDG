@@ -48,7 +48,52 @@ def orthogonalProjection(main,U):
   U_orthogonal = U - U_project
   return U_orthogonal
 
-def orthogonalSubscale(main,MZ,eqns):
+
+
+def orthogonalSubscale(regionManager,eqns):
+   #eqns.getRHS(main,MZ,eqns)
+   regionManager.getRHS_REGION_INNER(regionManager,eqns)
+
+   for region in regionManager.region:
+     region.R0 = np.zeros(np.shape(region.RHS))
+     region.R1 = np.zeros(np.shape(region.RHS))
+     region.R0[:] = region.RHS[:]
+
+     region.RHS[:] = 0.
+     region.R = eqns.strongFormResidual(region,region.a.a,None)
+     region.R_orthogonal= orthogonalProjection(region,region.R)
+
+     PLQLu2 = np.zeros(np.shape(region.RHS))
+     region.u0 = region.a.u*1.
+
+     region.a.u[:] = region.u0[:]
+     eqns.evalFluxXYZLin(region,region.a.u,region.iFlux.fx,region.iFlux.fy,region.iFlux.fz,[-region.R_orthogonal])
+     region.basis.applyVolIntegral(region,region.iFlux.fx,region.iFlux.fy,region.iFlux.fz,PLQLu2)
+     region.RHS[:] = region.R0[:] 
+     indx = 100.*abs(PLQLu2[4]) > (  abs(region.R0[4]) + 1e-3)
+     region.a.a[:,indx] = 0.
+     region.RHS[:,indx] = 0.
+#   for i in range(main.order[0]-1,0,-1):
+#     indx = np.ones(np.shape(PLQLu2[4,0]),dtype=bool)  #initialize an array with all trues
+#     for j in range(main.order[0] - 1, i-1,-1):
+#       chk = 100.*abs(PLQLu2[4,j]) > (  abs(R0[4,j]) + 1e-3)
+#       indx = indx & chk 
+#     main.a.a[0,i,indx] = 0.
+#     main.RHS[0,i,indx] = 0.
+#     main.a.a[1,i,indx] = 0.
+#     main.RHS[1,i,indx] = 0.
+#     main.a.a[2,i,indx] = 0.
+#     main.RHS[2,i,indx] = 0.
+#     main.a.a[3,i,indx] = 0.
+#     main.RHS[3,i,indx] = 0.
+#     main.a.a[4,i,indx] = 0.
+#     main.RHS[4,i,indx] = 0.
+
+
+
+
+
+def orthogonalSubscale2(main,MZ,eqns):
    eqns.getRHS(main,MZ,eqns)
    R0 = np.zeros(np.shape(main.RHS))
    R1 = np.zeros(np.shape(main.RHS))
@@ -62,19 +107,6 @@ def orthogonalSubscale(main,MZ,eqns):
    f = fx + fy + fz
    #main.a.u[:] = u0[:]
    f_orthogonal = orthogonalProjection(main,f)
-   #main.a.u[:] = u0 - eps*f_orthogonal
-   #eqns.evalFluxXYZ(main,main.a.u,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,None)
-   #main.basis.applyVolIntegral(main,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,main.RHS)
-   #R1  = main.RHS*1.
-   #
-   #main.RHS[:] = 0.
-   #main.a.u[:] = u0[:]
-   #eqns.evalFluxXYZ(main,main.a.u,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,None)
-   #main.basis.applyVolIntegral(main,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,main.RHS)
-   #R2  = main.RHS*1.
-   #
-   #
-   #PLQLu = (R1 - R2)/eps
    evalFluxXYZEulerLin(main,main.a.u,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,[-f_orthogonal])
    PLQLu2 = np.zeros(np.shape(main.RHS))
    main.basis.applyVolIntegral(main,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,PLQLu2)
