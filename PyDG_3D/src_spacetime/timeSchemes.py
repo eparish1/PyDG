@@ -1371,14 +1371,44 @@ def ExplicitRK4(regionManager,eqns,args=None):
   rk4const = np.array([1./4,1./3,1./2,1.])
   for i in range(0,4):
     region_counter = 0
-    #eqns.getRHS(regionManager,eqns)
     regionManager.getRHS_REGION_OUTER(regionManager,eqns)
 
-    for main in regionManager.region:
-      main.rkstage = i
-      main.basis.applyMassMatrix(main,main.RHS) 
-      main.a.a[:] = main.a0 + regionManager.dt*rk4const[i]*main.RHS
+    for region in regionManager.region:
+      region.rkstage = i
+      region.basis.applyMassMatrix(region,region.RHS) 
+      region.a.a[:] = region.a0 + regionManager.dt*rk4const[i]*region.RHS
     #limiter_MF(main)
+  regionManager.t += regionManager.dt
+  regionManager.iteration += 1
+
+
+def SSP_RK3(regionManager,eqns,args=None):
+  ### get a0
+  region_counter = 0
+  for j in regionManager.mpi_regions_owned:
+    regionManager.region[region_counter].a0[:] = regionManager.region[region_counter].a.a[:]
+    region_counter += 1
+
+  regionManager.getRHS_REGION_OUTER(regionManager,eqns) #includes loop over all regions
+
+  for region in regionManager.region:
+    region.basis.applyMassMatrix(region,region.RHS)
+    region.a.a1 = region.a.a[:]  + regionManager.dt*(region.RHS[:])
+    region.a.a[:] = region.a.a1[:]
+
+  regionManager.getRHS_REGION_OUTER(regionManager,eqns) #includes loop over all regions
+
+  for region in regionManager.region:
+    region.basis.applyMassMatrix(region,region.RHS)
+    region.a.a1 = 3./4.*region.a0[:]  + 1./4.*(region.a.a1 + regionManager.dt*(region.RHS[:]))
+    region.a.a[:] = region.a.a1[:]
+
+  regionManager.getRHS_REGION_OUTER(regionManager,eqns) #includes loop over all regions
+
+  for region in regionManager.region:
+    region.basis.applyMassMatrix(region,region.RHS)
+    region.a.a[:] = 1./3.*region.a0[:]  + 2./3.*(region.a.a1 + regionManager.dt*(region.RHS[:]))
+
   regionManager.t += regionManager.dt
   regionManager.iteration += 1
 
