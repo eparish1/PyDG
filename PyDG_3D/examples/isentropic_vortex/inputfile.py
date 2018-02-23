@@ -31,12 +31,17 @@ right_bc = 'periodic'
 left_bc = 'periodic'
 top_bc = 'periodic'
 bottom_bc = 'periodic'
+front_bc = 'periodic'
+back_bc = 'periodic'
 
 right_bc_args = []
 left_bc_args = []
 top_bc_args = []
 bottom_bc_args = []
-BCs = [right_bc,right_bc_args,top_bc,top_bc_args,left_bc,left_bc_args,bottom_bc,bottom_bc_args]
+front_bc_args = []
+back_bc_args = []
+
+BCs = [right_bc,right_bc_args,top_bc,top_bc_args,left_bc,left_bc_args,bottom_bc,bottom_bc_args,front_bc,front_bc_args,back_bc,back_bc_args]
 source_mag= False
 mol_str = False				   #|
 time_integration = 'SSP_RK3'
