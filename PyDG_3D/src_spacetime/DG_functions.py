@@ -72,7 +72,7 @@ def getRHS(main,MZ,eqns,args=[],args_phys=[]):
     update_state(main)
   #  #main.a.p[:],main.a.T[:] = computePressure_and_Temperature(main,main.a.u)
   # evaluate inviscid flux and add contribution to RHS
-  addInviscidFlux_DOUBLEFLUX(main,MZ,eqns,args,args_phys)
+  addInviscidFlux(main,MZ,eqns,args,args_phys)
   addVolume_and_Viscous(main,MZ,eqns,args,args_phys)
   ### Get interior vol terms
   addSource(main)
