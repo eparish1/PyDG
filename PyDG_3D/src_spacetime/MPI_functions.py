@@ -329,7 +329,8 @@ def getRankConnectionsSlab(mpi_rank,num_processes,procx,procy):
     rank_connect[3] = mpi_rank - num_processes + procx
     BC_rank[1] = True,True
   #
-  if ( (mpi_rank + 1)%procx == 0 and mpi_rank < num_processes - 1 and mpi_rank > procx): #right row
+  #if ( (mpi_rank + 1)%procx == 0 and mpi_rank < num_processes - 1 and mpi_rank > procx): #right row
+  if ( (mpi_rank + 1)%procx == 0 and mpi_rank < num_processes - 1 and mpi_rank > procx - 1): #right row
     rank_connect[1] = mpi_rank - procx + 1
     BC_rank[0] = True,True
   #

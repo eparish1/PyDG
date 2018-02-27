@@ -1,6 +1,29 @@
 import numpy as np
 ## Ue is basically the solution at grid edge
 ## UBC is your BC array you want to fill
+def vishal_airfoil_bc(Ue,UBC,args,main,normals):
+  gamma = 1.4
+  uw = args[0]
+  vw = args[1]
+  ww = args[2]
+  Tw = args[3]
+  gamma = main.gas.gamma
+  Cv = main.gas.Cv
+  Cp = main.gas.Cp
+  R = main.gas.R
+
+  UBC[:] = 0.
+  p = (gamma - 1.)*(Ue[4] - 0.5*Ue[1]**2/Ue[0] - 0.5*Ue[2]**2/Ue[0] - 0.5*Ue[3]**2/Ue[0]) #extraploate pressure
+  T = Tw
+  rhoE = p/(gamma - 1.) + 0.5*(uw**2 + vw**2 + ww**2)
+  UBC[0] = p/(R*T)
+  UBC[1] = UBC[0]*uw
+  UBC[2] = UBC[0]*vw
+  UBC[3] = UBC[0]*ww
+  UBC[4] = rhoE
+  return UBC
+
+
 
 def shuOscherBC(Ue,UBC,args,main,normals):
   UBC[0] = 3.8571430000000211

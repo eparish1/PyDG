@@ -340,5 +340,6 @@ def computeJacobian(X_el,zeta0,zeta1,zeta2):
   normals[5,2] =   a[0]*b[1] - a[1]*b[0]
   mag = np.sqrt(normals[5,0]**2 + normals[5,1]**2 + normals[5,2]**2)
   normals[5,:] /= mag[None,:]
-
+  Jmin = np.amin(Jdet)
+  print('Minimum determinant = ' + str(Jmin) )
   return J,Jinv,Jdet,J_edge_det,normals
