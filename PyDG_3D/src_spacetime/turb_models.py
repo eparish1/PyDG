@@ -70,7 +70,7 @@ def orthogonalSubscale(regionManager,eqns):
      eqns.evalFluxXYZLin(region,region.a.u,region.iFlux.fx,region.iFlux.fy,region.iFlux.fz,[-region.R_orthogonal])
      region.basis.applyVolIntegral(region,region.iFlux.fx,region.iFlux.fy,region.iFlux.fz,PLQLu2)
      region.RHS[:] = region.R0[:] 
-     indx = 100.*abs(PLQLu2[4]) > (  abs(region.R0[4]) + 1e-3)
+     indx = region.tau*abs(PLQLu2[4]) > (  abs(region.R0[4]) + 1e-3)
      region.a.a[:,indx] = 0.
      region.RHS[:,indx] = 0.
 #   for i in range(main.order[0]-1,0,-1):
