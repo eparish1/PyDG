@@ -29,18 +29,18 @@ def vishal_airfoil_bc(Ue,UBC,args,main,normals):
   pb = (gamma - 1.)*(Ue[4] - 0.5*Ue[0]*(u_tang**2 + v_tang**2 + w_tang**2))
   rhoE = pb/(gamma - 1.) + 0.5*(u_tang**2 + v_tang**2 + w_tang**2)
 
-#  UBC[:] = 0.
-#  UBC[0] = Ue[0]
-#  UBC[1] = Ue[0]*u_tang
-#  UBC[2] = Ue[0]*v_tang
-#  UBC[3] = Ue[0]*w_tang
-#  UBC[4] = rhoE
   UBC[:] = 0.
   UBC[0] = Ue[0]
-  UBC[1] = -Ue[0]*u_norm
-  UBC[2] = -Ue[0]*v_norm
-  UBC[3] = -Ue[0]*w_norm
+  UBC[1] = Ue[0]*u_tang
+  UBC[2] = Ue[0]*v_tang
+  UBC[3] = Ue[0]*w_tang
   UBC[4] = rhoE
+#  UBC[:] = 0.
+#  UBC[0] = Ue[0]
+#  UBC[1] = -Ue[0]*u_norm
+#  UBC[2] = -Ue[0]*v_norm
+#  UBC[3] = -Ue[0]*w_norm
+#  UBC[4] = Ue[4]
 
   ## overwrite wake region
   top_wake = Ue[:,:,:,:,-1:-(cut+1):-1] #traverse through array backwards 
