@@ -1,5 +1,5 @@
 import numpy as np
-#import numexpr as ne 
+import numexpr as ne 
 
 ##### =========== Contains all the fluxes and physics neccesary to solve the Navier-Stokes equations within a DG framework #### ============
 

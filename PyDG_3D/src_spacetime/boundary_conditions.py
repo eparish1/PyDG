@@ -3,7 +3,7 @@ import numpy as np
 ## UBC is your BC array you want to fill
 
 
-def vishal_airfoil_bc_wall(Ue,UBC,args,main,normals):
+def vishal_airfoil_bc(Ue,UBC,args,main,normals):
   cut = 35
   gamma = 1.4
   uw = args[0]
@@ -52,7 +52,7 @@ def vishal_airfoil_bc_wall(Ue,UBC,args,main,normals):
 
 
 
-def vishal_airfoil_bc(Ue,UBC,args,main,normals):
+def vishal_airfoil_bc_inviscid(Ue,UBC,args,main,normals):
   cut = 30
 #  cut = 35
   gamma = 1.4
@@ -83,9 +83,9 @@ def vishal_airfoil_bc(Ue,UBC,args,main,normals):
 
   UBC[:] = 0.
   UBC[0] = Ue[0]
-  UBC[1] = Ue[0]*u_tang
-  UBC[2] = Ue[0]*v_tang
-  UBC[3] = Ue[0]*w_tang
+  UBC[1] = Ue[0]*(u_tang - u_norm)
+  UBC[2] = Ue[0]*(v_tang - v_norm)
+  UBC[3] = Ue[0]*(w_tang - w_norm)
   UBC[4] = Ue[4]#rhoE
 #  UBC[:] = 0.
 #  UBC[0] = Ue[0]

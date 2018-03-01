@@ -103,7 +103,7 @@ def orthogonalSubscale(main,MZ,eqns):
    #indx1 = abs(PLQLu2[1,1,0,0,0,:,0,0,0]) >  abs(R0[1,1,0,0,0,:,0,0,0])
    #indx2 = abs(PLQLu2[2,1,0,0,0,:,0,0,0]) >  abs(R0[2,1,0,0,0,:,0,0,0])
    #indx3 = abs(PLQLu2[3,1,0,0,0,:,0,0,0]) >  abs(R0[3,1,0,0,0,:,0,0,0])
-   indx = 100.*abs(PLQLu2[1]) > (  abs(R0[1]) + 1e-3)
+   indx = 250.*abs(PLQLu2[4]) > (  abs(R0[4]) + 1e-3)
    main.a.a[:,indx] = 0.
    main.RHS[:,indx] = 0.
 #   for i in range(main.order[0]-1,0,-1):

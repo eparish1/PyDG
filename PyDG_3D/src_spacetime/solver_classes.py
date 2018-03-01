@@ -40,6 +40,18 @@ class timeschemes:
       for i in range(0,n_basis):
         V2[:,:,:,:,:,:,:,:,:,i] = np.reshape(V[:,i],(main.nvars,main.order[0],main.order[1],main.order[2],main.order[3],main.Nel[0],main.Nel[1],main.Nel[2],main.Nel[3]))[:,:,:,:,:,main.sx,main.sy,:,:] 
       main.V = np.reshape(V2,(np.size(main.a.a),n_basis) ) 
+    if (time_str == 'SSP_RK3_POD_NO'):
+      check_t = 0
+      self.advanceSol = SSP_RK3_POD_NO
+      self.args = None
+      V = np.load('pod_basis.npz')['V']
+      main.podMinv = np.load('pod_basis.npz')['Minv']
+      n_basis = np.shape(V)[1]
+      V2 = np.zeros((main.nvars,main.order[0],main.order[1],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt,n_basis))
+      for i in range(0,n_basis):
+        V2[:,:,:,:,:,:,:,:,:,i] = np.reshape(V[:,i],(main.nvars,main.order[0],main.order[1],main.order[2],main.order[3],main.Nel[0],main.Nel[1],main.Nel[2],main.Nel[3]))[:,:,:,:,:,main.sx,main.sy,:,:] 
+      main.V = np.reshape(V2,(np.size(main.a.a),n_basis) ) 
+
     if (time_str == 'CrankNicolson_POD'):
       check_t = 0
       self.advanceSol = CrankNicolson_POD
