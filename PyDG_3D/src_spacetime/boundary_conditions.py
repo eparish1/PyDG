@@ -3,23 +3,14 @@ import numpy as np
 ## UBC is your BC array you want to fill
 
 
-def vishal_airfoil_bc(Ue,UBC,args,main,normals):
+def vishal_airfoil_bc_viscous(Ue,UBC,args,main,normals):
   cut = 35
   gamma = 1.4
   uw = args[0]
   vw = args[1]
   ww = args[2]
   Tw = args[3]
-  gamma = main.gas.gamma
-  Cv = main.gas.Cv
-  Cp = main.gas.Cp
-  R = main.gas.R
-
-  gamma = 1.4
-  uw = args[0]
-  vw = args[1]
-  ww = args[2]
-  Tw = args[3]
+  cut = args[4]
   gamma = main.gas.gamma
   Cv = main.gas.Cv
   Cp = main.gas.Cp
@@ -37,7 +28,6 @@ def vishal_airfoil_bc(Ue,UBC,args,main,normals):
   UBC[2] = UBC[0]*vw
   UBC[3] = UBC[0]*ww
   UBC[4] = rhoE
-
   ## overwrite wake region
   top_wake = Ue[:,:,:,:,-1:-(cut+1):-1] #traverse through array backwards 
   #(bottom wake numbering runs right to left, top vise versa)
@@ -45,10 +35,6 @@ def vishal_airfoil_bc(Ue,UBC,args,main,normals):
   UBC[:,:,:,:,0:cut] = top_wake[:]
   UBC[:,:,:,:,-1:-(cut+1):-1] = bottom_wake[:]
   return UBC
-
-
-
-
 
 
 
@@ -60,6 +46,7 @@ def vishal_airfoil_bc_inviscid(Ue,UBC,args,main,normals):
   vw = args[1]
   ww = args[2]
   Tw = args[3]
+  cut = args[4]
   gamma = main.gas.gamma
   Cv = main.gas.Cv
   Cp = main.gas.Cp

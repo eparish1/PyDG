@@ -173,10 +173,15 @@ class boundaryConditions:
       self.BC_type = BC_type
       self.applyBC = subsonic_outflow
       self.args = BC_args
-    if (BC_type == 'vishal_airfoil'):
+    if (BC_type == 'vishal_airfoil_viscous'):
       check = 1
       self.BC_type = BC_type
-      self.applyBC = vishal_airfoil_bc
+      self.applyBC = vishal_airfoil_bc_viscous
+      self.args = BC_args
+    if (BC_type == 'vishal_airfoil_inviscid'):
+      check = 1
+      self.BC_type = BC_type
+      self.applyBC = vishal_airfoil_bc_inviscid
       self.args = BC_args
     if (BC_type[0:6] == 'custom'):
       check = 1
