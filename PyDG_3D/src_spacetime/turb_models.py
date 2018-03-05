@@ -201,6 +201,15 @@ def projection_pod(u,V,main):
   u_proj = np.dot(V, tmp.flatten())
   #u_proj = np.reshape( np.dot(Pi,u.flatten() ), np.shape(u)) 
   return u_proj
+
+def test_projection_pod(u,V,main):
+  nk,nbasis = np.shape(V)
+  V2 = np.zeros(np.shape(V))
+  V2[:,0:nbasis/2] = V[:,0:nbasis/2]
+  tmp = globalDot(V2.transpose(),u.flatten(),main)
+  u_proj = np.dot(V2, tmp.flatten())
+  return u_proj
+
  
 def LSPG_POD(main,MZ,eqns):
   eps = 1e-5
@@ -240,6 +249,48 @@ def orthogonalSubscale_POD(main,MZ,eqns):
   #print(np.linalg.norm(PLQLu))
   #=====================================
   main.RHS[:] =  RHS0[:]+ tau*PLQLu
+
+
+def orthogonalSubscale_POD_dtau(main,MZ,eqns):
+  eps = 1e-5
+  a0 = main.a.a*1.
+  eqns.getRHS(main,MZ,eqns)
+  #==================================================
+  R_proj = projection_pod(main.RHS,main.V,main)
+  R_ortho = main.RHS - np.reshape(R_proj,np.shape(main.a.a))
+  RHS0 = main.RHS*1.
+
+  main.a.a[:] = a0[:] + eps*R_ortho
+  eqns.getRHS(main,MZ,eqns)  ## put RHS in a array since we don't need it
+  RHS1 = np.zeros(np.shape(main.RHS))
+  RHS1[:] = main.RHS[:]
+
+  #main.basis.applyMassMatrix(main,main.RHS)
+  PLQLu = (RHS1 - RHS0)/eps
+  main.PLQLu[:] = PLQLu
+
+  # now compute tau
+  a_projf = test_projection_pod(main.a.a,main.V,main)
+
+  main.a.a[:] = a_projf[:] 
+  eqns.getRHS(main,MZ,eqns)  ## put RHS in a array since we don't need it
+  RHS0f = np.zeros(np.shape(main.RHS))
+  RHS0f[:] = main.RHS[:]
+
+  R_projf = test_projection_pod(RHS1f,main.V,main)
+  R_orthof = RHS0f[:] - np.reshape(R_projf,np.shape(main.a.a))
+
+  main.a.a[:] = a_projf[:] + eps*R_orthof
+  eqns.getRHS(main,MZ,eqns)  ## put RHS in a array since we don't need it
+  RHS1f = np.zeros(np.shape(main.RHS))
+  RHS1f[:] = main.RHS[:]
+
+  tau = main.tau
+  #print(np.linalg.norm(PLQLu))
+  #=====================================
+  main.RHS[:] =  RHS0[:]+ tau*PLQLu
+
+
 
 def orthogonalSubscaleEntropy(main,MZ,eqns):
    eqns.getRHS(main,MZ,eqns)
