@@ -118,6 +118,7 @@ class boundaryConditions:
   mpi_rank = comm.Get_rank()
   def __init__(self,BC_type='periodic',BC_args=[]):
     check = 0
+    comm = MPI.COMM_WORLD
     mpi_rank = comm.Get_rank()
     if (BC_type == 'periodic'):
       check = 1
