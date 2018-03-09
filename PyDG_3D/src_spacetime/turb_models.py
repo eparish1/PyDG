@@ -292,7 +292,7 @@ def orthogonalSubscale_POD_dtau(main,MZ,eqns):
 
 
 
-def orthogonalSubscaleEntropy(main,MZ,eqns):
+def orthogonalSubscaleEntropyb(main,MZ,eqns):
    eqns.getRHS(main,MZ,eqns)
    R0 = np.zeros(np.shape(main.RHS))
    R1 = np.zeros(np.shape(main.RHS))
@@ -329,7 +329,7 @@ def orthogonalSubscaleEntropy(main,MZ,eqns):
    main.a.a[4,1,0,0,0,indx4,0,0,0] = 0.
    main.RHS[4,1,0,0,0,indx4,0,0,0] = 0.
 
-def orthogonalSubscaleEntropyb(main,MZ,eqns):
+def orthogonalSubscaleEntropy(main,MZ,eqns):
    eqns.getRHS(main,MZ,eqns)
    R0 = np.zeros(np.shape(main.RHS))
    R1 = np.zeros(np.shape(main.RHS))
@@ -352,7 +352,7 @@ def orthogonalSubscaleEntropyb(main,MZ,eqns):
    #tau = 0.00002 #tau8.0
    #plot(R0[1,1,0,0,0,:,0,0,0])
    #plot(PLQLu2[1,1,0,0,0,:,0,0,0])
-   main.RHS[:] = R0[:] #+ tau*PLQLu2
+   main.RHS[:] = R0[:] + main.tau*PLQLu2
 
 
 ## Evaluate the tau model through the FD approximation. This is expensive AF
