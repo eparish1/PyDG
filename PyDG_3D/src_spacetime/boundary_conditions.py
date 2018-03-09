@@ -32,8 +32,8 @@ def vishal_airfoil_bc_viscous(Ue,UBC,args,main,normals):
   top_wake = Ue[:,:,:,:,-1:-(cut+1):-1] #traverse through array backwards 
   #(bottom wake numbering runs right to left, top vise versa)
   bottom_wake = Ue[:,:,:,:,0:cut]
-  UBC[:,:,:,:,0:cut] = top_wake[:]
-  UBC[:,:,:,:,-1:-(cut+1):-1] = bottom_wake[:]
+  UBC[:,:,:,:,0:cut] = top_wake[:,::-1] #have to run through quadpoints backwards as well
+  UBC[:,:,:,:,-1:-(cut+1):-1] = bottom_wake[:,::-1]
   return UBC
 
 
