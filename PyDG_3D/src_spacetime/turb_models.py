@@ -103,7 +103,7 @@ def orthogonalSubscale(main,MZ,eqns):
    #indx1 = abs(PLQLu2[1,1,0,0,0,:,0,0,0]) >  abs(R0[1,1,0,0,0,:,0,0,0])
    #indx2 = abs(PLQLu2[2,1,0,0,0,:,0,0,0]) >  abs(R0[2,1,0,0,0,:,0,0,0])
    #indx3 = abs(PLQLu2[3,1,0,0,0,:,0,0,0]) >  abs(R0[3,1,0,0,0,:,0,0,0])
-   indx = 250.*abs(PLQLu2[4]) > (  abs(R0[4]) + 1e-3)
+   indx = main.tau*abs(PLQLu2[4]) > (  abs(R0[4]) + 1e-3)
    main.a.a[:,indx] = 0.
    main.RHS[:,indx] = 0.
 #   for i in range(main.order[0]-1,0,-1):
@@ -334,6 +334,33 @@ def tauModelFDEntropy(main,MZ,eqns):
     #PLQLU = (RHS2[:,0:main.order[0],0:main.order[1],0:main.order[2]] - RHS3[:,0:main.order[0],0:main.order[1],0:main.order[2]])/(eps + 1e-30)
     main.RHS[:] =  RHS1[:,0:main.order[0],0:main.order[1],0:main.order[2]] #+ main.dx/MZ.order[0]**2*PLQLU
 
+
+
+## Evaluate the tau model through the FD approximation. This is expensive AF
+def tauModelFD2(main,MZ,eqns):
+    ### EVAL RESIDUAL AND DO MZ STUFF
+    filtarray = np.zeros(np.shape(MZ.a.a))
+    filtarray[:,0:main.order[0],0:main.order[1],0:main.order[2]] = 1.
+    eps = 1.e-5
+    MZ.a.a[:] = 0.
+    MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2],:] = main.a.a[:]
+    #eqns.getRHS(main,main,eqns)
+    eqns.getRHS(MZ,MZ,eqns)
+    RHS1 = np.zeros(np.shape(MZ.RHS))
+    Rtmp = np.zeros(np.shape(MZ.RHS))
+    RHS1[:] = MZ.RHS[:]
+    Rtmp[:] = RHS1[:]
+    MZ.basis.applyMassMatrix(MZ,Rtmp)
+    MZ.a.a[:] = 0.
+    MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2]] = main.a.a[:]
+    MZ.a.a[:] = MZ.a.a[:] + eps*(Rtmp - Rtmp*filtarray)
+    eqns.getRHS(MZ,MZ,eqns)
+    RHS2 = np.zeros(np.shape(MZ.RHS))
+    RHS2[:] = MZ.RHS[:]
+    PLQLU = (RHS2[:,0:main.order[0],0:main.order[1],0:main.order[2]] - RHS1[:,0:main.order[0],0:main.order[1],0:main.order[2]])/(eps + 1e-30)
+    tau = main.dx/MZ.order[0]**2
+    main.RHS[:] =  RHS1[:,0:main.order[0],0:main.order[1],0:main.order[2]] + 1.*tau*PLQLU
+    
 
 
 ## Evaluate the tau model through the FD approximation. This is expensive AF
