@@ -6,6 +6,7 @@ from tensor_products import *
 from navier_stokes import *#strongFormEulerXYZ
 from fluxSchemes import generalFluxGen
 from MPI_functions import sendEdgesGeneralSlab,sendEdgesGeneralSlab_Derivs
+from navier_stokes_entropy import entropy_to_conservative
 #from pylab import *
 def orthogonalDynamics(main,MZ,eqns):
     ### EVAL RESIDUAL AND DO MZ STUFF
@@ -357,6 +358,36 @@ def projectionEntropy(main,U):
 
 def orthogonalSubscaleEntropy(main,MZ,eqns):
    eqns.getRHS(main,MZ,eqns)
+   u0 = main.a.u*1.
+
+   R0 = np.zeros(np.shape(main.RHS))
+   R1 = np.zeros(np.shape(main.RHS))
+   R0[:] = main.RHS[:]
+   PLQLu2 = np.zeros(np.shape(main.RHS))
+   main.RHS[:] = 0.
+   R= strongFormEulerXYZEntropy(main,main.a.a,None)
+
+   R_orthogonal = orthogonalProjection(main,R)
+#   R = np.einsum('ij...,j...->i...',dvdu,R)
+#   print(np.linalg.norm(R_project),np.linalg.norm(R))
+#   plot(R[0,0,0,0,0,:,0,0,0])
+#   plot(R_project[0,0,0,0,0,:,0,0,0])
+#   pause(0.01)
+#   clf()
+#   R_orthogonal = R - R_project
+   main.a.u[:] = u0[:]
+   evalFluxXYZEulerLinEntropy(main,main.a.u,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,[-R_orthogonal])
+   main.basis.applyVolIntegral(main,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,PLQLu2)
+   U = entropy_to_conservative(main.a.u)
+   rhoi = 1./U[0]
+   h = main.dx/main.order[0]
+   tau = np.mean(  (4./h**2*rhoi**2*(U[1]**2 + U[2]**2 + U[3]**2) + 3.*np.pi*main.mus**2*(4./h**2)**2 )**-0.5 )
+   main.tau = tau
+   main.RHS[:] = R0[:] + main.tau*PLQLu2
+
+
+def orthogonalSubscaleEntropyChain(main,MZ,eqns):
+   eqns.getRHS(main,MZ,eqns)
    R0 = np.zeros(np.shape(main.RHS))
    R1 = np.zeros(np.shape(main.RHS))
    R0[:] = main.RHS[:]
@@ -380,6 +411,11 @@ def orthogonalSubscaleEntropy(main,MZ,eqns):
    main.a.u[:] = u0[:]
    evalFluxXYZEulerLinEntropy(main,main.a.u,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,[-R_orthogonal,dudv])
    main.basis.applyVolIntegral(main,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,PLQLu2)
+   U = entropy_to_conservative(main.a.u)
+   rhoi = 1./U[0]
+   h = main.dx/main.order[0]
+   tau = np.mean(  (4./h**2*rhoi**2*(U[1]**2 + U[2]**2 + U[3]**2) + 3.*np.pi*main.mus**2*(4./h**2)**2 )**-0.5 )
+   main.tau = tau
    main.RHS[:] = R0[:] + main.tau*PLQLu2
 
 
