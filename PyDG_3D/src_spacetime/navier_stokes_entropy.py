@@ -293,8 +293,12 @@ def strongFormEulerXYZEntropy(main,a,args):
   return resid_vol#,resid_R,resid_L,resid_U,resid_D,resid_F,resid_B
 
 def evalFluxXYZEulerLinEntropy(main,V0,fx,fy,fz,args):
+  vp = args[0]
+
+  dudv = args[1]
+  up = np.einsum('ij...,j...->i...',dudv,vp)
+
   U0 = entropy_to_conservative(V0)
-  up = args[0]
   #decompose as U = U0 + up, where up is the perturbation
   #f = np.zeros(np.shape(u))
   es = 1.e-30

@@ -38,6 +38,20 @@ def projection(main,U):
   a_project = volIntegrateGlob_tensordot(main,U,main.w0,main.w1,main.w2,main.w3)*scale[None,:,:,:,:,None,None,None,None]
   return a_project
 
+
+def orthogonalProjectionEntropy(main,U,V):
+  ## First perform integration in x
+  a_project = volIntegrateGlob_tensordot(main,U,main.w0,main.w1,main.w2,main.w3)*scale[None,:,:,:,:,None,None,None,None]
+  filta = np.zeros(np.shape(a_project))
+  a_project = np.reshape(a_project,(main.nvars*main.order[0]*main.order[1]*main.order[2]*main.order[3],main.Npx,main.Npy,main.Npz,main.Npt) )
+  a_project = np.einsum('ij...,j...->i...',main.EMM,a_project)
+  a_project = np.reshape(a_project,np.shape(main.a.a))
+
+  V_project = main.basis.reconstructUGeneral(main,a_project)
+  V_orthogonal = V - V_project
+  return U_orthogonal
+
+
 def orthogonalProjection(main,U):#,UR,UL,UU,UD,UF,UB):
   ## First perform integration in x
   ord_arrx= np.linspace(0,main.order[0]-1,main.order[0])
@@ -329,6 +343,18 @@ def orthogonalSubscaleEntropyb(main,MZ,eqns):
    main.a.a[4,1,0,0,0,indx4,0,0,0] = 0.
    main.RHS[4,1,0,0,0,indx4,0,0,0] = 0.
 
+def projectionEntropy(main,U):
+  ## First perform integration in x
+  f = U*main.Jdet[None,:,:,:,None,:,:,:,None]
+  a_project =  main.basis.volIntegrateGlob(main,f,main.w0,main.w1,main.w2,main.w3)
+  a_project = np.reshape(a_project,(main.nvars*main.order[0]*main.order[1]*main.order[2]*main.order[3],main.Npx,main.Npy,main.Npz,main.Npt) )
+  a_project = np.einsum('ij...,j...->i...',main.EMM,a_project)
+  a_project = np.reshape(a_project,np.shape(main.a.a))
+
+  V_project = main.basis.reconstructUGeneral(main,a_project)
+  return V_project
+
+
 def orthogonalSubscaleEntropy(main,MZ,eqns):
    eqns.getRHS(main,MZ,eqns)
    R0 = np.zeros(np.shape(main.RHS))
@@ -337,21 +363,23 @@ def orthogonalSubscaleEntropy(main,MZ,eqns):
    PLQLu2 = np.zeros(np.shape(main.RHS))
    main.RHS[:] = 0.
    R= strongFormEulerXYZEntropy(main,main.a.a,None)
+   dudv = mydUdV(main.a.u)
+   dudv = np.rollaxis( np.rollaxis(dudv,1,10),0,9)
+   dudv = np.linalg.inv(dudv)
+   dudv = np.rollaxis( np.rollaxis(dudv,8,0), 9,1)
    u0 = main.a.u*1.
-   #R = np.reshape(R,(main.nvars*main.order[0]*main.order[1]*main.order[2]*main.order[3],main.Npx,main.Npy,main.Npz,main.Npt) )
-   #R = np.einsum('ij...,j...->i...',main.EMM,R)
-   #R_s = np.reshape(Rstar,np.shape(main.a.a))
-   R_orthogonal= orthogonalProjectionVol(main,R)
-   #M = getEntropyMassMatrix_noinvert(main)#
-   #R_orthogonal = np.reshape(R_orthogonal,(main.nvars*main.order[0]*main.order[1]*main.order[2]*main.order[3],main.Npx,main.Npy,main.Npz,main.Npt) )
-   #R_orthogonal = np.einsum('ij...,j...->i...',M,R_orthogonal)
-   #R_orthogonal = np.reshape(R_orthogonal,np.shape(main.a.a))
+
+   R_project = projectionEntropy(main,R)
+   R = np.einsum('ij...,j...->i...',dudv,R)
+#   print(np.linalg.norm(R_project),np.linalg.norm(R))
+#   plot(R[0,0,0,0,0,:,0,0,0])
+#   plot(R_project[0,0,0,0,0,:,0,0,0])
+#   pause(0.01)
+#   clf()
+   R_orthogonal = R - R_project
    main.a.u[:] = u0[:]
-   evalFluxXYZEulerLinEntropy(main,main.a.u,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,[-R_orthogonal])
+   evalFluxXYZEulerLinEntropy(main,main.a.u,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,[-R_orthogonal,dudv])
    main.basis.applyVolIntegral(main,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,PLQLu2)
-   #tau = 0.00002 #tau8.0
-   #plot(R0[1,1,0,0,0,:,0,0,0])
-   #plot(PLQLu2[1,1,0,0,0,:,0,0,0])
    main.RHS[:] = R0[:] + main.tau*PLQLu2
 
 
