@@ -364,13 +364,13 @@ def orthogonalSubscaleEntropy(main,MZ,eqns):
    main.RHS[:] = 0.
    R= strongFormEulerXYZEntropy(main,main.a.a,None)
    dudv = mydUdV(main.a.u)
-   dudv = np.rollaxis( np.rollaxis(dudv,1,10),0,9)
-   dudv = np.linalg.inv(dudv)
-   dudv = np.rollaxis( np.rollaxis(dudv,8,0), 9,1)
+   dvdu = np.rollaxis( np.rollaxis(dudv,1,10),0,9)
+   dvdu = np.linalg.inv(dvdu)
+   dvdu = np.rollaxis( np.rollaxis(dvdu,8,0), 9,1)
    u0 = main.a.u*1.
 
    R_project = projectionEntropy(main,R)
-   R = np.einsum('ij...,j...->i...',dudv,R)
+   R = np.einsum('ij...,j...->i...',dvdu,R)
 #   print(np.linalg.norm(R_project),np.linalg.norm(R))
 #   plot(R[0,0,0,0,0,:,0,0,0])
 #   plot(R_project[0,0,0,0,0,:,0,0,0])
