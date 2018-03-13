@@ -24,6 +24,7 @@ def newtonSolver(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadratu
        pass
   Rstarn,Rn,Rstar_glob = unsteadyResidual(main,main.a.a)
   NLiter = 0
+  main.NLiter = 0 
   an = np.zeros(np.shape(main.a0))
   an[:] = main.a0[:]
   Rstar_glob0 = Rstar_glob*1. 
@@ -33,6 +34,7 @@ def newtonSolver(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadratu
   tnls = time.time()
   while (Rstar_glob >= 1e-8 and Rstar_glob/Rstar_glob0 > 1e-8):
     NLiter += 1
+    main.NLiter += 1
     ts = time.time()
     newtonHook(main_coarse,main,Rn)
     MF_Jacobian_args = [an,Rn]
