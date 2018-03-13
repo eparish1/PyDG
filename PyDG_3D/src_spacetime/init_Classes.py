@@ -118,6 +118,8 @@ class boundaryConditions:
   mpi_rank = comm.Get_rank()
   def __init__(self,BC_type='periodic',BC_args=[]):
     check = 0
+    comm = MPI.COMM_WORLD
+    mpi_rank = comm.Get_rank()
     if (BC_type == 'periodic'):
       check = 1
       self.BC_type = BC_type
@@ -349,7 +351,8 @@ class variables:
 #    self.tmp3 = np.zeros(np.shape(np.rollaxis(np.tensordot(self.w3*self.weights3[None,:],self.tmp2,axes=([1],[1])),0,9)))
 
     self.RHS = np.zeros((eqns.nvars,self.order[0],self.order[1],self.order[2],self.order[3],self.Npx,self.Npy,self.Npz,self.Npt))
-  
+    self.NLiter = 0 
+    self.linear_iteration = 0
     ### Check turbulence models
     self.turb_str = turb_str
     check = 0
@@ -369,6 +372,9 @@ class variables:
     if (turb_str == 'LSPG POD'):
       self.getRHS = LSPG_POD
       self.PLQLu = np.zeros(np.shape(self.a.a))
+      check = 1
+    if (turb_str == 'dynamic tau entropy'):
+      self.getRHS = dynamicTauEntropy
       check = 1
     if (turb_str == 'orthogonal subscale entropy'):
       self.getRHS = orthogonalSubscaleEntropy

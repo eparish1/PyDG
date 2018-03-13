@@ -5,7 +5,8 @@ from equations_class import *
 from tensor_products import *
 from navier_stokes import *#strongFormEulerXYZ
 from fluxSchemes import generalFluxGen
-from MPI_functions import sendEdgesGeneralSlab,sendEdgesGeneralSlab_Derivs
+from MPI_functions import sendEdgesGeneralSlab,sendEdgesGeneralSlab_Derivs,globalSum
+from navier_stokes_entropy import entropy_to_conservative
 #from pylab import *
 def orthogonalDynamics(main,MZ,eqns):
     ### EVAL RESIDUAL AND DO MZ STUFF
@@ -37,6 +38,34 @@ def projection(main,U):
            (2.*ord_arrz[None,None,:,None] + 1.)*(2.*ord_arrt[None,None,None,:] + 1.)/16.
   a_project = volIntegrateGlob_tensordot(main,U,main.w0,main.w1,main.w2,main.w3)*scale[None,:,:,:,:,None,None,None,None]
   return a_project
+
+
+def orthogonalProjectionEntropy(main,U,V):
+  ## First perform integration in x
+  a_project = volIntegrateGlob_tensordot(main,U,main.w0,main.w1,main.w2,main.w3)*scale[None,:,:,:,:,None,None,None,None]
+  filta = np.zeros(np.shape(a_project))
+  a_project = np.reshape(a_project,(main.nvars*main.order[0]*main.order[1]*main.order[2]*main.order[3],main.Npx,main.Npy,main.Npz,main.Npt) )
+  a_project = np.einsum('ij...,j...->i...',main.EMM,a_project)
+  a_project = np.reshape(a_project,np.shape(main.a.a))
+
+  V_project = main.basis.reconstructUGeneral(main,a_project)
+  V_orthogonal = V - V_project
+  return U_orthogonal
+
+def testProjection(main,U):#,UR,UL,UU,UD,UF,UB):
+  ## First perform integration in x
+  ord_arrx= np.linspace(0,main.order[0]-1,main.order[0])
+  ord_arry= np.linspace(0,main.order[1]-1,main.order[1])
+  ord_arrz= np.linspace(0,main.order[2]-1,main.order[2])
+  ord_arrt= np.linspace(0,main.order[3]-1,main.order[3])
+  scale =  (2.*ord_arrx[:,None,None,None] + 1.)*(2.*ord_arry[None,:,None,None] + 1.)*\
+           (2.*ord_arrz[None,None,:,None] + 1.)*(2.*ord_arrt[None,None,None,:] + 1.)/16.
+  a_project = volIntegrateGlob_tensordot(main,U,main.w0,main.w1,main.w2,main.w3)*scale[None,:,:,:,:,None,None,None,None]
+  filta = np.zeros(np.shape(a_project))
+  filta[:,0:main.order[0]/2,0:main.order[1]/2,0:main.order[2]/2,:] = 1.
+  U_project = main.basis.reconstructUGeneral(main,a_project*filta)
+  return U_project
+
 
 def orthogonalProjection(main,U):#,UR,UL,UU,UD,UF,UB):
   ## First perform integration in x
@@ -103,7 +132,11 @@ def orthogonalSubscale(main,MZ,eqns):
    #indx1 = abs(PLQLu2[1,1,0,0,0,:,0,0,0]) >  abs(R0[1,1,0,0,0,:,0,0,0])
    #indx2 = abs(PLQLu2[2,1,0,0,0,:,0,0,0]) >  abs(R0[2,1,0,0,0,:,0,0,0])
    #indx3 = abs(PLQLu2[3,1,0,0,0,:,0,0,0]) >  abs(R0[3,1,0,0,0,:,0,0,0])
-   indx = main.tau*abs(PLQLu2[4]) > (  abs(R0[4]) + 1e-3)
+#<<<<<<< HEAD
+#   indx = main.tau*abs(PLQLu2[4]) > (  abs(R0[4]) + 1e-3)
+#=======
+   indx = 10.*abs(PLQLu2[4]) > (  abs(R0[4]) + 1e-3)
+#>>>>>>> stable
    main.a.a[:,indx] = 0.
    main.RHS[:,indx] = 0.
 #   for i in range(main.order[0]-1,0,-1):
@@ -201,6 +234,15 @@ def projection_pod(u,V,main):
   u_proj = np.dot(V, tmp.flatten())
   #u_proj = np.reshape( np.dot(Pi,u.flatten() ), np.shape(u)) 
   return u_proj
+
+def test_projection_pod(u,V,main):
+  nk,nbasis = np.shape(V)
+  V2 = np.zeros(np.shape(V))
+  V2[:,0:nbasis/2] = V[:,0:nbasis/2]
+  tmp = globalDot(V2.transpose(),u.flatten(),main)
+  u_proj = np.dot(V2, tmp.flatten())
+  return u_proj
+
  
 def LSPG_POD(main,MZ,eqns):
   eps = 1e-5
@@ -241,7 +283,49 @@ def orthogonalSubscale_POD(main,MZ,eqns):
   #=====================================
   main.RHS[:] =  RHS0[:]+ tau*PLQLu
 
-def orthogonalSubscaleEntropy(main,MZ,eqns):
+
+def orthogonalSubscale_POD_dtau(main,MZ,eqns):
+  eps = 1e-5
+  a0 = main.a.a*1.
+  eqns.getRHS(main,MZ,eqns)
+  #==================================================
+  R_proj = projection_pod(main.RHS,main.V,main)
+  R_ortho = main.RHS - np.reshape(R_proj,np.shape(main.a.a))
+  RHS0 = main.RHS*1.
+
+  main.a.a[:] = a0[:] + eps*R_ortho
+  eqns.getRHS(main,MZ,eqns)  ## put RHS in a array since we don't need it
+  RHS1 = np.zeros(np.shape(main.RHS))
+  RHS1[:] = main.RHS[:]
+
+  #main.basis.applyMassMatrix(main,main.RHS)
+  PLQLu = (RHS1 - RHS0)/eps
+  main.PLQLu[:] = PLQLu
+
+  # now compute tau
+  a_projf = test_projection_pod(main.a.a,main.V,main)
+
+  main.a.a[:] = a_projf[:] 
+  eqns.getRHS(main,MZ,eqns)  ## put RHS in a array since we don't need it
+  RHS0f = np.zeros(np.shape(main.RHS))
+  RHS0f[:] = main.RHS[:]
+
+  R_projf = test_projection_pod(RHS1f,main.V,main)
+  R_orthof = RHS0f[:] - np.reshape(R_projf,np.shape(main.a.a))
+
+  main.a.a[:] = a_projf[:] + eps*R_orthof
+  eqns.getRHS(main,MZ,eqns)  ## put RHS in a array since we don't need it
+  RHS1f = np.zeros(np.shape(main.RHS))
+  RHS1f[:] = main.RHS[:]
+
+  tau = main.tau
+  #print(np.linalg.norm(PLQLu))
+  #=====================================
+  main.RHS[:] =  RHS0[:]+ tau*PLQLu
+
+
+
+def orthogonalSubscaleEntropyb(main,MZ,eqns):
    eqns.getRHS(main,MZ,eqns)
    R0 = np.zeros(np.shape(main.RHS))
    R1 = np.zeros(np.shape(main.RHS))
@@ -278,7 +362,104 @@ def orthogonalSubscaleEntropy(main,MZ,eqns):
    main.a.a[4,1,0,0,0,indx4,0,0,0] = 0.
    main.RHS[4,1,0,0,0,indx4,0,0,0] = 0.
 
-def orthogonalSubscaleEntropyb(main,MZ,eqns):
+def projectionEntropy(main,U):
+  ## First perform integration in x
+  f = U*main.Jdet[None,:,:,:,None,:,:,:,None]
+  a_project =  main.basis.volIntegrateGlob(main,f,main.w0,main.w1,main.w2,main.w3)
+  a_project = np.reshape(a_project,(main.nvars*main.order[0]*main.order[1]*main.order[2]*main.order[3],main.Npx,main.Npy,main.Npz,main.Npt) )
+  a_project = np.einsum('ij...,j...->i...',main.EMM,a_project)
+  a_project = np.reshape(a_project,np.shape(main.a.a))
+
+  V_project = main.basis.reconstructUGeneral(main,a_project)
+  return V_project
+
+def dynamicTauEntropy(main,MZ,eqns):
+   a0 = main.a.a*1.
+   filtarray = np.zeros(np.shape(main.a.a))
+   filtarray[:,0:main.order[0]/2,0:main.order[1]/2,0:main.order[2]/2] = 1.
+   af = main.a.a*filtarray
+   vf = main.basis.reconstructUGeneral(main,af)
+
+   ## get standard RHS
+   eqns.getRHS(main,MZ,eqns)
+   u0 = main.a.u*1.
+   R0 = np.zeros(np.shape(main.RHS))
+   R0[:] = main.RHS[:]
+
+   ## now compute standard PLQLu
+   PLQLu = np.zeros(np.shape(main.RHS))
+   main.RHS[:] = 0.
+   R= strongFormEulerXYZEntropy(main,main.a.a,None)
+   R_orthogonal = orthogonalProjection(main,R)
+   main.a.u[:] = u0[:]
+   evalFluxXYZEulerLinEntropy(main,main.a.u,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,[-R_orthogonal])
+   main.basis.applyVolIntegral(main,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,PLQLu)
+   ##
+
+   if (main.linear_iteration == 0 and main.NLiter == 0):
+     R0real = main.basis.reconstructUGeneral(main,R0*filtarray)
+     PLQLuU = main.basis.reconstructUGeneral(main,PLQLu*filtarray)
+     ## now get filtered RHS
+     main.a.a[:] = af[:]
+     main.RHS[:] = 0.
+     eqns.getRHS(main,main,eqns)
+     R0f = np.zeros(np.shape(main.RHS))
+     R0f[:] = main.RHS[:]
+     R0freal = main.basis.reconstructUGeneral(main,R0f)
+  
+  
+     ## now compute filtered PLQLu
+     PLQLuf = np.zeros(np.shape(main.RHS))
+     main.RHS[:] = 0.
+     R= strongFormEulerXYZEntropy(main,af,None)
+     R_orthogonal = R - testProjection(main,R)
+     evalFluxXYZEulerLinEntropy(main,vf,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,[-R_orthogonal])
+     main.basis.applyVolIntegral(main,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,PLQLuf)
+     PLQLufU = main.basis.reconstructUGeneral(main,PLQLuf)
+  
+     #entropy transfer
+     num = globalSum( np.sum( np.sum( vf*(R0freal - R0real) , axis=0) ) ,main)
+     den = globalSum( np.sum( np.sum( vf*(PLQLuU - 2.*PLQLufU) , axis=0) ) ,main)
+     tau = num/den
+     if (main.mpi_rank == 0):
+       print('Computing tau, tau = ' + str(tau) ) 
+     main.tau = tau 
+#   U = entropy_to_conservative(main.a.u)
+#   rhoi = 1./U[0]
+#   h = main.dx/main.order[0]
+#   tau = np.mean(  (4./h**2*rhoi**2*(U[1]**2 + U[2]**2 + U[3]**2) + 3.*np.pi*main.mus**2*(4./h**2)**2 )**-0.5 )
+#   main.tau = tau
+   main.RHS[:] = R0[:] + main.tau*PLQLu
+   main.a.a = a0
+   main.a.u = u0
+
+def orthogonalSubscaleEntropy(main,MZ,eqns):
+   eqns.getRHS(main,MZ,eqns)
+   u0 = main.a.u*1.
+
+   R0 = np.zeros(np.shape(main.RHS))
+   R1 = np.zeros(np.shape(main.RHS))
+   R0[:] = main.RHS[:]
+   PLQLu2 = np.zeros(np.shape(main.RHS))
+   main.RHS[:] = 0.
+   R= strongFormEulerXYZEntropy(main,main.a.a,None)
+
+   #dSdt = np.sum( np.sum(main.a.u*R,axis=0) )
+   #print(dSdt)
+   R_orthogonal = orthogonalProjection(main,R)
+
+   main.a.u[:] = u0[:]
+   evalFluxXYZEulerLinEntropy(main,main.a.u,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,[-R_orthogonal])
+   main.basis.applyVolIntegral(main,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,PLQLu2)
+   U = entropy_to_conservative(main.a.u)
+   rhoi = 1./U[0]
+   h = main.dx/main.order[0]
+   tau = np.mean(  (4./h**2*rhoi**2*(U[1]**2 + U[2]**2 + U[3]**2) + 3.*np.pi*main.mus**2*(4./h**2)**2 )**-0.5 )
+   main.tau = tau
+   main.RHS[:] = R0[:] + main.tau*PLQLu2
+
+
+def orthogonalSubscaleEntropyChain(main,MZ,eqns):
    eqns.getRHS(main,MZ,eqns)
    R0 = np.zeros(np.shape(main.RHS))
    R1 = np.zeros(np.shape(main.RHS))
@@ -286,22 +467,29 @@ def orthogonalSubscaleEntropyb(main,MZ,eqns):
    PLQLu2 = np.zeros(np.shape(main.RHS))
    main.RHS[:] = 0.
    R= strongFormEulerXYZEntropy(main,main.a.a,None)
+   dudv = mydUdV(main.a.u)
+   dvdu = np.rollaxis( np.rollaxis(dudv,1,10),0,9)
+   dvdu = np.linalg.inv(dvdu)
+   dvdu = np.rollaxis( np.rollaxis(dvdu,8,0), 9,1)
    u0 = main.a.u*1.
-   #R = np.reshape(R,(main.nvars*main.order[0]*main.order[1]*main.order[2]*main.order[3],main.Npx,main.Npy,main.Npz,main.Npt) )
-   #R = np.einsum('ij...,j...->i...',main.EMM,R)
-   #R_s = np.reshape(Rstar,np.shape(main.a.a))
-   R_orthogonal= orthogonalProjectionVol(main,R)
-   #M = getEntropyMassMatrix_noinvert(main)#
-   #R_orthogonal = np.reshape(R_orthogonal,(main.nvars*main.order[0]*main.order[1]*main.order[2]*main.order[3],main.Npx,main.Npy,main.Npz,main.Npt) )
-   #R_orthogonal = np.einsum('ij...,j...->i...',M,R_orthogonal)
-   #R_orthogonal = np.reshape(R_orthogonal,np.shape(main.a.a))
+
+   R_project = projectionEntropy(main,R)
+   R = np.einsum('ij...,j...->i...',dvdu,R)
+#   print(np.linalg.norm(R_project),np.linalg.norm(R))
+#   plot(R[0,0,0,0,0,:,0,0,0])
+#   plot(R_project[0,0,0,0,0,:,0,0,0])
+#   pause(0.01)
+#   clf()
+   R_orthogonal = R - R_project
    main.a.u[:] = u0[:]
-   evalFluxXYZEulerLinEntropy(main,main.a.u,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,[-R_orthogonal])
+   evalFluxXYZEulerLinEntropy(main,main.a.u,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,[-R_orthogonal,dudv])
    main.basis.applyVolIntegral(main,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,PLQLu2)
-   #tau = 0.00002 #tau8.0
-   #plot(R0[1,1,0,0,0,:,0,0,0])
-   #plot(PLQLu2[1,1,0,0,0,:,0,0,0])
-   main.RHS[:] = R0[:] #+ tau*PLQLu2
+   U = entropy_to_conservative(main.a.u)
+   rhoi = 1./U[0]
+   h = main.dx/main.order[0]
+   tau = np.mean(  (4./h**2*rhoi**2*(U[1]**2 + U[2]**2 + U[3]**2) + 3.*np.pi*main.mus**2*(4./h**2)**2 )**-0.5 )
+   main.tau = tau
+   main.RHS[:] = R0[:] + main.tau*PLQLu2
 
 
 ## Evaluate the tau model through the FD approximation. This is expensive AF

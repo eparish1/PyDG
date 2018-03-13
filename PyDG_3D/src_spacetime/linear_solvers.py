@@ -388,6 +388,7 @@ def GMRes(Af, b, x0,main,args,PC=None,PCargs=None,tol=1e-9,maxiter_outer=1,maxit
     error = 10.
     x = np.zeros(np.shape(x0))
     x[:] = x0[:]
+    main.linear_iteration = 0
     while (k_outer < maxiter_outer and error >= tol):
       r = b - Af(x0,args,main)
       if (main.mpi_rank == 0 and printnorm==1):
@@ -404,7 +405,7 @@ def GMRes(Af, b, x0,main,args,PC=None,PCargs=None,tol=1e-9,maxiter_outer=1,maxit
       Q[:,0] = r / rnorm ## The first index of Q is across all procs
       H = np.zeros((maxiter + 1, maxiter)) ### this should be the same on all procs
       beta = rnorm*e1
-
+      main.linear_iteration = 0
       k = 0
       while (k < maxiter - 1  and error >= tol):
   #    for k in range(0,nmax_iter-1):
@@ -414,6 +415,8 @@ def GMRes(Af, b, x0,main,args,PC=None,PCargs=None,tol=1e-9,maxiter_outer=1,maxit
           beta[k+1] = -sn[k]*beta[k]
           beta[k] = cs[k]*beta[k]
           error = abs(beta[k+1])/bnorm
+          main.linear_iteration += 1
+
           ## For testing
           #y = np.linalg.solve(H[0:k,0:k],beta[0:k]) 
           #x = x0 + np.dot(Q[:,0:k],y)
@@ -422,7 +425,6 @@ def GMRes(Af, b, x0,main,args,PC=None,PCargs=None,tol=1e-9,maxiter_outer=1,maxit
           if (main.mpi_rank == 0 and printnorm == 1):
             sys.stdout.write('Outer iteration = ' + str(k_outer) + ' Iteration = ' + str(k) + '  GMRES error = ' + str(error) +  '\n')
             #print('Outer iteration = ' + str(k_outer) + ' Iteration = ' + str(k) + '  GMRES error = ' + str(error), ' Real norm = ' + str(rtnorm))
-
           k += 1
       y = np.linalg.solve(H[0:k,0:k],beta[0:k]) 
       x = x0 + np.dot(Q[:,0:k],y)

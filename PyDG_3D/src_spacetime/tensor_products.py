@@ -936,34 +936,6 @@ def reconstructU_entropy(main,var):
   v = np.rollaxis( np.rollaxis( np.rollaxis( tmp , -3 , 1) , -2 , 2), -1, 3)
   var.u[:] = entropy_to_conservative(v)
 
-def entropy_to_conservative(v):
-  gamma = 1.4
-  gamma1   = gamma-1.0      # gamma-1
-  igamma1  = 1.0/gamma1    # 1/(gamma-1)
-  gmogm1   = gamma*igamma1 #  gamma/(gamma-1) 
-  iu4 = 1./v[4]
-  u = -iu4*v[1]
-  v = -iu4*v[2]
-  w = -iu4*v[3]
-  t0 = -0.5*iu4*(+u[1]**2+u[2]**2+u[3]**2) # 0.5*rho*v^2/p
-  t1 = v[0] - gmogm1+t0 # -s/(gamma-1)
-  t2 = exp(-igamma1*log(-v[4])) # pow(-u4,-igamma1)
-  t3 = exp(t1)
-  rho = t2*t3          
-  H = -iu4*(gmogm1+t0) 
-  E = (H+iu4)          # total enery
-  rhou = rho*u         # x-momentum
-  rhov = rho*v         # y-momentum
-  rhow = rho*w         # z-momentum
-  rhoE = rho*E
-  u = np.zeros(np.shape(v))
-  u[0] = rho
-  u[1] = rhou
-  u[2] = rhov
-  u[3] = rhow
-  u[4] = rhoE
-  return u
- 
 
 def reconstructUGeneral_entropy(main,a):
   tmp = np.tensordot(a,main.w0,axes=([1],[0])) 

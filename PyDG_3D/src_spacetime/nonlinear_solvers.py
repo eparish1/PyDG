@@ -22,6 +22,9 @@ def newtonSolver(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadratu
     main_coarse = main
     def newtonHook(main_coarse,main,Rn):
        pass
+  main.linear_iteration = 0
+  main.NLiter = 0 
+
   Rstarn,Rn,Rstar_glob = unsteadyResidual(main,main.a.a)
   NLiter = 0
   an = np.zeros(np.shape(main.a0))
@@ -33,6 +36,7 @@ def newtonSolver(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadratu
   tnls = time.time()
   while (Rstar_glob >= 1e-8 and Rstar_glob/Rstar_glob0 > 1e-8):
     NLiter += 1
+    main.NLiter += 1
     ts = time.time()
     newtonHook(main_coarse,main,Rn)
     MF_Jacobian_args = [an,Rn]
@@ -52,8 +56,14 @@ def newtonSolver(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadratu
     Rstarn,Rn,Rstar_glob = unsteadyResidual(main,main.a.a)
     resid_hist = np.append(resid_hist,Rstar_glob)
     t_hist = np.append(t_hist,time.time() - tnls)
+#    if (NLiter > 1):
+#      if (resid_hist[-1] > 0.98*resid_hist[-2]  and resid_hist[-1] > 1e-4):
+#        main.dt = main.dt/2.
     if (main.mpi_rank == 0):
       sys.stdout.write('Newton iteration = ' + str(NLiter) + '  NL residual = ' + str(Rstar_glob) + ' relative decrease = ' + str(Rstar_glob/Rstar_glob0) + ' Solve time = ' + str(time.time() - ts)  + '\n')
+ #     if (NLiter > 1):
+ #       if (resid_hist[-1] > 0.98*resid_hist[-2] and resid_hist[-1] > 1e-4 ):
+ #         sys.stdout.write('Non-linear solver failed to converge by more than 2%. Lowering the time-step to dt = ' + str(main.dt) + '\n')
       #print(np.linalg.norm(Rstarn[0]),np.linalg.norm(Rstarn[-1]))
       sys.stdout.flush()
   np.savez('resid_history',resid=resid_hist,t=t_hist)

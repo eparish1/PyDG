@@ -186,28 +186,6 @@ ord_arrz= np.linspace(0,order[2]-1,order[2])
 ord_arrt= np.linspace(0,order[3]-1,order[3])
 scale =  (2.*ord_arrx[:,None,None,None] + 1.)*(2.*ord_arry[None,:,None,None] + 1.)*(2.*ord_arrz[None,None,:,None] + 1.)*(2.*ord_arrt[None,None,None,:] + 1.)/16.
 
-def entropy_to_conservative(V):
-  gamma = 1.4
-  U = np.zeros(np.shape(V))
-  gamma1 = gamma - 1.
-  igamma1 = 1./gamma1
-  gmogm1 = gamma*igamma1
-  iu4 = 1./V[4]  #- p / rho
-  u = -iu4*V[1]
-  v = -iu4*V[2]
-  w = -iu4*V[3]
-  t0 = -0.5*iu4*(V[1]**2 + V[2]**2 + V[3]**2)
-  t1 = V[0] - gmogm1 + t0
-  t2 =np.exp(-igamma1*np.log(-V[4]) )
-  t3 = np.exp(t1)
-  U[0] = t2*t3
-  H = -iu4*(gmogm1 + t0)
-  E = (H + iu4)
-  U[1] = U[0]*u
-  U[2] = U[0]*v
-  U[3] = U[0]*w
-  U[4] = U[0]*E
-  return U
 
 #mg_levels =  2#int( np.log(np.amax(main.order))/np.log(2))  
 ##coarsen = np.int32(2**np.linspace(0,mg_levels-1,mg_levels))
