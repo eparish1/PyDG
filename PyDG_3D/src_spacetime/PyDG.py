@@ -95,14 +95,14 @@ if (len(BCs) != 12):
     print('Error, BCs array should have 12 components (leftbc, lefbc_args,rightbc,...). Fix Plz. PyDG quitting')
   sys.exit()
 
-if 'linear_solver_str ' in globals():
+if 'linear_solver_str' in globals():
   pass
 else:
   linear_solver_str = 'GMRes'
   if (mpi_rank == 0):
     print('Setting linear solver to GMRes by default. Ignore if you are using an explicit time scheme')
 
-if 'nonlinear_solver_str ' in globals():
+if 'nonlinear_solver_str' in globals():
   pass
 else:
   nonlinear_solver_str = 'Newton'
