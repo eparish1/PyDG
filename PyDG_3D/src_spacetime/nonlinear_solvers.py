@@ -23,9 +23,10 @@ def newtonSolver(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadratu
     def newtonHook(main_coarse,main,Rn):
        pass
   main.linear_iteration = 0
+  main.NLiter = 0 
+
   Rstarn,Rn,Rstar_glob = unsteadyResidual(main,main.a.a)
   NLiter = 0
-  main.NLiter = 0 
   an = np.zeros(np.shape(main.a0))
   an[:] = main.a0[:]
   Rstar_glob0 = Rstar_glob*1. 
