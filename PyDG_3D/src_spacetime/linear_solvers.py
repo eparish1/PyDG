@@ -388,6 +388,7 @@ def GMRes(Af, b, x0,main,args,PC=None,PCargs=None,tol=1e-9,maxiter_outer=1,maxit
     error = 10.
     x = np.zeros(np.shape(x0))
     x[:] = x0[:]
+    main.linear_iteration = 0
     while (k_outer < maxiter_outer and error >= tol):
       r = b - Af(x0,args,main)
       if (main.mpi_rank == 0 and printnorm==1):
