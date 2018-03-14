@@ -163,6 +163,14 @@ if 'source_mag' in globals():
   pass
 else:
   source_mag = False
+if 'iteration' in globals():
+  pass
+else:
+  iteration = 0
+if 't' in globals():
+  pass
+else:
+  t = 0
 
 ##======================================================
 
@@ -173,8 +181,6 @@ num_processes = comm.Get_size()
 mpi_rank = comm.Get_rank()
 if (mpi_rank == 0):
   print('Running on ' + str(num_processes) + ' Procs')
-t = 0
-iteration = 0
 
 eqns = equations(eqn_str,schemes,turb_str)
 main = variables(Nel,order,quadpoints,eqns,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,fsource,source_mag,shock_capturing,mol_str,basis_args)
