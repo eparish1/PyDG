@@ -273,7 +273,7 @@ def gatherSolSlab(main,eqns,var):
     main.comm.Send(var.u.flatten(),dest=0,tag=main.mpi_rank)
 
 def gatherSolSpectral(a,main):
-  navrs = np.shape(a)[0]
+  nvars = np.shape(a)[0]
   if (main.mpi_rank == 0):
     aG = np.zeros((nvars,main.order[0],main.order[1],main.order[2],main.order[3],main.Nel[0],main.Nel[1],main.Nel[2],main.Nel[3]))
     aG[:,:,:,:,:,0:main.Npx,0:main.Npy,:] = a[:]
