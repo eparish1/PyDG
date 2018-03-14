@@ -248,7 +248,7 @@ def gatherSolSlabGeneral(main,eqns,U):
       yD = int(loc_rank)/int(main.procx)*main.Npy
       yU = (int(loc_rank)/int(main.procx) + 1)*main.Npy
       #uG[:,:,:,:,xL:xR,yD:yU,:] = np.reshape(data,(var.nvars,var.quadpoints,var.quadpoints,var.quadpoints,main.Npx,main.Npy,main.Npz))
-      uG[:,:,:,:,:,xL:xR,yD:yU,:] = np.reshape(data,np.shape(main.a.u))
+      uG[:,:,:,:,:,xL:xR,yD:yU,:] = np.reshape(data,np.shape(U))
     return uG
   else:
     main.comm.Send(U.flatten(),dest=0,tag=main.mpi_rank)
