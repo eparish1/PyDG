@@ -1,4 +1,5 @@
 import numpy as np
+from navier_stokes_entropy import entropy_to_conservative
 ## Ue is basically the solution at grid edge
 ## UBC is your BC array you want to fill
 
@@ -223,6 +224,40 @@ def freestream_temp_bc(Ue,UBC,args,main,normals):
   UBC[3] = UBC[0]*ww
   UBC[4] = rhoE
   return UBC
+
+### boundary conditions for an isothermal wall using entropy variables
+## the BCs in the args array are u,v,w,T at the wall
+def isothermalwall_entropy_bc(Ve,VBC,args,main,normals):
+  Ue = entropy_to_conservative(Ve)
+  UBC = np.zeros(np.shape(VBC))
+  gamma = 1.4
+  uw = args[0]
+  vw = args[1]
+  ww = args[2]
+  Tw = args[3]
+  gamma = main.gas.gamma
+  Cv = main.gas.Cv
+  Cp = main.gas.Cp
+  R = main.gas.R
+
+  rhoi = 1./Ue[0]
+  p = (gamma - 1.)*(Ue[4] - rhoi*(0.5*Ue[1]**2 - 0.5*Ue[2]**2 - 0.5*Ue[3]**2) ) #extraploate pressure
+  T = Tw
+  rhoE = p/(gamma - 1.) + 0.5*(uw**2 + vw**2 + ww**2)
+  #p = rho R T
+  UBC[0] = p/(R*T)
+  UBC[1] = UBC[0]*uw
+  UBC[2] = UBC[0]*vw
+  UBC[3] = UBC[0]*ww
+  UBC[4] = rhoE
+
+  s = np.log(p) - gamma*np.log(UBC[0])
+  VBC[0] = -s/(gamma - 1.) + (gamma + 1.)/(gamma - 1.) - UBC[4]/p
+  VBC[1] = UBC[1]/p
+  VBC[2] = UBC[2]/p
+  VBC[3] = UBC[3]/p
+  VBC[4] = -UBC[0]/p
+  return VBC 
 
 
 def isothermalwall_bc(Ue,UBC,args,main,normals):

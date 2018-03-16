@@ -9,7 +9,7 @@ from eos_functions import *
 from tensor_products import *
 from chemistry_values import *
 from smagorinsky import *
-from source_functions import volumetricForcing as addSource
+from source_functions import constantForcing as addSource
 import numexpr as ne
 import time
 

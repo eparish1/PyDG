@@ -1793,7 +1793,7 @@ def CrankNicolsonEntropy(main,MZ,eqns,args):
     an = args[0]
     Rn = args[1]
     vr = np.reshape(v,np.shape(main.a.a))
-    eps = 5.e-7
+    eps = 5.e-4
     main.a.a[:] = an + eps*vr
     R1,dum,dum = unsteadyResidual(main,main.a.a)
     Av = (R1 - Rn)/eps
