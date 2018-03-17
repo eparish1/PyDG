@@ -135,6 +135,11 @@ class boundaryConditions:
       self.BC_type = BC_type
       self.applyBC = isothermalwall_bc
       self.args = BC_args
+    if (BC_type == 'isothermal_wall_entropy'):
+      check = 1
+      self.BC_type = BC_type
+      self.applyBC = isothermalwall_entropy_bc
+      self.args = BC_args
     if (BC_type == 'adiabatic_wall'):
       check = 1
       self.BC_type = BC_type

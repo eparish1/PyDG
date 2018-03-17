@@ -80,6 +80,35 @@ def getIC_collocate(main,f,x,y,z,zeta3,Npt):
 comm = MPI.COMM_WORLD
 mpi_rank = comm.Get_rank()
 
+##============ Initialization stuff. Everything here basically just checks the input deck =========
+if (np.size(Nel) != 4):
+  if (mpi_rank == 0): 
+    print('Error, Nel array should be four dimensional (Nelx,Nely,Nelz,Nelt). Fix Plz. PyDG quitting')
+  sys.exit()
+if (np.size(order) != 4):
+  if (mpi_rank == 0): 
+    print('Error, order array should be four dimensional (orderx,ordery,orderz,ordert). Fix Plz. PyDG quitting')
+  sys.exit()
+
+if (len(BCs) != 12):
+  if (mpi_rank == 0): 
+    print('Error, BCs array should have 12 components (leftbc, lefbc_args,rightbc,...). Fix Plz. PyDG quitting')
+  sys.exit()
+
+if 'linear_solver_str' in globals():
+  pass
+else:
+  linear_solver_str = 'GMRes'
+  if (mpi_rank == 0):
+    print('Setting linear solver to GMRes by default. Ignore if you are using an explicit time scheme')
+
+if 'nonlinear_solver_str' in globals():
+  pass
+else:
+  nonlinear_solver_str = 'Newton'
+  if (mpi_rank == 0):
+    print('Setting nonlinear solver to Newton by default. Ignore if you are using an explicit time scheme')
+
 if 'fsource' in globals():
   pass
 else:
@@ -100,7 +129,6 @@ else:
   #enriched_ratio = np.array([2,2,2,1])
   enriched_add = np.array([4,0,0,0])
   quadpoints_ratio = np.array([2,1,1,1])
-
 #  enriched_ratio = np.array([(order[0]+1.)/order[0],(order[1]+1.)/order[1],(order[2]+1.)/order[2],1])
 if 'enriched' in globals():
   pass
@@ -127,6 +155,25 @@ if 'orthogonal_str' in globals():
   pass
 else:
   orthogonal_str = False
+if 'mol_str' in globals():
+  pass
+else:
+  mol_str = False
+if 'source_mag' in globals():
+  pass
+else:
+  source_mag = False
+if 'iteration' in globals():
+  pass
+else:
+  iteration = 0
+if 't' in globals():
+  pass
+else:
+  t = 0
+
+##======================================================
+
 basis_args = [basis_functions_str,orthogonal_str]
 
 comm = MPI.COMM_WORLD
@@ -134,8 +181,6 @@ num_processes = comm.Get_size()
 mpi_rank = comm.Get_rank()
 if (mpi_rank == 0):
   print('Running on ' + str(num_processes) + ' Procs')
-t = 0
-iteration = 0
 
 eqns = equations(eqn_str,schemes,turb_str)
 main = variables(Nel,order,quadpoints,eqns,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,fsource,source_mag,shock_capturing,mol_str,basis_args)

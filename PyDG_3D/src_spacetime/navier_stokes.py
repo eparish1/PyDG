@@ -4,7 +4,12 @@ import numexpr as ne
 ##### =========== Contains all the fluxes and physics neccesary to solve the Navier-Stokes equations within a DG framework #### ============
 
 
-###### ====== Inviscid Fluxes Fluxes and Eigen Values (Eigenvalues currently not in use) ==== ############
+###### ====== Inviscid Fluxes Fluxes ==== ############
+#Details: Routine to compute inviscid fluxes for the Euler equations. This is used in the main solver
+#         Function evaluates the euler fluxes in the x, y, and z direction
+#         note that the commented out portion is the same function but using
+#         the numexpr module, which sometimes is good for big arrays
+#usage:   these functions are part of the main solver and are called by eqns.evalFluxXYZ
 def evalFluxXYZEuler(main,u,fx,fy,fz,args):
   es = 1.e-30
   gamma = 1.4
@@ -51,7 +56,9 @@ def evalFluxXYZEuler(main,u,fx,fy,fz,args):
   fz[4] = (rhoE + p)*rhoW/(rho) 
 
 
-
+#Details: Routine to compute the strong form RHS operator, \nabla \cdot F
+#         This is done by computing the derivatives of the conserved variables and then using chain rule
+#usage: used in variational multiscale closure models 
 def strongFormEulerXYZ(main,a,args):
   es = 1.e-30
   gamma = 1.4
@@ -68,7 +75,6 @@ def strongFormEulerXYZ(main,a,args):
   #UxR,UxL,UxU,UxD,UxF,UxB = main.basis.diffUX_edge(main.a.a,main)
   #UyR,UyL,UyU,UyD,UyF,UyB = main.basis.diffUY_edge(main.a.a,main)
   #UzR,UzL,UzU,UzD,UzF,UzB = main.basis.diffUZ_edge(main.a.a,main)
-
   def computeResid(U,Ux,Uy,Uz):
     p = (gamma - 1.)*(U[4] - 0.5*U[1]**2/U[0] - 0.5*U[2]**2/U[0] - 0.5*U[3]**2/U[0])
 
@@ -108,9 +114,12 @@ def strongFormEulerXYZ(main,a,args):
 
   #resid_F = computeResid(UF,UxF,UyF,UzF)
   #resid_B = computeResid(UB,UxB,UyB,UzB)
-
   return resid_vol#,resid_R,resid_L,resid_U,resid_D,resid_F,resid_B
 
+
+##Details: The following functions compute the x,y, and z fluxes separately.
+##         they perform the same functionality as the evalFluxXYZ routines
+##usage:   Currently outdated and not in use, they are kept around for preconditioning research
 def evalFluxXEuler(main,u,f,args): 
 #  #f = np.zeros(np.shape(u))
   es = 1.e-30
@@ -167,8 +176,6 @@ def evalFluxYEuler(main,u,f,args):
   f[3] = ne.evaluate("rhoV*rhoW/(rho) ")
   f[4] = ne.evaluate("(rhoE + p)*rhoV/(rho) ")
 
-
-
 def evalFluxZEuler(main,u,f,args):
   #f = np.zeros(np.shape(u))
   gamma = 1.4
@@ -190,6 +197,9 @@ def evalFluxZEuler(main,u,f,args):
   f[3] = ne.evaluate("rhoW*rhoW/(rho) + p ")
   f[4] = ne.evaluate("(rhoE + p)*rhoW/(rho) ")
 
+
+##Details: This is a validation routine to compute the linearized Euler fluxes via finite difference
+##Usage: Validation purposes only
 def evalFluxXYZEulerLin2(main,U0,fx,fy,fz,args):
   up = args[0]
   eps = 1e-5
@@ -205,7 +215,10 @@ def evalFluxXYZEulerLin2(main,U0,fx,fy,fz,args):
   fx[:] = 1./eps*(fx1 - fx0) 
   fy[:] = 1./eps*(fy1 - fy0) 
   fz[:] = 1./eps*(fz1 - fz0) 
- 
+
+##Details: Function to compute the linearized Euler fluxes. 
+##Usage:   This is used in VMS models and as well as for matrix free implicit methods using 
+##         the exact linearization 
 def evalFluxXYZEulerLin(main,U0,fx,fy,fz,args):
   up = args[0]
   #decompose as U = U0 + up, where up is the perturbation
@@ -317,17 +330,13 @@ def evalFluxZEulerLin(main,U0,f,args):
 
 def eulerCentralFlux(F,main,UL,UR,n,args=None):
 # PURPOSE: This function calculates the flux for the Euler equations
-# using the Roe flux function
+# using a central flux function
 #
 # INPUTS:
 #    UL: conservative state vector in left cell
 #    UR: conservative state vector in right cell
 #    n: normal pointing from the left cell to the right cell
-#
-# OUTPUTS:
-#  F   : the flux out of the left cell (into the right cell)
-#  smag: the maximum propagation speed of disturbance
-#
+#    F: preallocated array for the flux 
   gamma = 1.4
   gmi = gamma-1.0
   #process left state
@@ -370,28 +379,23 @@ def eulerCentralFlux(F,main,UL,UR,n,args=None):
   FR[3] = UR[3]*unR + pR*n[2]
   FR[4] = rHR*unR
   F[:] = 0.
-  F[0]    = 0.5*(FL[0]+FR[0])#-0.5*smax*(UR[0] - UL[0])
-  F[1]    = 0.5*(FL[1]+FR[1])#-0.5*smax*(UR[1] - UL[1])
-  F[2]    = 0.5*(FL[2]+FR[2])#-0.5*smax*(UR[2] - UL[2])
-  F[3]    = 0.5*(FL[3]+FR[3])#-0.5*smax*(UR[3] - UL[3])
-  F[4]    = 0.5*(FL[4]+FR[4])#-0.5*smax*(UR[4] - UL[4])
+  F[0]    = 0.5*(FL[0]+FR[0])
+  F[1]    = 0.5*(FL[1]+FR[1])
+  F[2]    = 0.5*(FL[2]+FR[2])
+  F[3]    = 0.5*(FL[3]+FR[3])
+  F[4]    = 0.5*(FL[4]+FR[4])
   return F
 
 
 def ismailFlux(F,main,UL,UR,n,args=None):
-
 # PURPOSE: This function calculates the flux for the Euler equations
-# using the Roe flux function
+# using the Ismail flux function
 #
 # INPUTS:
 #    UL: conservative state vector in left cell
 #    UR: conservative state vector in right cell
 #    n: normal pointing from the left cell to the right cell
-#
-# OUTPUTS:
-#  F   : the flux out of the left cell (into the right cell)
-#  smag: the maximum propagation speed of disturbance
-#
+#    F: preallocated array for the flux 
   gamma = 1.4
   gmi = gamma-1.0
   #process left state
@@ -469,7 +473,7 @@ def ismailFlux(F,main,UL,UR,n,args=None):
   return F
 
 
-#def ismailFlux(F,main,UL,UR,n,args=None):
+## Linearized central flux routine
 def eulerCentralFluxLinearized(F,main,U0L,U0R,n,args):
   gamma = 1.4
   upL = args[0]
@@ -521,19 +525,8 @@ def eulerCentralFluxLinearized(F,main,U0L,U0R,n,args):
 
 
 def rusanovFlux(F,main,UL,UR,n,args=None):
-
 # PURPOSE: This function calculates the flux for the Euler equations
-# using the Roe flux function
-#
-# INPUTS:
-#    UL: conservative state vector in left cell
-#    UR: conservative state vector in right cell
-#    n: normal pointing from the left cell to the right cell
-#
-# OUTPUTS:
-#  F   : the flux out of the left cell (into the right cell)
-#  smag: the maximum propagation speed of disturbance
-#
+# using the Rusanov flux function. See description of other fluxes for details
   gamma = 1.4
   gmi = gamma-1.0
   #process left state
@@ -749,6 +742,7 @@ def kfid_roeflux(F,main,UL,UR,n,args=None):
 
 
 ###============= Diffusion Fluxes =====================
+## This is used for interior penalty fluxes
 def getGsNS(u,main):
   nvars = np.shape(u)[0]
   gamma = 1.4

@@ -1793,7 +1793,7 @@ def CrankNicolsonEntropy(main,MZ,eqns,args):
     an = args[0]
     Rn = args[1]
     vr = np.reshape(v,np.shape(main.a.a))
-    eps = 5.e-7
+    eps = 5.e-4
     main.a.a[:] = an + eps*vr
     R1,dum,dum = unsteadyResidual(main,main.a.a)
     Av = (R1 - Rn)/eps
@@ -1997,6 +1997,49 @@ def CrankNicolson_POD(main,MZ,eqns,args):
 
   main.t += main.dt
   main.iteration += 1
+
+
+def backwardEuler(main,MZ,eqns,args):
+  nonlinear_solver = args[0]
+  linear_solver = args[1]
+  sparse_quadrature = args[2]
+  main.a0[:] = main.a.a[:]
+  main.getRHS(main,MZ,eqns)
+  R0 = np.zeros(np.shape(main.RHS))
+  R0[:] = main.RHS[:]
+  def unsteadyResidual(main,v):
+    main.a.a[:] = np.reshape(v,np.shape(main.a.a))
+    main.getRHS(main,MZ,eqns)
+    R1 = np.zeros(np.shape(main.RHS))
+    RHS_BE = np.zeros(np.shape(main.RHS))
+    R1[:] = main.RHS[:]
+    RHS_BE[:] = main.dt*R1
+    main.basis.applyMassMatrix(main,RHS_BE)
+    Rstar = ( main.a.a[:] - main.a0 ) - RHS_BE
+    Rstar_glob = gatherResid(Rstar,main)
+    return Rstar,R1,Rstar_glob
+
+  def create_MF_Jacobian(v,args,main):
+    an = args[0]
+    Rn = args[1]
+    vr = np.reshape(v,np.shape(main.a.a))
+    eps = 5.e-7
+    main.a.a[:] = an + eps*vr
+    main.getRHS(main,MZ,eqns)
+    RHS_BE = np.zeros(np.shape(main.RHS))
+    R1 = np.zeros(np.shape(main.RHS))
+    R1[:] = main.RHS[:]
+    RHS_BE[:] = main.dt*(R1 - Rn)/eps
+    main.basis.applyMassMatrix(main,RHS_BE)
+    Av = vr - RHS_BE
+
+    return Av.flatten()
+
+  nonlinear_solver.solve(unsteadyResidual, create_MF_Jacobian,main,linear_solver,sparse_quadrature,eqns,None)
+
+  main.t += main.dt
+  main.iteration += 1
+
 
 
 def CrankNicolson(main,MZ,eqns,args):

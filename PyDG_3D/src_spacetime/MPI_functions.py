@@ -248,7 +248,7 @@ def gatherSolSlabGeneral(main,eqns,U):
       yD = int(loc_rank)/int(main.procx)*main.Npy
       yU = (int(loc_rank)/int(main.procx) + 1)*main.Npy
       #uG[:,:,:,:,xL:xR,yD:yU,:] = np.reshape(data,(var.nvars,var.quadpoints,var.quadpoints,var.quadpoints,main.Npx,main.Npy,main.Npz))
-      uG[:,:,:,:,:,xL:xR,yD:yU,:] = np.reshape(data,np.shape(main.a.u))
+      uG[:,:,:,:,:,xL:xR,yD:yU,:] = np.reshape(data,np.shape(U))
     return uG
   else:
     main.comm.Send(U.flatten(),dest=0,tag=main.mpi_rank)
@@ -273,8 +273,9 @@ def gatherSolSlab(main,eqns,var):
     main.comm.Send(var.u.flatten(),dest=0,tag=main.mpi_rank)
 
 def gatherSolSpectral(a,main):
+  nvars = np.shape(a)[0]
   if (main.mpi_rank == 0):
-    aG = np.zeros((main.nvars,main.order[0],main.order[1],main.order[2],main.order[3],main.Nel[0],main.Nel[1],main.Nel[2],main.Nel[3]))
+    aG = np.zeros((nvars,main.order[0],main.order[1],main.order[2],main.order[3],main.Nel[0],main.Nel[1],main.Nel[2],main.Nel[3]))
     aG[:,:,:,:,:,0:main.Npx,0:main.Npy,:] = a[:]
     for i in range(1,main.num_processes):
       loc_rank = i
@@ -284,7 +285,7 @@ def gatherSolSpectral(a,main):
       xR = int(((loc_rank%main.procx) +1)*main.Npx)
       yD = int(loc_rank)/int(main.procx)*main.Npy
       yU = (int(loc_rank)/int(main.procx) + 1)*main.Npy
-      aG[:,:,:,:,:,xL:xR,yD:yU,:] = np.reshape(data,(main.nvars,main.order[0],main.order[1],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
+      aG[:,:,:,:,:,xL:xR,yD:yU,:] = np.reshape(data,(nvars,main.order[0],main.order[1],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
     return aG
   else:
     main.comm.Send(a.flatten(),dest=0,tag=main.mpi_rank)
