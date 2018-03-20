@@ -232,6 +232,7 @@ class variables:
     self.Npx = int(float(Nel[0] / procx))
     self.Npz = int(Nel[2])
     self.Npt = Nel[-1]
+    self.Nel_loc = np.array([self.Npx,self.Npy,self.Npz,self.Npt])
     self.sy = slice(int(self.mpi_rank)/int(self.procx)*self.Npy,(int(self.mpi_rank)/int(self.procx) + 1)*self.Npy)  ##slicing in y direction
     self.sx = slice(int(self.mpi_rank%self.procx)*self.Npx,int(self.mpi_rank%self.procx + 1)*self.Npx)
     self.rank_connect,self.BC_rank = getRankConnectionsSlab(self.mpi_rank,self.num_processes,self.procx,self.procy)

@@ -1,5 +1,34 @@
 import numpy as np
 import numexpr as ne 
+import logging
+from mpi4py import MPI
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+try:
+  from numba import jit
+except:
+  if (MPI.COMM_WORLD.Get_rank() == 0):
+    logger.warning("numba jit package not found, may cause issues depending on speedup settings")
+try:
+  from cython_euler import  eulerFluxCython
+except:
+  if (MPI.COMM_WORLD.Get_rank() == 0):
+    logger.warning("Cython packages not built. Make sure no flux schemes are using cython functions")
+try:
+  from cython_euler import  rusanovFluxCython
+except:
+  if (MPI.COMM_WORLD.Get_rank() == 0):
+    logger.warning("Cython packages not built. Make sure no flux schemes are using cython functions")
+try:
+  from scipy import weave
+except:
+  if (MPI.COMM_WORLD.Get_rank() == 0):
+    logger.warning("weave packages are not installed. Make sure no flux schemes are using inline C++ weave functions")
+try:
+  from scipy.weave import converters
+except:
+  if (MPI.COMM_WORLD.Get_rank() == 0):
+    logger.warning("Could not import weave converters")
 
 ##### =========== Contains all the fluxes and physics neccesary to solve the Navier-Stokes equations within a DG framework #### ============
 
@@ -10,51 +39,127 @@ import numexpr as ne
 #         note that the commented out portion is the same function but using
 #         the numexpr module, which sometimes is good for big arrays
 #usage:   these functions are part of the main solver and are called by eqns.evalFluxXYZ
-def evalFluxXYZEuler(main,u,fx,fy,fz,args):
+def evalFluxXYZEuler2(main,U,fx,fy,fz,args):
+  eulerFluxCython(U,fx,fy,fz,main.Nel_loc,main.quadpoints)
+
+def evalFluxXYZEuler(main,U,fx,fy,fz,args):
   es = 1.e-30
   gamma = 1.4
-  rho = u[0]
-  rhoU = u[1]
-  rhoV = u[2]
-  rhoW = u[3]
-  rhoE = u[4]
+  rho = U[0]
+  rhoU = U[1]
+  rhoV = U[2]
+  rhoW = U[3]
+  rhoE = U[4]
+  rhoi = np.zeros(np.shape(rho))
+  u = np.zeros(np.shape(rho))
+  v = np.zeros(np.shape(rho))
+  w = np.zeros(np.shape(rho))
+  rhoi = 1./rho
+  u = rhoi*rhoU
+  v = rhoi*rhoV
+  w = rhoi*rhoW
+#  ne.set_num_threads(4)
 #  p = ne.evaluate("(gamma - 1.)*(rhoE - 0.5*rhoU**2/rho - 0.5*rhoV**2/rho - 0.5*rhoW**2/rho)")
-#  fx[0] = u[1]
+#  fx[0] = U[1]
 #  fx[1] = ne.evaluate("rhoU*rhoU/(rho) + p")
 #  fx[2] = ne.evaluate("rhoU*rhoV/(rho) ")
 #  fx[3] = ne.evaluate("rhoU*rhoW/(rho) ")
 #  fx[4] = ne.evaluate("(rhoE + p)*rhoU/(rho) ")
-#
-#  fy[0] = u[2]
+##
+#  fy[0] = U[2]
 #  fy[1] = ne.evaluate("rhoU*rhoV/(rho)")
 #  fy[2] = ne.evaluate("rhoV*rhoV/(rho) + p ")
 #  fy[3] = ne.evaluate("rhoV*rhoW/(rho) ")
 #  fy[4] = ne.evaluate("(rhoE + p)*rhoV/(rho) ")
-#
-#  fz[0] = u[3]
+##
+#  fz[0] = U[3]
 #  fz[1] = ne.evaluate("rhoU*rhoW/(rho)")
 #  fz[2] = ne.evaluate("rhoV*rhoW/(rho) ")
 #  fz[3] = ne.evaluate("rhoW*rhoW/(rho) + p ")
 #  fz[4] = ne.evaluate("(rhoE + p)*rhoW/(rho) ")
-  p = (gamma - 1.)*(rhoE - 0.5*rhoU**2/rho - 0.5*rhoV**2/rho - 0.5*rhoW**2/rho)
-  fx[0] = u[1]
-  fx[1] = rhoU*rhoU/(rho) + p
-  fx[2] = rhoU*rhoV/(rho) 
-  fx[3] = rhoU*rhoW/(rho)
-  fx[4] = (rhoE + p)*rhoU/(rho) 
-#
-  fy[0] = u[2]
-  fy[1] = rhoU*rhoV/(rho)
-  fy[2] = rhoV*rhoV/(rho) + p 
-  fy[3] = rhoV*rhoW/(rho) 
-  fy[4] = (rhoE + p)*rhoV/(rho) 
-#
-  fz[0] = u[3]
-  fz[1] = rhoU*rhoW/(rho)
-  fz[2] = rhoV*rhoW/(rho) 
-  fz[3] = rhoW*rhoW/(rho) + p 
-  fz[4] = (rhoE + p)*rhoW/(rho) 
+  p = (gamma - 1.)*(rhoE - 0.5*u*rhoU - 0.5*v*rhoV - 0.5*w*rhoW)
+  fx[0] = U[1]
+  fx[1] = u*rhoU + p
+  fx[2] = u*rhoV 
+  fx[3] = u*rhoW
+  fx[4] = u*(rhoE + p)
 
+  fy[0] = U[2]
+  fy[1] = v*rhoU
+  fy[2] = v*rhoV + p 
+  fy[3] = v*rhoW 
+  fy[4] = v*(rhoE + p)
+
+  fz[0] = U[3]
+  fz[1] = w*rhoU
+  fz[2] = w*rhoV 
+  fz[3] = w*rhoW + p 
+  fz[4] = w*(rhoE + p)
+
+
+def evalFluxXYZEuler3(main,U,fx,fy,fz,args):
+  nthreads = 8
+  es = 1.e-30
+  gamma = 1.4
+  rho = U[0]
+  rhoU = U[1]
+  rhoV = U[2]
+  rhoW = U[3]
+  rhoE = U[4]
+#  pressure = np.zeros(np.shape(rho))
+#  rhoi = np.zeros(np.shape(rho))
+#  u2 = np.zeros(np.shape(rho))
+#  v2 = np.zeros(np.shape(rho))
+#  w2 = np.zeros(np.shape(rho))
+
+  Nel = main.Nel
+  quad = main.quadpoints 
+  code="""
+  int p,q,r,s,i,j,k,l;
+  for(p=0;p<quad(0);p++){
+   for (q=0;q<quad(1);q++){
+    for (r=0;r<quad(2);r++){
+     for (s=0;s<quad(3);s++){
+       for(i=0;i<Nel(0);i++){
+         for (j=0;j<Nel(1);j++){
+          for (k=0;k<Nel(2);k++){
+            for (l=0;l<Nel(3);l++){
+              double rhoi2 = 1./U(0,p,q,r,s,i,j,k,l);
+              double test;
+              double u = rhoi2*U(1,p,q,r,s,i,j,k,l);
+              double v = rhoi2*U(2,p,q,r,s,i,j,k,l);
+              double w = rhoi2*U(3,p,q,r,s,i,j,k,l);
+              double pressure2 =  (gamma - 1.)*(U(4,p,q,r,s,i,j,k,l) - 0.5*u*U(1,p,q,r,s,i,j,k,l) - 0.5*v*U(2,p,q,r,s,i,j,k,l) - 0.5*w*U(3,p,q,r,s,i,j,k,l));
+
+              //pressure(p,q,r,s,i,j,k,l) = (gamma - 1.)*(rhoE(p,q,r,s,i,j,k,l) - 0.5*(u*rhoU(p,q,r,s,i,j,k,l) - v*rhoV(p,q,r,s,i,j,k,l) - w*rhoW(p,q,r,s,i,j,k,l)));
+              fx(0,p,q,r,s,i,j,k,l) = U(1,p,q,r,s,i,j,k,l);
+              fx(1,p,q,r,s,i,k,j,l) = u*U(1,p,q,r,s,i,j,k,l) + pressure2;
+              fx(2,p,q,r,s,i,k,j,l) = u*U(2,p,q,r,s,i,j,k,l);
+              fx(3,p,q,r,s,i,k,j,l) = u*U(3,p,q,r,s,i,j,k,l);
+              fx(4,p,q,r,s,i,k,j,l) = (U(4,p,q,r,s,i,j,k,l) + pressure2)*u;
+
+              fy(0,p,q,r,s,i,j,k,l) = U(2,p,q,r,s,i,j,k,l);
+              fy(1,p,q,r,s,i,k,j,l) = v*U(1,p,q,r,s,i,j,k,l);
+              fy(2,p,q,r,s,i,k,j,l) = v*U(2,p,q,r,s,i,j,k,l) + pressure2;
+              fy(3,p,q,r,s,i,k,j,l) = v*U(3,p,q,r,s,i,j,k,l);
+              fy(4,p,q,r,s,i,k,j,l) = (U(4,p,q,r,s,i,j,k,l) + pressure2)*v;
+
+              fz(0,p,q,r,s,i,j,k,l) = U(3,p,q,r,s,i,j,k,l);
+              fz(1,p,q,r,s,i,k,j,l) = w*U(1,p,q,r,s,i,j,k,l) ;
+              fz(2,p,q,r,s,i,k,j,l) = w*U(2,p,q,r,s,i,j,k,l);
+              fz(3,p,q,r,s,i,k,j,l) = w*U(3,p,q,r,s,i,j,k,l) + pressure2;
+              fz(4,p,q,r,s,i,k,j,l) = (U(4,p,q,r,s,i,j,k,l) + pressure2)*w; } } } } } } } }
+    """
+  weave.inline(code,['fx','fy','fz','U','gamma','Nel','quad','nthreads'],\
+                 type_converters=converters.blitz,compiler='gcc',extra_compile_args=\
+                 ['-O3'],
+                 support_code = \
+                 r"""
+                 #include <iostream>
+                 #include <complex>
+                 #include <cmath> 
+                 """,
+                 libraries=['gomp']  )
 
 #Details: Routine to compute the strong form RHS operator, \nabla \cdot F
 #         This is done by computing the derivatives of the conserved variables and then using chain rule
@@ -327,7 +432,6 @@ def evalFluxZEulerLin(main,U0,f,args):
 #== central flux
 #== rusanov flux
 #== Roe flux
-
 def eulerCentralFlux(F,main,UL,UR,n,args=None):
 # PURPOSE: This function calculates the flux for the Euler equations
 # using a central flux function
@@ -524,53 +628,268 @@ def eulerCentralFluxLinearized(F,main,U0L,U0R,n,args):
   return F
 
 
+## numexpression version of rusanov flux
+def rusanovFlux_ne(F,main,UL,UR,n,args):
+# PURPOSE: This function calculates the flux for the Euler equations
+# using the Rusanov flux function. See description of other fluxes for details
+  # difference in states
+  gamma = 1.4
+  #process left state
+  rhoL = UL[0]
+  rhoUL = UL[1]
+  rhoVL = UL[2]
+  rhoWL = UL[3]
+  rhoEL = UL[4]
+  nx = n[0] 
+  ny = n[1]
+  nz = n[2]
+  unL = ne.evaluate("1/rhoL*(rhoUL*nx + rhoVL*ny + rhoWL*nz)")
+  qL =  ne.evaluate("((rhoUL**2 + rhoVL**2 + rhoWL**2)/rhoL)**0.5")
+  pL = ne.evaluate("(gamma - 1.)*(rhoEL - 0.5*rhoL*qL*qL) ")
+  # process right state
+  rhoR = UR[0]
+  rhoUR = UR[1]
+  rhoVR = UR[2]
+  rhoWR = UR[3]
+  rhoER = UR[4]
+  unR = ne.evaluate("1/rhoR*(rhoUR*nx + rhoVR*ny + rhoWR*nz)")
+  qR =  ne.evaluate("((rhoUR**2 + rhoVR**2 + rhoWR**2)/rhoR)**0.5")
+  pR = ne.evaluate("(gamma - 1.)*(rhoER - 0.5*rhoR*qR*qR) ")
+  # Roe average
+  di     = ne.evaluate("(rhoR/rhoL)**0.5")
+  d1     = ne.evaluate("1.0/(1.0+di)")
+
+  ui     = ne.evaluate("(di*rhoUR/rhoR + rhoUL/rhoL)*d1 ")
+  vi     = ne.evaluate("(di*rhoVR/rhoR + rhoVL/rhoL)*d1 ")
+  wi     = ne.evaluate("(di*rhoWR/rhoR + rhoWL/rhoL)*d1 ")
+  Hi     = ne.evaluate("(di*(rhoER + pR)/rhoR + (rhoEL + pL)/rhoL)*d1 ")
+
+  af     = ne.evaluate("0.5*(ui*ui+vi*vi+wi*wi)")
+  smax    = np.abs( ui*n[0] + vi*n[1] + wi*n[2] ) + np.abs( np.sqrt( (gamma - 1.)*(Hi - af) ) )
+
+  #% eigenvalues
+  #print(np.shape(l))
+  #smax = np.abs(ucp) + np.abs(ci)
+  # flux assembly
+  F[0] = ne.evaluate("0.5*(rhoL*unL + rhoR*unR )")
+  F[1] = ne.evaluate("0.5*(rhoUL*unL + pL*nx + rhoUR*unR + pR*nx )")
+  F[2] = ne.evaluate("0.5*(rhoVL*unL + pL*ny + rhoVR*unR + pR*ny )")
+  F[3] = ne.evaluate("0.5*(rhoWL*unL + pL*nz + rhoWR*unR + pR*nz )")
+  F[4] = ne.evaluate("0.5*((rhoEL + pL)*unL + (rhoER + pR)*unR)")
+  F[:] -= 0.5*smax[None,:]*(UR - UL)
+  return F
+
+
+
+@jit
+def rusanovJIT(F,UL,UR,n):
+# PURPOSE: This function calculates the flux for the Euler equations
+# using the Rusanov flux function. See description of other fluxes for details
+  # difference in states
+  gamma = 1.4
+  #process left state
+  unL = 1./UL[0]*(UL[1]*n[0] + UL[2]*n[1] + UL[3]*n[2])
+  qL = np.sqrt(UL[1]*UL[1] + UL[2]*UL[2] + UL[3]*UL[3])/UL[0]
+  pL = (gamma - 1.)*(UL[4] - 0.5*UL[0]*qL*qL)
+  # process right state
+  unR = 1./UR[0]*(UR[1]*n[0] + UR[2]*n[1] + UR[3]*n[2])
+  qR = np.sqrt(UR[1]*UR[1] + UR[2]*UR[2] + UR[3]*UR[3])/UR[0]
+  pR = (gamma - 1.)*(UR[4] - 0.5*UR[0]*qR*qR)
+#  rHR = UR[4] + pR
+#  HR = rhoiR*rHR
+  # Roe average
+  di     = np.sqrt(UR[0]/UL[0])
+  d1     = 1.0/(1.0+di)
+
+  ui     = (di*UR[1]/UR[0] + UL[1]/UL[0])*d1
+  vi     = (di*UR[2]/UR[0] + UL[2]/UL[0])*d1
+  wi     = (di*UR[3]/UR[0] + UL[3]/UL[0])*d1
+  Hi     = (di*(UR[4] + pR)/UR[0] + (UL[4] + pL)/UL[0])*d1
+
+  af     = 0.5*(ui*ui+vi*vi+wi*wi)
+  smax    = np.abs( ui*n[0] + vi*n[1] + wi*n[2] ) + np.abs( np.sqrt( (gamma - 1.)*(Hi - af) ) )
+
+  #% eigenvalues
+  #print(np.shape(l))
+  #smax = np.abs(ucp) + np.abs(ci)
+  # flux assembly
+  F[0] = 0.5*(UL[0]*unL + UR[0]*unR )
+  F[1] = 0.5*(UL[1]*unL + pL*n[0] + UR[1]*unR + pR*n[0] )
+  F[2] = 0.5*(UL[2]*unL + pL*n[1] + UR[2]*unR + pR*n[1] )
+  F[3] = 0.5*(UL[3]*unL + pL*n[2] + UR[3]*unR + pR*n[2] )
+  F[4] = 0.5*((UL[4] + pL)*unL + (UR[4] + pR)*unR)
+  #F[:] -= 0.5*smax[None,:]*(UR - UL)
+  return F
+
+## straightup numpy implementation. Should be fast with minimal memory
+def rusanovFlux_np(F,main,UL,UR,n,args):
+# PURPOSE: This function calculates the flux for the Euler equations
+# using the Rusanov flux function. See description of other fluxes for details
+  # difference in states
+  du = UR - UL
+  gamma = 1.4
+  gmi = gamma-1.0
+  #process left state
+  rL = UL[0]*1.
+  rhoiL = 1./rL[:]
+  uL = rhoiL[:]*UL[1]
+  vL = rhoiL[:]*UL[2]
+  wL = rhoiL[:]*UL[3]
+
+  unL = uL*n[0] 
+  unL += vL*n[1]
+  unL += wL*n[2]
+
+  qL = UL[1]*UL[1]
+  qL += UL[2]*UL[2]
+ 
+  qL = UL[1]*UL[1]
+  qL += UL[2]*UL[2]
+  qL += UL[3]*UL[3]
+  qL = np.sqrt(qL)
+  qL *= rhoiL 
+  #qL = rhoiL[:]*(UL[1]*UL[1] + UL[2]*UL[2] + UL[3]*UL[3])**0.5
+  pL = gmi*(UL[4] - 0.5*rL[:]*qL[:]**2.)
+  rHL = UL[4] + pL[:]
+  HL = rhoiL[:]*rHL[:]
+  cL = (rhoiL[:]*gamma*pL[:])**0.5
+  # left flux
+  #FL = np.zeros(np.shape(UL))
+  F[0] = rL[:]
+  F[0] *= unL
+  F[1] = UL[1]
+  F[1] *= unL
+  F[1] += pL*n[0]
+
+  F[2] = UL[2]
+  F[2] *= unL
+  F[2] += pL*n[1]
+
+  F[3] = UL[3]
+  F[3] *= unL
+  F[3] += pL*n[2]
+
+  F[4] = rHL[:]
+  F[4] *= unL
+#  F[1] = UL[1]*unL[:] + pL[:]*n[0]
+#  F[2] = UL[2]*unL[:] + pL[:]*n[1]
+#  F[3] = UL[3]*unL[:] + pL[:]*n[2]
+#  F[4] = rHL[:]*unL[:]
+
+  # process right state
+  rR = UR[0]*1.
+  rhoiR = 1./rR
+  uR = rhoiR*UR[1]
+  vR = rhoiR*UR[2]
+  wR = rhoiR*UR[3]
+  unR = uR*n[0]
+  unR += vR*n[1]
+  unR += wR*n[2]
+  qR = rhoiR*(UR[1]*UR[1] + UR[2]*UR[2] + UR[3]*UR[3])**0.5
+  pR = gmi*(UR[4] - 0.5*rR*qR**2.)
+  rHR = UR[4] + pR
+  HR = rhoiR*rHR
+  cR = (rhoiR*gamma*pR)**0.5
+  # right flux
+  #FR = np.zeros(np.shape(UR))
+  F[0] += rR*unR
+
+  F[1] += UR[1]*unR
+  F[1] += pR*n[0]
+
+  F[2] += UR[2]*unR
+  F[2] += pR*n[1]
+
+  F[3] += UR[3]*unR
+  F[3] += pR*n[2]
+
+  F[4] += rHR*unR
+
+  #FR[0] = rR[:]*unR[:]
+  #FR[1] = UR[1]*unR[:] + pR[:]*n[0]
+  #FR[2] = UR[2]*unR[:] + pR[:]*n[1]
+  #FR[3] = UR[3]*unR[:] + pR[:]*n[2]
+  #FR[4] = rHR[:]*unR[:]
+
+
+  # Roe average
+  di     = (rR[:]/rL[:])**0.5
+  d1     = 1.0/(1.0+di)
+
+  ui     = (di[:]*uR[:] + uL[:])*d1[:]
+  vi     = (di[:]*vR[:] + vL[:])*d1[:]
+  wi     = (di[:]*wR[:] + wL[:])*d1[:]
+  Hi     = (di[:]*HR[:] + HL[:])*d1[:]
+
+  af     = 0.5*(ui[:]*ui[:]+vi[:]*vi[:]+wi[:]*wi[:])
+  ucp    = ui[:]*n[0] + vi[:]*n[1] + wi[:]*n[2]
+  c2     = gmi*(Hi[:] - af[:])
+  ci     = (c2[:])**0.5
+  #ci1    = 1.0/ci[:]
+
+  smax = np.abs(ucp) + np.abs(ci)
+  F[:] *= 0.5
+  F[:] -= 0.5*smax[None]*du
+
+
+def rusanovFluxCythonWrapper(F,main,UL,UR,n,args=None):
+  n = n[:,0,0,0]
+  loc_quadpoints = np.shape(UL)[1:4]
+  rusanovFluxCython(F,UL,UR,main.Npx,loc_quadpoints)
+  return F
+
+def rusanovFlux2(F,main,UL,UR,n,args=None):
+  rusanovJIT(F,UL,UR,n)
+  return F
+
 def rusanovFlux(F,main,UL,UR,n,args=None):
 # PURPOSE: This function calculates the flux for the Euler equations
 # using the Rusanov flux function. See description of other fluxes for details
+  # difference in states
+  du = UR - UL
+
   gamma = 1.4
   gmi = gamma-1.0
   #process left state
   rL = UL[0]
-  uL = UL[1]/rL
-  vL = UL[2]/rL
-  wL = UL[3]/rL
+  rhoiL = 1./rL
+  uL = rhoiL*UL[1]
+  vL = rhoiL*UL[2]
+  wL = rhoiL*UL[3]
 
   unL = uL*n[0] + vL*n[1] + wL*n[2]
 
-  qL = np.sqrt(UL[1]*UL[1] + UL[2]*UL[2] + UL[3]*UL[3])/rL
-  pL = (gamma-1)*(UL[4] - 0.5*rL*qL**2.)
+  qL = rhoiL*np.sqrt(UL[1]*UL[1] + UL[2]*UL[2] + UL[3]*UL[3])
+  pL = gmi*(UL[4] - 0.5*rL*qL**2.)
   rHL = UL[4] + pL
-  HL = rHL/rL
-  cL = np.sqrt(gamma*pL/rL)
+  HL = rhoiL*rHL
   # left flux
-  FL = np.zeros(np.shape(UL))
-  FL[0] = rL*unL
-  FL[1] = UL[1]*unL + pL*n[0]
-  FL[2] = UL[2]*unL + pL*n[1]
-  FL[3] = UL[3]*unL + pL*n[2]
-  FL[4] = rHL*unL
+  #FL = np.zeros(np.shape(UL))
+  F[0] = rL*unL
+  F[1] = UL[1]*unL + pL*n[0]
+  F[2] = UL[2]*unL + pL*n[1]
+  F[3] = UL[3]*unL + pL*n[2]
+  F[4] = rHL*unL
 
   # process right state
   rR = UR[0]
-  uR = UR[1]/rR
-  vR = UR[2]/rR
-  wR = UR[3]/rR
+  rhoiR = 1./rR
+  uR = rhoiR*UR[1]
+  vR = rhoiR*UR[2]
+  wR = rhoiR*UR[3]
   unR = uR*n[0] + vR*n[1] + wR*n[2]
-  qR = np.sqrt(UR[1]*UR[1] + UR[2]*UR[2] + UR[3]*UR[3])/rR
-  pR = (gamma-1)*(UR[4] - 0.5*rR*qR**2.)
+  qR = rhoiR*np.sqrt(UR[1]*UR[1] + UR[2]*UR[2] + UR[3]*UR[3])
+  pR = gmi*(UR[4] - 0.5*rR*qR**2.)
   rHR = UR[4] + pR
-  HR = rHR/rR
-  cR = np.sqrt(gamma*pR/rR)
+  HR = rhoiR*rHR
   # right flux
-  FR = np.zeros(np.shape(UR))
-  FR[0] = rR*unR
-  FR[1] = UR[1]*unR + pR*n[0]
-  FR[2] = UR[2]*unR + pR*n[1]
-  FR[3] = UR[3]*unR + pR*n[2]
-  FR[4] = rHR*unR
+  #FR = np.zeros(np.shape(UR))
+  F[0] += rR*unR
+  F[1] += UR[1]*unR + pR*n[0]
+  F[2] += UR[2]*unR + pR*n[1]
+  F[3] += UR[3]*unR + pR*n[2]
+  F[4] += rHR*unR
 
-  # difference in states
-  du = UR - UL
 
   # Roe average
   di     = np.sqrt(rR/rL)
@@ -587,24 +906,9 @@ def rusanovFlux(F,main,UL,UR,n,args=None):
   ci     = np.sqrt(c2)
   ci1    = 1.0/ci
 
-  #% eigenvalues
-
-  sh = np.shape(ucp)
-  lsh = np.append(3,sh)
-  l = np.zeros(lsh)
-  l[0] = ucp+ci
-  l[1] = ucp-ci
-  l[2] = ucp
-  #print(np.shape(l))
   smax = np.abs(ucp) + np.abs(ci)
-  #smax = np.maximum(np.abs(l[0]),np.abs(l[1]))
-  # flux assembly
-  F[:] = 0.
-  F[0]    = 0.5*(FL[0]+FR[0])-0.5*smax*(UR[0] - UL[0])
-  F[1]    = 0.5*(FL[1]+FR[1])-0.5*smax*(UR[1] - UL[1])
-  F[2]    = 0.5*(FL[2]+FR[2])-0.5*smax*(UR[2] - UL[2])
-  F[3]    = 0.5*(FL[3]+FR[3])-0.5*smax*(UR[3] - UL[3])
-  F[4]    = 0.5*(FL[4]+FR[4])-0.5*smax*(UR[4] - UL[4])
+  F[:] -= smax[None,:]*du
+  F[:] *= 0.5
   return F
                
   
