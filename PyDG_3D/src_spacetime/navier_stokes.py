@@ -1,5 +1,24 @@
 import numpy as np
 import numexpr as ne 
+import logging
+from mpi4py import MPI
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+try:
+  from cython_euler import  eulerFluxCython
+except:
+  if (MPI.COMM_WORLD.Get_rank() == 0):
+    logger.warning("Cython packages not built. Make sure no flux schemes are using cython functions")
+try:
+  from scipy import weave
+except:
+  if (MPI.COMM_WORLD.Get_rank() == 0):
+    logger.warning("weave packages are not installed. Make sure no flux schemes are using inline C++ weave functions")
+try:
+  from scipy.weave import converters
+except:
+  if (MPI.COMM_WORLD.Get_rank() == 0):
+    logger.warning("Could not import scipy.weave converters")
 
 ##### =========== Contains all the fluxes and physics neccesary to solve the Navier-Stokes equations within a DG framework #### ============
 
@@ -10,14 +29,25 @@ import numexpr as ne
 #         note that the commented out portion is the same function but using
 #         the numexpr module, which sometimes is good for big arrays
 #usage:   these functions are part of the main solver and are called by eqns.evalFluxXYZ
-def evalFluxXYZEuler(main,u,fx,fy,fz,args):
+def evalFluxXYZEuler2(main,U,fx,fy,fz,args):
+  eulerFluxCython(U,fx,fy,fz,main.Nel_loc,main.quadpoints)
+
+def evalFluxXYZEuler(main,U,fx,fy,fz,args):
   es = 1.e-30
   gamma = 1.4
-  rho = u[0]
-  rhoU = u[1]
-  rhoV = u[2]
-  rhoW = u[3]
-  rhoE = u[4]
+  rho = U[0]
+  rhoU = U[1]
+  rhoV = U[2]
+  rhoW = U[3]
+  rhoE = U[4]
+  rhoi = np.zeros(np.shape(rho),dtype=rho.dtype)
+  u = np.zeros(np.shape(rho),dtype=rho.dtype)
+  v = np.zeros(np.shape(rho),dtype=rho.dtype)
+  w = np.zeros(np.shape(rho),dtype=rho.dtype)
+  rhoi = 1./rho
+  u = rhoi*rhoU
+  v = rhoi*rhoV
+  w = rhoi*rhoW
 #  p = ne.evaluate("(gamma - 1.)*(rhoE - 0.5*rhoU**2/rho - 0.5*rhoV**2/rho - 0.5*rhoW**2/rho)")
 #  fx[0] = u[1]
 #  fx[1] = ne.evaluate("rhoU*rhoU/(rho) + p")
@@ -36,25 +66,89 @@ def evalFluxXYZEuler(main,u,fx,fy,fz,args):
 #  fz[2] = ne.evaluate("rhoV*rhoW/(rho) ")
 #  fz[3] = ne.evaluate("rhoW*rhoW/(rho) + p ")
 #  fz[4] = ne.evaluate("(rhoE + p)*rhoW/(rho) ")
-  p = (gamma - 1.)*(rhoE - 0.5*rhoU**2/rho - 0.5*rhoV**2/rho - 0.5*rhoW**2/rho)
-  fx[0] = u[1]
-  fx[1] = rhoU*rhoU/(rho) + p
-  fx[2] = rhoU*rhoV/(rho) 
-  fx[3] = rhoU*rhoW/(rho)
-  fx[4] = (rhoE + p)*rhoU/(rho) 
+  p = (gamma - 1.)*(rhoE - 0.5*u*rhoU - 0.5*v*rhoV - 0.5*w*rhoW)
+  fx[0] = U[1]
+  fx[1] = u*rhoU + p
+  fx[2] = u*rhoV 
+  fx[3] = u*rhoW
+  fx[4] = u*(rhoE + p)
 #
-  fy[0] = u[2]
-  fy[1] = rhoU*rhoV/(rho)
-  fy[2] = rhoV*rhoV/(rho) + p 
-  fy[3] = rhoV*rhoW/(rho) 
-  fy[4] = (rhoE + p)*rhoV/(rho) 
+  fy[0] = U[2]
+  fy[1] = v*rhoU
+  fy[2] = v*rhoV + p 
+  fy[3] = v*rhoW 
+  fy[4] = v*(rhoE + p)
 #
-  fz[0] = u[3]
-  fz[1] = rhoU*rhoW/(rho)
-  fz[2] = rhoV*rhoW/(rho) 
-  fz[3] = rhoW*rhoW/(rho) + p 
-  fz[4] = (rhoE + p)*rhoW/(rho) 
+  fz[0] = U[3]
+  fz[1] = w*rhoU
+  fz[2] = w*rhoV 
+  fz[3] = w*rhoW + p 
+  fz[4] = w*(rhoE + p)
 
+
+def evalFluxXYZEuler3(main,U,fx,fy,fz,args):
+  nthreads = 8
+  es = 1.e-30
+  gamma = 1.4
+  rho = U[0]
+  rhoU = U[1]
+  rhoV = U[2]
+  rhoW = U[3]
+  rhoE = U[4]
+#  pressure = np.zeros(np.shape(rho))
+#  rhoi = np.zeros(np.shape(rho))
+#  u2 = np.zeros(np.shape(rho))
+#  v2 = np.zeros(np.shape(rho))
+#  w2 = np.zeros(np.shape(rho))
+
+  Nel = main.Nel
+  quad = main.quadpoints 
+  code="""
+  int p,q,r,s,i,j,k,l;
+  for(p=0;p<quad(0);p++){
+   for (q=0;q<quad(1);q++){
+    for (r=0;r<quad(2);r++){
+     for (s=0;s<quad(3);s++){
+       for(i=0;i<Nel(0);i++){
+         for (j=0;j<Nel(1);j++){
+          for (k=0;k<Nel(2);k++){
+            for (l=0;l<Nel(3);l++){
+              double rhoi2 = 1./U(0,p,q,r,s,i,j,k,l);
+              double test;
+              double u = rhoi2*U(1,p,q,r,s,i,j,k,l);
+              double v = rhoi2*U(2,p,q,r,s,i,j,k,l);
+              double w = rhoi2*U(3,p,q,r,s,i,j,k,l);
+              double pressure2 =  (gamma - 1.)*(U(4,p,q,r,s,i,j,k,l) - 0.5*u*U(1,p,q,r,s,i,j,k,l) - 0.5*v*U(2,p,q,r,s,i,j,k,l) - 0.5*w*U(3,p,q,r,s,i,j,k,l));
+
+              //pressure(p,q,r,s,i,j,k,l) = (gamma - 1.)*(rhoE(p,q,r,s,i,j,k,l) - 0.5*(u*rhoU(p,q,r,s,i,j,k,l) - v*rhoV(p,q,r,s,i,j,k,l) - w*rhoW(p,q,r,s,i,j,k,l)));
+              fx(0,p,q,r,s,i,j,k,l) = U(1,p,q,r,s,i,j,k,l);
+              fx(1,p,q,r,s,i,k,j,l) = u*U(1,p,q,r,s,i,j,k,l) + pressure2;
+              fx(2,p,q,r,s,i,k,j,l) = u*U(2,p,q,r,s,i,j,k,l);
+              fx(3,p,q,r,s,i,k,j,l) = u*U(3,p,q,r,s,i,j,k,l);
+              fx(4,p,q,r,s,i,k,j,l) = (U(4,p,q,r,s,i,j,k,l) + pressure2)*u;
+
+              fy(0,p,q,r,s,i,j,k,l) = U(2,p,q,r,s,i,j,k,l);
+              fy(1,p,q,r,s,i,k,j,l) = v*U(1,p,q,r,s,i,j,k,l);
+              fy(2,p,q,r,s,i,k,j,l) = v*U(2,p,q,r,s,i,j,k,l) + pressure2;
+              fy(3,p,q,r,s,i,k,j,l) = v*U(3,p,q,r,s,i,j,k,l);
+              fy(4,p,q,r,s,i,k,j,l) = (U(4,p,q,r,s,i,j,k,l) + pressure2)*v;
+
+              fz(0,p,q,r,s,i,j,k,l) = U(3,p,q,r,s,i,j,k,l);
+              fz(1,p,q,r,s,i,k,j,l) = w*U(1,p,q,r,s,i,j,k,l) ;
+              fz(2,p,q,r,s,i,k,j,l) = w*U(2,p,q,r,s,i,j,k,l);
+              fz(3,p,q,r,s,i,k,j,l) = w*U(3,p,q,r,s,i,j,k,l) + pressure2;
+              fz(4,p,q,r,s,i,k,j,l) = (U(4,p,q,r,s,i,j,k,l) + pressure2)*w; } } } } } } } }
+    """
+  weave.inline(code,['fx','fy','fz','U','gamma','Nel','quad','nthreads'],\
+                 type_converters=converters.blitz,compiler='gcc',extra_compile_args=\
+                 ['-O3'],
+                 support_code = \
+                 r"""
+                 #include <iostream>
+                 #include <complex>
+                 #include <cmath> 
+                 """,
+                 libraries=['gomp']  )
 
 #Details: Routine to compute the strong form RHS operator, \nabla \cdot F
 #         This is done by computing the derivatives of the conserved variables and then using chain rule
@@ -645,12 +739,12 @@ def kfid_roeflux(F,main,UL,UR,n,args=None):
   HL = rHL*rhoiL
   cL = np.sqrt(np.abs(gamma*pL*rhoiL))
   # left flux
-  FL = np.zeros(np.shape(UL))
-  FL[0] = rL*unL
-  FL[1] = UL[1]*unL + pL*n[0]
-  FL[2] = UL[2]*unL + pL*n[1]
-  FL[3] = UL[3]*unL + pL*n[2]
-  FL[4] = rHL*unL
+  #FL = np.zeros(np.shape(UL))
+  F[0] = rL*unL
+  F[1] = UL[1]*unL + pL*n[0]
+  F[2] = UL[2]*unL + pL*n[1]
+  F[3] = UL[3]*unL + pL*n[2]
+  F[4] = rHL*unL
 
   # process right state
   rR = UR[0] + 1.e-50
@@ -675,12 +769,12 @@ def kfid_roeflux(F,main,UL,UR,n,args=None):
   HR = rHR*rhoiR
   cR = np.sqrt(np.abs(gamma*pR*rhoiR))
   # right flux
-  FR = np.zeros(np.shape(UR))
-  FR[0] = rR*unR
-  FR[1] = UR[1]*unR + pR*n[0]
-  FR[2] = UR[2]*unR + pR*n[1]
-  FR[3] = UR[3]*unR + pR*n[2]
-  FR[4] = rHR*unR
+  #FR = np.zeros(np.shape(UR))
+  F[0] += rR*unR
+  F[1] += UR[1]*unR + pR*n[0]
+  F[2] += UR[2]*unR + pR*n[1]
+  F[3] += UR[3]*unR + pR*n[2]
+  F[4] += rHR*unR
 
   # difference in states
   du = UR - UL
@@ -705,7 +799,7 @@ def kfid_roeflux(F,main,UL,UR,n,args=None):
 
   sh = np.shape(ucp)
   lsh = np.append(3,sh)
-  l = np.zeros(lsh)
+  l = np.zeros(lsh,dtype=UR.dtype)
   l[0] = ucp+ci
   l[1] = ucp-ci
   l[2] = ucp
@@ -732,11 +826,11 @@ def kfid_roeflux(F,main,UL,UR,n,args=None):
   C2    = G1*s2*ci1          + G2*(s1-l3)
 
   # flux assembly
-  F[0]    = 0.5*(FL[0]+FR[0])-0.5*(l3*du[0] + C1   )
-  F[1]    = 0.5*(FL[1]+FR[1])-0.5*(l3*du[1] + C1*ui + C2*n[0])
-  F[2]    = 0.5*(FL[2]+FR[2])-0.5*(l3*du[2] + C1*vi + C2*n[1])
-  F[3]    = 0.5*(FL[3]+FR[3])-0.5*(l3*du[3] + C1*wi + C2*n[2])
-  F[4]    = 0.5*(FL[4]+FR[4])-0.5*(l3*du[4] + C1*Hi + C2*ucp  )
+  F[0]    = 0.5*F[0] - 0.5*(l3*du[0] + C1   )
+  F[1]    = 0.5*F[1] - 0.5*(l3*du[1] + C1*ui + C2*n[0])
+  F[2]    = 0.5*F[2] - 0.5*(l3*du[2] + C1*vi + C2*n[1])
+  F[3]    = 0.5*F[3] - 0.5*(l3*du[3] + C1*wi + C2*n[2])
+  F[4]    = 0.5*F[4]  -0.5*(l3*du[4] + C1*Hi + C2*ucp  )
   return F
 
 

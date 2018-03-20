@@ -537,18 +537,26 @@ def tauModelFD(main,MZ,eqns):
     MZ.basis.applyMassMatrix(MZ,Rtmp)
     MZ.a.a[:] = 0.
     MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2]] = main.a.a[:]
-    MZ.a.a[:] = MZ.a.a[:] + eps*Rtmp[:]
+    MZ.a.a[:] = MZ.a.a[:] + eps*(Rtmp[:] - Rtmp[:]*filtarray)
     eqns.getRHS(MZ,MZ,eqns)
     RHS2 = np.zeros(np.shape(MZ.RHS))
     RHS2[:] = MZ.RHS[:]
-    MZ.a.a[:] = 0.
-    MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2]] = main.a.a[:]
-    MZ.a.a[:] = MZ.a.a[:] + eps*Rtmp[:]*filtarray
-    eqns.getRHS(MZ,MZ,eqns)
-    RHS3 = np.zeros(np.shape(MZ.RHS))
-    RHS3[:] = MZ.RHS[:]
-    PLQLU = (RHS2[:,0:main.order[0],0:main.order[1],0:main.order[2]] - RHS3[:,0:main.order[0],0:main.order[1],0:main.order[2]])/(eps + 1e-30)
-    tau = main.dx/MZ.order[0]**2
+    #MZ.a.a[:] = 0.
+    #MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2]] = main.a.a[:]
+    #MZ.a.a[:] = MZ.a.a[:] + eps*Rtmp[:]*filtarray
+    #eqns.getRHS(MZ,MZ,eqns)
+    #RHS3 = np.zeros(np.shape(MZ.RHS))
+    #RHS3[:] = MZ.RHS[:]
+    PLQLU = (RHS2[:,0:main.order[0],0:main.order[1],0:main.order[2]] - RHS1[:,0:main.order[0],0:main.order[1],0:main.order[2]])/(eps + 1e-30)
+    tau = main.tau#main.dx/MZ.order[0]**2
+
+    #U = main.a.u 
+    #rhoi = 1./U[0]
+    #h = main.dx/main.order[0]
+    #tau = np.mean(  (4./h**2*rhoi**2*(U[1]**2 + U[2]**2 + U[3]**2) + 3.*np.pi*main.mus**2*(4./h**2)**2 )**-0.5 )
+    #main.tau = tau
+    #print(main.tau)
+
     main.RHS[:] =  RHS1[:,0:main.order[0],0:main.order[1],0:main.order[2]] + 1.*tau*PLQLU
 
 
@@ -593,7 +601,7 @@ def tauModelLinearized(main,MZ,eqns):
    MZ.a.a[:,0:main.order[0],0:main.order[1],0:main.order[2]] = main.a.a[:]
    eqnsLin.getRHS(MZ,MZ,eqnsLin,[RHS1f],[RHS1f_phys]) ## this is PLQLu
    PLQLU = MZ.RHS[:,0:main.order[0],0:main.order[1],0:main.order[2]]
-   main.RHS[:] =  RHS1[:,0:main.order[0],0:main.order[1],0:main.order[2]] + main.dx/MZ.order[0]**2*PLQLU
+   main.RHS[:] =  RHS1[:,0:main.order[0],0:main.order[1],0:main.order[2]] + main.tau*PLQLU
    main.comm.Barrier()
 
 

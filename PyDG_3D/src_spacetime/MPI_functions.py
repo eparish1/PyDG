@@ -86,12 +86,12 @@ def sendaEdgesGeneralSlab(a,main):
 
 
 def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main):
-  uR = np.zeros(np.shape(fL[:,:,:,:,0,:,:]))
-  uL = np.zeros(np.shape(fR[:,:,:,:,0,:,:]))
-  uU = np.zeros(np.shape(fD[:,:,:,:,:,0,:]))
-  uD = np.zeros(np.shape(fU[:,:,:,:,:,0,:]))
-  uF = np.zeros(np.shape(fB[:,:,:,:,:,:,0]))
-  uB = np.zeros(np.shape(fF[:,:,:,:,:,:,0]))
+  uR = np.zeros(np.shape(fL[:,:,:,:,0,:,:]),dtype=fL.dtype)
+  uL = np.zeros(np.shape(fR[:,:,:,:,0,:,:]),dtype=fR.dtype)
+  uU = np.zeros(np.shape(fD[:,:,:,:,:,0,:]),dtype=fD.dtype)
+  uD = np.zeros(np.shape(fU[:,:,:,:,:,0,:]),dtype=fU.dtype)
+  uF = np.zeros(np.shape(fB[:,:,:,:,:,:,0]),dtype=fF.dtype)
+  uB = np.zeros(np.shape(fF[:,:,:,:,:,:,0]),dtype=fB.dtype)
 
   if (main.rank_connect[0] == main.mpi_rank and main.rank_connect[1] == main.mpi_rank):
     uR[:] = fL[:,:,:,:,0, :,:]
@@ -101,11 +101,11 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main):
   else:
     ## Send right and left fluxes
 
-    tmp = np.zeros(np.size(fL[:,:,:,:,0,:,:]))
+    tmp = np.zeros(np.size(fL[:,:,:,:,0,:,:]),dtype=fL.dtype)
     main.comm.Sendrecv(fL[:,:,:,:,0,:,:].flatten(),dest=main.rank_connect[0],sendtag=main.mpi_rank,\
                        recvbuf=tmp,source=main.rank_connect[1],recvtag=main.rank_connect[1])
     uR[:] = np.reshape(tmp,np.shape(fL[:,:,:,:,0,:,:]))
-    tmp = np.zeros(np.size(fL[:,:,:,:,-1,:,:]))
+    tmp = np.zeros(np.size(fL[:,:,:,:,-1,:,:]),dtype=fL.dtype)
     main.comm.Sendrecv(fR[:,:,:,:,-1,:,:].flatten(),dest=main.rank_connect[1],sendtag=main.mpi_rank*10,\
                        recvbuf=tmp,source=main.rank_connect[0],recvtag=main.rank_connect[0]*10)
     #uL = np.reshape(tmp,(main.nvars,main.quadpoints,main.quadpoints,main.Npy,main.Npz))

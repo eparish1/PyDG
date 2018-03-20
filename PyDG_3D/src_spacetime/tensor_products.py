@@ -736,15 +736,18 @@ def reconstructUGeneral_tensordot(main,a):
 
 def reconstructEdgesGeneral_tensordot(a,main):
   nvars = np.shape(a)[0]
-  aR = np.einsum('zpqr...->zqr...',a)
+  #aR = np.einsum('zpqr...->zqr...',a)
+  aR = np.sum(a,axis=1)
   #aL = np.einsum('zpqr...->zqr...',a*main.altarray0[None,:,None,None,None,None,None])
   aL = np.tensordot(main.altarray0,a,axes=([0],[1]) )
-  
-  aU = np.einsum('zpqr...->zpr...',a)
+
+  #aU = np.einsum('zpqr...->zpr...',a)
+  aU = np.sum(a,axis=2)
   #aD = np.einsum('zpqr...->zpr...',a*main.altarray1[None,None,:,None,None,None,None])
   aD = np.tensordot(main.altarray1,a,axes=([0],[2]) )
 
-  aF = np.einsum('zpqr...->zpq...',a)
+#  aF = np.einsum('zpqr...->zpq...',a)
+  aF = np.sum(a,axis=3)
 #  aB = np.einsum('zpqr...->zpq...',a*main.altarray2[None,None,None,:,None,None,None])
   aB = np.tensordot(main.altarray2,a,axes=([0],[3]) )
 

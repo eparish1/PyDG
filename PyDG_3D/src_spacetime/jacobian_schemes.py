@@ -1,5 +1,82 @@
 import numpy as np
 import numpy.linalg
+from init_Classes import *
+from adolc import *
+import adolc
+import scipy.sparse as sp
+import time
+def getR(a_flat,main,eqns):
+  a = np.reshape(a_flat,np.shape(main.a.a))
+  main.a.a = a[:]
+  main.getRHS(main,main,eqns)
+  return main.RHS.flatten()
+
+def testAdolcJacobian1(main,main_adolc,eqns):
+  N = np.size(main.a.a)
+  #ax = numpy.array([adouble(0) for n in range(N)])
+  ax = adouble(main.a.a.flatten())
+#  main_adolc = variables(main.Nel,main.order,main.quadpoints,eqns,main.mus,main.x,main.y,main.z,main.t,main.et,main.dt,main.iteration,main.save_freq,main.turb_str,main.procx,main.procy,main.BCs,main.fsource,main.source_mag,main.shock_capturing,main.mol_str,main.basis_args,ax.dtype)
+  a0 = main.a.a[:]*1.
+  #R = getR(main,main,eqns)
+  trace_on(1)
+  independent(ax)
+  ay = getR(ax,main_adolc,eqns)
+  dependent(ay)
+  trace_off()
+  #x = numpy.array([n+1 for n in range(N)])
+  # compute jacobian of f at x
+  #main.a.a[:] = a0[:]
+
+  x = main.a.a.flatten()
+#  y = getR(x,main_adolc,eqns)
+#  y2 = adolc.function(0,x)
+#  assert numpy.allclose(y,y2)
+
+#  options = numpy.array([0,0,0,0],dtype=int)
+#  pat = adolc.sparse.jac_pat(0,x,options)
+#  J = colpack.sparse_jac_no_repeat(0,x,options)
+  J = jacobian(1,x)#main.a.a.flatten())
+
+  return J
+
+def testAdolcJacobian2(main,main_adolc,eqns):
+  N = np.size(main.a.a)
+  #ax = numpy.array([adouble(0) for n in range(N)])
+  ax = adouble(main.a.a.flatten())
+#  main_adolc = variables(main.Nel,main.order,main.quadpoints,eqns,main.mus,main.x,main.y,main.z,main.t,main.et,main.dt,main.iteration,main.save_freq,main.turb_str,main.procx,main.procy,main.BCs,main.fsource,main.source_mag,main.shock_capturing,main.mol_str,main.basis_args,ax.dtype)
+  a0 = main.a.a[:]*1.
+  #R = getR(main,main,eqns)
+  ta = time.time()
+  trace_on(0)
+  independent(ax)
+  ay = getR(ax,main_adolc,eqns)
+  dependent(ay)
+  trace_off()
+  print(time.time()  - ta)
+  #x = numpy.array([n+1 for n in range(N)])
+  # compute jacobian of f at x
+  #main.a.a[:] = a0[:]
+
+  x = main.a.a.flatten()
+#  y = getR(x,main_adolc,eqns)
+#  y2 = adolc.function(0,x)
+#  assert numpy.allclose(y,y2)
+
+  options = numpy.array([0,0,0,0],dtype=int)
+  t0 = time.time()
+  pat = adolc.sparse.jac_pat(0,x,options)
+  t1 = time.time()
+  print(t1 - t0)
+  result = colpack.sparse_jac_no_repeat(0,x,options)
+  print(time.time() - t1)
+  nnz = result[0]
+  ridx = result[1]
+  cidx = result[2]
+  values = result[3]
+  J = sp.csr_matrix((values, (ridx,cidx) ),shape=(N,N) )
+  return J
+
+
 
 def computeBlockJacobian(main,f):
   J = np.zeros((main.nvars,main.order[0],main.order[1],main.order[2],main.order[3],main.nvars,main.order[0],main.order[1],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))

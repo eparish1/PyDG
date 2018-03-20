@@ -13,7 +13,15 @@ import time
 from scipy import interpolate
 from scipy.interpolate import RegularGridInterpolator
 from basis_class import *
-
+import logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+try:
+  from adolc import *
+except:
+  if (MPI.COMM_WORLD.Get_rank() == 0):
+    logger.warning("adolc not found, can't use adolc automatic differentiation")
+ 
 def getGlobU_scalar(u):
   quadpoints0,quadpoints1,quadpoints2,quadpoints3,Nelx,Nely,Nelz,Nelt = np.shape(u)
   uG = np.zeros((quadpoints0*Nelx,quadpoints1*Nely,quadpoints2*Nelz))
@@ -126,9 +134,9 @@ else:
 if 'enriched_ratio' in globals():
   pass
 else:
-  #enriched_ratio = np.array([2,2,2,1])
-  enriched_add = np.array([4,0,0,0])
-  quadpoints_ratio = np.array([2,1,1,1])
+  enriched_ratio = np.array([2,2,2,1])
+  #enriched_add = np.array([4,0,0,0])
+  #quadpoints_ratio = np.array([2,1,1,1])
 #  enriched_ratio = np.array([(order[0]+1.)/order[0],(order[1]+1.)/order[1],(order[2]+1.)/order[2],1])
 if 'enriched' in globals():
   pass
@@ -194,11 +202,12 @@ if (mpi_rank == 0):
 
 if (enriched):
   eqnsEnriched = eqns#equations(enriched_eqn_str,enriched_schemes,turb_str)
-  mainEnriched = variables(Nel,np.int64(order + enriched_add),quadpoints*quadpoints_ratio,eqnsEnriched,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,fsource,source_mag,shock_capturing,mol_str,basis_args)
+  mainEnriched = variables(Nel,np.int64(order*enriched_ratio),quadpoints,eqnsEnriched,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,fsource,source_mag,shock_capturing,mol_str,basis_args)
 else:
   mainEnriched = main
 
 
+#main_adolc = variables(main.Nel,main.order,main.quadpoints,eqns,main.mus,main.x,main.y,main.z,main.t,main.et,main.dt,main.iteration,main.save_freq,main.turb_str,main.procx,main.procy,main.BCs,main.fsource,main.source_mag,main.shock_capturing,main.mol_str,main.basis_args,adouble(main.a.a.flatten()).dtype)
 
 #main.basis = basis_class('Legendre',[basis_functions_str,orthogonal_str])
 #mainEnriched.basis = main.basis

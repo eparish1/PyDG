@@ -17,99 +17,99 @@ from basis_class import *
 from grid_functions import *
 #from init_reacting_additions import add_reacting_to_main
 class variable:
-  def __init__(self,nvars,order,quadpoints,Npx,Npy,Npz,Npt):
+  def __init__(self,nvars,order,quadpoints,Npx,Npy,Npz,Npt,arr_dtype='float64'):
       self.nvars = nvars
       self.order = order
       self.quadpoints = quadpoints
-      self.a =np.zeros((nvars,order[0],order[1],order[2],order[3],Npx,Npy,Npz,Npt))
-      self.u =np.zeros((nvars,quadpoints[0],quadpoints[1],quadpoints[2],quadpoints[3],Npx,Npy,Npz,Npt))
-      self.aR_edge = np.zeros((nvars,order[0],order[1],order[2],order[3],Npy,Npz,Npt))
-      self.aL_edge = np.zeros((nvars,order[0],order[1],order[2],order[3],Npy,Npz,Npt))
-      self.aU_edge = np.zeros((nvars,order[0],order[1],order[2],order[3],Npx,Npz,Npt))
-      self.aD_edge = np.zeros((nvars,order[0],order[1],order[2],order[3],Npx,Npz,Npt))
-      self.aF_edge = np.zeros((nvars,order[0],order[1],order[2],order[3],Npx,Npy,Npt))
-      self.aB_edge = np.zeros((nvars,order[0],order[1],order[2],order[3],Npx,Npy,Npt))
+      self.a =np.zeros((nvars,order[0],order[1],order[2],order[3],Npx,Npy,Npz,Npt),dtype=arr_dtype)
+      self.u =np.zeros((nvars,quadpoints[0],quadpoints[1],quadpoints[2],quadpoints[3],Npx,Npy,Npz,Npt),dtype=arr_dtype)
+      self.aR_edge = np.zeros((nvars,order[0],order[1],order[2],order[3],Npy,Npz,Npt),dtype=arr_dtype)
+      self.aL_edge = np.zeros((nvars,order[0],order[1],order[2],order[3],Npy,Npz,Npt),dtype=arr_dtype)
+      self.aU_edge = np.zeros((nvars,order[0],order[1],order[2],order[3],Npx,Npz,Npt),dtype=arr_dtype)
+      self.aD_edge = np.zeros((nvars,order[0],order[1],order[2],order[3],Npx,Npz,Npt),dtype=arr_dtype)
+      self.aF_edge = np.zeros((nvars,order[0],order[1],order[2],order[3],Npx,Npy,Npt),dtype=arr_dtype)
+      self.aB_edge = np.zeros((nvars,order[0],order[1],order[2],order[3],Npx,Npy,Npt),dtype=arr_dtype)
 
 
-      self.uR_edge = np.zeros((nvars,quadpoints[1],quadpoints[2],quadpoints[3],Npy,Npz,Npt))
-      self.uL_edge = np.zeros((nvars,quadpoints[1],quadpoints[2],quadpoints[3],Npy,Npz,Npt))
-      self.uU_edge = np.zeros((nvars,quadpoints[0],quadpoints[2],quadpoints[3],Npx,Npz,Npt))
-      self.uD_edge = np.zeros((nvars,quadpoints[0],quadpoints[2],quadpoints[3],Npx,Npz,Npt))
-      self.uF_edge = np.zeros((nvars,quadpoints[0],quadpoints[1],quadpoints[3],Npx,Npy,Npt))
-      self.uB_edge = np.zeros((nvars,quadpoints[0],quadpoints[1],quadpoints[3],Npx,Npy,Npt))
+      self.uR_edge = np.zeros((nvars,quadpoints[1],quadpoints[2],quadpoints[3],Npy,Npz,Npt),dtype=arr_dtype)
+      self.uL_edge = np.zeros((nvars,quadpoints[1],quadpoints[2],quadpoints[3],Npy,Npz,Npt),dtype=arr_dtype)
+      self.uU_edge = np.zeros((nvars,quadpoints[0],quadpoints[2],quadpoints[3],Npx,Npz,Npt),dtype=arr_dtype)
+      self.uD_edge = np.zeros((nvars,quadpoints[0],quadpoints[2],quadpoints[3],Npx,Npz,Npt),dtype=arr_dtype)
+      self.uF_edge = np.zeros((nvars,quadpoints[0],quadpoints[1],quadpoints[3],Npx,Npy,Npt),dtype=arr_dtype)
+      self.uB_edge = np.zeros((nvars,quadpoints[0],quadpoints[1],quadpoints[3],Npx,Npy,Npt),dtype=arr_dtype)
 
-      self.uR = np.zeros((nvars,quadpoints[1],quadpoints[2],quadpoints[3],Npx,Npy,Npz,Npt))
-      self.uL = np.zeros((nvars,quadpoints[1],quadpoints[2],quadpoints[3],Npx,Npy,Npz,Npt))
-      self.uU = np.zeros((nvars,quadpoints[0],quadpoints[2],quadpoints[3],Npx,Npy,Npz,Npt))
-      self.uD = np.zeros((nvars,quadpoints[0],quadpoints[2],quadpoints[3],Npx,Npy,Npz,Npt))
-      self.uF = np.zeros((nvars,quadpoints[0],quadpoints[1],quadpoints[3],Npx,Npy,Npz,Npt))
-      self.uB = np.zeros((nvars,quadpoints[0],quadpoints[1],quadpoints[3],Npx,Npy,Npz,Npt))
+      self.uR = np.zeros((nvars,quadpoints[1],quadpoints[2],quadpoints[3],Npx,Npy,Npz,Npt),dtype=arr_dtype)
+      self.uL = np.zeros((nvars,quadpoints[1],quadpoints[2],quadpoints[3],Npx,Npy,Npz,Npt),dtype=arr_dtype)
+      self.uU = np.zeros((nvars,quadpoints[0],quadpoints[2],quadpoints[3],Npx,Npy,Npz,Npt),dtype=arr_dtype)
+      self.uD = np.zeros((nvars,quadpoints[0],quadpoints[2],quadpoints[3],Npx,Npy,Npz,Npt),dtype=arr_dtype)
+      self.uF = np.zeros((nvars,quadpoints[0],quadpoints[1],quadpoints[3],Npx,Npy,Npz,Npt),dtype=arr_dtype)
+      self.uB = np.zeros((nvars,quadpoints[0],quadpoints[1],quadpoints[3],Npx,Npy,Npz,Npt),dtype=arr_dtype)
 
-      self.uFuture = np.zeros((nvars,quadpoints[0],quadpoints[1],quadpoints[2],Npx,Npy,Npz,Npt))
+      self.uFuture = np.zeros((nvars,quadpoints[0],quadpoints[1],quadpoints[2],Npx,Npy,Npz,Npt),dtype=arr_dtype)
 #      self.uPast = np.zeros((nvars,quadpoints[0],quadpoints[1],quadpoints[2],Npx,Npy,Npz,Npt))
 
 
-      self.aR = np.zeros((nvars,order[1],order[2],order[3],Npx,Npy,Npz,Npt))
-      self.aL = np.zeros((nvars,order[1],order[2],order[3],Npx,Npy,Npz,Npt))
-      self.aU = np.zeros((nvars,order[0],order[2],order[3],Npx,Npy,Npz,Npt))
-      self.aD = np.zeros((nvars,order[0],order[2],order[3],Npx,Npy,Npz,Npt))
-      self.aF = np.zeros((nvars,order[0],order[1],order[3],Npx,Npy,Npz,Npt))
-      self.aB = np.zeros((nvars,order[0],order[1],order[3],Npx,Npy,Npz,Npt))
+      self.aR = np.zeros((nvars,order[1],order[2],order[3],Npx,Npy,Npz,Npt),dtype=arr_dtype)
+      self.aL = np.zeros((nvars,order[1],order[2],order[3],Npx,Npy,Npz,Npt),dtype=arr_dtype)
+      self.aU = np.zeros((nvars,order[0],order[2],order[3],Npx,Npy,Npz,Npt),dtype=arr_dtype)
+      self.aD = np.zeros((nvars,order[0],order[2],order[3],Npx,Npy,Npz,Npt),dtype=arr_dtype)
+      self.aF = np.zeros((nvars,order[0],order[1],order[3],Npx,Npy,Npz,Npt),dtype=arr_dtype)
+      self.aB = np.zeros((nvars,order[0],order[1],order[3],Npx,Npy,Npz,Npt),dtype=arr_dtype)
 
-      self.uLS = np.zeros((nvars,quadpoints[1],quadpoints[2],quadpoints[3],Npx,Npy,Npz,Npt))
-      self.uRS = np.zeros((nvars,quadpoints[1],quadpoints[2],quadpoints[3],Npx,Npy,Npz,Npt))
-      self.uUS = np.zeros((nvars,quadpoints[0],quadpoints[2],quadpoints[3],Npx,Npy,Npz,Npt))
-      self.uDS = np.zeros((nvars,quadpoints[0],quadpoints[2],quadpoints[3],Npx,Npy,Npz,Npt))
-      self.uBS = np.zeros((nvars,quadpoints[0],quadpoints[1],quadpoints[3],Npx,Npy,Npz,Npt))
-      self.uFS = np.zeros((nvars,quadpoints[0],quadpoints[1],quadpoints[3],Npx,Npy,Npz,Npt))
+      self.uLS = np.zeros((nvars,quadpoints[1],quadpoints[2],quadpoints[3],Npx,Npy,Npz,Npt),dtype=arr_dtype)
+      self.uRS = np.zeros((nvars,quadpoints[1],quadpoints[2],quadpoints[3],Npx,Npy,Npz,Npt),dtype=arr_dtype)
+      self.uUS = np.zeros((nvars,quadpoints[0],quadpoints[2],quadpoints[3],Npx,Npy,Npz,Npt),dtype=arr_dtype)
+      self.uDS = np.zeros((nvars,quadpoints[0],quadpoints[2],quadpoints[3],Npx,Npy,Npz,Npt),dtype=arr_dtype)
+      self.uBS = np.zeros((nvars,quadpoints[0],quadpoints[1],quadpoints[3],Npx,Npy,Npz,Npt),dtype=arr_dtype)
+      self.uFS = np.zeros((nvars,quadpoints[0],quadpoints[1],quadpoints[3],Npx,Npy,Npz,Npt),dtype=arr_dtype)
 
 class fluxvariable:
-  def __init__(self,nvars,order,quadpoints,Npx,Npy,Npz,Npt):
+  def __init__(self,nvars,order,quadpoints,Npx,Npy,Npz,Npt,arr_dtype='float64'):
     self.nvars = nvars
     self.order = order
     self.quadpoints = quadpoints
-    self.fx = np.zeros((nvars,quadpoints[0],quadpoints[1],quadpoints[2],quadpoints[3],Npx,Npy,Npz,Npt))
-    self.fy = np.zeros((nvars,quadpoints[0],quadpoints[1],quadpoints[2],quadpoints[3],Npx,Npy,Npz,Npt))
-    self.fz = np.zeros((nvars,quadpoints[0],quadpoints[1],quadpoints[2],quadpoints[3],Npx,Npy,Npz,Npt))
+    self.fx = np.zeros((nvars,quadpoints[0],quadpoints[1],quadpoints[2],quadpoints[3],Npx,Npy,Npz,Npt),dtype=arr_dtype)
+    self.fy = np.zeros((nvars,quadpoints[0],quadpoints[1],quadpoints[2],quadpoints[3],Npx,Npy,Npz,Npt),dtype=arr_dtype)
+    self.fz = np.zeros((nvars,quadpoints[0],quadpoints[1],quadpoints[2],quadpoints[3],Npx,Npy,Npz,Npt),dtype=arr_dtype)
 
-    self.fL = np.zeros((nvars,quadpoints[1],quadpoints[2],quadpoints[3],Npx,Npy,Npz,Npt))
-    self.fR = np.zeros((nvars,quadpoints[1],quadpoints[2],quadpoints[3],Npx,Npy,Npz,Npt))
-    self.fU = np.zeros((nvars,quadpoints[0],quadpoints[2],quadpoints[3],Npx,Npy,Npz,Npt))
-    self.fD = np.zeros((nvars,quadpoints[0],quadpoints[2],quadpoints[3],Npx,Npy,Npz,Npt))
-    self.fF = np.zeros((nvars,quadpoints[0],quadpoints[1],quadpoints[3],Npx,Npy,Npz,Npt))
-    self.fB = np.zeros((nvars,quadpoints[0],quadpoints[1],quadpoints[3],Npx,Npy,Npz,Npt))
+    self.fL = np.zeros((nvars,quadpoints[1],quadpoints[2],quadpoints[3],Npx,Npy,Npz,Npt),dtype=arr_dtype)
+    self.fR = np.zeros((nvars,quadpoints[1],quadpoints[2],quadpoints[3],Npx,Npy,Npz,Npt),dtype=arr_dtype)
+    self.fU = np.zeros((nvars,quadpoints[0],quadpoints[2],quadpoints[3],Npx,Npy,Npz,Npt),dtype=arr_dtype)
+    self.fD = np.zeros((nvars,quadpoints[0],quadpoints[2],quadpoints[3],Npx,Npy,Npz,Npt),dtype=arr_dtype)
+    self.fF = np.zeros((nvars,quadpoints[0],quadpoints[1],quadpoints[3],Npx,Npy,Npz,Npt),dtype=arr_dtype)
+    self.fB = np.zeros((nvars,quadpoints[0],quadpoints[1],quadpoints[3],Npx,Npy,Npz,Npt),dtype=arr_dtype)
 
-    self.fRLS = np.zeros((nvars,quadpoints[1],quadpoints[2],quadpoints[3],Npx+1,Npy,Npz,Npt))
-    self.fUDS = np.zeros((nvars,quadpoints[0],quadpoints[2],quadpoints[3],Npx,Npy+1,Npz,Npt))
-    self.fFBS = np.zeros((nvars,quadpoints[0],quadpoints[1],quadpoints[3],Npx,Npy,Npz+1,Npt))
+    self.fRLS = np.zeros((nvars,quadpoints[1],quadpoints[2],quadpoints[3],Npx+1,Npy,Npz,Npt),dtype=arr_dtype)
+    self.fUDS = np.zeros((nvars,quadpoints[0],quadpoints[2],quadpoints[3],Npx,Npy+1,Npz,Npt),dtype=arr_dtype)
+    self.fFBS = np.zeros((nvars,quadpoints[0],quadpoints[1],quadpoints[3],Npx,Npy,Npz+1,Npt),dtype=arr_dtype)
 
-    self.fRLI = np.zeros((nvars,order[1],order[2],order[3],Npx+1,Npy,Npz,Npt))
-    self.fUDI = np.zeros((nvars,order[0],order[2],order[3],Npx,Npy+1,Npz,Npt))
-    self.fFBI = np.zeros((nvars,order[0],order[1],order[3],Npx,Npy,Npz+1,Npt))
+    self.fRLI = np.zeros((nvars,order[1],order[2],order[3],Npx+1,Npy,Npz,Npt),dtype=arr_dtype)
+    self.fUDI = np.zeros((nvars,order[0],order[2],order[3],Npx,Npy+1,Npz,Npt),dtype=arr_dtype)
+    self.fFBI = np.zeros((nvars,order[0],order[1],order[3],Npx,Npy,Npz+1,Npt),dtype=arr_dtype)
 
-    self.fRI = np.zeros((nvars,order[1],order[2],order[3],Npx,Npy,Npz,Npt))
-    self.fLI = np.zeros((nvars,order[1],order[2],order[3],Npx,Npy,Npz,Npt))
-    self.fUI = np.zeros((nvars,order[0],order[2],order[3],Npx,Npy,Npz,Npt))
-    self.fDI = np.zeros((nvars,order[0],order[2],order[3],Npx,Npy,Npz,Npt))
-    self.fFI = np.zeros((nvars,order[0],order[1],order[3],Npx,Npy,Npz,Npt))
-    self.fBI = np.zeros((nvars,order[0],order[1],order[3],Npx,Npy,Npz,Npt))
+    self.fRI = np.zeros((nvars,order[1],order[2],order[3],Npx,Npy,Npz,Npt),dtype=arr_dtype)
+    self.fLI = np.zeros((nvars,order[1],order[2],order[3],Npx,Npy,Npz,Npt),dtype=arr_dtype)
+    self.fUI = np.zeros((nvars,order[0],order[2],order[3],Npx,Npy,Npz,Npt),dtype=arr_dtype)
+    self.fDI = np.zeros((nvars,order[0],order[2],order[3],Npx,Npy,Npz,Npt),dtype=arr_dtype)
+    self.fFI = np.zeros((nvars,order[0],order[1],order[3],Npx,Npy,Npz,Npt),dtype=arr_dtype)
+    self.fBI = np.zeros((nvars,order[0],order[1],order[3],Npx,Npy,Npz,Npt),dtype=arr_dtype)
 
 
 
-    self.fR_edge = np.zeros((nvars,quadpoints[1],quadpoints[2],quadpoints[3],Npy,Npz,Npt))
-    self.fL_edge = np.zeros((nvars,quadpoints[1],quadpoints[2],quadpoints[3],Npy,Npz,Npt))
-    self.fU_edge = np.zeros((nvars,quadpoints[0],quadpoints[2],quadpoints[3],Npx,Npz,Npt))
-    self.fD_edge = np.zeros((nvars,quadpoints[0],quadpoints[2],quadpoints[3],Npx,Npz,Npt))
-    self.fF_edge = np.zeros((nvars,quadpoints[0],quadpoints[1],quadpoints[3],Npx,Npy,Npt))
-    self.fB_edge = np.zeros((nvars,quadpoints[0],quadpoints[1],quadpoints[3],Npx,Npy,Npt))
+    self.fR_edge = np.zeros((nvars,quadpoints[1],quadpoints[2],quadpoints[3],Npy,Npz,Npt),dtype=arr_dtype)
+    self.fL_edge = np.zeros((nvars,quadpoints[1],quadpoints[2],quadpoints[3],Npy,Npz,Npt),dtype=arr_dtype)
+    self.fU_edge = np.zeros((nvars,quadpoints[0],quadpoints[2],quadpoints[3],Npx,Npz,Npt),dtype=arr_dtype)
+    self.fD_edge = np.zeros((nvars,quadpoints[0],quadpoints[2],quadpoints[3],Npx,Npz,Npt),dtype=arr_dtype)
+    self.fF_edge = np.zeros((nvars,quadpoints[0],quadpoints[1],quadpoints[3],Npx,Npy,Npt),dtype=arr_dtype)
+    self.fB_edge = np.zeros((nvars,quadpoints[0],quadpoints[1],quadpoints[3],Npx,Npy,Npt),dtype=arr_dtype)
 
     ### Only need this for double flux schemes
-    self.fRS = np.zeros((nvars,quadpoints[1],quadpoints[2],quadpoints[3],Npx,Npy,Npz,Npt))
-    self.fUS = np.zeros((nvars,quadpoints[0],quadpoints[2],quadpoints[3],Npx,Npy,Npz,Npt))
-    self.fFS = np.zeros((nvars,quadpoints[0],quadpoints[1],quadpoints[3],Npx,Npy,Npz,Npt))
-    self.fLS = np.zeros((nvars,quadpoints[1],quadpoints[2],quadpoints[3],Npx,Npy,Npz,Npt))
-    self.fDS = np.zeros((nvars,quadpoints[0],quadpoints[2],quadpoints[3],Npx,Npy,Npz,Npt))
-    self.fBS = np.zeros((nvars,quadpoints[0],quadpoints[1],quadpoints[3],Npx,Npy,Npz,Npt))
+    self.fRS = np.zeros((nvars,quadpoints[1],quadpoints[2],quadpoints[3],Npx,Npy,Npz,Npt),dtype=arr_dtype)
+    self.fUS = np.zeros((nvars,quadpoints[0],quadpoints[2],quadpoints[3],Npx,Npy,Npz,Npt),dtype=arr_dtype)
+    self.fFS = np.zeros((nvars,quadpoints[0],quadpoints[1],quadpoints[3],Npx,Npy,Npz,Npt),dtype=arr_dtype)
+    self.fLS = np.zeros((nvars,quadpoints[1],quadpoints[2],quadpoints[3],Npx,Npy,Npz,Npt),dtype=arr_dtype)
+    self.fDS = np.zeros((nvars,quadpoints[0],quadpoints[2],quadpoints[3],Npx,Npy,Npz,Npt),dtype=arr_dtype)
+    self.fBS = np.zeros((nvars,quadpoints[0],quadpoints[1],quadpoints[3],Npx,Npy,Npz,Npt),dtype=arr_dtype)
 
 
 
@@ -205,7 +205,7 @@ class boundaryConditions:
     
 
 class variables:
-  def __init__(self,Nel,order,quadpoints,eqns,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,source,source_mag,shock_capturing,mol_str,basis_args):
+  def __init__(self,Nel,order,quadpoints,eqns,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,source,source_mag,shock_capturing,mol_str,basis_args,arr_dtype='float64'):
     ## DG scheme information
     self.basis_args = basis_args
     self.eq_str = eqns.eq_str
@@ -232,6 +232,7 @@ class variables:
     self.Npx = int(float(Nel[0] / procx))
     self.Npz = int(Nel[2])
     self.Npt = Nel[-1]
+    self.Nel_loc = np.array([self.Npx,self.Npy,self.Npz,self.Npt])
     self.sy = slice(int(self.mpi_rank)/int(self.procx)*self.Npy,(int(self.mpi_rank)/int(self.procx) + 1)*self.Npy)  ##slicing in y direction
     self.sx = slice(int(self.mpi_rank%self.procx)*self.Npx,int(self.mpi_rank%self.procx + 1)*self.Npx)
     self.rank_connect,self.BC_rank = getRankConnectionsSlab(self.mpi_rank,self.num_processes,self.procx,self.procy)
@@ -318,21 +319,21 @@ class variables:
     self.dz2 = np.diff(z[0,0,:])
 
     #print(np.shape(xG))
-    self.x = x[self.sx]
-    self.y = y[self.sy] 
+    #self.x = x[self.sx]
+    #self.y = y[self.sy] 
     self.z = z
     self.nvars = eqns.nvars
 
-    self.a0 = np.zeros((eqns.nvars,self.order[0],self.order[1],self.order[2],self.order[3],self.Npx,self.Npy,self.Npz,self.Npt))
-    self.a = variable(eqns.nvars,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz,self.Npt)
+    self.a0 = np.zeros((eqns.nvars,self.order[0],self.order[1],self.order[2],self.order[3],self.Npx,self.Npy,self.Npz,self.Npt),dtype=arr_dtype)
+    self.a = variable(eqns.nvars,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz,self.Npt,arr_dtype)
 
-    self.adum = variable(eqns.nvars,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz,self.Npt)
+    #self.adum = variable(eqns.nvars,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz,self.Npt)
 
-    self.b = variable(eqns.nvisc_vars,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz,self.Npt)
+    self.b = variable(eqns.nvisc_vars,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz,self.Npt,arr_dtype)
 
-    self.iFlux = fluxvariable(eqns.nvars,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz,self.Npt)
-    self.vFlux = fluxvariable(eqns.nvisc_vars,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz,self.Npt)
-    self.vFlux2 = fluxvariable(eqns.nvars,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz,self.Npt)
+    self.iFlux = fluxvariable(eqns.nvars,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz,self.Npt,arr_dtype)
+    self.vFlux = fluxvariable(eqns.nvisc_vars,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz,self.Npt,arr_dtype)
+    self.vFlux2 = fluxvariable(eqns.nvars,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz,self.Npt,arr_dtype)
 
     self.mus = mu
     self.mu = mu#np.ones(np.append( eqns.nmus, np.shape( self.a.u[0])))*self.mus
@@ -355,7 +356,7 @@ class variables:
 #    self.tmp2 = np.zeros(np.shape(np.rollaxis(np.tensordot(self.w2*self.weights2[None,:],self.tmp1,axes=([1],[1])),0,9)))
 #    self.tmp3 = np.zeros(np.shape(np.rollaxis(np.tensordot(self.w3*self.weights3[None,:],self.tmp2,axes=([1],[1])),0,9)))
 
-    self.RHS = np.zeros((eqns.nvars,self.order[0],self.order[1],self.order[2],self.order[3],self.Npx,self.Npy,self.Npz,self.Npt))
+    self.RHS = np.zeros((eqns.nvars,self.order[0],self.order[1],self.order[2],self.order[3],self.Npx,self.Npy,self.Npz,self.Npt),dtype=arr_dtype)
     self.NLiter = 0 
     self.linear_iteration = 0
     ### Check turbulence models
