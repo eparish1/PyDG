@@ -1,8 +1,21 @@
 import numpy as np
 import numpy.linalg
 from init_Classes import *
-from adolc import *
-import adolc
+import logging
+from mpi4py import MPI
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+try:
+  from adolc import *
+except:
+  if (MPI.COMM_WORLD.Get_rank() == 0):
+    logger.warning("adolc not found, can't use adolc automatic differentiation")
+try: 
+  import adolc
+except:
+  if (MPI.COMM_WORLD.Get_rank() == 0):
+    logger.warning("adolc not found, can't use adolc automatic differentiation")
+
 import scipy.sparse as sp
 import time
 def getR(a_flat,main,eqns):
