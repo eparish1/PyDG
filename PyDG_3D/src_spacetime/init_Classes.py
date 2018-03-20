@@ -262,7 +262,7 @@ class variables:
     #xtmp,ytmp,ztmp = np.meshgrid(xG,yG,zG,indexing='ij')
     self.x,self.y,self.z = x,y,z
 
-    Xtmp = np.zeros((3,Nel[0]+1,Nel[1]+1,Nel[2]+1))
+    Xtmp = np.zeros((3,self.Nel_loc[0]+1,self.Nel_loc[1]+1,self.Nel_loc[2]+1))
     Xtmp[0],Xtmp[1],Xtmp[2] = x,y,z
     X_el = get_Xel(Xtmp,self.sx,self.sy)
     self.J,self.Jinv,self.Jdet,self.J_edge_det,self.normals = computeJacobian(X_el,self.zeta0,self.zeta1,self.zeta2)

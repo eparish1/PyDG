@@ -76,8 +76,8 @@ def getGlobGrid(main,x,y,z,zeta0,zeta1,zeta2):
 
   zG = (x1*(eta - 1)*(mu - 1)*(zeta + 1))/8 - (x0*(eta - 1)*(mu - 1)*(zeta - 1))/8 + (x2*(eta + 1)*(mu - 1)*(zeta - 1))/8 - (x3*(eta + 1)*(mu - 1)*(zeta + 1))/8 + (x4*(eta - 1)*(mu + 1)*(zeta - 1))/8     - (x5*(eta - 1)*(mu + 1)*(zeta + 1))/8 - (x6*(eta + 1)*(mu + 1)*(zeta - 1))/8 + (x7*(eta + 1)*(mu + 1)*(zeta + 1))/8
 
-  return xG[:,:,:,main.sx,main.sy,:],yG[:,:,:,main.sx,main.sy,:],zG[:,:,:,main.sx,main.sy,:]
-
+  #return xG[:,:,:,main.sx,main.sy,:],yG[:,:,:,main.sx,main.sy,:],zG[:,:,:,main.sx,main.sy,:]
+  return xG,yG,zG
 
 
 def get_Xel(X,sx,sy):
@@ -94,7 +94,7 @@ def get_Xel(X,sx,sy):
   X_el[5] = X[:,1:: ,0:-1,1:: ]
   X_el[6] = X[:,0:-1,1:: ,1:: ]
   X_el[7] = X[:,1:: ,1:: ,1:: ]
-  return X_el[:,:,sx,sy]
+  return X_el#[:,:,sx,sy]
 
 def computeJacobian(X_el,zeta0,zeta1,zeta2):
   orderx = np.size(zeta0)

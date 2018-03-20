@@ -226,16 +226,17 @@ reconstructU(main,main.a)
 
 timescheme = timeschemes(main,time_integration,linear_solver_str,nonlinear_solver_str)
 #main.source_hook = source_hook
-xG_global = gatherSolScalar(main,main.xG[:,:,:,None,:,:,:,None])
-yG_global = gatherSolScalar(main,main.yG[:,:,:,None,:,:,:,None])
-zG_global = gatherSolScalar(main,main.zG[:,:,:,None,:,:,:,None])
-if (main.mpi_rank == 0):
-  xG_global = np.reshape( np.rollaxis(np.rollaxis(np.rollaxis(xG_global[:,:,:,0,:,:,:,0],3,0),4,2),5,4), (Nel[0]*quadpoints[0],Nel[1]*quadpoints[1],Nel[2]*quadpoints[2]) )
-  yG_global = np.reshape( np.rollaxis(np.rollaxis(np.rollaxis(yG_global[:,:,:,0,:,:,:,0],3,0),4,2),5,4), (Nel[0]*quadpoints[0],Nel[1]*quadpoints[1],Nel[2]*quadpoints[2]) )
-  zG_global = np.reshape( np.rollaxis(np.rollaxis(np.rollaxis(zG_global[:,:,:,0,:,:,:,0],3,0),4,2),5,4), (Nel[0]*quadpoints[0],Nel[1]*quadpoints[1],Nel[2]*quadpoints[2]) )
-  if not os.path.exists('Solution'):
-     os.makedirs('Solution')
-  np.savez('DGgrid',x=xG_global,y=yG_global,z=zG_global)
+if (mpi_output):
+  xG_global = gatherSolScalar(main,main.xG[:,:,:,None,:,:,:,None])
+  yG_global = gatherSolScalar(main,main.yG[:,:,:,None,:,:,:,None])
+  zG_global = gatherSolScalar(main,main.zG[:,:,:,None,:,:,:,None])
+  if (main.mpi_rank == 0):
+    xG_global = np.reshape( np.rollaxis(np.rollaxis(np.rollaxis(xG_global[:,:,:,0,:,:,:,0],3,0),4,2),5,4), (Nel[0]*quadpoints[0],Nel[1]*quadpoints[1],Nel[2]*quadpoints[2]) )
+    yG_global = np.reshape( np.rollaxis(np.rollaxis(np.rollaxis(yG_global[:,:,:,0,:,:,:,0],3,0),4,2),5,4), (Nel[0]*quadpoints[0],Nel[1]*quadpoints[1],Nel[2]*quadpoints[2]) )
+    zG_global = np.reshape( np.rollaxis(np.rollaxis(np.rollaxis(zG_global[:,:,:,0,:,:,:,0],3,0),4,2),5,4), (Nel[0]*quadpoints[0],Nel[1]*quadpoints[1],Nel[2]*quadpoints[2]) )
+    if not os.path.exists('Solution'):
+       os.makedirs('Solution')
+    np.savez('DGgrid',x=xG_global,y=yG_global,z=zG_global)
 
 
 t0 = time.time()
