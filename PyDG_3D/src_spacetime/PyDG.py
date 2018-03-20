@@ -180,6 +180,12 @@ if 't' in globals():
 else:
   t = 0
 
+if 'mpi_output' in globals():
+  pass
+else:
+  mpi_output = False 
+
+
 ##======================================================
 
 basis_args = [basis_functions_str,orthogonal_str]
@@ -265,23 +271,35 @@ scale =  (2.*ord_arrx[:,None,None,None] + 1.)*(2.*ord_arry[None,:,None,None] + 1
 #  main.mg_b.append( np.zeros(np.shape(main.mg_classes[i].RHS)) )
 #  main.mg_e.append(  np.zeros(np.size(main.mg_classes[i].RHS)) )
 
+# Make Solution Directory if it does not exist
+if (mpi_output):
+  solloc = 'Solution/rank_' + str(mpi_rank)
+  if not os.path.exists(solloc):
+     os.makedirs(solloc)
 
 
 
 while (main.t <= main.et + main.dt/2):
   if (main.iteration%main.save_freq == 0):
-    reconstructU(main,main.a)
-    uG = gatherSolSlab(main,eqns,main.a)
-    aG = gatherSolSpectral(main.a.a,main)
-    savehook(main)
-    if (main.mpi_rank == 0):
-      UG = getGlobU(uG)
-      #uGF = getGlobU(uG)
-      sys.stdout.write('======================================' + '\n')
-      sys.stdout.write('wall time = ' + str(time.time() - t0) + '\n' )
-      sys.stdout.write('t = ' + str(main.t) +  '\n')
-      np.savez('Solution/npsol' + str(main.iteration),U=(UG),a=aG,t=main.t,iteration=main.iteration,order=order,tau=main.tau)
+    if (mpi_output):
+      np.savez(solloc + '/npsol' + str(main.iteration),t=main.t,iteration=main.iteration,order=order,tau=main.tau,a=main.a.a)
+      if (main.mpi_rank == 0):
+        sys.stdout.write('======================================' + '\n')
+        sys.stdout.write('wall time = ' + str(time.time() - t0) +  '\n' )
+        sys.stdout.write('t = ' + str(main.t) +  '  sol norm = ' + str(np.linalg.norm(main.a.a)) + '\n')
       sys.stdout.flush()
+    else:
+      reconstructU(main,main.a)
+      uG = gatherSolSlab(main,eqns,main.a)
+      aG = gatherSolSpectral(main.a.a,main)
+      savehook(main)
+      if (main.mpi_rank == 0):
+        UG = getGlobU(uG)
+        sys.stdout.write('======================================' + '\n')
+        sys.stdout.write('wall time = ' + str(time.time() - t0) + '\n' )
+        sys.stdout.write('t = ' + str(main.t) +  '\n')
+        np.savez('Solution/npsol' + str(main.iteration),U=(UG),a=aG,t=main.t,iteration=main.iteration,order=order,tau=main.tau)
+        sys.stdout.flush()
 
   timescheme.advanceSol(main,mainEnriched,eqns,timescheme.args)
   #advanceSolImplicit_MG(main,main,eqns)

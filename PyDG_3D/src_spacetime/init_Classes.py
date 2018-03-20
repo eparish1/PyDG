@@ -321,7 +321,7 @@ class variables:
     #print(np.shape(xG))
     #self.x = x[self.sx]
     #self.y = y[self.sy] 
-    self.z = z
+    #self.z = z
     self.nvars = eqns.nvars
 
     self.a0 = np.zeros((eqns.nvars,self.order[0],self.order[1],self.order[2],self.order[3],self.Npx,self.Npy,self.Npz,self.Npt),dtype=arr_dtype)
