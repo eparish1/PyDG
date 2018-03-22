@@ -4,6 +4,13 @@ from evtk.hl import gridToVTK
 import numpy as np
 import os.path
 from navier_stokes_entropy import entropy_to_conservative
+from mpi4py import MPI
+comm = MPI.COMM_WORLD
+num_processes = comm.Get_size()
+mpi_rank = comm.Get_rank()
+
+
+
 class postProcessorEntropy:
   def __init__(self):
     def writeAllToParaview(self,start=0,end=100000,skip=1):
@@ -41,7 +48,17 @@ class postProcessor:
     def writeAllToParaview(self,start=0,end=100000,skip=1):
       grid = np.load('../DGgrid.npz')
       x,y,z = grid['x'],grid['y'],grid['z']
+      end_file = 0
       for i in range(0,end,skip):
+        sol_str = 'npsol' + str(i) + '.npz'
+        if (os.path.isfile(sol_str)):
+          end_file = i
+      num_loc_files = end_file/num_processes
+      rank_start_file = mpi_rank*num_loc_files
+      rank_end_file = (mpi_rank+1)*num_loc_files
+      if (mpi_rank == num_processes - 1):
+        rank_end_file = end_file
+      for i in range(rank_start_file,rank_end_file,skip):
         sol_str = 'npsol' + str(i) + '.npz'
         if (os.path.isfile(sol_str)):
           print('found ' + sol_str)

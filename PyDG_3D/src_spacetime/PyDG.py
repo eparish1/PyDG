@@ -237,8 +237,7 @@ if (mpi_output):
     if not os.path.exists('Solution'):
        os.makedirs('Solution')
     np.savez('DGgrid',x=xG_global,y=yG_global,z=zG_global)
-
-
+    np.savez('Solution/info',num_processes=main.num_processes,Nel=main.Nel,order=main.order,quadpoints=main.quadpoints,procx=main.procx,procy=main.procy)
 t0 = time.time()
 
 ord_arrx= np.linspace(0,order[0]-1,order[0])
