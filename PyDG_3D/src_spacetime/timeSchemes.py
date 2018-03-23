@@ -1702,7 +1702,7 @@ def fractionalStep(main,MZ,eqns,args):
 
   eqnsPoisson = equations('Diffusion',('central','BR1'),'none' )
   poisson_main = variables(main.Nel,main.order,main.quadpoints,eqnsPoisson,1,main.xG,main.yG,main.zG,main.t,main.et,main.dt,main.iteration,main.save_freq,main.turb_str,main.procx,main.procy,\
-                         main.BCs,None,0,False,False)
+                         main.procz,main.BCs,None,0,False,False)
   main.a.Upx,main.a.Upy,main.a.Upz = main.basis.diffU(main.a.a,main)
   div = main.a.Upx[0] + main.a.Upy[1] + main.a.Upz[2]
   #div = div - np.mean(div)
