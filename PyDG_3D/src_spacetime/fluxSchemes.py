@@ -224,8 +224,8 @@ def generalFluxGen_element(main,eqns,fluxVar,var,fluxFunction,args):
   for i in range(0,nargs):
     fluxArgs.append(argsR[i][:,:,:,:,0:-1,:,:])
     fluxArgs.append(argsL[i][:,:,:,:,1::,:,: ])
-  fluxFunction(fluxVar.fR[:,:,:,:,0:-1,:,:],main,var.uR[:,:,:,:,0:-1,:,:],0.*var.uL[:,:,:,:,1::,:,:],main.normals[0][:,None,None,None,0:-1,:,:,None],fluxArgs)
-  fluxFunction(fluxVar.fL[:,:,:,:,1::,:,:],main,var.uR[:,:,:,:,0:-1,:,:]*0.,var.uL[:,:,:,:,1::,:,:],main.normals[0][:,None,None,None,0:-1,:,:,None],fluxArgs)
+  fluxFunction(fluxVar.fR[:,:,:,:,0:-1,:,:],main,var.uR[:,:,:,:,0:-1,:,:],var.uL0[:,:,:,:,1::,:,:],main.normals[0][:,None,None,None,0:-1,:,:,None],fluxArgs)
+  fluxFunction(fluxVar.fL[:,:,:,:,1::,:,:],main,var.uR0[:,:,:,:,0:-1,:,:],var.uL[:,:,:,:,1::,:,:],main.normals[0][:,None,None,None,0:-1,:,:,None],fluxArgs)
 
   fluxArgs = []
 
@@ -233,52 +233,52 @@ def generalFluxGen_element(main,eqns,fluxVar,var,fluxFunction,args):
     fluxArgs.append(argsR[i][:,:,:,:,-1,:,:])
     fluxArgs.append(argsR_edge[i])
 
-  fluxFunction(fluxVar.fR[:,:,:,:,  -1,:,:],main,var.uR[:,:,:,:,  -1,:,:],0.*var.uR_edge,main.normals[0][:,None,None,None,-1,:,:,None],fluxArgs)
+  fluxFunction(fluxVar.fR[:,:,:,:,  -1,:,:],main,var.uR[:,:,:,:,  -1,:,:],var.uR0[:,:,:,:,  -1,:,:],main.normals[0][:,None,None,None,-1,:,:,None],fluxArgs)
   fluxArgs = []
   for i in range(0,nargs):
     fluxArgs.append(argsL_edge[i])
     fluxArgs.append(argsL[i][:,:,:,:,0,:,:])
-  fluxFunction(fluxVar.fL[:,:,:,:,0   ,:,:],main,var.uL_edge*0.,var.uL[:,:,:,:,0,:,:],-main.normals[1][:,None,None,None,0,:,:,None],fluxArgs)
+  fluxFunction(fluxVar.fL[:,:,:,:,0   ,:,:],main,var.uL0[:,:,:,:,0,:,:],var.uL[:,:,:,:,0,:,:],-main.normals[1][:,None,None,None,0,:,:,None],fluxArgs)
 
   ## Get the up and down fluxes
   fluxArgs = []
   for i in range(0,nargs):
     fluxArgs.append(argsU[i][:,:,:,:,:,0:-1,:])
     fluxArgs.append(argsD[i][:,:,:,:,:,1::,:])
-  fluxFunction(fluxVar.fU[:,:,:,:,:,0:-1,:],main,var.uU[:,:,:,:,:,0:-1,:],0.*var.uD[:,:,:,:,:,1::,:],main.normals[2][:,None,None,None,:,0:-1,:,None],fluxArgs)
-  fluxFunction(fluxVar.fD[:,:,:,:,:,1:: ,:],main,var.uU[:,:,:,:,:,0:-1,:]*0.,var.uD[:,:,:,:,:,1::,:],main.normals[2][:,None,None,None,:,0:-1,:,None],fluxArgs)
+  fluxFunction(fluxVar.fU[:,:,:,:,:,0:-1,:],main,var.uU[:,:,:,:,:,0:-1,:],var.uD0[:,:,:,:,:,1::,:],main.normals[2][:,None,None,None,:,0:-1,:,None],fluxArgs)
+  fluxFunction(fluxVar.fD[:,:,:,:,:,1:: ,:],main,var.uU0[:,:,:,:,:,0:-1,:],var.uD[:,:,:,:,:,1::,:],main.normals[2][:,None,None,None,:,0:-1,:,None],fluxArgs)
 
   fluxArgs = []
   for i in range(0,nargs):
     fluxArgs.append(argsU[i][:,:,:,:,:,  -1,:])
     fluxArgs.append(argsU_edge[i])
-  fluxFunction(fluxVar.fU[:,:,:,:,:,  -1,:],main,var.uU[:,:,:,:,:,  -1,:],var.uU_edge*0.,main.normals[2][:,None,None,None,:,-1,:,None],fluxArgs)
+  fluxFunction(fluxVar.fU[:,:,:,:,:,  -1,:],main,var.uU[:,:,:,:,:,  -1,:],var.uU0[:,:,:,:,:,  -1,:],main.normals[2][:,None,None,None,:,-1,:,None],fluxArgs)
 
   fluxArgs = []
   for i in range(0,nargs):
     fluxArgs.append(argsD_edge[i])
     fluxArgs.append(argsD[i][:,:,:,:,:,0,:])
-  fluxFunction(fluxVar.fD[:,:,:,:,:,0   ,:],main,var.uD_edge*0.,var.uD[:,:,:,:,:,0,:],-main.normals[3][:,None,None,None,:,0,:,None],fluxArgs)
+  fluxFunction(fluxVar.fD[:,:,:,:,:,0   ,:],main,var.uD0[:,:,:,:,:,0,:],var.uD[:,:,:,:,:,0,:],-main.normals[3][:,None,None,None,:,0,:,None],fluxArgs)
 
   ## Get the front and back fluxes
   fluxArgs = []
   for i in range(0,nargs):
     fluxArgs.append(argsF[i][:,:,:,:,:,:,0:-1])
     fluxArgs.append(argsB[i][:,:,:,:,:,:,1::])
-  fluxFunction(fluxVar.fF[:,:,:,:,:,:,0:-1],main,var.uF[:,:,:,:,:,:,0:-1],0.*var.uB[:,:,:,:,:,:,1::],main.normals[4][:,None,None,None,:,:,0:-1,None],fluxArgs)
-  fluxFunction(fluxVar.fB[:,:,:,:,:,:,1:: ],main,var.uF[:,:,:,:,:,:,0:-1]*0.,var.uB[:,:,:,:,:,:,1::],main.normals[4][:,None,None,None,:,:,0:-1,None],fluxArgs)
+  fluxFunction(fluxVar.fF[:,:,:,:,:,:,0:-1],main,var.uF[:,:,:,:,:,:,0:-1],var.uB0[:,:,:,:,:,:,1::],main.normals[4][:,None,None,None,:,:,0:-1,None],fluxArgs)
+  fluxFunction(fluxVar.fB[:,:,:,:,:,:,1:: ],main,var.uF0[:,:,:,:,:,:,0:-1],var.uB[:,:,:,:,:,:,1::],main.normals[4][:,None,None,None,:,:,0:-1,None],fluxArgs)
 
   fluxArgs = []
   for i in range(0,nargs):
     fluxArgs.append(argsF[i][:,:,:,:,:,:,-1])
     fluxArgs.append(argsF_edge[i])
-  fluxFunction(fluxVar.fF[:,:,:,:,:,:,  -1],main,var.uF[:,:,:,:,:,:,  -1],0.*var.uF_edge,main.normals[4][:,None,None,None,:,:,-1,None],fluxArgs)
+  fluxFunction(fluxVar.fF[:,:,:,:,:,:,  -1],main,var.uF[:,:,:,:,:,:,  -1],var.uF0[:,:,:,:,:,:,  -1],main.normals[4][:,None,None,None,:,:,-1,None],fluxArgs)
 
   fluxArgs = []
   for i in range(0,nargs):
     fluxArgs.append(argsB_edge[i])
     fluxArgs.append(argsB[i][:,:,:,:,:,:,0])
-  fluxFunction(fluxVar.fB[:,:,:,:,:,:,0   ],main,var.uB_edge*0.,var.uB[:,:,:,:,:,:,0],-main.normals[5][:,None,None,None,:,:,0,None],fluxArgs)
+  fluxFunction(fluxVar.fB[:,:,:,:,:,:,0   ],main,var.uB0[:,:,:,:,:,:,0],var.uB[:,:,:,:,:,:,0],-main.normals[5][:,None,None,None,:,:,0,None],fluxArgs)
 
 
 

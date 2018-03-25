@@ -1772,6 +1772,9 @@ def CrankNicolsonEntropy(main,MZ,eqns,args):
   t0 = time.time()
   if (main.iteration%1 == 0):
     getEntropyMassMatrix(main)
+    #getEntropyJacobian(main,eqns) 
+    #getEntropyJacobianFD(main,eqns) 
+
   if (main.mpi_rank == 0): print('MM time = ' + str(time.time() - t0))
   def unsteadyResidual(main,v):
     main.a.a[:] = np.reshape(v,np.shape(main.a.a))
@@ -1786,6 +1789,8 @@ def CrankNicolsonEntropy(main,MZ,eqns,args):
     Rstar = np.reshape(Rstar,(main.nvars*main.order[0]*main.order[1]*main.order[2]*main.order[3],main.Npx,main.Npy,main.Npz,main.Npt) )
     Rstar = np.einsum('ij...,j...->i...',main.EMM,Rstar)
     Rstar = np.reshape(Rstar,np.shape(main.a.a))
+    #main.basis.applyMassMatrix(main,Rstar)
+
     Rstar_glob = gatherResid(Rstar,main)
     return Rstar,Rstar,Rstar_glob
 
@@ -1793,7 +1798,7 @@ def CrankNicolsonEntropy(main,MZ,eqns,args):
     an = args[0]
     Rn = args[1]
     vr = np.reshape(v,np.shape(main.a.a))
-    eps = 5.e-4
+    eps = 5.e-7
     main.a.a[:] = an + eps*vr
     R1,dum,dum = unsteadyResidual(main,main.a.a)
     Av = (R1 - Rn)/eps

@@ -16,9 +16,10 @@ import time
 def addSecondaryViscousContribution_BR1(main,MZ,eqns):
   # get interior viscous flux
   # note we use the vFlux array since BR1 has more unknowns
-  eqns.evalViscousFluxX(main,main.a.u,main.vFlux.fx)
-  eqns.evalViscousFluxY(main,main.a.u,main.vFlux.fy)
-  eqns.evalViscousFluxZ(main,main.a.u,main.vFlux.fz)
+  eqns.evalViscousFluxXYZ(main,main.a.u,main.vFlux.fx,main.vFlux.fy,main.vFlux.fz)
+  #eqns.evalViscousFluxX(main,main.a.u,main.vFlux.fx)
+  #eqns.evalViscousFluxY(main,main.a.u,main.vFlux.fy)
+  #eqns.evalViscousFluxZ(main,main.a.u,main.vFlux.fz)
   # first reconstruct states
   generalFluxGen(main,eqns,main.vFlux,main.a,eqns.evalViscousFlux,[])
 

@@ -2,6 +2,7 @@ import numpy as np
 import time
 from tensor_products import *
 import scipy.sparse.linalg
+from navier_stokes import evalFluxXYZEuler
 ##### =========== Contains all the fluxes and physics neccesary to solve the Navier-Stokes equations using entropy variables within a DG framework #### ============
 ## mass matrix for entropy - i.e we have \int w dU(v)/dt d\Omega
 ## This function computes the inverse of the matrix \int w du/dv w'
@@ -10,26 +11,12 @@ def getEntropyMassMatrix(main):
     norder = main.order[0]*main.order[1]*main.order[2]*main.order[3]
     M2 = np.zeros((norder,norder,\
                   main.Npx,main.Npy,main.Npz,1 ) )
-    M = np.zeros((main.order[0],main.order[1],main.order[2],main.order[3],main.order[0],main.order[1],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,1 ) )
-
-    count = 0
-    t0 = time.time()
-    f = main.w0[:,None,None,None,:,None,None,None]*main.w1[None,:,None,None,None,:,None,None]\
-       *main.w2[None,None,:,None,None,None,:,None]*main.w3[None,None,None,:,None,None,None,:]
-    #for i in range(0,main.order[0]):
-    #  for j in range(0,main.order[1]):
-    #    for k in range(0,main.order[2]):
-    #      for l in range(0,main.order[3]):
-    #        #M2[count] =np.reshape( volIntegrateGlob_einsum_2(main,(f*f[i,j,k,l])[None,:,:,:,:,:,:,:,:,None,None,None,None]*main.Jdet[None,None,None,None,None,:,:,:,None,:,:,:,None]) , np.shape(M2[0]))
-    #        M[i,j,k,l] = volIntegrateGlob_tensordot(main,g*f[i,j,k,l][None,:,:,:,:,None,None,None,None]*main.Jdet[None,:,:,:,None,:,:,:,None],main.w0,main.w1,main.w2,main.w3)
-    #        count += 1
-    t1 = time.time()
     f2 = g*main.Jdet[None,:,:,:,None,:,:,:,None] 
     M2[:] = np.reshape( volIntegrateGlob_einsumMM2(main,f2,main.w0,main.w1,main.w2,main.w3) ,np.shape(M2))
-    #print('times = ', time.time() - t1,t1-t0)
     return M2
   #=================
   dudv = mydUdV(main.a.u)
+
   norder = main.order[0]*main.order[1]*main.order[2]*main.order[3]
   #M = np.zeros((norder*5,norder*5,main.Npx,main.Npy,main.Npz,main.Npt) )
   main.EMM[:] = 0.
@@ -88,6 +75,23 @@ def getEntropyMassMatrix_noinvert(main):
   t1 = time.time()
   M = np.rollaxis( np.rollaxis(M,1,6),0,5)
   return M
+
+
+## Finite difference mapping between entropy variables (V) and conservative variables (U)
+def mydUdVFD(V):
+  V0 = V*1.
+  sz = np.shape(V)
+  sz = np.append(5,sz)
+  A0 = np.zeros(sz)
+  U0 = entropy_to_conservative(V0)
+  eps = 1e-9
+  for i in range(0,5):
+    V[:] = V0
+    V[i] += eps
+    A0[:,i] = (entropy_to_conservative(V) - U0)/eps
+
+  return A0 
+
 
 
 ## Mappings between entropy variables (V) and conservative variables (U)
@@ -165,27 +169,28 @@ def entropy_to_conservative(V):
 ###### ====== Inviscid Fluxes Fluxes and Eigen Values (Eigenvalues currently not in use) ==== ############
 def evalFluxXYZEulerEntropy(main,v,fx,fy,fz,args):
   u = entropy_to_conservative(v) 
-  es = 1.e-30
-  gamma = 1.4
-  p = (gamma - 1.)*(u[4] - 0.5*u[1]**2/u[0] - 0.5*u[2]**2/u[0] - 0.5*u[3]**2/u[0])
-  rhoi = 1./u[0]
-  fx[0] = u[1]
-  fx[1] = rhoi*u[1]*u[1] + p
-  fx[2] = rhoi*u[1]*u[2]
-  fx[3] = rhoi*u[1]*u[3]
-  fx[4] = rhoi*(u[4] + p)*u[1]
-
-  fy[0] = u[2]
-  fy[1] = fx[2]#u[1]*u[2]/u[0]
-  fy[2] = rhoi*u[2]*u[2] + p
-  fy[3] = rhoi*u[2]*u[3]
-  fy[4] = rhoi*(u[4] + p)*u[2]
-
-  fz[0] = u[3]
-  fz[1] = fx[3]#$u[1]*u[3]/u[0]
-  fz[2] = fy[3]#u[2]*u[3]/u[0] 
-  fz[3] = rhoi*u[3]*u[3] + p 
-  fz[4] = rhoi*(u[4] + p)*u[3]
+  evalFluxXYZEuler(main,u,fx,fy,fz,args)
+  #es = 1.e-30
+  #gamma = 1.4
+  #p = (gamma - 1.)*(u[4] - 0.5*u[1]**2/u[0] - 0.5*u[2]**2/u[0] - 0.5*u[3]**2/u[0])
+  #rhoi = 1./u[0]
+  #fx[0] = u[1]
+  #fx[1] = rhoi*u[1]*u[1] + p
+  #fx[2] = rhoi*u[1]*u[2]
+  #fx[3] = rhoi*u[1]*u[3]
+  #fx[4] = rhoi*(u[4] + p)*u[1]
+#
+#  fy[0] = u[2]
+#  fy[1] = fx[2]#u[1]*u[2]/u[0]
+#  fy[2] = rhoi*u[2]*u[2] + p
+#  fy[3] = rhoi*u[2]*u[3]
+#  fy[4] = rhoi*(u[4] + p)*u[2]
+#
+#  fz[0] = u[3]
+#  fz[1] = fx[3]#$u[1]*u[3]/u[0]
+#  fz[2] = fy[3]#u[2]*u[3]/u[0] 
+#  fz[3] = rhoi*u[3]*u[3] + p 
+#  fz[4] = rhoi*(u[4] + p)*u[3]
 
 
 def evalFluxXEulerEntropy(main,v,f,args):
@@ -1242,6 +1247,44 @@ def evalViscousFluxNS_BR1Entropy(fv,main,VL,VR,n,args=None):
   fvR[8] = T*n[2]
   fv[:] = 0.5*(fvL + fvR)
   return fv
+
+
+def evalViscousFluxXYZNS_BR1Entropy(main,V,fvx,fvy,fvz):
+  U = entropy_to_conservative(V)
+  u = U[1]/U[0]
+  v = U[2]/U[0]
+  w = U[3]/U[0]
+  fvx[0] =  4./3.*u  #tau11 = (du/dx + du/dx - 2/3 (du/dx + dv/dy + dw/dz) ) 
+  fvx[1] = -2./3.*u  #tau22 = (dv/dy + dv/dy - 2/3 (du/dx + dv/dy + dw/dZ) )
+  fvx[2] = -2./3.*u  #tau33 = (dw/dz + dw/dz - 2/3 (du/dx + dv/dy + dw/dz) )
+  fvx[3] = v         #tau12 = (du/dy + dv/dx)
+  fvx[4] = w         #tau13 = (du/dz + dw/dx)
+  #fvx[5] = 0.           #tau23 = (dv/dz + dw/dy)
+  T = (U[4]/U[0] - 0.5*( u**2 + v**2 + w**2 ) ) #kinda a psuedo tmp, should divide by Cv but it's constant so this is taken care of in the tauFlux with gamma
+  fvx[6] = T
+  #fvx[7] = 0.
+  #fvx[8] = 0.
+
+  fvy[0] = -2./3.*v  #tau11 = (du/dx + du/dx - 2/3 (du/dx + dv/dy + dw/dz) ) 
+  fvy[1] =  4./3.*v  #tau22 = (dv/dy + dv/dy - 2/3 (du/dx + dv/dy + dw/dZ) )
+  fvy[2] = -2./3.*v  #tau33 = (dw/dz + dw/dz - 2/3 (du/dx + dv/dy + dw/dz) )
+  fvy[3] = u        #tau12 = (du/dy + dv/dx)
+  #fvy[4] = 0            #tau13 = (du/dz + dw/dx)
+  fvy[5] = w         #tau23 = (dv/dz + dw/dy)
+  #fvy[6] = 0.
+  fvy[7] = T
+  #fvy[8] = 0.
+
+  fvz[0] = -2./3.*w  #tau11 = (du/dx + du/dx - 2/3 (du/dx + dv/dy + dw/dz) ) 
+  fvz[1] = -2./3.*w  #tau22 = (dv/dy + dv/dy - 2/3 (du/dx + dv/dy + dw/dZ) )
+  fvz[2] =  4./3.*w  #tau33 = (dw/dz + dw/dz - 2/3 (du/dx + dv/dy + dw/dz) )
+  #fvz[3] = 0.           #tau12 = (du/dy + dv/dx)
+  fvz[4] = u         #tau13 = (du/dz + dw/dx)
+  fvz[5] = v        #tau23 = (dv/dz + dw/dy)
+  #fvz[6] = 0.
+  #fvz[7] = 0.
+  fvz[8] = T
+
 
 
 def evalViscousFluxXNS_BR1Entropy(main,V,fv):

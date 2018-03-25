@@ -1,5 +1,123 @@
 import numpy as np
 import numpy.linalg
+from DG_functions import getRHS_element
+from navier_stokes_entropy import *
+from navier_stokes import *
+
+def getEntropyJacobianFD(main,eqns):
+  #=================
+  norder = main.order[0]*main.order[1]*main.order[2]*main.order[3]
+  main.J2 = np.zeros(np.shape(main.EMM))
+  main.J2[:] = 0.
+  a0 = main.a.a*1.
+  getRHS_element(main,main,eqns)
+  RHS0 = main.RHS*1.
+  t0 = time.time()
+  counter = 0
+  eps = 1.e-7
+  for z in range(0,5):
+    for p in range(0,main.order[0]):
+      for q in range(0,main.order[1]):
+        for r in range(0,main.order[2]): 
+          for s in range(0,main.order[3]):
+            main.a.a[:] = a0[:]
+            main.a.a[z,p,q,r,s] += eps
+            getRHS_element(main,main,eqns)
+            R1 = main.RHS*1.
+            main.a.a[z,p,q,r,s] -= 2.*eps
+            getRHS_element(main,main,eqns)
+            R2 = main.RHS*1.
+
+            main.J2[:,counter] = np.reshape( (R1 - R2)/eps , (5*norder,main.Npx,main.Npy,main.Npz,main.Npt) )
+            counter += 1 
+#  t1 = time.time()
+  return main.J2
+
+
+
+
+def getEntropyJacobian(main,eqns):
+  def getInnerMassMatrix(main,g,w0,w1,w2,w3):
+    norder = main.order[0]*main.order[1]*main.order[2]*main.order[3]
+    M2 = np.zeros((norder,norder,\
+                  main.Npx,main.Npy,main.Npz,1 ) )
+    f2 = g*main.Jdet[None,:,:,:,None,:,:,:,None] 
+    M2[:] = np.reshape( volIntegrateGlob_einsumMM2(main,f2,w0,w1,w2,w3) ,np.shape(M2))
+    return M2
+  def getInnerMassMatrixX(main,g,w0,w1,w2,w3,w0b,w1b,w2b,w3b):
+    norder = main.order[0]*main.order[1]*main.order[2]*main.order[3]
+    M2 = np.zeros((norder,norder,\
+                  main.Npx,main.Npy,main.Npz,1 ) )
+    f2 = g*main.Jinv[0,0][None,:,:,:,None,:,:,:,None]
+    f2 = f2*main.Jdet[None,:,:,:,None,:,:,:,None] 
+    M2[:] = np.reshape( volIntegrateGlob_einsumMM2_derivs(main,f2,w0,w1,w2,w3,w0b,w1b,w2b,w3b) ,np.shape(M2))
+    return M2
+  def getInnerMassMatrixY(main,g,w0,w1,w2,w3,w0b,w1b,w2b,w3b):
+    norder = main.order[0]*main.order[1]*main.order[2]*main.order[3]
+    M2 = np.zeros((norder,norder,\
+                  main.Npx,main.Npy,main.Npz,1 ) )
+    f2 = g*main.Jinv[1,1][None,:,:,:,None,:,:,:,None]
+    f2 = f2*main.Jdet[None,:,:,:,None,:,:,:,None] 
+    M2[:] = np.reshape( volIntegrateGlob_einsumMM2_derivs(main,f2,w0,w1,w2,w3,w0b,w1b,w2b,w3b) ,np.shape(M2))
+    return M2
+  def getInnerMassMatrixZ(main,g,w0,w1,w2,w3,w0b,w1b,w2b,w3b):
+    norder = main.order[0]*main.order[1]*main.order[2]*main.order[3]
+    M2 = np.zeros((norder,norder,\
+                  main.Npx,main.Npy,main.Npz,1 ) )
+    f2 = g*main.Jinv[2,2][None,:,:,:,None,:,:,:,None]
+    f2 = f2*main.Jdet[None,:,:,:,None,:,:,:,None] 
+    M2[:] = np.reshape( volIntegrateGlob_einsumMM2_derivs(main,f2,w0,w1,w2,w3,w0b,w1b,w2b,w3b) ,np.shape(M2))
+    return M2
+
+  #=================
+  dudv = mydUdV(main.a.u)
+  norder = main.order[0]*main.order[1]*main.order[2]*main.order[3]
+  main.J = np.zeros(np.shape(main.EMM))
+  main.J[:] = 0.
+  count = 0
+  I = np.eye(5)
+  t0 = time.time()
+  for i in range(0,5):
+    for j in range(i,5):
+      main.J[i*norder:(i+1)*norder,j*norder:(j+1)*norder] = getInnerMassMatrix(main,dudv[i,j],main.w0,main.w1,main.w2,main.w3)
+      main.J[j*norder:(j+1)*norder,i*norder:(i+1)*norder] = main.J[i*norder:(i+1)*norder,j*norder:(j+1)*norder]*1.
+ 
+  getEntropyJacobianFD(main,eqns) 
+  #print(np.lina.
+  main.J -= 0.5*main.dt*main.J2
+#
+#  U = entropy_to_conservative(main.a.u)
+#  dFdU,dGdU,dHdU = evalJacobianXYZEulerLin(main,U)
+#  dFdU_dUdV = np.einsum('ij...,jk...->ik...',dFdU,dudv)
+#  dGdU_dUdV = np.einsum('ij...,jk...->ik...',dGdU,dudv)
+#  dHdU_dUdV = np.einsum('ij...,jk...->ik...',dHdU,dudv)
+#
+#  for i in range(0,5):
+#    for j in range(0,5):
+#      main.J[i*norder:(i+1)*norder,j*norder:(j+1)*norder] -= getInnerMassMatrixX(main,dFdU_dUdV[i,j],main.w0,main.w1,main.w2,main.w3,main.wp0,main.w1,main.w2,main.w3)
+#      #main.J[j*norder:(j+1)*norder,i*norder:(i+1)*norder] += main.J[i*norder:(i+1)*norder,j*norder:(j+1)*norder]
+##
+#  for i in range(0,5):
+#    for j in range(0,5):
+#      main.J[i*norder:(i+1)*norder,j*norder:(j+1)*norder] -= getInnerMassMatrixY(main,dGdU_dUdV[i,j],main.w0,main.w1,main.w2,main.w3,main.w0,main.wp1,main.w2,main.w3)
+#      #main.J[j*norder:(j+1)*norder,i*norder:(i+1)*norder] += main.J[i*norder:(i+1)*norder,j*norder:(j+1)*norder]
+#
+#  for i in range(0,5):
+#    for j in range(0,5):
+#      main.J[i*norder:(i+1)*norder,j*norder:(j+1)*norder] -= getInnerMassMatrixZ(main,dHdU_dUdV[i,j],main.w0,main.w1,main.w2,main.w3,main.w0,main.w1,main.wp2,main.w3)
+#      #main.J[j*norder:(j+1)*norder,i*norder:(i+1)*norder] += main.J[i*norder:(i+1)*norder,j*norder:(j+1)*norder]
+#
+#  print(np.linalg.norm(main.J))
+#
+#  t1 = time.time()
+  main.J = np.rollaxis( np.rollaxis(main.J,1,6),0,5)
+  main.J = np.linalg.inv(main.J)
+  main.J = np.rollaxis( np.rollaxis(main.J,4,0),5,1)
+  return main.J
+
+
+
+
 
 def computeBlockJacobian(main,f):
   J = np.zeros((main.nvars,main.order[0],main.order[1],main.order[2],main.order[3],main.nvars,main.order[0],main.order[1],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))

@@ -75,13 +75,15 @@ def orthogonalProjection(main,U):#,UR,UL,UU,UD,UF,UB):
   ord_arrt= np.linspace(0,main.order[3]-1,main.order[3])
   scale =  (2.*ord_arrx[:,None,None,None] + 1.)*(2.*ord_arry[None,:,None,None] + 1.)*\
            (2.*ord_arrz[None,None,:,None] + 1.)*(2.*ord_arrt[None,None,None,:] + 1.)/16.
-  a_project = volIntegrateGlob_tensordot(main,U,main.w0,main.w1,main.w2,main.w3)*scale[None,:,:,:,:,None,None,None,None]
+  a_project = volIntegrateGlob_tensordot(main,U*main.Jdet[None,:,:,:,None,:,:,:,None],main.w0,main.w1,main.w2,main.w3)#*scale[None,:,:,:,:,None,None,None,None]#/main.Jdet[None,0,0,0,None,None,None,None,:,:,:,None]
+  main.basis.applyMassMatrix(main,a_project)
   filta = np.zeros(np.shape(a_project))
   #filta[:,0:1,0:1,0:1,:] = 1.
   #a_project *= filta
 #  U_projectR,U_projectL,U_projectU,U_projectD,U_projectF,U_projectB = main.basis.reconstructEdgesGeneral(a_project,main)
 
   U_project = main.basis.reconstructUGeneral(main,a_project)
+  print(np.linalg.norm(U),np.linalg.norm(U_project))
   U_orthogonal = U - U_project
 #  U_orthogonalR = UR - U_projectR
 #  U_orthogonalL = UL - U_projectL

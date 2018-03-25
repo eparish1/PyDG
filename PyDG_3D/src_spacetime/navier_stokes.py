@@ -85,14 +85,14 @@ def evalFluxXYZEuler(main,U,fx,fy,fz,args):
   fx[4] = u*(rhoE + p)
 
   fy[0] = U[2]
-  fy[1] = v*rhoU
+  fy[1] = fx[2]#v*rhoU
   fy[2] = v*rhoV + p 
   fy[3] = v*rhoW 
   fy[4] = v*(rhoE + p)
 
   fz[0] = U[3]
-  fz[1] = w*rhoU
-  fz[2] = w*rhoV 
+  fz[1] = fx[3]#w*rhoU
+  fz[2] = fy[3]#w*rhoV 
   fz[3] = w*rhoW + p 
   fz[4] = w*(rhoE + p)
 
@@ -320,6 +320,84 @@ def evalFluxXYZEulerLin2(main,U0,fx,fy,fz,args):
   fx[:] = 1./eps*(fx1 - fx0) 
   fy[:] = 1./eps*(fy1 - fy0) 
   fz[:] = 1./eps*(fz1 - fz0) 
+
+
+##Details: Function to compute analytic Jacobians
+## For euler equations; dU/dt + A_x + B_y + C_z = 0,
+## this computes dA/dU, dB/dU, and dC/dU
+def evalJacobianXYZEulerLin(main,U0,args=None):
+  #decompose as U = U0 + up, where up is the perturbation
+  #f = np.zeros(np.shape(u))
+  es = 1.e-30
+  gamma = 1.4
+  u = U0[1]/U0[0]
+  v = U0[2]/U0[0]
+  w = U0[3]/U0[0]
+  qsqr = u**2 + v**2 + w**2
+  
+  # compute H in three steps (H = E + p/rho)
+  H = (gamma - 1.)*(U0[4] - 0.5*U0[0]*qsqr) #compute pressure
+  H += U0[4]
+  H /= U0[0]
+  sh = np.shape(U0)
+  sh = np.append(5,sh)
+  Jx = np.zeros(sh,dtype=U0.dtype)
+  Jy = np.zeros(sh,dtype=U0.dtype)
+  Jz = np.zeros(sh,dtype=U0.dtype)
+  Jx[0,1] = 1.
+  Jx[1,0] = ( (gamma - 1.)/2.*qsqr - u**2)
+  Jx[1,1] = (3. - gamma)*u
+  Jx[1,2] = (1. - gamma)*v
+  Jx[1,3] = (1. - gamma)*w
+  Jx[1,4] = gamma - 1.
+  Jx[2,0] = -u*v
+  Jx[2,1] = v
+  Jx[2,2] = u
+  Jx[3,0] = -u*w
+  Jx[3,1] = w
+  Jx[3,3] = u
+  Jx[4,0] = ((gamma - 1.)/2.*qsqr - H)*u
+  Jx[4,1] = H + (1. - gamma)*u**2
+  Jx[4,2] = (1. - gamma)*u*v
+  Jx[4,3] = (1. - gamma)*u*w
+  Jx[4,4] = gamma*u
+
+  Jy[0,2] = 1.
+  Jy[1,0] = -v*u
+  Jy[1,1] = v
+  Jy[1,2] = u
+  Jy[2,0] = ( (gamma - 1.)/2.*qsqr - v**2)
+  Jy[2,1] = (1. - gamma)*v
+  Jy[2,2] = (3. - gamma)*u
+  Jy[2,3] = (1. - gamma)*w
+  Jy[2,4] = gamma - 1.
+  Jy[3,0] = -v*w
+  Jy[3,2] = w
+  Jy[3,3] = v
+  Jy[4,0] = ((gamma - 1.)/2.*qsqr - H)*v
+  Jy[4,1] = (1. - gamma)*u*v
+  Jy[4,2] = H + (1. - gamma)*v**2
+  Jy[4,3] = (1. - gamma)*v*w
+  Jy[4,4] = gamma*v
+
+  Jz[0,3] = 1.
+  Jz[1,0] = -u*w
+  Jz[1,1] = w
+  Jz[1,3] = u
+  Jz[2,0] = -v*w
+  Jz[2,2] = w
+  Jz[2,3] = v
+  Jz[3,0] = ( 0.5*(gamma - 1.)*qsqr - w**2)
+  Jz[3,1] = (1. - gamma)*u
+  Jz[3,2] = (1. - gamma)*v
+  Jz[3,3] = (3. - gamma)*w
+  Jz[3,4] = gamma - 1.
+  Jz[4,0] = (0.5*(gamma - 1.)*qsqr - H)*w 
+  Jz[4,1] = (1. - gamma)*u*w
+  Jz[4,2] = (1. - gamma)*v*w
+  Jz[4,3] = H + (1. - gamma)*w**2
+  Jz[4,4] = gamma*w
+  return Jx,Jy,Jz 
 
 ##Details: Function to compute the linearized Euler fluxes. 
 ##Usage:   This is used in VMS models and as well as for matrix free implicit methods using 
@@ -1634,6 +1712,42 @@ def evalViscousFluxNS_BR1(fv,main,UL,UR,n,args=None):
 #  fv[:] += fvZR*n[2]
 #  fv[:] *= 0.5
   return fv
+
+def evalViscousFluxXYZNS_BR1(main,U,fvx,fvy,fvz):
+  u = U[1]/U[0]
+  v = U[2]/U[0]
+  w = U[3]/U[0]
+  T = (U[4]/U[0] - 0.5*( u**2 + v**2 + w**2 ) ) #kinda a psuedo tmp, should divide by Cv but it's constant so this is taken care of in the tauFlux with gamma
+  fvx[0] =  4./3.*u  #tau11 = (du/dx + du/dx - 2/3 (du/dx + dv/dy + dw/dz) ) 
+  fvx[1] = -2./3.*u  #tau22 = (dv/dy + dv/dy - 2/3 (du/dx + dv/dy + dw/dZ) )
+  fvx[2] = -2./3.*u  #tau33 = (dw/dz + dw/dz - 2/3 (du/dx + dv/dy + dw/dz) )
+  fvx[3] = v         #tau12 = (du/dy + dv/dx)
+  fvx[4] = w         #tau13 = (du/dz + dw/dx)
+  fvx[5] = 0.           #tau23 = (dv/dz + dw/dy)
+  fvx[6] = T
+  fvx[7] = 0.
+  fvx[8] = 0.
+
+  fvy[0] = -2./3.*v  #tau11 = (du/dx + du/dx - 2/3 (du/dx + dv/dy + dw/dz) ) 
+  fvy[1] =  4./3.*v  #tau22 = (dv/dy + dv/dy - 2/3 (du/dx + dv/dy + dw/dZ) )
+  fvy[2] = -2./3.*v  #tau33 = (dw/dz + dw/dz - 2/3 (du/dx + dv/dy + dw/dz) )
+  fvy[3] = u        #tau12 = (du/dy + dv/dx)
+  fvy[4] = 0            #tau13 = (du/dz + dw/dx)
+  fvy[5] = w         #tau23 = (dv/dz + dw/dy)
+  fvy[6] = 0.
+  fvy[7] = T
+  fvy[8] = 0.
+
+  fvz[0] = -2./3.*w  #tau11 = (du/dx + du/dx - 2/3 (du/dx + dv/dy + dw/dz) ) 
+  fvz[1] = -2./3.*w  #tau22 = (dv/dy + dv/dy - 2/3 (du/dx + dv/dy + dw/dZ) )
+  fvz[2] =  4./3.*w  #tau33 = (dw/dz + dw/dz - 2/3 (du/dx + dv/dy + dw/dz) )
+  fvz[3] = 0.           #tau12 = (du/dy + dv/dx)
+  fvz[4] = u         #tau13 = (du/dz + dw/dx)
+  fvz[5] = v        #tau23 = (dv/dz + dw/dy)
+  fvz[6] = 0.
+  fvz[7] = 0.
+  fvz[8] = T
+
 
 def evalViscousFluxXNS_BR1(main,U,fv):
   u = U[1]/U[0]

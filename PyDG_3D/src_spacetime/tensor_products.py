@@ -632,6 +632,14 @@ def volIntegrateGlob_einsumMM2(main,f,w0,w1,w2,w3):
   tmp = np.einsum('alp...,zpbmcndo...->zalbmcndo...',w0[:,None]*w0[None,:]*main.weights0[None,None,:],tmp)
   return np.rollaxis( np.rollaxis( np.rollaxis( np.rollaxis( tmp, 7,9) , 5,8) ,3 , 7) , 1 , 6)
 
+def volIntegrateGlob_einsumMM2_derivs(main,f,w0,w1,w2,w3,w0b,w1b,w2b,w3b):
+  tmp = np.einsum('dos...,zpqrs...->zpqrdo...',w3[:,None]*w3b[None,:]*main.weights3[None,None,:],f)
+  tmp = np.einsum('cnr...,zpqrdo...->zpqcndo...',w2[:,None]*w2b[None,:]*main.weights2[None,None,:],tmp)
+  tmp = np.einsum('bmq...,zpqcndo...->zpbmcndo...',w1[:,None]*w1b[None,:]*main.weights1[None,None,:],tmp)
+  tmp = np.einsum('alp...,zpbmcndo...->zalbmcndo...',w0[:,None]*w0b[None,:]*main.weights0[None,None,:],tmp)
+  return np.rollaxis( np.rollaxis( np.rollaxis( np.rollaxis( tmp, 7,9) , 5,8) ,3 , 7) , 1 , 6)
+
+
 def volIntegrateGlob_einsumMM3(main,f,w0,w1,w2,w3):
   tmp = np.einsum('os...,zdpqras...->zdpqrao...',w3[None,:]*main.weights3[None,None,:],f[:,:,:,:,None]*main.w3[None,None,None,None,:,:,None,None,None,None])
   tmp = np.einsum('nr...,zdpqro...->zcdpqno...',w2[:,None]*w2[None,:]*main.weights2[None,None,:],tmp)

@@ -288,6 +288,7 @@ class equations:
         #sys.exit()
         self.addViscousContribution = addViscousContribution_BR1
         self.evalViscousFlux = evalViscousFluxNS_BR1Entropy
+        self.evalViscousFluxXYZ = evalViscousFluxXYZNS_BR1Entropy
         self.evalViscousFluxX = evalViscousFluxXNS_BR1Entropy
         self.evalViscousFluxY = evalViscousFluxYNS_BR1Entropy
         self.evalViscousFluxZ = evalViscousFluxZNS_BR1Entropy
@@ -354,6 +355,7 @@ class equations:
         #sys.exit()
         self.addViscousContribution = addViscousContribution_BR1
         self.evalViscousFlux = evalViscousFluxNS_BR1
+        self.evalViscousFluxXYZ = evalViscousFluxXYZNS_BR1
         self.evalViscousFluxX = evalViscousFluxXNS_BR1
         self.evalViscousFluxY = evalViscousFluxYNS_BR1
         self.evalViscousFluxZ = evalViscousFluxZNS_BR1
