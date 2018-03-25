@@ -185,6 +185,12 @@ if 'mpi_output' in globals():
 else:
   mpi_output = False 
 
+if 'procz' in globals():
+  pass
+else:
+  procz = 1
+  if (mpi_rank == 0):
+    logger.warning("procz not found, setting procz=1")
 
 ##======================================================
 

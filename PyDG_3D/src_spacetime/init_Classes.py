@@ -269,7 +269,6 @@ class variables:
     self.altarray3_c = (-np.ones(self.order[3]))**(np.linspace(0,self.order[3]-1,self.order[3]))
 
 
-    #xtmp,ytmp,ztmp = np.meshgrid(xG,yG,zG,indexing='ij')
     self.x,self.y,self.z = x,y,z
 
     Xtmp = np.zeros((3,Nel[0]+1,Nel[1]+1,Nel[2]+1))
