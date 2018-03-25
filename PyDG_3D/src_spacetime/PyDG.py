@@ -197,7 +197,7 @@ if (mpi_rank == 0):
   print('Running on ' + str(num_processes) + ' Procs')
 
 eqns = equations(eqn_str,schemes,turb_str)
-main = variables(Nel,order,quadpoints,eqns,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,fsource,source_mag,shock_capturing,mol_str,basis_args)
+main = variables(Nel,order,quadpoints,eqns,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,procz,BCs,fsource,source_mag,shock_capturing,mol_str,basis_args)
 main.tau = tau
 main.x,main.y,main.z = x,y,z
 vol_min = (np.amin(main.Jdet))**(1./3.)
@@ -208,7 +208,7 @@ if (mpi_rank == 0):
 
 if (enriched):
   eqnsEnriched = eqns#equations(enriched_eqn_str,enriched_schemes,turb_str)
-  mainEnriched = variables(Nel,np.int64(order*enriched_ratio),quadpoints,eqnsEnriched,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,fsource,source_mag,shock_capturing,mol_str,basis_args)
+  mainEnriched = variables(Nel,np.int64(order*enriched_ratio),quadpoints,eqnsEnriched,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,procz,BCs,fsource,source_mag,shock_capturing,mol_str,basis_args)
 else:
   mainEnriched = main
 
