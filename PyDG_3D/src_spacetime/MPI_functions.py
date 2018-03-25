@@ -124,7 +124,7 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main):
     if (main.BC_rank[0]):
       uL[:] = main.leftBC.applyBC(fL[:,:,:,:,0 ,:,:],uL,main.leftBC.args,main,main.normals[1,:,0,:,:])
 
-
+  ## Y DIRECTION
   if (main.rank_connect[2] == main.mpi_rank and main.rank_connect[3] == main.mpi_rank):
     uU[:] = fD[:,:,:,:,:,0 ,:]
     uD[:] = fU[:,:,:,:,:,-1,:]
@@ -148,11 +148,12 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main):
     if (main.BC_rank[2]):
       uD[:] = main.bottomBC.applyBC(fD[:,:,:,:,:,0,:],uD,main.bottomBC.args,main,main.normals[3,:,:,0,:])
 
+  ### Z DIRECTION
   if (main.rank_connect[4] == main.mpi_rank and main.rank_connect[5] == main.mpi_rank):
-    uF[:] = fF[:,:,:,:,:,:,0]
-    uB[:] = fB[:,:,:,:,:,:,-1]
-    uF[:] = main.topBC.applyBC(fF[:,:,:,:,:,:,-1],uU,main.topBC.args,main,main.normals[4,:,:,:,-1])
-    uB[:] = main.bottomBC.applyBC(fB[:,:,:,:,:,:,0],uD,main.bottomBC.args,main,main.normals[5,:,:,:,0])
+    uF[:] = fB[:,:,:,:,:,:,0]
+    uB[:] = fF[:,:,:,:,:,:,-1]
+    uF[:] = main.topBC.applyBC(fF[:,:,:,:,:,:,-1],uF,main.frontBC.args,main,main.normals[4,:,:,:,-1])
+    uB[:] = main.bottomBC.applyBC(fB[:,:,:,:,:,:,0],uB,main.backBC.args,main,main.normals[5,:,:,:,0])
 
   else:
     ## Send front and back fluxes
