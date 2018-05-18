@@ -44,6 +44,7 @@ class postProcessor:
       x = []
       y = []
       z = []
+      
       while (check == 0):
         grid_str = '../DGgrid_block' + str(n_blocks) + '.npz'
         if (os.path.isfile(grid_str)):
@@ -55,6 +56,7 @@ class postProcessor:
 
         else:
           check = 1
+      
       for i in range(0,end,skip):
         for j in range(0,n_blocks):
           sol_str = 'npsol_block' + str(j) + '_'  + str(i) + '.npz'
@@ -66,6 +68,7 @@ class postProcessor:
             gridToVTK(string, x[j],y[j],z[j], pointData = {"rho" : sol['U'][0] , \
               "u" : sol['U'][1]/sol['U'][0] , "v" : sol['U'][2], "w" : sol['U'][3]/sol['U'][0], \
               "rhoE" : sol['U'][4], "p" : p} )
+    
     self.writeAllToParaview = writeAllToParaview
 
 eqn_type = sys.argv[1:][:]

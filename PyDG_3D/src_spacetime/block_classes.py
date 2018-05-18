@@ -4,7 +4,7 @@ from turb_models import *
 from MPI_functions import sendEdgesGeneralSlab,sendEdgesGeneralSlab_Derivs
 
 class blockClass:
-  def __init__(self,nblocks,starting_rank,procx,procy,et,dt,save_freq,turb_str):
+  def __init__(self,nblocks,starting_rank,procx,procy,procz,et,dt,save_freq,turb_str):
     self.comm = MPI.COMM_WORLD
     self.num_processes = self.comm.Get_size()
     self.mpi_rank = self.comm.Get_rank()
@@ -15,10 +15,11 @@ class blockClass:
     self.mpi_regions_owned = []
     self.procx = procx
     self.procy = procy
+    self.procz = procz
     self.nprocs = np.zeros(nblocks)
     for i in range(0,nblocks):
       self.nprocs[i] = procx[i]*procy[i]
-      procnumber_new = starting_rank[i] + procx[i]*procy[i]
+      procnumber_new = starting_rank[i] + procx[i]*procy[i]*procz[i]
       if (self.mpi_rank >= starting_rank[i] and self.mpi_rank < procnumber_new):
         self.mpi_regions_owned.append(i)
         self.nblocks += 1

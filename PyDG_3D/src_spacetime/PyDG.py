@@ -38,6 +38,13 @@ if (len(procy) != n_blocks):
     print('==================================')
   sys.exit()
 
+if (len(procz) != n_blocks):
+  if (mpi_rank == 0): 
+    print('==================================')
+    print('Size of procz in inputfile.py is not the same as the number of blocks. Add information for other blocks. PyDG quitting')
+    print('==================================')
+  sys.exit()
+
 
 def getGlobU_scalar(u):
   quadpoints0,quadpoints1,quadpoints2,quadpoints3,Nelx,Nely,Nelz,Nelt = np.shape(u)
@@ -154,9 +161,9 @@ iteration = 0
 eqns = equations(eqn_str,schemes,turb_str)
 #main = variables(Nel,order,quadpoints,eqns,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,fsource,source_mag,shock_capturing,mol_str,basis_args)
 
-regionManager = blockClass(n_blocks,starting_rank,procx,procy,et,dt,save_freq,turb_str)
+regionManager = blockClass(n_blocks,starting_rank,procx,procy,procz,et,dt,save_freq,turb_str)
 for i in regionManager.mpi_regions_owned:
-  regionManager.region.append( variables(i,Nel_block[i],order,quadpoints,eqns,mu,x_block[i],y_block[i],z_block[i],turb_str,procx[i],procy[i],starting_rank[i],BCs[i],fsource,source_mag,shock_capturing,mol_str,basis_args) )
+  regionManager.region.append( variables(i,Nel_block[i],order,quadpoints,eqns,mu,x_block[i],y_block[i],z_block[i],turb_str,procx[i],procy[i],procz[i],starting_rank[i],BCs[i],fsource,source_mag,shock_capturing,mol_str,basis_args) )
 regionConnector(regionManager)
 #print('==============')
 #print('MPI INFO',regionManager.region[0].mpi_rank,regionManager.region[0].rank_connect[3])
@@ -175,7 +182,7 @@ for i in regionManager.mpi_regions_owned:
 #    print('dt*(p/dx)**2*mu = ' + str(dt*order[0]**2*CFL**2*mu/order[-1] ))
   if (enriched):
     eqnsEnriched = eqns#equations(enriched_eqn_str,enriched_schemes,turb_str)
-    mainEnriched = variables(Nel,np.int64(order + enriched_add),quadpoints,eqnsEnriched,mu,x,y,z,turb_str,procx,procy,BCs,fsource,source_mag,shock_capturing,mol_str,basis_args)
+    mainEnriched = variables(Nel,np.int64(order + enriched_add),quadpoints,eqnsEnriched,mu,x,y,z,turb_str,procx,procy,procz,BCs,fsource,source_mag,shock_capturing,mol_str,basis_args)
   else:
     mainEnriched = main
   

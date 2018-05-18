@@ -1,6 +1,6 @@
 import numpy as np
 from eos_functions import *
-import cantera as ct
+#import cantera as ct
 def getNetProductionRates(main,U,mol_weight):
   ## Reaction is
   # CH4 + 1.5 O2 => CO + 2*H2O

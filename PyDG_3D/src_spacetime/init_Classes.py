@@ -174,10 +174,10 @@ class boundaryConditions:
     
 
 class variables:
-  def __init__(self,region_number,Nel,order,quadpoints,eqns,mu,x,y,z,turb_str,procx,procy,starting_rank,BCs,source,source_mag,shock_capturing,mol_str,basis_args):
+  def __init__(self,region_number,Nel,order,quadpoints,eqns,mu,x,y,z,turb_str,procx,procy,procz,starting_rank,BCs,source,source_mag,shock_capturing,mol_str,basis_args):
     ## DG scheme information
     self.starting_rank = starting_rank
-    self.all_mpi_ranks = range(starting_rank,starting_rank + procx*procy)
+    self.all_mpi_ranks = range(starting_rank,starting_rank + procx*procy*procz)
     self.region_number = region_number
     self.basis_args = basis_args
     self.eq_str = eqns.eq_str
@@ -188,8 +188,9 @@ class variables:
     ##============== MPI INFORMATION ===================
     self.procx = procx
     self.procy = procy
+    self.procz = procz
     self.comm = MPI.COMM_WORLD
-    self.num_processes = self.procx*self.procy#self.comm.Get_size()
+    self.num_processes = self.procx*self.procy*self.procz#self.comm.Get_size()
     self.num_processes_global = self.comm.Get_size()
     self.mpi_rank = self.comm.Get_rank()
 #    if (procx*procy != self.num_processes):
@@ -198,11 +199,19 @@ class variables:
 #      sys.exit()
     self.Npy = int(float(Nel[1] / procy)) #number of points on each x plane. MUST BE UNIFORM BETWEEN PROCS
     self.Npx = int(float(Nel[0] / procx))
-    self.Npz = int(Nel[2])
+    self.Npz = int(float(Nel[2] / procz))
     self.Npt = Nel[-1]
-    self.sy = slice(int(self.mpi_rank - starting_rank)/int(self.procx)*self.Npy,(int(self.mpi_rank - starting_rank)/int(self.procx) + 1)*self.Npy)  ##slicing in y direction
-    self.sx = slice(int( (self.mpi_rank - starting_rank)%self.procx)*self.Npx,int( (self.mpi_rank - starting_rank)%self.procx + 1)*self.Npx)
-    self.rank_connect,self.BC_rank = getRankConnectionsSlab(self.mpi_rank,self.num_processes,self.procx,self.procy,self.starting_rank)
+
+    self.sx = slice(((int(self.mpi_rank - starting_rank) % int(self.procx * self.procy)) % int(self.procx))     *self.Npx, \
+                    ((int(self.mpi_rank - starting_rank) % int(self.procx * self.procy)) % int(self.procx) + 1) *self.Npx)
+    
+    self.sy = slice(((int(self.mpi_rank - starting_rank) % int(self.procx * self.procy)) / int(self.procx))     *self.Npy, \
+                    ((int(self.mpi_rank - starting_rank) % int(self.procx * self.procy)) / int(self.procx) + 1) *self.Npy)
+    
+    self.sz = slice(((int(self.mpi_rank - starting_rank) / int(self.procx * self.procy)))     *self.Npz, \
+                    ((int(self.mpi_rank - starting_rank) / int(self.procx * self.procy)) + 1) *self.Npz)
+    
+    self.rank_connect,self.BC_rank = getRankConnectionsSlab(self.mpi_rank,self.num_processes,self.procx,self.procy,self.procz,self.starting_rank)
     self.w,self.wp,self.wpedge,self.weights,self.zeta = gaussPoints(self.order[0],self.quadpoints[0])
     self.altarray = (-np.ones(self.order[0]))**(np.linspace(0,self.order[0]-1,self.order[0]))
 
@@ -231,7 +240,7 @@ class variables:
 
     Xtmp = np.zeros((3,Nel[0]+1,Nel[1]+1,Nel[2]+1))
     Xtmp[0],Xtmp[1],Xtmp[2] = x,y,z
-    X_el = get_Xel(Xtmp,self.sx,self.sy)
+    X_el = get_Xel(Xtmp,self.sx,self.sy,self.sz)
     self.J,self.Jinv,self.Jdet,self.J_edge_det,self.normals = computeJacobian(X_el,self.zeta0,self.zeta1,self.zeta2)
     self.xG,self.yG,self.zG = getGlobGrid(self,x,y,z,self.zeta0,self.zeta1,self.zeta2)
     self.Minv = getMassMatrix(self)
@@ -243,10 +252,12 @@ class variables:
     self.reacting = False
     ## Initialize BCs
     self.BCs = BCs
-    self.rightBC = boundaryConditions(BCs[0],BCs[1])
-    self.topBC = boundaryConditions(BCs[2],BCs[3])
-    self.leftBC = boundaryConditions(BCs[4],BCs[5])
-    self.bottomBC = boundaryConditions(BCs[6],BCs[7])
+    self.leftBC   = boundaryConditions(BCs[0],BCs[1])
+    self.rightBC  = boundaryConditions(BCs[2],BCs[3])
+    self.bottomBC = boundaryConditions(BCs[4],BCs[5])
+    self.topBC    = boundaryConditions(BCs[6],BCs[7])
+    self.backBC   = boundaryConditions(BCs[8],BCs[9])
+    self.frontBC  = boundaryConditions(BCs[10],BCs[11])
 
     self.cgas = False 
     self.cgas_field = False 
@@ -281,12 +292,12 @@ class variables:
     self.dz = z[0,0,1] - z[0,0,0]
     self.dx2 = np.diff(x[:,0,0])[self.sx]
     self.dy2 = np.diff(y[0,:,0])[self.sy]
-    self.dz2 = np.diff(z[0,0,:])
+    self.dz2 = np.diff(z[0,0,:])[self.sz]
 
     #print(np.shape(xG))
     self.x = x[self.sx]
     self.y = y[self.sy] 
-    self.z = z
+    self.z = z[self.sz]
     self.nvars = eqns.nvars
 
     self.a0 = np.zeros((eqns.nvars,self.order[0],self.order[1],self.order[2],self.order[3],self.Npx,self.Npy,self.Npz,self.Npt))

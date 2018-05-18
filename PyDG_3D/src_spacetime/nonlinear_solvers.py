@@ -10,7 +10,7 @@ def newtonSolver(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadratu
     coarsen = 2
     quadpoints_coarsen = np.fmax(main.quadpoints/(coarsen),1)
     quadpoints_coarsen[-1] = main.quadpoints[-1]
-    main_coarse = variables(main.Nel,main.order,quadpoints_coarsen,eqns,main.mus,main.xG,main.yG,main.zG,main.t,main.et,main.dt,main.iteration,main.save_freq,'DNS',main.procx,main.procy,main.BCs,main.fsource,main.source_mag,main.shock_capturing,main.mol_str)
+    main_coarse = variables(main.Nel,main.order,quadpoints_coarsen,eqns,main.mus,main.xG,main.yG,main.zG,main.t,main.et,main.dt,main.iteration,main.save_freq,'DNS',main.procx,main.procy,main.procz,main.BCs,main.fsource,main.source_mag,main.shock_capturing,main.mol_str)
     main_coarse.basis = main.basis
     main_coarse.a.a[:] = main.a.a[:]
     def newtonHook(main_coarse,main,Rn):
@@ -69,7 +69,7 @@ def NEJSolver(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadrature,
     coarsen = 2
     quadpoints_coarsen = np.fmax(main.quadpoints/(coarsen),1)
     quadpoints_coarsen[-1] = main.quadpoints[-1]
-    main_coarse = variables(main.Nel,main.order,quadpoints_coarsen,eqns,main.mus,main.xG,main.yG,main.zG,main.t,main.et,main.dt,main.iteration,main.save_freq,'DNS',main.procx,main.procy,main.BCs,main.fsource,main.source_mag,main.shock_capturing,main.mol_str)
+    main_coarse = variables(main.Nel,main.order,quadpoints_coarsen,eqns,main.mus,main.xG,main.yG,main.zG,main.t,main.et,main.dt,main.iteration,main.save_freq,'DNS',main.procx,main.procy,main.procz,main.BCs,main.fsource,main.source_mag,main.shock_capturing,main.mol_str)
     main_coarse.basis = main.basis
     main_coarse.a.a[:] = main.a.a[:]
     def newtonHook(main_coarse,main,Rn):
