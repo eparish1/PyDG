@@ -104,8 +104,16 @@ def dirichlet_bc(Ue,UBC,args,main):
   return UBC
 
 def periodic_bc(Ue,UBC,args,main):
-   return UBC 
+  if (args[2]==1):
+    UBC = UBC[:,:,:,:,::-1,:,:]
 
+  if (args[3]==1):
+    UBC = UBC[:,:,:,:,:,::-1,:]
+
+  if (args[4]==1):
+    UBC = UBC[:,:,:,:,:,:,::-1]
+
+  return UBC 
 
 def freestream_temp_bc(Ue,UBC,args,main):
   gamma = 1.4
