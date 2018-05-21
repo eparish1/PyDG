@@ -241,7 +241,7 @@ def test_projection_pod(u,V,main):
 
  
 def LSPG_POD(main,MZ,eqns):
-  eps = 1e-5
+  eps = 0.1e-5
   a0 = main.a.a*1.
   eqns.getRHS(main,MZ,eqns)
   #==================================================
@@ -254,7 +254,7 @@ def LSPG_POD(main,MZ,eqns):
   #main.basis.applyMassMatrix(main,main.RHS)
   PLQLu = (main.RHS - RHS0)/eps
   main.PLQLu[:] = PLQLu
-  tau = main.tau
+  tau = main.dt
   #print(np.linalg.norm(PLQLu))
   #=====================================
   main.RHS[:] =  RHS0[:]+ tau*PLQLu

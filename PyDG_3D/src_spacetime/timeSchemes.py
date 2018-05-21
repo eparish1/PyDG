@@ -5,6 +5,7 @@ from pylab import *
 #from petsc4py import PETSc
 from DG_functions import * 
 import scipy.linalg
+from scipy.optimize import least_squares
 from linear_solvers import *
 import matplotlib.pyplot as plt
 from mpi4py import MPI
@@ -1997,6 +1998,72 @@ def CrankNicolson_POD(main,MZ,eqns,args):
 
   main.t += main.dt
   main.iteration += 1
+
+
+
+
+## function to implement LSPG for backward euler timescheme
+## uses scipys least_squares functionality
+def backwardEuler_LSPG(main,MZ,eqns,args):
+  nonlinear_solver = args[0]
+  linear_solver = args[1]
+  sparse_quadrature = args[2]
+  main.a0[:] = main.a.a[:]
+  main.getRHS(main,MZ,eqns)
+  R0 = np.zeros(np.shape(main.RHS))
+  R0[:] = main.RHS[:]
+
+  ## function that returns the residual
+  def unsteadyResidual(v):
+    #main.a.a[:] = np.reshape(v,np.shape(main.a.a))
+    main.a.a[:] = np.reshape( np.dot(main.V,v) , np.shape(main.a.a) )
+    main.getRHS(main,MZ,eqns)
+    R1 = np.zeros(np.shape(main.RHS))
+    RHS_BE = np.zeros(np.shape(main.RHS))
+    R1[:] = main.RHS[:]
+    RHS_BE[:] = main.dt*R1
+    main.basis.applyMassMatrix(main,RHS_BE)
+    Rstar = ( main.a.a[:] - main.a0 ) - RHS_BE
+    Rstar_glob = gatherResid(Rstar,main)
+    return Rstar.flatten()
+
+
+  def create_mv(v):
+    def MF_Jacobian(v):
+      an = main.a0 
+      Rn = R0
+      vr = np.reshape( np.dot(main.V,v) , np.shape(main.a.a) )
+      #vr = np.reshape(v,np.shape(main.a.a))
+      eps = 5.e-7
+      main.a.a[:] = an + eps*vr
+      main.getRHS(main,MZ,eqns)
+      RHS_BE = np.zeros(np.shape(main.RHS))
+      R1 = np.zeros(np.shape(main.RHS))
+      R1[:] = main.RHS[:]
+      RHS_BE[:] = main.dt*(R1 - Rn)/eps
+      main.basis.applyMassMatrix(main,RHS_BE)
+      Av = vr - RHS_BE
+      return Av.flatten()
+
+    def rmatvec(v):
+      return globalDot(main.V.transpose(),v.flatten(),main)
+
+    mdim = np.size(main.a.a)
+    ndim = np.shape(main.V)[1]
+    return  LinearOperator((mdim,ndim),matvec=MF_Jacobian,rmatvec=rmatvec)
+
+
+  a0_pod = globalDot(main.V.transpose(),main.a.a.flatten(),main)
+  A = create_mv(main.a.a.flatten())
+  res_1 = least_squares(unsteadyResidual, a0_pod,ftol=1e-3,verbose=2,jac=create_mv,method='dogbox')
+  #res_1 = scipy.sparse.linalg.lsmr(A,R0.flatten())
+  a_sol_pod = res_1.x
+  main.a.a[:] = np.reshape( np.dot(main.V,a_sol_pod) , np.shape(main.a.a) )
+  main.t += main.dt
+  main.iteration += 1
+
+
+
 
 
 def backwardEuler(main,MZ,eqns,args):
