@@ -261,7 +261,7 @@ def LSPG_POD(main,MZ,eqns):
 
 
 def orthogonalSubscale_POD(main,MZ,eqns):
-  eps = 1e-5
+  eps = 1e-7
   a0 = main.a.a*1.
   eqns.getRHS(main,MZ,eqns)
   #==================================================

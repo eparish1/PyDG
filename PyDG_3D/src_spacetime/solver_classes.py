@@ -69,6 +69,25 @@ class timeschemes:
       main.V = np.reshape(V2,(np.size(main.a.a),n_basis) ) 
 
 
+    if (time_str == 'backwardEuler_POD'):
+      check_t = 0
+      self.advanceSol = backwardEuler_POD
+      self.linear_solver = linearSolver(lsolver_str)
+      self.nonlinear_solver = nonlinearSolver(nlsolver_str)
+      self.sparse_quadrature = False
+      self.args = [self.nonlinear_solver,self.linear_solver,self.sparse_quadrature]
+      V = np.load('pod_basis.npz')['V']
+      #main.V = np.zeros(np.shape(V))
+      #main.V[:] = V 
+      n_basis = np.shape(V)[1]
+      V2 = np.zeros((main.nvars,main.order[0],main.order[1],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt,n_basis))
+      for i in range(0,n_basis):
+        V2[:,:,:,:,:,:,:,:,:,i] = np.reshape(V[:,i],(main.nvars,main.order[0],main.order[1],main.order[2],main.order[3],main.Nel[0],main.Nel[1],main.Nel[2],main.Nel[3]))[:,:,:,:,:,main.sx,main.sy,:,:] 
+      main.V = np.reshape(V2,(np.size(main.a.a),n_basis) ) 
+
+
+
+
     if (time_str == 'backwardEuler_LSPG'):
       check_t = 0
       self.advanceSol = backwardEuler_LSPG
