@@ -47,7 +47,15 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main,regionManager):
   uF = np.zeros(np.shape(fB[:,:,:,:,:,:,0]))
   uB = np.zeros(np.shape(fF[:,:,:,:,:,:,0]))
 
+  left_face   = ((main.mpi_rank-main.starting_rank)%main.procx==0)
+  right_face  = ((main.mpi_rank-main.starting_rank)%main.procx==main.procx-1)
+  
+  bottom_face = (((main.mpi_rank-main.starting_rank)%(main.procx*main.procy))/main.procx==0)
+  top_face    = (((main.mpi_rank-main.starting_rank)%(main.procx*main.procy))/main.procx==main.procy-1)
 
+  back_face   = ((main.mpi_rank-main.starting_rank)/(main.procx*main.procy)==0)
+  front_face  = ((main.mpi_rank-main.starting_rank)/(main.procx*main.procy)==main.procz-1)
+  
 
   ######################################################################################################################################################
 
@@ -78,19 +86,19 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main,regionManager):
   #======================================================
   else:
 
-    if (main.rank_connect[0] != main.mpi_rank and main.leftBC.args[1] == -1 and (main.leftBC.BC_type == 'periodic' or main.leftBC.BC_type == 'patch')):
+    if (main.rank_connect[0] != main.mpi_rank and ((main.leftBC.args[1] == -1 and (main.leftBC.BC_type == 'periodic' or main.leftBC.BC_type == 'patch') and left_face==True) or left_face==False)):
       main.comm.Send(fL[:,:,:,:,0,:,:].flatten(),dest=main.rank_connect[0],tag=main.mpi_rank)
 
     #============================
 
-    if (main.rank_connect[1] != main.mpi_rank and main.rightBC.args[1] == 0 and (main.rightBC.BC_type == 'periodic' or main.rightBC.BC_type == 'patch')):
+    if (main.rank_connect[1] != main.mpi_rank and ((main.rightBC.args[1] == 0 and (main.rightBC.BC_type == 'periodic' or main.rightBC.BC_type == 'patch') and right_face==True) or right_face==False)):
       tmp = np.zeros(np.size(fL[:,:,:,:,0,:,:]))
       main.comm.Recv(tmp,source=main.rank_connect[1],tag=main.rank_connect[1])
       uR[:] = np.reshape(tmp,np.shape(fL[:,:,:,:,0,:,:]))
 
     #============================
 
-    if (main.rank_connect[0] != main.mpi_rank and main.leftBC.args[1] == 0 and (main.leftBC.BC_type == 'periodic' or main.leftBC.BC_type == 'patch')):
+    if (main.rank_connect[0] != main.mpi_rank and main.leftBC.args[1] == 0 and (main.leftBC.BC_type == 'periodic' or main.leftBC.BC_type == 'patch') and left_face==True):
       tmp = np.zeros(np.size(fL[:,:,:,:,0,:,:]))
       main.comm.Sendrecv(fL[:,:,:,:,0,:,:].flatten(),dest=main.rank_connect[0],sendtag=main.mpi_rank,\
                          recvbuf=tmp,source=main.rank_connect[0],recvtag=main.rank_connect[0])
@@ -102,19 +110,19 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main,regionManager):
 
 
 
-    if (main.rank_connect[1] != main.mpi_rank and main.rightBC.args[1] == 0 and (main.rightBC.BC_type == 'periodic' or main.rightBC.BC_type == 'patch')):
+    if (main.rank_connect[1] != main.mpi_rank and ((main.rightBC.args[1] == 0 and (main.rightBC.BC_type == 'periodic' or main.rightBC.BC_type == 'patch') and right_face==True) or right_face==False)):
       main.comm.Send(fR[:,:,:,:,-1,:,:].flatten(),dest=main.rank_connect[1],tag=main.mpi_rank+main.num_processes_global)
 
     #============================
 
-    if (main.rank_connect[0] != main.mpi_rank and main.leftBC.args[1] == -1 and (main.leftBC.BC_type == 'periodic' or main.leftBC.BC_type == 'patch')):
+    if (main.rank_connect[0] != main.mpi_rank and ((main.leftBC.args[1] == -1 and (main.leftBC.BC_type == 'periodic' or main.leftBC.BC_type == 'patch') and left_face==True) or left_face==False)):
       tmp = np.zeros(np.size(fL[:,:,:,:,0,:,:]))
       main.comm.Recv(tmp,source=main.rank_connect[0],tag=main.rank_connect[0]+main.num_processes_global)
       uL[:] = np.reshape(tmp,np.shape(fL[:,:,:,:,-1,:,:]))
     
     #============================
 
-    if (main.rank_connect[1] != main.mpi_rank and main.rightBC.args[1] == -1 and (main.rightBC.BC_type == 'periodic' or main.rightBC.BC_type == 'patch')):
+    if (main.rank_connect[1] != main.mpi_rank and main.rightBC.args[1] == -1 and (main.rightBC.BC_type == 'periodic' or main.rightBC.BC_type == 'patch') and right_face==True):
       tmp = np.zeros(np.size(fL[:,:,:,:,0,:,:]))
       main.comm.Sendrecv(fR[:,:,:,:,-1,:,:].flatten(),dest=main.rank_connect[1],sendtag=main.mpi_rank+main.num_processes_global,\
                          recvbuf=tmp,source=main.rank_connect[1],recvtag=main.rank_connect[1]+main.num_processes_global)
@@ -158,19 +166,19 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main,regionManager):
   #======================================================
   else:
     
-    if (main.rank_connect[2] != main.mpi_rank and main.bottomBC.args[1] == -1 and (main.bottomBC.BC_type == 'periodic' or main.bottomBC.BC_type == 'patch')):
+    if (main.rank_connect[2] != main.mpi_rank and ((main.bottomBC.args[1] == -1 and (main.bottomBC.BC_type == 'periodic' or main.bottomBC.BC_type == 'patch') and bottom_face==True) or bottom_face==False)):
       main.comm.Send(fD[:,:,:,:,:,0,:].flatten(),dest=main.rank_connect[2],tag=main.mpi_rank)
 
     #============================
 
-    if (main.rank_connect[3] != main.mpi_rank and main.topBC.args[1] == 0 and (main.topBC.BC_type == 'periodic' or main.topBC.BC_type == 'patch')):
+    if (main.rank_connect[3] != main.mpi_rank and ((main.topBC.args[1] == 0 and (main.topBC.BC_type == 'periodic' or main.topBC.BC_type == 'patch') and top_face==True) or top_face==False)):
       tmp = np.zeros(np.size(fD[:,:,:,:,:,0,:]))
       main.comm.Recv(tmp,source=main.rank_connect[3],tag=main.rank_connect[3])
       uU[:] = np.reshape(tmp,np.shape(fD[:,:,:,:,:,0,:]))
 
     #============================
 
-    if (main.rank_connect[2] != main.mpi_rank and main.bottomBC.args[1] == 0 and (main.bottomBC.BC_type == 'periodic' or main.bottomBC.BC_type == 'patch')):
+    if (main.rank_connect[2] != main.mpi_rank and main.bottomBC.args[1] == 0 and (main.bottomBC.BC_type == 'periodic' or main.bottomBC.BC_type == 'patch') and bottom_face==True):
       tmp = np.zeros(np.size(fD[:,:,:,:,:,0,:]))
       main.comm.Sendrecv(fD[:,:,:,:,:,0,:].flatten(),dest=main.rank_connect[2],sendtag=main.mpi_rank,\
                          recvbuf=tmp,source=main.rank_connect[2],recvtag=main.rank_connect[2])
@@ -182,19 +190,19 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main,regionManager):
 
 
 
-    if (main.rank_connect[3] != main.mpi_rank and main.topBC.args[1] == 0 and (main.topBC.BC_type == 'periodic' or main.topBC.BC_type == 'patch')):
+    if (main.rank_connect[3] != main.mpi_rank and ((main.topBC.args[1] == 0 and (main.topBC.BC_type == 'periodic' or main.topBC.BC_type == 'patch') and top_face==True) or top_face==False)):
       main.comm.Send(fU[:,:,:,:,:,-1,:].flatten(),dest=main.rank_connect[3],tag=main.mpi_rank+main.num_processes_global)
 
     #============================
 
-    if (main.rank_connect[2] != main.mpi_rank and main.bottomBC.args[1] == -1 and (main.bottomBC.BC_type == 'periodic' or main.bottomBC.BC_type == 'patch')):
+    if (main.rank_connect[2] != main.mpi_rank and ((main.bottomBC.args[1] == -1 and (main.bottomBC.BC_type == 'periodic' or main.bottomBC.BC_type == 'patch') and bottom_face==True) or bottom_face==False)):
       tmp = np.zeros(np.size(fD[:,:,:,:,:,0,:]))
       main.comm.Recv(tmp,source=main.rank_connect[2],tag=main.rank_connect[2]+main.num_processes_global)
       uD[:] = np.reshape(tmp,np.shape(fD[:,:,:,:,:,-1,:]))
     
     #============================
 
-    if (main.rank_connect[3] != main.mpi_rank and main.topBC.args[1] == -1 and (main.topBC.BC_type == 'periodic' or main.topBC.BC_type == 'patch')):
+    if (main.rank_connect[3] != main.mpi_rank and main.topBC.args[1] == -1 and (main.topBC.BC_type == 'periodic' or main.topBC.BC_type == 'patch') and top_face==True):
       tmp = np.zeros(np.size(fD[:,:,:,:,:,0,:]))
       main.comm.Sendrecv(fU[:,:,:,:,:,-1,:].flatten(),dest=main.rank_connect[3],sendtag=main.mpi_rank+main.num_processes_global,\
                          recvbuf=tmp,source=main.rank_connect[3],recvtag=main.rank_connect[3]+main.num_processes_global)
@@ -238,19 +246,19 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main,regionManager):
   #======================================================
   else:
     
-    if (main.rank_connect[4] != main.mpi_rank and main.backBC.args[1] == -1 and (main.backBC.BC_type == 'periodic' or main.backBC.BC_type == 'patch')):
+    if (main.rank_connect[4] != main.mpi_rank and ((main.backBC.args[1] == -1 and (main.backBC.BC_type == 'periodic' or main.backBC.BC_type == 'patch') and back_face==True) or back_face==False)):
         main.comm.Send(fB[:,:,:,:,:,:,0].flatten(),dest=main.rank_connect[4],tag=main.mpi_rank)
 
     #============================
 
-    if (main.rank_connect[5] != main.mpi_rank and main.frontBC.args[1] == 0 and (main.frontBC.BC_type == 'periodic' or main.frontBC.BC_type == 'patch')):
+    if (main.rank_connect[5] != main.mpi_rank and ((main.frontBC.args[1] == 0 and (main.frontBC.BC_type == 'periodic' or main.frontBC.BC_type == 'patch') and front_Face==True) or front_face==False)):
       tmp = np.zeros(np.size(fB[:,:,:,:,:,:,0]))
       main.comm.Recv(tmp,source=main.rank_connect[5],tag=main.rank_connect[5])
       uF[:] = np.reshape(tmp,np.shape(fB[:,:,:,:,:,:,0]))
 
     #============================
 
-    if (main.rank_connect[4] != main.mpi_rank and main.backBC.args[1] == 0 and (main.backBC.BC_type == 'periodic' or main.backBC.BC_type == 'patch')):
+    if (main.rank_connect[4] != main.mpi_rank and main.backBC.args[1] == 0 and (main.backBC.BC_type == 'periodic' or main.backBC.BC_type == 'patch') and back_face==True):
       tmp = np.zeros(np.size(fB[:,:,:,:,:,:,0]))
       main.comm.Sendrecv(fB[:,:,:,:,:,:,0].flatten(),dest=main.rank_connect[4],sendtag=main.mpi_rank,\
                          recvbuf=tmp,source=main.rank_connect[4],recvtag=main.rank_connect[4])
@@ -262,19 +270,19 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main,regionManager):
 
 
 
-    if (main.rank_connect[5] != main.mpi_rank and main.frontBC.args[1] == 0 and (main.frontBC.BC_type == 'periodic' or main.frontBC.BC_type == 'patch')):
+    if (main.rank_connect[5] != main.mpi_rank and ((main.frontBC.args[1] == 0 and (main.frontBC.BC_type == 'periodic' or main.frontBC.BC_type == 'patch') and front_face==True) or front_face==False)):
       main.comm.Send(fF[:,:,:,:,:,:,-1].flatten(),dest=main.rank_connect[5],tag=main.mpi_rank+main.num_processes_global)
 
     #============================
 
-    if (main.rank_connect[4] != main.mpi_rank and main.backBC.args[1] == -1 and (main.backBC.BC_type == 'periodic' or main.backBC.BC_type == 'patch')):
+    if (main.rank_connect[4] != main.mpi_rank and ((main.backBC.args[1] == -1 and (main.backBC.BC_type == 'periodic' or main.backBC.BC_type == 'patch') and back_face==True) or back_face==False)):
       tmp = np.zeros(np.size(fB[:,:,:,:,:,:,0]))
       main.comm.Recv(tmp,source=main.rank_connect[4],tag=main.rank_connect[4]+main.num_processes_global)
       uB[:] = np.reshape(tmp,np.shape(fB[:,:,:,:,:,:,-1]))
     
     #============================
 
-    if (main.rank_connect[5] != main.mpi_rank and main.frontBC.args[1] == -1 and (main.frontBC.BC_type == 'periodic' or main.frontBC.BC_type == 'patch')):
+    if (main.rank_connect[5] != main.mpi_rank and main.frontBC.args[1] == -1 and (main.frontBC.BC_type == 'periodic' or main.frontBC.BC_type == 'patch') and front_face==True):
       tmp = np.zeros(np.size(fB[:,:,:,:,:,:,0]))
       main.comm.Sendrecv(fF[:,:,:,:,:,:,-1].flatten(),dest=main.rank_connect[5],sendtag=main.mpi_rank+main.num_processes_global,\
                          recvbuf=tmp,source=main.rank_connect[5],recvtag=main.rank_connect[5]+main.num_processes_global)
@@ -306,6 +314,14 @@ def sendEdgesGeneralSlab_Derivs(fL,fR,fD,fU,fB,fF,main,regionManager):
   uF = np.zeros(np.shape(fB[:,:,:,:,:,:,0]))
   uB = np.zeros(np.shape(fF[:,:,:,:,:,:,0]))
  
+  left_face   = ((main.mpi_rank-main.starting_rank)%main.procx==0)
+  right_face  = ((main.mpi_rank-main.starting_rank)%main.procx==main.procx-1)
+  
+  bottom_face = (((main.mpi_rank-main.starting_rank)%(main.procx*main.procy))/main.procx==0)
+  top_face    = (((main.mpi_rank-main.starting_rank)%(main.procx*main.procy))/main.procx==main.procy-1)
+
+  back_face   = ((main.mpi_rank-main.starting_rank)/(main.procx*main.procy)==0)
+  front_face  = ((main.mpi_rank-main.starting_rank)/(main.procx*main.procy)==main.procz-1)
 
 
   ####################################################################################################################################
@@ -338,19 +354,19 @@ def sendEdgesGeneralSlab_Derivs(fL,fR,fD,fU,fB,fF,main,regionManager):
 
   else:
     
-    if (main.rank_connect[0] != main.mpi_rank and main.leftBC.args[1] == -1 and (main.leftBC.BC_type == 'periodic' or main.leftBC.BC_type == 'patch')):
+    if (main.rank_connect[0] != main.mpi_rank and ((main.leftBC.args[1] == -1 and (main.leftBC.BC_type == 'periodic' or main.leftBC.BC_type == 'patch') and left_face==True) or left_face==False)):
       main.comm.Send(fL[:,:,:,:,0,:,:].flatten(),dest=main.rank_connect[0],tag=main.mpi_rank)
 
     #============================
 
-    if (main.rank_connect[1] != main.mpi_rank and main.rightBC.args[1] == 0 and (main.rightBC.BC_type == 'periodic' or main.rightBC.BC_type == 'patch')):
+    if (main.rank_connect[1] != main.mpi_rank and ((main.rightBC.args[1] == 0 and (main.rightBC.BC_type == 'periodic' or main.rightBC.BC_type == 'patch') and right_face==True) or right_face==False)):
       tmp = np.zeros(np.size(fL[:,:,:,:,0,:,:]))
       main.comm.Recv(tmp,source=main.rank_connect[1],tag=main.rank_connect[1])
       uR[:] = np.reshape(tmp,np.shape(fL[:,:,:,:,0,:,:]))
 
     #============================
 
-    if (main.rank_connect[0] != main.mpi_rank and main.leftBC.args[1] == 0 and (main.leftBC.BC_type == 'periodic' or main.leftBC.BC_type == 'patch')):
+    if (main.rank_connect[0] != main.mpi_rank and main.leftBC.args[1] == 0 and (main.leftBC.BC_type == 'periodic' or main.leftBC.BC_type == 'patch') and left_face==True):
       tmp = np.zeros(np.size(fL[:,:,:,:,0,:,:]))
       main.comm.Sendrecv(fL[:,:,:,:,0,:,:].flatten(),dest=main.rank_connect[0],sendtag=main.mpi_rank,\
                          recvbuf=tmp,source=main.rank_connect[0],recvtag=main.rank_connect[0])
@@ -362,19 +378,19 @@ def sendEdgesGeneralSlab_Derivs(fL,fR,fD,fU,fB,fF,main,regionManager):
 
 
 
-    if (main.rank_connect[1] != main.mpi_rank and main.rightBC.args[1] == 0 and (main.rightBC.BC_type == 'periodic' or main.rightBC.BC_type == 'patch')):
+    if (main.rank_connect[1] != main.mpi_rank and ((main.rightBC.args[1] == 0 and (main.rightBC.BC_type == 'periodic' or main.rightBC.BC_type == 'patch') and right_face==True) or right_face==False)):
       main.comm.Send(fR[:,:,:,:,-1,:,:].flatten(),dest=main.rank_connect[1],tag=main.mpi_rank+main.num_processes_global)
 
     #============================
 
-    if (main.rank_connect[0] != main.mpi_rank and main.leftBC.args[1] == -1 and (main.leftBC.BC_type == 'periodic' or main.leftBC.BC_type == 'patch')):
+    if (main.rank_connect[0] != main.mpi_rank and ((main.leftBC.args[1] == -1 and (main.leftBC.BC_type == 'periodic' or main.leftBC.BC_type == 'patch') and left_face==True) or left_face==False)):
       tmp = np.zeros(np.size(fL[:,:,:,:,0,:,:]))
       main.comm.Recv(tmp,source=main.rank_connect[0],tag=main.rank_connect[0]+main.num_processes_global)
       uL[:] = np.reshape(tmp,np.shape(fL[:,:,:,:,-1,:,:]))
     
     #============================
 
-    if (main.rank_connect[1] != main.mpi_rank and main.rightBC.args[1] == -1 and (main.rightBC.BC_type == 'periodic' or main.rightBC.BC_type == 'patch')):
+    if (main.rank_connect[1] != main.mpi_rank and main.rightBC.args[1] == -1 and (main.rightBC.BC_type == 'periodic' or main.rightBC.BC_type == 'patch') and right_face==True):
       tmp = np.zeros(np.size(fL[:,:,:,:,0,:,:]))
       main.comm.Sendrecv(fR[:,:,:,:,-1,:,:].flatten(),dest=main.rank_connect[1],sendtag=main.mpi_rank+main.num_processes_global,\
                          recvbuf=tmp,source=main.rank_connect[1],recvtag=main.rank_connect[1]+main.num_processes_global)
@@ -428,19 +444,19 @@ def sendEdgesGeneralSlab_Derivs(fL,fR,fD,fU,fB,fF,main,regionManager):
 
   else:
     
-    if (main.rank_connect[2] != main.mpi_rank and main.bottomBC.args[1] == -1 and (main.bottomBC.BC_type == 'periodic' or main.bottomBC.BC_type == 'patch')):
+    if (main.rank_connect[2] != main.mpi_rank and ((main.bottomBC.args[1] == -1 and (main.bottomBC.BC_type == 'periodic' or main.bottomBC.BC_type == 'patch') and bottom_face==True) or bottom_face==False)):
       main.comm.Send(fD[:,:,:,:,:,0,:].flatten(),dest=main.rank_connect[2],tag=main.mpi_rank)
 
     #============================
 
-    if (main.rank_connect[3] != main.mpi_rank and main.topBC.args[1] == 0 and (main.topBC.BC_type == 'periodic' or main.topBC.BC_type == 'patch')):
+    if (main.rank_connect[3] != main.mpi_rank and ((main.topBC.args[1] == 0 and (main.topBC.BC_type == 'periodic' or main.topBC.BC_type == 'patch') and top_face==True) or top_face==False)):
       tmp = np.zeros(np.size(fD[:,:,:,:,:,0,:]))
       main.comm.Recv(tmp,source=main.rank_connect[3],tag=main.rank_connect[3])
       uU[:] = np.reshape(tmp,np.shape(fD[:,:,:,:,:,0,:]))
 
     #============================
 
-    if (main.rank_connect[2] != main.mpi_rank and main.bottomBC.args[1] == 0 and (main.bottomBC.BC_type == 'periodic' or main.bottomBC.BC_type == 'patch')):
+    if (main.rank_connect[2] != main.mpi_rank and main.bottomBC.args[1] == 0 and (main.bottomBC.BC_type == 'periodic' or main.bottomBC.BC_type == 'patch') and bottom_face==True):
       tmp = np.zeros(np.size(fD[:,:,:,:,:,0,:]))
       main.comm.Sendrecv(fD[:,:,:,:,:,0,:].flatten(),dest=main.rank_connect[2],sendtag=main.mpi_rank,\
                          recvbuf=tmp,source=main.rank_connect[2],recvtag=main.rank_connect[2])
@@ -452,19 +468,19 @@ def sendEdgesGeneralSlab_Derivs(fL,fR,fD,fU,fB,fF,main,regionManager):
 
 
 
-    if (main.rank_connect[3] != main.mpi_rank and main.topBC.args[1] == 0 and (main.topBC.BC_type == 'periodic' or main.topBC.BC_type == 'patch')):
+    if (main.rank_connect[3] != main.mpi_rank and ((main.topBC.args[1] == 0 and (main.topBC.BC_type == 'periodic' or main.topBC.BC_type == 'patch') and top_face==True) or top_face==False)):
       main.comm.Send(fU[:,:,:,:,:,-1,:].flatten(),dest=main.rank_connect[3],tag=main.mpi_rank+main.num_processes_global)
 
     #============================
 
-    if (main.rank_connect[2] != main.mpi_rank and main.bottomBC.args[1] == -1 and (main.bottomBC.BC_type == 'periodic' or main.bottomBC.BC_type == 'patch')):
+    if (main.rank_connect[2] != main.mpi_rank and ((main.bottomBC.args[1] == -1 and (main.bottomBC.BC_type == 'periodic' or main.bottomBC.BC_type == 'patch') and bottom_face==True) or bottom_face==False)):
       tmp = np.zeros(np.size(fD[:,:,:,:,:,0,:]))
       main.comm.Recv(tmp,source=main.rank_connect[2],tag=main.rank_connect[2]+main.num_processes_global)
       uD[:] = np.reshape(tmp,np.shape(fD[:,:,:,:,:,-1,:]))
     
     #============================
 
-    if (main.rank_connect[3] != main.mpi_rank and main.topBC.args[1] == -1 and (main.topBC.BC_type == 'periodic' or main.topBC.BC_type == 'patch')):
+    if (main.rank_connect[3] != main.mpi_rank and main.topBC.args[1] == -1 and (main.topBC.BC_type == 'periodic' or main.topBC.BC_type == 'patch') and top_face==True):
       tmp = np.zeros(np.size(fD[:,:,:,:,:,0,:]))
       main.comm.Sendrecv(fU[:,:,:,:,:,-1,:].flatten(),dest=main.rank_connect[3],sendtag=main.mpi_rank+main.num_processes_global,\
                          recvbuf=tmp,source=main.rank_connect[3],recvtag=main.rank_connect[3]+main.num_processes_global)
@@ -518,19 +534,19 @@ def sendEdgesGeneralSlab_Derivs(fL,fR,fD,fU,fB,fF,main,regionManager):
 
   else:
     
-    if (main.rank_connect[4] != main.mpi_rank and main.backBC.args[1] == -1 and (main.backBC.BC_type == 'periodic' or main.backBC.BC_type == 'patch')):
+    if (main.rank_connect[4] != main.mpi_rank and ((main.backBC.args[1] == -1 and (main.backBC.BC_type == 'periodic' or main.backBC.BC_type == 'patch') and back_face==True) or back_face==False)):
         main.comm.Send(fB[:,:,:,:,:,:,0].flatten(),dest=main.rank_connect[4],tag=main.mpi_rank)
 
     #============================
 
-    if (main.rank_connect[5] != main.mpi_rank and main.frontBC.args[1] == 0 and (main.frontBC.BC_type == 'periodic' or main.frontBC.BC_type == 'patch')):
+    if (main.rank_connect[5] != main.mpi_rank and ((main.frontBC.args[1] == 0 and (main.frontBC.BC_type == 'periodic' or main.frontBC.BC_type == 'patch') and front_Face==True) or front_face==False)):
       tmp = np.zeros(np.size(fB[:,:,:,:,:,:,0]))
       main.comm.Recv(tmp,source=main.rank_connect[5],tag=main.rank_connect[5])
       uF[:] = np.reshape(tmp,np.shape(fB[:,:,:,:,:,:,0]))
 
     #============================
 
-    if (main.rank_connect[4] != main.mpi_rank and main.backBC.args[1] == 0 and (main.backBC.BC_type == 'periodic' or main.backBC.BC_type == 'patch')):
+    if (main.rank_connect[4] != main.mpi_rank and main.backBC.args[1] == 0 and (main.backBC.BC_type == 'periodic' or main.backBC.BC_type == 'patch') and back_face==True):
       tmp = np.zeros(np.size(fB[:,:,:,:,:,:,0]))
       main.comm.Sendrecv(fB[:,:,:,:,:,:,0].flatten(),dest=main.rank_connect[4],sendtag=main.mpi_rank,\
                          recvbuf=tmp,source=main.rank_connect[4],recvtag=main.rank_connect[4])
@@ -542,19 +558,19 @@ def sendEdgesGeneralSlab_Derivs(fL,fR,fD,fU,fB,fF,main,regionManager):
 
 
 
-    if (main.rank_connect[5] != main.mpi_rank and main.frontBC.args[1] == 0 and (main.frontBC.BC_type == 'periodic' or main.frontBC.BC_type == 'patch')):
+    if (main.rank_connect[5] != main.mpi_rank and ((main.frontBC.args[1] == 0 and (main.frontBC.BC_type == 'periodic' or main.frontBC.BC_type == 'patch') and front_face==True) or front_face==False)):
       main.comm.Send(fF[:,:,:,:,:,:,-1].flatten(),dest=main.rank_connect[5],tag=main.mpi_rank+main.num_processes_global)
 
     #============================
 
-    if (main.rank_connect[4] != main.mpi_rank and main.backBC.args[1] == -1 and (main.backBC.BC_type == 'periodic' or main.backBC.BC_type == 'patch')):
+    if (main.rank_connect[4] != main.mpi_rank and ((main.backBC.args[1] == -1 and (main.backBC.BC_type == 'periodic' or main.backBC.BC_type == 'patch') and back_face==True) or back_face==False)):
       tmp = np.zeros(np.size(fB[:,:,:,:,:,:,0]))
       main.comm.Recv(tmp,source=main.rank_connect[4],tag=main.rank_connect[4]+main.num_processes_global)
       uB[:] = np.reshape(tmp,np.shape(fB[:,:,:,:,:,:,-1]))
     
     #============================
 
-    if (main.rank_connect[5] != main.mpi_rank and main.frontBC.args[1] == -1 and (main.frontBC.BC_type == 'periodic' or main.frontBC.BC_type == 'patch')):
+    if (main.rank_connect[5] != main.mpi_rank and main.frontBC.args[1] == -1 and (main.frontBC.BC_type == 'periodic' or main.frontBC.BC_type == 'patch') and front_face==True):
       tmp = np.zeros(np.size(fB[:,:,:,:,:,:,0]))
       main.comm.Sendrecv(fF[:,:,:,:,:,:,-1].flatten(),dest=main.rank_connect[5],sendtag=main.mpi_rank+main.num_processes_global,\
                          recvbuf=tmp,source=main.rank_connect[5],recvtag=main.rank_connect[5]+main.num_processes_global)

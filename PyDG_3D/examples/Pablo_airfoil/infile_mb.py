@@ -1,6 +1,6 @@
 import numpy as np
 import sys
-sys.path.append("/home/vsriv/PyDG/PyDG_3D/src_spacetime") #link the the source directory for PyDG
+sys.path.append("/home/vsriv/Documents/PyDG/PyDG_3D/src_spacetime") #link the the source directory for PyDG
 from ic_functions_premade import vortexICS,zeroFSIC  #import the IC for taylor green vortex.
 
 #==========================================================================
@@ -130,7 +130,7 @@ z_block   = [ z_temp_0,  z_temp_1,  z_temp_2,  z_temp_3,  z_temp_4,  z_temp_5 , 
 t                   = 0                     #|  simulation start time
 dt                  = 0.000125              #|  simulation time step
 et                  = 10.                   #|  simulation end time
-save_freq           = 10                    #|  frequency to save output and print to screen
+save_freq           = 1                     #|  frequency to save output and print to screen
 eqn_str             = 'Navier-Stokes'       #|  equation set
 schemes             = ('roe','BR1')    #|  inviscid and viscous flux schemes
 basis_functions_str = 'TensorDot'
@@ -142,33 +142,33 @@ procx_block0 = 1
 procy_block0 = 1
 procz_block0 = 1
 
-procx_block1 = 3
+procx_block1 = 1
 procy_block1 = 1
 procz_block1 = 1
 
-procx_block2 = 3
-procy_block2 = 3
+procx_block2 = 1
+procy_block2 = 1
 procz_block2 = 1
 
-procx_block3 = 3
-procy_block3 = 2
+procx_block3 = 1
+procy_block3 = 1
 procz_block3 = 1
 
-procx_block4 = 3
+procx_block4 = 1
 procy_block4 = 1
 procz_block4 = 1
 
-procx_block5 = 3
-procy_block5 = 2
-procz_block5 = 1
-
-procx_block4 = 3
-procy_block4 = 3
-procz_block4 = 1
-
-procx_block5 = 3
+procx_block5 = 1
 procy_block5 = 1
 procz_block5 = 1
+
+procx_block6 = 1
+procy_block6 = 1
+procz_block6 = 1
+
+procx_block7 = 1
+procy_block7 = 1
+procz_block7 = 1
 
 starting_rank0 = 0
 starting_rank1 = int(starting_rank0 + procx_block0*procy_block0*procz_block0)
@@ -359,4 +359,4 @@ nonlinear_solver_str = 'Newton'
 #== function layout is my_ic_function(x,y,z), where x,y,z are the decomposed quadrature points
 IC_function = [airfoilIC,airfoilIC,airfoilIC,airfoilIC,airfoilIC,airfoilIC,airfoilIC,airfoilIC]                #|
 
-execfile('/home/vsriv/PyDG/PyDG_3D/src_spacetime/PyDG.py')      #|  call the solver
+execfile('/home/vsriv/Documents/PyDG/PyDG_3D/src_spacetime/PyDG.py')      #|  call the solver

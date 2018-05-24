@@ -59,7 +59,7 @@ class postProcessor:
       
       for i in range(0,end,skip):
         
-        for j in range(1,n_blocks):
+        for j in range(0,n_blocks):
           
           sol_str = 'npsol_block' + str(j) + '_'  + str(i) + '.npz'
           
