@@ -5,9 +5,9 @@ from ic_functions_premade import vortexICS,zeroFSIC  #import the IC for taylor g
 
 #==========================================================================
 
-alfa      = 15.*np.pi/180.
-uinf      = 0.3*np.cos(alfa)
-vinf      = 0.3*np.sin(alfa)
+alfa      = 45.*np.pi/180.
+uinf      = 0.081*np.cos(alfa)
+vinf      = 0.081*np.sin(alfa)
 
 #==========================================================================
 
@@ -65,7 +65,7 @@ order =np.array([1,1,1,1])            #|  spatial order
 
 quadpoints = np.array([order[0],order[1],order[2],order[3]])               #|  number of quadrature points. 2x the order is reccomended
 
-mu = 0.00001875
+mu = 0.0000004536
 gamma = 1.4
 
 #=============== Importing blocks and constructing mesh ===================
@@ -116,9 +116,9 @@ z_block   = [ z_temp_0,  z_temp_1,  z_temp_2,  z_temp_3,  z_temp_4,  z_temp_5 ]
 t                   = 0                     #|  simulation start time
 dt                  = 0.000125              #|  simulation time step
 et                  = 10.                   #|  simulation end time
-save_freq           = 5                     #|  frequency to save output and print to screen
+save_freq           = 10                    #|  frequency to save output and print to screen
 eqn_str             = 'Navier-Stokes'       #|  equation set
-schemes             = ('roe','BR1')         #|  inviscid and viscous flux schemes
+schemes             = ('roe','BR1')    #|  inviscid and viscous flux schemes
 basis_functions_str = 'TensorDot'
 #orthogonal_str      = True
 
@@ -149,11 +149,11 @@ procy_block5 = 1
 procz_block5 = 1
 
 starting_rank0 = 0
-starting_rank1 = starting_rank0 + procx_block0*procy_block0*procz_block0
-starting_rank2 = starting_rank1 + procx_block1*procy_block1*procz_block1 
-starting_rank3 = starting_rank2 + procx_block2*procy_block2*procz_block2
-starting_rank4 = starting_rank3 + procx_block3*procy_block3*procz_block3 
-starting_rank5 = starting_rank4 + procx_block4*procy_block4*procz_block4
+starting_rank1 = int(starting_rank0 + procx_block0*procy_block0*procz_block0)
+starting_rank2 = int(starting_rank1 + procx_block1*procy_block1*procz_block1) 
+starting_rank3 = int(starting_rank2 + procx_block2*procy_block2*procz_block2)
+starting_rank4 = int(starting_rank3 + procx_block3*procy_block3*procz_block3) 
+starting_rank5 = int(starting_rank4 + procx_block4*procy_block4*procz_block4)
 
 #=================
 
@@ -173,11 +173,11 @@ b_bc0 = 'periodic'
 f_bc0 = 'periodic'
 
 l_bc1 = [uinf,vinf,0.,1./gamma]
-r_bc1 = [3,0,0,0,0]
+r_bc1 = [3,0,0,0]
 d_bc1 = [uinf,vinf,0.,1./gamma]
 u_bc1 = [uinf,vinf,0.,1./gamma]
-b_bc1 = [0,0,0,0,0]
-f_bc1 = [0,0,0,0,0]
+b_bc1 = [0,0,0,0]
+f_bc1 = [0,0,0,0]
 
 BCs_block0 = [l_bc0, l_bc1, r_bc0, r_bc1, d_bc0, d_bc1, u_bc0, u_bc1, b_bc0, b_bc1, f_bc0, f_bc1]
 
@@ -192,11 +192,11 @@ b_bc0 = 'periodic'
 f_bc0 = 'periodic'
 
 l_bc1 = [uinf,vinf,0.,1./gamma]
-r_bc1 = [5,-1,0,1,0]
-d_bc1 = [2,-1,0,0,0]
+r_bc1 = [5,-1,1,0]
+d_bc1 = [2,-1,0,0]
 u_bc1 = [uinf,vinf,0.,1./gamma]
-b_bc1 = [0,0,0,0,0]
-f_bc1 = [0,0,0,0,0]
+b_bc1 = [0,0,0,0]
+f_bc1 = [0,0,0,0]
 
 BCs_block1 = [l_bc0, l_bc1, r_bc0, r_bc1, d_bc0, d_bc1, u_bc0, u_bc1, b_bc0, b_bc1, f_bc0, f_bc1]
 
@@ -212,10 +212,10 @@ f_bc0 = 'periodic'
 
 l_bc1 = [uinf,vinf,0.,1./gamma]
 r_bc1 = [0.,0.,0.,1./gamma]
-d_bc1 = [3,-1,0,0,0]
-u_bc1 = [1, 0,0,0,0]
-b_bc1 = [0,0,0,0,0]
-f_bc1 = [0,0,0,0,0]
+d_bc1 = [3,-1,0,0]
+u_bc1 = [1, 0,0,0]
+b_bc1 = [0,0,0,0]
+f_bc1 = [0,0,0,0]
 
 BCs_block2 = [l_bc0, l_bc1, r_bc0, r_bc1, d_bc0, d_bc1, u_bc0, u_bc1, b_bc0, b_bc1, f_bc0, f_bc1]
 
@@ -231,10 +231,10 @@ f_bc0 = 'periodic'
 
 l_bc1 = [0,-1,0,0,0]
 r_bc1 = [0.,0.,0.,1./gamma]
-d_bc1 = [4,-1,0,0,0]
-u_bc1 = [2, 0,0,0,0]
-b_bc1 = [0,0,0,0,0]
-f_bc1 = [0,0,0,0,0]
+d_bc1 = [4,-1,0,0]
+u_bc1 = [2, 0,0,0]
+b_bc1 = [0,0,0,0]
+f_bc1 = [0,0,0,0]
 
 BCs_block3 = [l_bc0, l_bc1, r_bc0, r_bc1, d_bc0, d_bc1, u_bc0, u_bc1, b_bc0, b_bc1, f_bc0, f_bc1]
 
@@ -250,10 +250,10 @@ f_bc0 = 'periodic'
 
 l_bc1 = [uinf,vinf,0.,1./gamma]
 r_bc1 = [0.,0.,0.,1./gamma]
-d_bc1 = [5,-1,0,0,0]
-u_bc1 = [3, 0,0,0,0]
-b_bc1 = [0,0,0,0,0]
-f_bc1 = [0,0,0,0,0]
+d_bc1 = [5,-1,0,0]
+u_bc1 = [3, 0,0,0]
+b_bc1 = [0,0,0,0]
+f_bc1 = [0,0,0,0]
 
 BCs_block4 = [l_bc0, l_bc1, r_bc0, r_bc1, d_bc0, d_bc1, u_bc0, u_bc1, b_bc0, b_bc1, f_bc0, f_bc1]
 
@@ -268,11 +268,11 @@ b_bc0 = 'periodic'
 f_bc0 = 'periodic'
 
 l_bc1 = [uinf,vinf,0.,1./gamma]
-r_bc1 = [1,-1,0,1,0]
-d_bc1 = [0.,0.,0.,1./gamma]
-u_bc1 = [4, 0,0,0,0]
-b_bc1 = [0,0,0,0,0]
-f_bc1 = [0,0,0,0,0]
+r_bc1 = [1,-1,1,0]
+d_bc1 = [uinf,vinf,0.,1./gamma]
+u_bc1 = [4, 0,0,0]
+b_bc1 = [0,0,0,0]
+f_bc1 = [0,0,0,0]
 
 BCs_block5 = [l_bc0, l_bc1, r_bc0, r_bc1, d_bc0, d_bc1, u_bc0, u_bc1, b_bc0, b_bc1, f_bc0, f_bc1]
 

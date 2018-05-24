@@ -231,7 +231,9 @@ while (regionManager.t <= regionManager.et + regionManager.dt/2):
       savehook(main)
       if (main.mpi_rank - main.starting_rank == 0):
         UG = getGlobU(uG)
-        sys.stdout.write('======================================' + '\n')
+        if (main.mpi_rank == 0):
+            sys.stdout.write('\n\n\n' + '======================================' + '\n\n')
+        sys.stdout.write('\n' + '--------------------------------------' + '\n\n')
         sys.stdout.write('wall time = ' + str(time.time() - t0) + '\n' )
         sys.stdout.write('t = ' + str(regionManager.t) +  '\n')
         np.savez('Solution/npsol_block' + str(z) + '_' + str(regionManager.iteration),U=(UG),a=aG,t=regionManager.t,iteration=regionManager.iteration,order=order)

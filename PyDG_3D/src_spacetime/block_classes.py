@@ -18,7 +18,7 @@ class blockClass:
     self.procz = procz
     self.nprocs = np.zeros(nblocks)
     for i in range(0,nblocks):
-      self.nprocs[i] = procx[i]*procy[i]
+      self.nprocs[i] = procx[i]*procy[i]*procz[i]
       procnumber_new = starting_rank[i] + procx[i]*procy[i]*procz[i]
       if (self.mpi_rank >= starting_rank[i] and self.mpi_rank < procnumber_new):
         self.mpi_regions_owned.append(i)
@@ -55,8 +55,7 @@ class blockClass:
       for main in self.region:
         main.a.uR_edge[:],main.a.uL_edge[:],main.a.uU_edge[:],main.a.uD_edge[:],main.a.uF_edge[:],main.a.uB_edge[:] = sendEdgesGeneralSlab(main.a.uL,main.a.uR,main.a.uD,main.a.uU,main.a.uB,main.a.uF,main,self)
 
-
-
       eqns.getRHS(self,eqns)
+    
     self.getRHS_REGION_INNER = getRHS_REGION_INNER 
 

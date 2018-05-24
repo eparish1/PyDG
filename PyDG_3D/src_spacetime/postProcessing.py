@@ -58,16 +58,29 @@ class postProcessor:
           check = 1
       
       for i in range(0,end,skip):
-        for j in range(0,n_blocks):
+        
+        for j in range(1,n_blocks):
+          
           sol_str = 'npsol_block' + str(j) + '_'  + str(i) + '.npz'
+          
           if (os.path.isfile(sol_str)):
+            
             print('found ' + sol_str)
             sol = np.load('npsol_block' + str(j) + '_' + str(i) + '.npz')
-            string = 'PVsol_block' + str(j) + '_' + str(i)
-            p = (1.4 - 1.)*(sol['U'][4] - 0.5*sol['U'][1]**2/sol['U'][0] - 0.5*sol['U'][2]**2/sol['U'][0] - 0.5*sol['U'][3]**2/sol['U'][0])
-            gridToVTK(string, x[j],y[j],z[j], pointData = {"rho" : sol['U'][0] , \
-              "u" : sol['U'][1]/sol['U'][0] , "v" : sol['U'][2], "w" : sol['U'][3]/sol['U'][0], \
-              "rhoE" : sol['U'][4], "p" : p} )
+            string = 'PVsol' + str(j) + '_' + str(i)
+            p      = (1.4 - 1.)*(sol['U'][4] - 0.5*sol['U'][1]**2/sol['U'][0] - 0.5*sol['U'][2]**2/sol['U'][0] - 0.5*sol['U'][3]**2/sol['U'][0])
+            rho    = sol['U'][0]
+            u      = sol['U'][1]/sol['U'][0]
+            v      = sol['U'][2]/sol['U'][0]
+            w      = sol['U'][3]/sol['U'][0]
+            rhoE   = sol['U'][4]
+
+            gridToVTK(string, x[j], y[j], z[j], pointData = {"rho" : rho,  \
+                                                               "u" : u,    \
+                                                               "v" : v,    \
+                                                               "w" : w,    \
+                                                            "rhoE" : rhoE, \
+                                                               "p" : p} )
     
     self.writeAllToParaview = writeAllToParaview
 

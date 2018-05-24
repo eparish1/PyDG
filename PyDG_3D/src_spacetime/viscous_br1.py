@@ -1,4 +1,4 @@
-from MPI_functions import sendEdgesGeneralSlab,sendEdgesGeneralSlab_Derivs#,sendaEdgesGeneralSlab
+from MPI_functions import sendEdgesGeneralSlab,sendEdgesGeneralSlab_Derivs
 from fluxSchemes import *
 from navier_stokes import evalViscousFluxZNS_IP
 from navier_stokes import evalViscousFluxYNS_IP
