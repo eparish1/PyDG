@@ -40,6 +40,11 @@ def globalSum(r,main):
 
 
 def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main,regionManager):
+
+  nRL = 0
+  nUD = 0
+  nFB = 0
+
   uR = np.zeros(np.shape(fL[:,:,:,:,0,:,:]))
   uL = np.zeros(np.shape(fR[:,:,:,:,0,:,:]))
   uU = np.zeros(np.shape(fD[:,:,:,:,:,0,:]))
@@ -56,7 +61,6 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main,regionManager):
   back_face   = ((main.mpi_rank-main.starting_rank)/(main.procx*main.procy)==0)
   front_face  = ((main.mpi_rank-main.starting_rank)/(main.procx*main.procy)==main.procz-1)
   
-
   ######################################################################################################################################################
 
 
@@ -87,11 +91,13 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main,regionManager):
   else:
 
     if (main.rank_connect[0] != main.mpi_rank and ((main.leftBC.args[1] == -1 and (main.leftBC.BC_type == 'periodic' or main.leftBC.BC_type == 'patch') and left_face==True) or left_face==False)):
+      nRL+=1
       main.comm.Send(fL[:,:,:,:,0,:,:].flatten(),dest=main.rank_connect[0],tag=main.mpi_rank)
 
     #============================
 
     if (main.rank_connect[1] != main.mpi_rank and ((main.rightBC.args[1] == 0 and (main.rightBC.BC_type == 'periodic' or main.rightBC.BC_type == 'patch') and right_face==True) or right_face==False)):
+      nRL-=1
       tmp = np.zeros(np.size(fL[:,:,:,:,0,:,:]))
       main.comm.Recv(tmp,source=main.rank_connect[1],tag=main.rank_connect[1])
       uR[:] = np.reshape(tmp,np.shape(fL[:,:,:,:,0,:,:]))
@@ -111,11 +117,13 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main,regionManager):
 
 
     if (main.rank_connect[1] != main.mpi_rank and ((main.rightBC.args[1] == 0 and (main.rightBC.BC_type == 'periodic' or main.rightBC.BC_type == 'patch') and right_face==True) or right_face==False)):
+      nRL+=1
       main.comm.Send(fR[:,:,:,:,-1,:,:].flatten(),dest=main.rank_connect[1],tag=main.mpi_rank+main.num_processes_global)
 
     #============================
 
     if (main.rank_connect[0] != main.mpi_rank and ((main.leftBC.args[1] == -1 and (main.leftBC.BC_type == 'periodic' or main.leftBC.BC_type == 'patch') and left_face==True) or left_face==False)):
+      nRL-=1
       tmp = np.zeros(np.size(fL[:,:,:,:,0,:,:]))
       main.comm.Recv(tmp,source=main.rank_connect[0],tag=main.rank_connect[0]+main.num_processes_global)
       uL[:] = np.reshape(tmp,np.shape(fL[:,:,:,:,-1,:,:]))
@@ -126,7 +134,7 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main,regionManager):
       tmp = np.zeros(np.size(fL[:,:,:,:,0,:,:]))
       main.comm.Sendrecv(fR[:,:,:,:,-1,:,:].flatten(),dest=main.rank_connect[1],sendtag=main.mpi_rank+main.num_processes_global,\
                          recvbuf=tmp,source=main.rank_connect[1],recvtag=main.rank_connect[1]+main.num_processes_global)
-      uR[:] = np.reshape(tmp,np.shape(fL[:,:,:,:,-1,:,:]))
+      uR[:] = np.reshape(tmp,np.shape(fR[:,:,:,:,-1,:,:]))
     
     #============================
 
@@ -167,21 +175,23 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main,regionManager):
   else:
     
     if (main.rank_connect[2] != main.mpi_rank and ((main.bottomBC.args[1] == -1 and (main.bottomBC.BC_type == 'periodic' or main.bottomBC.BC_type == 'patch') and bottom_face==True) or bottom_face==False)):
-      main.comm.Send(fD[:,:,:,:,:,0,:].flatten(),dest=main.rank_connect[2],tag=main.mpi_rank)
+      nUD+=1
+      main.comm.Send(fD[:,:,:,:,:,0,:].flatten(),dest=main.rank_connect[2],tag=main.mpi_rank+2*main.num_processes_global)
 
     #============================
 
     if (main.rank_connect[3] != main.mpi_rank and ((main.topBC.args[1] == 0 and (main.topBC.BC_type == 'periodic' or main.topBC.BC_type == 'patch') and top_face==True) or top_face==False)):
+      nUD-=1
       tmp = np.zeros(np.size(fD[:,:,:,:,:,0,:]))
-      main.comm.Recv(tmp,source=main.rank_connect[3],tag=main.rank_connect[3])
+      main.comm.Recv(tmp,source=main.rank_connect[3],tag=main.rank_connect[3]+2*main.num_processes_global)
       uU[:] = np.reshape(tmp,np.shape(fD[:,:,:,:,:,0,:]))
 
     #============================
 
     if (main.rank_connect[2] != main.mpi_rank and main.bottomBC.args[1] == 0 and (main.bottomBC.BC_type == 'periodic' or main.bottomBC.BC_type == 'patch') and bottom_face==True):
       tmp = np.zeros(np.size(fD[:,:,:,:,:,0,:]))
-      main.comm.Sendrecv(fD[:,:,:,:,:,0,:].flatten(),dest=main.rank_connect[2],sendtag=main.mpi_rank,\
-                         recvbuf=tmp,source=main.rank_connect[2],recvtag=main.rank_connect[2])
+      main.comm.Sendrecv(fD[:,:,:,:,:,0,:].flatten(),dest=main.rank_connect[2],sendtag=main.mpi_rank+2*main.num_processes_global,\
+                         recvbuf=tmp,source=main.rank_connect[2],recvtag=main.rank_connect[2]+2*main.num_processes_global)
       uD[:] = np.reshape(tmp,np.shape(fD[:,:,:,:,:,0,:]))
 
     #============================
@@ -191,21 +201,23 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main,regionManager):
 
 
     if (main.rank_connect[3] != main.mpi_rank and ((main.topBC.args[1] == 0 and (main.topBC.BC_type == 'periodic' or main.topBC.BC_type == 'patch') and top_face==True) or top_face==False)):
-      main.comm.Send(fU[:,:,:,:,:,-1,:].flatten(),dest=main.rank_connect[3],tag=main.mpi_rank+main.num_processes_global)
+      nUD+=1
+      main.comm.Send(fU[:,:,:,:,:,-1,:].flatten(),dest=main.rank_connect[3],tag=main.mpi_rank+3*main.num_processes_global)
 
     #============================
 
     if (main.rank_connect[2] != main.mpi_rank and ((main.bottomBC.args[1] == -1 and (main.bottomBC.BC_type == 'periodic' or main.bottomBC.BC_type == 'patch') and bottom_face==True) or bottom_face==False)):
+      nUD-=1
       tmp = np.zeros(np.size(fD[:,:,:,:,:,0,:]))
-      main.comm.Recv(tmp,source=main.rank_connect[2],tag=main.rank_connect[2]+main.num_processes_global)
+      main.comm.Recv(tmp,source=main.rank_connect[2],tag=main.rank_connect[2]+3*main.num_processes_global)
       uD[:] = np.reshape(tmp,np.shape(fD[:,:,:,:,:,-1,:]))
     
     #============================
 
     if (main.rank_connect[3] != main.mpi_rank and main.topBC.args[1] == -1 and (main.topBC.BC_type == 'periodic' or main.topBC.BC_type == 'patch') and top_face==True):
       tmp = np.zeros(np.size(fD[:,:,:,:,:,0,:]))
-      main.comm.Sendrecv(fU[:,:,:,:,:,-1,:].flatten(),dest=main.rank_connect[3],sendtag=main.mpi_rank+main.num_processes_global,\
-                         recvbuf=tmp,source=main.rank_connect[3],recvtag=main.rank_connect[3]+main.num_processes_global)
+      main.comm.Sendrecv(fU[:,:,:,:,:,-1,:].flatten(),dest=main.rank_connect[3],sendtag=main.mpi_rank+3*main.num_processes_global,\
+                         recvbuf=tmp,source=main.rank_connect[3],recvtag=main.rank_connect[3]+3*main.num_processes_global)
       uU[:] = np.reshape(tmp,np.shape(fD[:,:,:,:,:,-1,:]))
     
     #============================
@@ -247,21 +259,23 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main,regionManager):
   else:
     
     if (main.rank_connect[4] != main.mpi_rank and ((main.backBC.args[1] == -1 and (main.backBC.BC_type == 'periodic' or main.backBC.BC_type == 'patch') and back_face==True) or back_face==False)):
-        main.comm.Send(fB[:,:,:,:,:,:,0].flatten(),dest=main.rank_connect[4],tag=main.mpi_rank)
+      nFB+=1
+      main.comm.Send(fB[:,:,:,:,:,:,0].flatten(),dest=main.rank_connect[4],tag=main.mpi_rank+4*main.num_processes_global)
 
     #============================
 
     if (main.rank_connect[5] != main.mpi_rank and ((main.frontBC.args[1] == 0 and (main.frontBC.BC_type == 'periodic' or main.frontBC.BC_type == 'patch') and front_Face==True) or front_face==False)):
+      nFB-=1
       tmp = np.zeros(np.size(fB[:,:,:,:,:,:,0]))
-      main.comm.Recv(tmp,source=main.rank_connect[5],tag=main.rank_connect[5])
+      main.comm.Recv(tmp,source=main.rank_connect[5],tag=main.rank_connect[5]+4*main.num_processes_global)
       uF[:] = np.reshape(tmp,np.shape(fB[:,:,:,:,:,:,0]))
 
     #============================
 
     if (main.rank_connect[4] != main.mpi_rank and main.backBC.args[1] == 0 and (main.backBC.BC_type == 'periodic' or main.backBC.BC_type == 'patch') and back_face==True):
       tmp = np.zeros(np.size(fB[:,:,:,:,:,:,0]))
-      main.comm.Sendrecv(fB[:,:,:,:,:,:,0].flatten(),dest=main.rank_connect[4],sendtag=main.mpi_rank,\
-                         recvbuf=tmp,source=main.rank_connect[4],recvtag=main.rank_connect[4])
+      main.comm.Sendrecv(fB[:,:,:,:,:,:,0].flatten(),dest=main.rank_connect[4],sendtag=main.mpi_rank+4*main.num_processes_global,\
+                         recvbuf=tmp,source=main.rank_connect[4],recvtag=main.rank_connect[4]+4*main.num_processes_global)
       uB[:] = np.reshape(tmp,np.shape(fB[:,:,:,:,:,:,0]))
 
     #============================
@@ -271,21 +285,23 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main,regionManager):
 
 
     if (main.rank_connect[5] != main.mpi_rank and ((main.frontBC.args[1] == 0 and (main.frontBC.BC_type == 'periodic' or main.frontBC.BC_type == 'patch') and front_face==True) or front_face==False)):
-      main.comm.Send(fF[:,:,:,:,:,:,-1].flatten(),dest=main.rank_connect[5],tag=main.mpi_rank+main.num_processes_global)
+      nFB+=1
+      main.comm.Send(fF[:,:,:,:,:,:,-1].flatten(),dest=main.rank_connect[5],tag=main.mpi_rank+5*main.num_processes_global)
 
     #============================
 
     if (main.rank_connect[4] != main.mpi_rank and ((main.backBC.args[1] == -1 and (main.backBC.BC_type == 'periodic' or main.backBC.BC_type == 'patch') and back_face==True) or back_face==False)):
+      nFB-=1
       tmp = np.zeros(np.size(fB[:,:,:,:,:,:,0]))
-      main.comm.Recv(tmp,source=main.rank_connect[4],tag=main.rank_connect[4]+main.num_processes_global)
+      main.comm.Recv(tmp,source=main.rank_connect[4],tag=main.rank_connect[4]+5*main.num_processes_global)
       uB[:] = np.reshape(tmp,np.shape(fB[:,:,:,:,:,:,-1]))
     
     #============================
 
     if (main.rank_connect[5] != main.mpi_rank and main.frontBC.args[1] == -1 and (main.frontBC.BC_type == 'periodic' or main.frontBC.BC_type == 'patch') and front_face==True):
       tmp = np.zeros(np.size(fB[:,:,:,:,:,:,0]))
-      main.comm.Sendrecv(fF[:,:,:,:,:,:,-1].flatten(),dest=main.rank_connect[5],sendtag=main.mpi_rank+main.num_processes_global,\
-                         recvbuf=tmp,source=main.rank_connect[5],recvtag=main.rank_connect[5]+main.num_processes_global)
+      main.comm.Sendrecv(fF[:,:,:,:,:,:,-1].flatten(),dest=main.rank_connect[5],sendtag=main.mpi_rank+5*main.num_processes_global,\
+                         recvbuf=tmp,source=main.rank_connect[5],recvtag=main.rank_connect[5]+5*main.num_processes_global)
       uF[:] = np.reshape(tmp,np.shape(fB[:,:,:,:,:,:,-1]))
     
     #============================
@@ -295,6 +311,7 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main,regionManager):
 
     if (main.BC_rank[4]):
       uB[:] = main.backBC.applyBC(fB[:,:,:,:,:,:,0],uB,main.backBC.args,main)
+
 
 
   return uR,uL,uU,uD,uF,uB
@@ -322,7 +339,6 @@ def sendEdgesGeneralSlab_Derivs(fL,fR,fD,fU,fB,fF,main,regionManager):
 
   back_face   = ((main.mpi_rank-main.starting_rank)/(main.procx*main.procy)==0)
   front_face  = ((main.mpi_rank-main.starting_rank)/(main.procx*main.procy)==main.procz-1)
-
 
   ####################################################################################################################################
 
@@ -394,7 +410,7 @@ def sendEdgesGeneralSlab_Derivs(fL,fR,fD,fU,fB,fF,main,regionManager):
       tmp = np.zeros(np.size(fL[:,:,:,:,0,:,:]))
       main.comm.Sendrecv(fR[:,:,:,:,-1,:,:].flatten(),dest=main.rank_connect[1],sendtag=main.mpi_rank+main.num_processes_global,\
                          recvbuf=tmp,source=main.rank_connect[1],recvtag=main.rank_connect[1]+main.num_processes_global)
-      uR[:] = np.reshape(tmp,np.shape(fL[:,:,:,:,-1,:,:]))
+      uR[:] = np.reshape(tmp,np.shape(fR[:,:,:,:,-1,:,:]))
     
     #============================
 
@@ -445,21 +461,21 @@ def sendEdgesGeneralSlab_Derivs(fL,fR,fD,fU,fB,fF,main,regionManager):
   else:
     
     if (main.rank_connect[2] != main.mpi_rank and ((main.bottomBC.args[1] == -1 and (main.bottomBC.BC_type == 'periodic' or main.bottomBC.BC_type == 'patch') and bottom_face==True) or bottom_face==False)):
-      main.comm.Send(fD[:,:,:,:,:,0,:].flatten(),dest=main.rank_connect[2],tag=main.mpi_rank)
+      main.comm.Send(fD[:,:,:,:,:,0,:].flatten(),dest=main.rank_connect[2],tag=main.mpi_rank+2*main.num_processes_global)
 
     #============================
 
     if (main.rank_connect[3] != main.mpi_rank and ((main.topBC.args[1] == 0 and (main.topBC.BC_type == 'periodic' or main.topBC.BC_type == 'patch') and top_face==True) or top_face==False)):
       tmp = np.zeros(np.size(fD[:,:,:,:,:,0,:]))
-      main.comm.Recv(tmp,source=main.rank_connect[3],tag=main.rank_connect[3])
+      main.comm.Recv(tmp,source=main.rank_connect[3],tag=main.rank_connect[3]+2*main.num_processes_global)
       uU[:] = np.reshape(tmp,np.shape(fD[:,:,:,:,:,0,:]))
 
     #============================
 
     if (main.rank_connect[2] != main.mpi_rank and main.bottomBC.args[1] == 0 and (main.bottomBC.BC_type == 'periodic' or main.bottomBC.BC_type == 'patch') and bottom_face==True):
       tmp = np.zeros(np.size(fD[:,:,:,:,:,0,:]))
-      main.comm.Sendrecv(fD[:,:,:,:,:,0,:].flatten(),dest=main.rank_connect[2],sendtag=main.mpi_rank,\
-                         recvbuf=tmp,source=main.rank_connect[2],recvtag=main.rank_connect[2])
+      main.comm.Sendrecv(fD[:,:,:,:,:,0,:].flatten(),dest=main.rank_connect[2],sendtag=main.mpi_rank+2*main.num_processes_global,\
+                         recvbuf=tmp,source=main.rank_connect[2],recvtag=main.rank_connect[2]+2*main.num_processes_global)
       uD[:] = np.reshape(tmp,np.shape(fD[:,:,:,:,:,0,:]))
 
     #============================
@@ -469,21 +485,21 @@ def sendEdgesGeneralSlab_Derivs(fL,fR,fD,fU,fB,fF,main,regionManager):
 
 
     if (main.rank_connect[3] != main.mpi_rank and ((main.topBC.args[1] == 0 and (main.topBC.BC_type == 'periodic' or main.topBC.BC_type == 'patch') and top_face==True) or top_face==False)):
-      main.comm.Send(fU[:,:,:,:,:,-1,:].flatten(),dest=main.rank_connect[3],tag=main.mpi_rank+main.num_processes_global)
+      main.comm.Send(fU[:,:,:,:,:,-1,:].flatten(),dest=main.rank_connect[3],tag=main.mpi_rank+3*main.num_processes_global)
 
     #============================
 
     if (main.rank_connect[2] != main.mpi_rank and ((main.bottomBC.args[1] == -1 and (main.bottomBC.BC_type == 'periodic' or main.bottomBC.BC_type == 'patch') and bottom_face==True) or bottom_face==False)):
       tmp = np.zeros(np.size(fD[:,:,:,:,:,0,:]))
-      main.comm.Recv(tmp,source=main.rank_connect[2],tag=main.rank_connect[2]+main.num_processes_global)
+      main.comm.Recv(tmp,source=main.rank_connect[2],tag=main.rank_connect[2]+3*main.num_processes_global)
       uD[:] = np.reshape(tmp,np.shape(fD[:,:,:,:,:,-1,:]))
     
     #============================
 
     if (main.rank_connect[3] != main.mpi_rank and main.topBC.args[1] == -1 and (main.topBC.BC_type == 'periodic' or main.topBC.BC_type == 'patch') and top_face==True):
       tmp = np.zeros(np.size(fD[:,:,:,:,:,0,:]))
-      main.comm.Sendrecv(fU[:,:,:,:,:,-1,:].flatten(),dest=main.rank_connect[3],sendtag=main.mpi_rank+main.num_processes_global,\
-                         recvbuf=tmp,source=main.rank_connect[3],recvtag=main.rank_connect[3]+main.num_processes_global)
+      main.comm.Sendrecv(fU[:,:,:,:,:,-1,:].flatten(),dest=main.rank_connect[3],sendtag=main.mpi_rank+3*main.num_processes_global,\
+                         recvbuf=tmp,source=main.rank_connect[3],recvtag=main.rank_connect[3]+3*main.num_processes_global)
       uU[:] = np.reshape(tmp,np.shape(fD[:,:,:,:,:,-1,:]))
     
     #============================
@@ -535,21 +551,21 @@ def sendEdgesGeneralSlab_Derivs(fL,fR,fD,fU,fB,fF,main,regionManager):
   else:
     
     if (main.rank_connect[4] != main.mpi_rank and ((main.backBC.args[1] == -1 and (main.backBC.BC_type == 'periodic' or main.backBC.BC_type == 'patch') and back_face==True) or back_face==False)):
-        main.comm.Send(fB[:,:,:,:,:,:,0].flatten(),dest=main.rank_connect[4],tag=main.mpi_rank)
+        main.comm.Send(fB[:,:,:,:,:,:,0].flatten(),dest=main.rank_connect[4],tag=main.mpi_rank+4*main.num_processes_global)
 
     #============================
 
     if (main.rank_connect[5] != main.mpi_rank and ((main.frontBC.args[1] == 0 and (main.frontBC.BC_type == 'periodic' or main.frontBC.BC_type == 'patch') and front_Face==True) or front_face==False)):
       tmp = np.zeros(np.size(fB[:,:,:,:,:,:,0]))
-      main.comm.Recv(tmp,source=main.rank_connect[5],tag=main.rank_connect[5])
+      main.comm.Recv(tmp,source=main.rank_connect[5],tag=main.rank_connect[5]+4*main.num_processes_global)
       uF[:] = np.reshape(tmp,np.shape(fB[:,:,:,:,:,:,0]))
 
     #============================
 
     if (main.rank_connect[4] != main.mpi_rank and main.backBC.args[1] == 0 and (main.backBC.BC_type == 'periodic' or main.backBC.BC_type == 'patch') and back_face==True):
       tmp = np.zeros(np.size(fB[:,:,:,:,:,:,0]))
-      main.comm.Sendrecv(fB[:,:,:,:,:,:,0].flatten(),dest=main.rank_connect[4],sendtag=main.mpi_rank,\
-                         recvbuf=tmp,source=main.rank_connect[4],recvtag=main.rank_connect[4])
+      main.comm.Sendrecv(fB[:,:,:,:,:,:,0].flatten(),dest=main.rank_connect[4],sendtag=main.mpi_rank+4*main.num_processes_global,\
+                         recvbuf=tmp,source=main.rank_connect[4],recvtag=main.rank_connect[4]+4*main.num_processes_global)
       uB[:] = np.reshape(tmp,np.shape(fB[:,:,:,:,:,:,0]))
 
     #============================
@@ -559,21 +575,21 @@ def sendEdgesGeneralSlab_Derivs(fL,fR,fD,fU,fB,fF,main,regionManager):
 
 
     if (main.rank_connect[5] != main.mpi_rank and ((main.frontBC.args[1] == 0 and (main.frontBC.BC_type == 'periodic' or main.frontBC.BC_type == 'patch') and front_face==True) or front_face==False)):
-      main.comm.Send(fF[:,:,:,:,:,:,-1].flatten(),dest=main.rank_connect[5],tag=main.mpi_rank+main.num_processes_global)
+      main.comm.Send(fF[:,:,:,:,:,:,-1].flatten(),dest=main.rank_connect[5],tag=main.mpi_rank+5*main.num_processes_global)
 
     #============================
 
     if (main.rank_connect[4] != main.mpi_rank and ((main.backBC.args[1] == -1 and (main.backBC.BC_type == 'periodic' or main.backBC.BC_type == 'patch') and back_face==True) or back_face==False)):
       tmp = np.zeros(np.size(fB[:,:,:,:,:,:,0]))
-      main.comm.Recv(tmp,source=main.rank_connect[4],tag=main.rank_connect[4]+main.num_processes_global)
+      main.comm.Recv(tmp,source=main.rank_connect[4],tag=main.rank_connect[4]+5*main.num_processes_global)
       uB[:] = np.reshape(tmp,np.shape(fB[:,:,:,:,:,:,-1]))
     
     #============================
 
     if (main.rank_connect[5] != main.mpi_rank and main.frontBC.args[1] == -1 and (main.frontBC.BC_type == 'periodic' or main.frontBC.BC_type == 'patch') and front_face==True):
       tmp = np.zeros(np.size(fB[:,:,:,:,:,:,0]))
-      main.comm.Sendrecv(fF[:,:,:,:,:,:,-1].flatten(),dest=main.rank_connect[5],sendtag=main.mpi_rank+main.num_processes_global,\
-                         recvbuf=tmp,source=main.rank_connect[5],recvtag=main.rank_connect[5]+main.num_processes_global)
+      main.comm.Sendrecv(fF[:,:,:,:,:,:,-1].flatten(),dest=main.rank_connect[5],sendtag=main.mpi_rank+5*main.num_processes_global,\
+                         recvbuf=tmp,source=main.rank_connect[5],recvtag=main.rank_connect[5]+5*main.num_processes_global)
       uF[:] = np.reshape(tmp,np.shape(fB[:,:,:,:,:,:,-1]))
     
     #============================
@@ -708,6 +724,9 @@ def regionConnector(regionManager):
     if (region.leftBC.BC_type == 'patch' and region.BC_rank[0]):
       
       region_connect         = region.leftBC.args[0]
+      rel_x		     = region.leftBC.args[1]
+      rel_y		     = region.leftBC.args[2]
+      rel_z		     = region.leftBC.args[3]
 
       sr                     = regionManager.starting_rank[region_connect]
       px                     = regionManager.procx[region_connect]
@@ -718,13 +737,40 @@ def regionConnector(regionManager):
       rowy                   = ((int(region.mpi_rank) - int(region.starting_rank)) % int(region.procx*region.procy)) / int(region.procx)
       rowz                   =  (int(region.mpi_rank) - int(region.starting_rank)) / int(region.procx*region.procy)
       
-      region.rank_connect[0] = sr + px*((rowz*py) + rowy + 1) - 1
+      if (rel_x==-1):
+	
+	offset = px-1
+
+      elif (rel_x==0):
+
+	offset = 0
+
+      if (rel_y==0):
+
+	pos_y  = rowy
+
+      elif (rel_y==1):
+
+	pos_y  = py-rowy-1
+
+      if (rel_z==0):
+
+	pos_z  = rowz
+
+      elif (rel_z==1):
+
+	pos_z  = pz-rowz-1
+
+      region.rank_connect[0] = sr + px*((pos_z*py) + pos_y) + offset
 
     #=============================================================================================================================
 
     if (region.rightBC.BC_type == 'patch' and region.BC_rank[1]):
       
       region_connect         = region.rightBC.args[0]
+      rel_x		     = region.rightBC.args[1]
+      rel_y		     = region.rightBC.args[2]
+      rel_z		     = region.rightBC.args[3]
 
       sr                     = regionManager.starting_rank[region_connect]
       px                     = regionManager.procx[region_connect]
@@ -735,13 +781,40 @@ def regionConnector(regionManager):
       rowy                   = ((int(region.mpi_rank) - int(region.starting_rank)) % int(region.procx*region.procy)) / int(region.procx)
       rowz                   =  (int(region.mpi_rank) - int(region.starting_rank)) / int(region.procx*region.procy)
       
-      region.rank_connect[1] = sr + px*((rowz*py) + rowy)
+      if (rel_x==-1):
+	
+	offset = px-1
+
+      elif (rel_x==0):
+
+	offset = 0
+
+      if (rel_y==0):
+
+	pos_y  = rowy
+
+      elif (rel_y==1):
+
+	pos_y  = py-rowy-1
+
+      if (rel_z==0):
+
+	pos_z  = rowz
+
+      elif (rel_z==1):
+
+	pos_z  = pz-rowz-1
+
+      region.rank_connect[1] = sr + px*((pos_z*py) + pos_y) + offset
 
     #=============================================================================================================================
     
     if (region.bottomBC.BC_type == 'patch' and region.BC_rank[2]):
       
       region_connect         = region.bottomBC.args[0]
+      rel_y		     = region.bottomBC.args[1]
+      rel_x		     = region.bottomBC.args[2]
+      rel_z		     = region.bottomBC.args[3]
 
       sr                     = regionManager.starting_rank[region_connect]
       px                     = regionManager.procx[region_connect]
@@ -752,13 +825,40 @@ def regionConnector(regionManager):
       rowy                   = ((int(region.mpi_rank) - int(region.starting_rank)) % int(region.procx*region.procy)) / int(region.procx)
       rowz                   =  (int(region.mpi_rank) - int(region.starting_rank)) / int(region.procx*region.procy)
       
-      region.rank_connect[2] = sr + (rowz*(px*py) + rowx) + (px*py) - px
+      if (rel_y==-1):
+	
+	offset = px*py-px
+
+      elif (rel_y==0):
+
+	offset = 0
+
+      if (rel_x==0):
+
+	pos_x  = rowx
+
+      elif (rel_x==1):
+
+	pos_x  = px-rowx-1
+
+      if (rel_z==0):
+
+	pos_z  = rowz
+
+      elif (rel_z==1):
+
+	pos_z  = pz-rowz-1
+
+      region.rank_connect[2] = sr + (pos_z*(px*py) + pos_x) + offset
     
     #=============================================================================================================================
     
     if (region.topBC.BC_type == 'patch' and region.BC_rank[3]):
       
       region_connect         = region.topBC.args[0]
+      rel_y		     = region.topBC.args[1]
+      rel_x		     = region.topBC.args[2]
+      rel_z		     = region.topBC.args[3]
 
       sr                     = regionManager.starting_rank[region_connect]
       px                     = regionManager.procx[region_connect]
@@ -769,13 +869,40 @@ def regionConnector(regionManager):
       rowy                   = ((int(region.mpi_rank) - int(region.starting_rank)) % int(region.procx*region.procy)) / int(region.procx)
       rowz                   =  (int(region.mpi_rank) - int(region.starting_rank)) / int(region.procx*region.procy)
       
-      region.rank_connect[3] = sr + (rowz*(px*py) + rowx)
+      if (rel_y==-1):
+	
+	offset = px*py-px
+
+      elif (rel_y==0):
+
+	offset = 0
+
+      if (rel_x==0):
+
+	pos_x  = rowx
+
+      elif (rel_x==1):
+
+	pos_x  = px-rowx-1
+
+      if (rel_z==0):
+
+	pos_z  = rowz
+
+      elif (rel_z==1):
+
+	pos_z  = pz-rowz-1
+
+      region.rank_connect[3] = sr + (pos_z*(px*py) + pos_x) + offset
     
     #=============================================================================================================================
     
     if (region.backBC.BC_type == 'patch' and region.BC_rank[4]):
       
       region_connect         = region.backBC.args[0]
+      rel_z		     = region.backBC.args[1]
+      rel_x		     = region.backBC.args[2]
+      rel_y		     = region.backBC.args[3]
 
       sr                     = regionManager.starting_rank[region_connect]
       px                     = regionManager.procx[region_connect]
@@ -786,13 +913,40 @@ def regionConnector(regionManager):
       rowy                   = ((int(region.mpi_rank) - int(region.starting_rank)) % int(region.procx*region.procy)) / int(region.procx)
       rowz                   =  (int(region.mpi_rank) - int(region.starting_rank)) / int(region.procx*region.procy)
       
-      region.rank_connect[4] = sr + (rowy*px) + rowx + (pz-1)*px*py
+      if (rel_z==-1):
+	
+	offset = px*py*pz - px*py
+
+      elif (rel_z==0):
+
+	offset = 0
+
+      if (rel_x==0):
+
+	pos_x  = rowx
+
+      elif (rel_x==1):
+
+	pos_x  = px-rowx-1
+
+      if (rel_y==0):
+
+	pos_y  = rowy
+
+      elif (rel_y==1):
+
+	pos_y  = py-rowy-1
+
+      region.rank_connect[4] = sr + (pos_y*px) + pos_x + offset
     
     #=============================================================================================================================
     
     if (region.frontBC.BC_type == 'patch' and region.BC_rank[5]):
       
       region_connect         = region.frontBC.args[0]
+      rel_z		     = region.frontBC.args[1]
+      rel_x		     = region.frontBC.args[2]
+      rel_y		     = region.frontBC.args[3]
 
       sr                     = regionManager.starting_rank[region_connect]
       px                     = regionManager.procx[region_connect]
@@ -803,7 +957,31 @@ def regionConnector(regionManager):
       rowy                   = ((int(region.mpi_rank) - int(region.starting_rank)) % int(region.procx*region.procy)) / int(region.procx)
       rowz                   =  (int(region.mpi_rank) - int(region.starting_rank)) / int(region.procx*region.procy)
       
-      region.rank_connect[5] = sr + (rowy*px) + rowx
+      if (rel_z==-1):
+	
+	offset = px*py*pz - px*py
+
+      elif (rel_z==0):
+
+	offset = 0
+
+      if (rel_x==0):
+
+	pos_x  = rowx
+
+      elif (rel_x==1):
+
+	pos_x  = px-rowx-1
+
+      if (rel_y==0):
+
+	pos_y  = rowy
+
+      elif (rel_y==1):
+
+	pos_y  = py-rowy-1
+
+      region.rank_connect[5] = sr + (pos_y*px) + pos_x + offset
     
     #=============================================================================================================================
 
