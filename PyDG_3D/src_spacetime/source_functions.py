@@ -1,4 +1,5 @@
 import numpy as np
+from navier_stokes_entropy import entropy_to_conservative 
 def constantForcing(main):
   if (main.fsource):
     force = np.zeros(np.shape(main.iFlux.fx))
@@ -9,9 +10,10 @@ def constantForcing(main):
 
 def volumetricForcing(main):
   if (main.fsource):
+    #U = entropy_to_conservative(main.a.u)
     force = np.zeros(np.shape(main.iFlux.fx))
     for i in range(0,main.nvars):
-      force[i] = main.source_mag[i]#*main.a.u[i]
+      force[i] = main.source_mag[i]*main.a.u[1]
     main.RHS[:] += main.basis.volIntegrateGlob(main, force*main.Jdet[None,:,:,:,None,:,:,:,None] ,main.w0,main.w1,main.w2,main.w3)
 
 def combustionForcing(main):

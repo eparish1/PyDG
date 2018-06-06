@@ -58,7 +58,7 @@ class postProcessor:
       rank_end_file = (mpi_rank+1)*num_loc_files
       if (mpi_rank == num_processes - 1):
         rank_end_file = end_file
-      for i in range(rank_start_file,rank_end_file,skip):
+      for i in range(rank_start_file,rank_end_file+1,skip):
         sol_str = 'npsol' + str(i) + '.npz'
         if (os.path.isfile(sol_str)):
           print('found ' + sol_str)
