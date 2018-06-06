@@ -149,35 +149,33 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main):
       uD[:] = main.bottomBC.applyBC(fD[:,:,:,:,:,0,:],uD,main.bottomBC.args,main,main.normals[3,:,:,0,:])
 
   ### Z DIRECTION
-  if (main.rank_connect[4] == main.mpi_rank and main.rank_connect[5] == main.mpi_rank):
-    uF[:] = fB[:,:,:,:,:,:,0]
-    uB[:] = fF[:,:,:,:,:,:,-1]
-    uF[:] = main.frontBC.applyBC(fF[:,:,:,:,:,:,-1],uF,main.frontBC.args,main,main.normals[4,:,:,:,-1])
-    uB[:] = main.backBC.applyBC(fB[:,:,:,:,:,:,0],uB,main.backBC.args,main,main.normals[5,:,:,:,0])
-
-  else:
-    ## Send front and back fluxes
-    tmp = np.zeros(np.size(fB[:,:,:,:,:,:,0]))
-    main.comm.Sendrecv(fB[:,:,:,:,:,:,0].flatten(),dest=main.rank_connect[4],sendtag=main.mpi_rank,\
-                       recvbuf=tmp,source=main.rank_connect[5],recvtag=main.rank_connect[5])
-    uF[:] = np.reshape(tmp,np.shape(fB[:,:,:,:,:,:,0]))
-    tmp = np.zeros(np.size(fF[:,:,:,:,:,:,-1]))
-    main.comm.Sendrecv(fF[:,:,:,:,:,:,-1].flatten(),dest=main.rank_connect[5],sendtag=main.mpi_rank*1000,\
-                       recvbuf=tmp,source=main.rank_connect[4],recvtag=main.rank_connect[4]*1000)
-    uB[:] = np.reshape(tmp,np.shape(fF[:,:,:,:,:,:,-1]))
-
-    ### Boundary conditions. Overwrite uF and uB if we are on a boundary. 
-    if (main.BC_rank[5]):
-        uF[:] = main.frontBC.applyBC(fF[:,:,:,:,:,-1,:],uF,main.frontBC.args,main,main.normals[4,:,:,:,-1])
-    if (main.BC_rank[4]):
-        uB[:] = main.backBC.applyBC(fB[:,:,:,:,:,0,:],uB,main.backBC.args,main,main.normals[5,:,:,:,0])
-#  '''
-#  uF[:] = fB[:,:,:,:,:,:,0]
-#  uB[:] = fF[:,:,:,:,:,:,-1]
-#  ## overwrite since on boundary. Note that in a periodic BC the applyBC functions don't do anything
-#  uF[:] = main.frontBC.applyBC(fF[:,:,:,:,:,:,-1],uF,main.frontBC.args,main,main.normals[4,:,:,:,-1])
-#  uB[:] = main.backBC.applyBC(fB[:,:,:,:,:,:,0],uB,main.backBC.args,main,main.normals[5,:,:,:,0])
-#  '''
+#  if (main.rank_connect[4] == main.mpi_rank and main.rank_connect[5] == main.mpi_rank):
+#    uF[:] = fB[:,:,:,:,:,:,0]
+#    uB[:] = fF[:,:,:,:,:,:,-1]
+#    uF[:] = main.frontBC.applyBC(fF[:,:,:,:,:,:,-1],uF,main.frontBC.args,main,main.normals[4,:,:,:,-1])
+#    uB[:] = main.backBC.applyBC(fB[:,:,:,:,:,:,0],uB,main.backBC.args,main,main.normals[5,:,:,:,0])
+#
+#  else:
+#    ## Send front and back fluxes
+#    tmp = np.zeros(np.size(fB[:,:,:,:,:,:,0]))
+#    main.comm.Sendrecv(fB[:,:,:,:,:,:,0].flatten(),dest=main.rank_connect[4],sendtag=main.mpi_rank,\
+#                       recvbuf=tmp,source=main.rank_connect[5],recvtag=main.rank_connect[5])
+#    uF[:] = np.reshape(tmp,np.shape(fB[:,:,:,:,:,:,0]))
+#    tmp = np.zeros(np.size(fF[:,:,:,:,:,:,-1]))
+#    main.comm.Sendrecv(fF[:,:,:,:,:,:,-1].flatten(),dest=main.rank_connect[5],sendtag=main.mpi_rank*1000,\
+#                       recvbuf=tmp,source=main.rank_connect[4],recvtag=main.rank_connect[4]*1000)
+#    uB[:] = np.reshape(tmp,np.shape(fF[:,:,:,:,:,:,-1]))
+#
+#    ### Boundary conditions. Overwrite uF and uB if we are on a boundary. 
+#    if (main.BC_rank[5]):
+#        uF[:] = main.frontBC.applyBC(fF[:,:,:,:,:,-1,:],uF,main.frontBC.args,main,main.normals[4,:,:,:,-1])
+#    if (main.BC_rank[4]):
+#        uB[:] = main.backBC.applyBC(fB[:,:,:,:,:,0,:],uB,main.backBC.args,main,main.normals[5,:,:,:,0])
+  uF[:] = fB[:,:,:,:,:,:,0]
+  uB[:] = fF[:,:,:,:,:,:,-1]
+  ## overwrite since on boundary. Note that in a periodic BC the applyBC functions don't do anything
+  uF[:] = main.frontBC.applyBC(fF[:,:,:,:,:,:,-1],uF,main.frontBC.args,main,main.normals[4,:,:,:,-1])
+  uB[:] = main.backBC.applyBC(fB[:,:,:,:,:,:,0],uB,main.backBC.args,main,main.normals[5,:,:,:,0])
   return uR,uL,uU,uD,uF,uB
 
 
