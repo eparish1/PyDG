@@ -282,7 +282,7 @@ def isothermalwall_bc(Ue,UBC,args,main,normals):
   UBC[1] = UBC[0]*uw
   UBC[2] = UBC[0]*vw
   UBC[3] = UBC[0]*ww
-  UBC[4] = rhoE
+  UBC[4] = UBC[0]*E
   return UBC
 
 def incompwall_bc(Ue,UBC,args,main,normals):
