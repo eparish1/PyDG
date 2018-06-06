@@ -63,6 +63,22 @@ def addVolume_and_Viscous(main,MZ,eqns,args=[],args_phys=[]):
   main.basis.applyVolIntegral(main,main.iFlux.fx,main.iFlux.fy,main.iFlux.fz,main.RHS)
 
 
+def getRHS_DEIM(main,MZ,eqns,args=[],args_phys=[]):
+  t0 = time.time()
+  main.basis.reconstructU(main,main.a)
+  main.a.uR[:],main.a.uL[:],main.a.uU[:],main.a.uD[:],main.a.uF[:],main.a.uB[:] = main.basis.reconstructEdgesGeneral(main.a.a,main)
+  main.a.uR_edge[:],main.a.uL_edge[:],main.a.uU_edge[:],main.a.uD_edge[:],main.a.uF_edge[:],main.a.uB_edge[:] = sendEdgesGeneralSlab(main.a.uL,main.a.uR,main.a.uD,main.a.uU,main.a.uB,main.a.uF,main)
+  if (main.eq_str[0:-2] == 'Navier-Stokes Reacting'):
+    update_state(main)
+  #  #main.a.p[:],main.a.T[:] = computePressure_and_Temperature(main,main.a.u)
+  # evaluate inviscid flux and add contribution to RHS
+  addInviscidFlux(main,MZ,eqns,args,args_phys)
+  addVolume_and_Viscous(main,MZ,eqns,args,args_phys)
+  ### Get interior vol terms
+  addSource(main)
+  main.comm.Barrier()
+
+
 def getRHS(main,MZ,eqns,args=[],args_phys=[]):
   t0 = time.time()
   main.basis.reconstructU(main,main.a)

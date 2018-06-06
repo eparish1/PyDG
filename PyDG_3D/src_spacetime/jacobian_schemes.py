@@ -3,6 +3,7 @@ import numpy.linalg
 from init_Classes import *
 import logging
 from mpi4py import MPI
+from MPI_functions import globalDot
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 try:
@@ -153,19 +154,26 @@ def computeJacobianXT(main,f):
   main.a.a[:] = a0[:]
   return J#inv
 
-def computeJacobianX(main,f):
+def computeJacobianX(main,eqns):
   J = np.zeros((main.nvars,main.order[0],main.nvars,main.order[0],main.order[1],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
   RHS0 = np.zeros(np.shape(main.RHS))
   RHStmp = np.zeros(np.shape(main.RHS))
-  Rstar0,R0,Rstar_glob = f(main,main.a.a)
+  #Rstar0,R0,Rstar_glob = f(main,main.a.a)
+  eqns.getRHS(main,main,eqns)
+  Rstar0 = np.zeros(np.shape(main.RHS[:])) 
+  Rstar = np.zeros(np.shape(main.RHS[:])) 
+  Rstar0[:] = main.RHS[:]
+
   a0 = np.zeros(np.shape(main.a.a))
   a0[:] = main.a.a[:]
   eps = 1.e-2
   for i in range(0,main.nvars):
     for j in range(0,main.order[0]):
       main.a.a[:] = a0[:]
-      main.a.a[i,j] = a0[i,j] + eps 
-      Rstar,RHStmp,Rstar_glob = f(main,main.a.a)
+      main.a.a[i,j] = a0[i,j] + eps
+      eqns.getRHS(main,main,eqns)
+      Rstar[:] = main.RHS[:] 
+      #Rstar,RHStmp,Rstar_glob = f(main,main.a.a)
       J[:,:,i,j] = ( (Rstar - Rstar0)/eps )
   main.a.a[:] = a0[:]
   return J
@@ -223,15 +231,81 @@ def computeJacobianT(main,f):
   return J
 
 
+def computeJacobian_full_pod(main,eqns):
+  sz = np.shape(main.V)[1]
+  J = np.zeros((sz,sz))
+  #J = np.zeros((main.nvars,main.order[0],main.order[0],main.order[1],main.order[2],main.order[3],main.Nel[0],main.Nel[1],main.Nel[2],main.Nel[3]))
+
+  a0 = np.zeros(np.shape(main.a.a))
+  a0[:] = main.a.a[:]
+  a0[:] = np.reshape( np.dot(main.V,globalDot(main.V.transpose(),a0.flatten(),main)) ,np.shape(main.a.a) )
+  main.a.a[:] = a0[:]
+
+  eqns.getRHS(main,main,eqns)
+  R0 = globalDot(main.V.transpose(),main.RHS[:].flatten(),main)*1.
+
+  eps = 1.e-4
+  a0_pod = globalDot(main.V.transpose(),a0.flatten(),main)
+  a_pod = a0_pod*1.
+  for i in range(0,sz):
+    a_pod[:] = a0_pod[:]
+    a_pod[i] = a0_pod[i] + eps
+    main.a.a[:] = np.reshape( np.dot(main.V,a_pod) , np.shape(main.a.a))
+    main.a.a[2] = a0[2]
+    main.a.a[3] = a0[3]
+
+    eqns.getRHS(main,main,eqns) 
+    J[:,i] = ( globalDot(main.V.transpose(),main.RHS.flatten(),main) - R0 ) / eps
+  return J
 
 
 
 
-def computeJacobianX_full(main,f):
+
+def computeJacobian_full(main,eqns):
+  sz = main.nvars*main.order[0]*main.order[1]*main.order[2]*main.Nel[0]*main.Nel[1]*main.Nel[2]
+  J = np.zeros((sz,sz))
+  #J = np.zeros((main.nvars,main.order[0],main.order[0],main.order[1],main.order[2],main.order[3],main.Nel[0],main.Nel[1],main.Nel[2],main.Nel[3]))
+  RHS0 = np.zeros(np.shape(main.RHS))
+  RHStmp = np.zeros(np.shape(main.RHS))
+  Rstar0 = np.zeros(np.shape(main.RHS))
+  Rstar = np.zeros(np.shape(main.RHS))
+  eqns.getRHS(main,main,eqns)
+  Rstar0[:] = main.RHS[:]
+  a0 = np.zeros(np.shape(main.a.a))
+  a0[:] = main.a.a[:]
+  eps = 1e-4
+  count = 0
+  for z in range(0,5):
+   for p in range(0,main.order[0]):
+    for q in range(0,main.order[1]):
+      for r in range(0,main.order[2]):
+        for i in range(0,main.Nel[0]):
+          for j in range(0,main.Nel[1]):
+            for k in range(0,main.Nel[2]):
+                main.a.a[:] = a0[:]
+                main.a.a[z,p,q,r,:,i,j,k,:] = a0[z,p,q,r,:,i,j,k,:] + eps 
+                main.a.a[2] = a0[2]
+                main.a.a[3] = a0[3]
+
+                eqns.getRHS(main,main,eqns) 
+                Rstar[:] = main.RHS[:] 
+                J[:,count] = ( (Rstar - Rstar0)/eps ).flatten()#[:,:,:,:,:,j,k]
+                count += 1
+
+  #Jinv = np.rollaxis(np.rollaxis( np.linalg.inv(np.rollaxis(np.rollaxis(J,2,10),1,9)) , 8 , 1) , 9 , 2)
+  return J
+
+
+
+def computeJacobianX_full(main,eqns):
   J = np.zeros((main.nvars,main.order[0],main.order[0],main.order[1],main.order[2],main.order[3],main.Nel[0],main.Nel[1],main.Nel[2],main.Nel[3]))
   RHS0 = np.zeros(np.shape(main.RHS))
   RHStmp = np.zeros(np.shape(main.RHS))
-  Rstar0,R0,Rstar_glob = f(main.a.a)
+  Rstar0 = np.zeros(np.shape(main.RHS))
+  Rstar = np.zeros(np.shape(main.RHS))
+  eqns.getRHS(main,main,eqns)
+  Rstar0[:] = main.RHS[:]
   a0 = np.zeros(np.shape(main.a.a))
   a0[:] = main.a.a[:]
   eps = 1e-3
@@ -240,10 +314,12 @@ def computeJacobianX_full(main,f):
       for k in range(0,main.Nel[1]):
         main.a.a[:] = a0[:]
         main.a.a[:,i,:,:,:,j,k] = a0[:,i,:,:,:,j,k] + eps 
-        Rstar,RHStmp,Rstar_glob = f(main.a.a)
+        #Rstar,RHStmp,Rstar_glob = f(main.a.a)
+        eqns.getRHS(main,main,eqns) 
+        Rstar[:] = main.RHS[:] 
         J[:,:,i,:,:,:,j,k] = ( (Rstar - Rstar0)/eps )[:,:,:,:,:,j,k]
-  Jinv = np.rollaxis(np.rollaxis( np.linalg.inv(np.rollaxis(np.rollaxis(J,2,10),1,9)) , 8 , 1) , 9 , 2)
-  return Jinv
+  #Jinv = np.rollaxis(np.rollaxis( np.linalg.inv(np.rollaxis(np.rollaxis(J,2,10),1,9)) , 8 , 1) , 9 , 2)
+  return J
 
 
 def computeJacobianY_full(main,f):

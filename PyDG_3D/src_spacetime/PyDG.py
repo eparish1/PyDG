@@ -48,10 +48,10 @@ def getIC(main,f,x,y,z,zeta3,Npt):
   Nvars = np.shape(main.a.u)[0]
   ## First perform integration in x
   nt = np.size(zeta3)
-  ord_arrx= np.linspace(0,order[0]-1,order[0])
-  ord_arry= np.linspace(0,order[1]-1,order[1])
-  ord_arrz= np.linspace(0,order[2]-1,order[2])
-  ord_arrt= np.linspace(0,order[3]-1,order[3])
+  ord_arrx= np.linspace(0,main.order[0]-1,main.order[0])
+  ord_arry= np.linspace(0,main.order[1]-1,main.order[1])
+  ord_arrz= np.linspace(0,main.order[2]-1,main.order[2])
+  ord_arrt= np.linspace(0,main.order[3]-1,main.order[3])
   scale =  (2.*ord_arrx[:,None,None,None] + 1.)*(2.*ord_arry[None,:,None,None] + 1.)*(2.*ord_arrz[None,None,:,None] + 1.)*(2.*ord_arrt[None,None,None,:] + 1.)/16.
 
   U = np.zeros(np.shape(main.a.u))
@@ -60,7 +60,7 @@ def getIC(main,f,x,y,z,zeta3,Npt):
     for j in range(0,Npt):
       U[:,:,:,:,i,:,:,:,j] =  U[:,:,:,:,0,:,:,:,0]  
       main.a.uFuture[:,:,:,:,:,:,:,j] = U[:,:,:,:,0,:,:,:,0] 
-  main.a.a[:] = volIntegrateGlob_tensordot(main,U,main.w0,main.w1,main.w2,main.w3)*scale[None,:,:,:,:,None,None,None,None]
+  main.a.a[:] = main.basis.volIntegrateGlob(main,U,main.w0,main.w1,main.w2,main.w3)*scale[None,:,:,:,:,None,None,None,None]
 
 
 

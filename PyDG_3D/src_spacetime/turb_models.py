@@ -7,6 +7,7 @@ from navier_stokes import *#strongFormEulerXYZ
 from fluxSchemes import generalFluxGen
 from MPI_functions import sendEdgesGeneralSlab,sendEdgesGeneralSlab_Derivs,globalSum
 from navier_stokes_entropy import entropy_to_conservative
+from jacobian_schemes import computeJacobian_full_pod
 #from pylab import *
 def orthogonalDynamics(main,MZ,eqns):
     ### EVAL RESIDUAL AND DO MZ STUFF
@@ -241,7 +242,7 @@ def test_projection_pod(u,V,main):
 
  
 def LSPG_POD(main,MZ,eqns):
-  eps = 0.1e-5
+  eps = 1e-5
   a0 = main.a.a*1.
   eqns.getRHS(main,MZ,eqns)
   #==================================================
@@ -254,14 +255,23 @@ def LSPG_POD(main,MZ,eqns):
   #main.basis.applyMassMatrix(main,main.RHS)
   PLQLu = (main.RHS - RHS0)/eps
   main.PLQLu[:] = PLQLu
-  tau = main.dt
+  #tau = main.dt
+  tau = main.tau
   #print(np.linalg.norm(PLQLu))
   #=====================================
   main.RHS[:] =  RHS0[:]+ tau*PLQLu
 
 
 def orthogonalSubscale_POD(main,MZ,eqns):
-  eps = 1e-7
+#  if (main.iteration%50 == 0):
+#    J = computeJacobian_full_pod(main,eqns)
+#    e,s = np.linalg.eig(J)
+#    tau = 0.45/np.amax(abs(e))
+#    main.tau = tau
+#    print('Spectral Radius = ',np.amax(abs(e)))
+#    print('tau             = ',np.amax(abs(tau)))
+
+  eps = 1e-5
   a0 = main.a.a*1.
   eqns.getRHS(main,MZ,eqns)
   #==================================================
@@ -273,12 +283,26 @@ def orthogonalSubscale_POD(main,MZ,eqns):
   eqns.getRHS(main,MZ,eqns)  ## put RHS in a array since we don't need it
   #main.basis.applyMassMatrix(main,main.RHS)
   PLQLu = (main.RHS - RHS0)/eps
+#  sz = np.shape(main.V)[1]
+#  z = np.random.normal(loc=0.0,scale=1.0,size=sz)
+#  z /= np.sqrt(np.sum(z**2))
+#  main.a.a[:] = a0[:] + np.reshape( eps*np.dot(main.V,z) , np.shape(main.a.a))
+#  eqns.getRHS(main,MZ,eqns)
+#  approx_norm = np.linalg.norm(np.dot(main.V.transpose(),1./eps*(main.RHS - RHS0).flatten()))
+#  z = np.reshape( np.random.normal(loc=0.0,scale=1.0,size=np.size(main.a.a.flatten()) ), np.shape(main.a.a))
+#  z /= np.sqrt(np.sum(z**2))
+#  main.a.a[:] = a0[:] + eps*z
+#  eqns.getRHS(main,MZ,eqns)
+#  approx_norm = np.linalg.norm(1./eps*(main.RHS - RHS0))
+#  approx_norm2 = np.linalg.norm(PLQLu)
+#  print(approx_norm)#,approx_norm2)
   main.PLQLu[:] = PLQLu
   tau = main.tau
+  #tau = 1./approx_norm*0.05
   #print(np.linalg.norm(PLQLu))
   #=====================================
   main.RHS[:] =  RHS0[:]+ tau*PLQLu
-
+  main.a.a[:] = a0[:]
 
 def orthogonalSubscale_POD_dtau(main,MZ,eqns):
   eps = 1e-5

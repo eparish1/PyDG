@@ -409,8 +409,8 @@ class variables:
       if (self.mpi_rank == 0): print('Using Smagorinsky Model')
     if (check == 0):
       self.getRHS = DNS
-#      if (self.mpi_rank == 0):
-#         print('Error, turb model ' + turb_str + 'not found. Setting to DNS')
+      if (self.mpi_rank == 0):
+         print('Error, turb model ' + turb_str + 'not found. Setting to DNS')
     else:
       if (self.mpi_rank == 0):
          print('Using turb model ' + turb_str)

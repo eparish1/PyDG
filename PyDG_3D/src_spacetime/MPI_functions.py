@@ -152,8 +152,8 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main):
   if (main.rank_connect[4] == main.mpi_rank and main.rank_connect[5] == main.mpi_rank):
     uF[:] = fB[:,:,:,:,:,:,0]
     uB[:] = fF[:,:,:,:,:,:,-1]
-    uF[:] = main.topBC.applyBC(fF[:,:,:,:,:,:,-1],uF,main.frontBC.args,main,main.normals[4,:,:,:,-1])
-    uB[:] = main.bottomBC.applyBC(fB[:,:,:,:,:,:,0],uB,main.backBC.args,main,main.normals[5,:,:,:,0])
+    uF[:] = main.frontBC.applyBC(fF[:,:,:,:,:,:,-1],uF,main.frontBC.args,main,main.normals[4,:,:,:,-1])
+    uB[:] = main.backBC.applyBC(fB[:,:,:,:,:,:,0],uB,main.backBC.args,main,main.normals[5,:,:,:,0])
 
   else:
     ## Send front and back fluxes
@@ -171,13 +171,13 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main):
         uF[:] = main.frontBC.applyBC(fF[:,:,:,:,:,-1,:],uF,main.frontBC.args,main,main.normals[4,:,:,:,-1])
     if (main.BC_rank[4]):
         uB[:] = main.backBC.applyBC(fB[:,:,:,:,:,0,:],uB,main.backBC.args,main,main.normals[5,:,:,:,0])
-  '''
-  uF[:] = fB[:,:,:,:,:,:,0]
-  uB[:] = fF[:,:,:,:,:,:,-1]
-  ## overwrite since on boundary. Note that in a periodic BC the applyBC functions don't do anything
-  uF[:] = main.frontBC.applyBC(fF[:,:,:,:,:,:,-1],uF,main.frontBC.args,main,main.normals[4,:,:,:,-1])
-  uB[:] = main.backBC.applyBC(fB[:,:,:,:,:,:,0],uB,main.backBC.args,main,main.normals[5,:,:,:,0])
-  '''
+#  '''
+#  uF[:] = fB[:,:,:,:,:,:,0]
+#  uB[:] = fF[:,:,:,:,:,:,-1]
+#  ## overwrite since on boundary. Note that in a periodic BC the applyBC functions don't do anything
+#  uF[:] = main.frontBC.applyBC(fF[:,:,:,:,:,:,-1],uF,main.frontBC.args,main,main.normals[4,:,:,:,-1])
+#  uB[:] = main.backBC.applyBC(fB[:,:,:,:,:,:,0],uB,main.backBC.args,main,main.normals[5,:,:,:,0])
+#  '''
   return uR,uL,uU,uD,uF,uB
 
 

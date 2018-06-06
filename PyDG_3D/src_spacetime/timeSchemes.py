@@ -1,5 +1,6 @@
 import numpy as np
 from pylab import *
+import math
 #import sys, petsc4py
 #petsc4py.init(sys.argv)
 #from petsc4py import PETSc
@@ -1357,6 +1358,10 @@ def SSP_RK3(main,MZ,eqns,args=None):
 
   main.t += main.dt
   main.iteration += 1
+  if math.isnan(np.linalg.norm(main.a.a)):
+    if (main.mpi_rank == 0):
+      print('NaN Error, qutting')
+    main.t = 1e10
 #  plot(main.a.p[0,0,0,0,:,0,0,0]/1000.,color='green')
 #  ylim([99.95,100.05]) 
 #  pause(0.001)
@@ -1410,6 +1415,32 @@ def SSP_RK3_POD(main,MZ,eqns,args=None):
   main.t += main.dt
   main.iteration += 1
 
+def SSP_RK3_POD_DEIM(main,MZ,eqns,args=None):
+  main.getRHS(main,MZ,eqns)  ## put RHS in a array since we don't need it
+  a0 = np.zeros(np.shape(main.a.a))
+  a0[:] = main.a.a[:]
+  a0_pod = globalDot(main.V.transpose(),a0.flatten(),main)
+  main.basis.applyMassMatrix(main,main.RHS)
+  tmp = np.dot(main.DP,main.RHS[:].flatten())
+
+  a1_pod = a0_pod  + main.dt*( globalDot(main.V.transpose(),tmp,main) )
+  main.a.a[:] = np.reshape( np.dot(main.V,a1_pod) , np.shape(main.a.a) )
+
+  main.getRHS(main,MZ,eqns)
+  main.basis.applyMassMatrix(main,main.RHS)
+  tmp = np.dot(main.DP,main.RHS[:].flatten())
+  #print(np.linalg.norm(tmp - main.RHS[:].flatten()) )
+  a1_pod = 3./4.*a0_pod + 1./4.*(a1_pod + globalDot(main.V.transpose(),main.dt*tmp.flatten(),main ) ) #reuse a1 vector
+  main.a.a[:] = np.reshape( np.dot(main.V,a1_pod) , np.shape(main.a.a) )
+
+  main.getRHS(main,MZ,eqns)  ## put RHS in a array since we don't need it
+  main.basis.applyMassMatrix(main,main.RHS)
+  tmp = np.dot(main.DP,main.RHS[:].flatten())
+  af_pod = 1./3.*a0_pod + 2./3.*(a1_pod[:] + main.dt*globalDot(main.V.transpose(), tmp.flatten(),main) )
+  main.a.a[:] =np.reshape(  np.dot(main.V,af_pod) , np.shape(main.a.a) )
+
+  main.t += main.dt
+  main.iteration += 1
 
 
 
@@ -2072,20 +2103,21 @@ def backwardEuler_LSPG(main,MZ,eqns,args):
 
   def create_mv(v):
     def MF_Jacobian(v):
-      an = main.a0 
-      Rn = R0
-      vr = np.reshape( np.dot(main.V,v) , np.shape(main.a.a) )
-      #vr = np.reshape(v,np.shape(main.a.a))
-      eps = 5.e-7
-      main.a.a[:] = an + eps*vr
-      main.getRHS(main,MZ,eqns)
-      RHS_BE = np.zeros(np.shape(main.RHS))
-      R1 = np.zeros(np.shape(main.RHS))
-      R1[:] = main.RHS[:]
-      RHS_BE[:] = main.dt*(R1 - Rn)/eps
-      main.basis.applyMassMatrix(main,RHS_BE)
-      Av = vr - RHS_BE
-      return Av.flatten()
+      #an = main.a0 
+      #Rn = R0
+      #vr = np.reshape( np.dot(main.V,v) , np.shape(main.a.a) )
+      ##vr = np.reshape(v,np.shape(main.a.a))
+      #eps = 5.e-7
+      #main.a.a[:] = an + eps*vr
+      #main.getRHS(main,MZ,eqns)
+      #RHS_BE = np.zeros(np.shape(main.RHS))
+      #R1 = np.zeros(np.shape(main.RHS))
+      #R1[:] = main.RHS[:]
+      #RHS_BE[:] = main.dt*(R1 - Rn)/eps
+      #main.basis.applyMassMatrix(main,RHS_BE)
+      #Av = vr - RHS_BE
+      return globalDot(main.V,v.flatten(),main)
+      #return Av.flatten()
 
     def rmatvec(v):
       return globalDot(main.V.transpose(),v.flatten(),main)
@@ -2097,7 +2129,7 @@ def backwardEuler_LSPG(main,MZ,eqns,args):
 
   a0_pod = globalDot(main.V.transpose(),main.a.a.flatten(),main)
   A = create_mv(main.a.a.flatten())
-  res_1 = least_squares(unsteadyResidual, a0_pod,ftol=1e-3,verbose=2,jac=create_mv,method='dogbox')
+  res_1 = least_squares(unsteadyResidual, a0_pod,ftol=1e-4,xtol=1e-8,verbose=2,jac=create_mv,method='dogbox')
   #res_1 = scipy.sparse.linalg.lsmr(A,R0.flatten())
   a_sol_pod = res_1.x
   main.a.a[:] = np.reshape( np.dot(main.V,a_sol_pod) , np.shape(main.a.a) )
