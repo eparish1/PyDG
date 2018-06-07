@@ -141,51 +141,18 @@
 %	PROBLEM 1
 %----------------------------------------------------------------------------------------
 \section{PyDG Manual}
-PyDG is a high-order discontinuous Galerkin code written in python. The purpose of this document will be to familiarize the reader with PyDG. It is assumed that the reader has a basic familiarity with the DG method.
+PyDG is a high-order discontinuous Galerkin code written in python. The purpose of this document will be to familiarize the reader with PyDG. We will first discuss how to run the code, and then provide details into the inner workings of the code.
 
-\subsection{Spatial Discretization}
-PyDG utilizes Legendre polynomials for its spatial discretization. The Legendre polynomials consist of a hierarchical set of polynomials and are orthogonal on the unit cube. For multidimensional problems, PyDG uses tensor products.
-
-\subsection{Code Layout}
-The general structure of the code is shown in Figure~\ref{fig:layout}. The code is driven by an inputfile, callled "inputfile.py". In this file, aspects such as the grid, order of accuracy, equation set, boundary conditions, etc. are defined. This file proceeds to call the driving script, "PyDG.py". The script "PyDG.py" first initializes variables and equation sets and then runs the main time loop. Inside the time loop, the script "timeSchemes.py" is called. The "timeSchemes.py" script contains the time scheme routines. In each stage of a time scheme routine, the script "turb\_model.py" is called. This "turb\_models.py" script contains manipulations that are performed in turbulence models. Note that the code mainly focuses on residual-based-type closure models and as such the "turb\_models.py" script exists outside of the traditional RHS evaluation files. The "turb\_models.py" script will call the script "DG\_functions.py". This script is responsible for calculating the flux and volume terms in a DG formulation. 
-\begin{figure}
-\includegraphics[trim={0.05cm 0 1.75cm 1cm},clip,width=1.\linewidth]{figs/pydg_layout.pdf}
-\caption{Layout for PyDG. Yellow arrows are function calls, blue arrows are passed classes}
-\label{fig:layout}
-\end{figure}
- 
- 
-\subsection{General Dimension of Variables}
-The variables in PyDG primarily consist of variables in modal space and variables in physical space. The variables in modal space, which are typically referenced by a command similar to "classname.a", are of dimension,
-$$classname.a = N_{vars} \times N_{px} \times N_{py}  \times N_{pz}  \times N_{pt} \times N_{elx} \times N_{ely}  \times N_{elz}  \times N_{elt}.$$
-Yes, they are $8D$ arrays! The variable $N_{vars}$ is the number of unknown variables (eg. $5$ for compressible Euler). The term $N_{px}$ is the order of the polynomial in the $x$ direction, with $N_{py}$, $N_{pz}$, and $N_{pt}$ being the same for the $y$, $z$, and temporal direction, respectively. Similarly, the $N_{el}$ terms refer to the number of elements in each direction. 
-
-Variables in physical space have a similar structure. Typically referenced by a command similar to "classname.u", they are of dimension
-$$classname.u = N_{vars} \times N_{qx} \times N_{qy}  \times N_{qz}  \times N_{qt} \times N_{elx} \times N_{ely}  \times N_{elz}  \times N_{elt}.$$
-Similar to $N_{px}$, terms such as $N_{qx}$ refer to the number of quadrature points in each direction. Typically for the Euler equations, one uses twice the quadrature points as the order of the polynomial.
-
-\subsection{The variables class}
-The variables class, typically assigned "main", is the primary class used in the solver. The variables class is defined in "init\_Classes.py". Variables contains several important subvariables and subclasses
-\begin{itemize}
-\item variables.a: This is a subclass that represents the main state variables. 
-\begin{itemize}
-\item a.a: These are the Legendre coefficients associated with the state variable in $a$. The dimensions are 
-$$a.a = N_{vars} \times N_{px} \times N_{py}  \times N_{pz}  \times N_{pt} \times N_{elx} \times N_{ely}  \times N_{elz}  \times N_{elt} $$
-\item a.u: These are the physical space values associated with the state variable in $a$. The dimensions are 
-$$a.u = N_{vars} \times N_{qx} \times N_{qy}  \times N_{qz}  \times N_{qt} \times N_{elx} \times N_{ely}  \times N_{elz}  \times N_{elt} $$
-\end{itemize}
-
-\end{itemize}
-
-\section{The input deck}
-A sample inputfile for the isentropic vortex is given. The input deck is in the format of a python file and requires specification of:
-\begin{itemize}
-\item The $N_{el}$ array. This must be a 1D vector of length 4. Entries are elements in $x,y,z,t$
-\item The $order$ array. Arguments are order of accuracy in each direciton
-\item The $quadpoints$ array. Arguments are the number of quad points in each direction
-\item The viscosity, $\mu$. This must be specified even if inviscid.
-\item The grid, x,y, and $z$. These must be passed in the format of a 3D array.
-\end{itemize}
+\subsection{Running PyDG}
+To run PyDG, we need to construct an input file. This input file specifies things like the grid, order of accuracy, equation sets, etc.  A sample inputfile for the isentropic vortex is given:
+%and requires specification of:
+%\begin{itemize}
+%\item The $N_{el}$ array. This must be a 1D vector of length 4. Entries are elements in $x,y,z,t$
+%\item The $order$ array. Arguments are order of accuracy in each direciton
+%\item The $quadpoints$ array. Arguments are the number of quad points in each direction
+%\item The viscosity, $\mu$. This must be specified even if inviscid.
+%\item The grid, x,y, and $z$. These must be passed in the format of a 3D array.
+%\end{itemize}
 \begin{lstlisting}
 import numpy as np
 import sys
@@ -246,6 +213,97 @@ IC_function = vortexICS                #|
                                    #|
 execfile('../../src_spacetime/PyDG.py')      #|  call the solver
 \end{lstlisting}
+\noindent To PyDG with the above script, move to the directory of "inputfile.py" and type into the command line:
+\begin{lstlisting}[language=bash]
+  $ mpirun -np 4 python inputfile.py
+\end{lstlisting}
+\subsubsection{Post Processing}
+Running PyDG will lead to the creation of a folder called "Solution" in the directory where the inputfile is. In this "Solution" directory, PyDG will put saved states of the solution - for example "npsol0.npz". These states are saved every "$save_freq$" iterations; this is defined in the input deck. The solution files are saved in ".npz" format and may be visualized in python. A post processing script that converts the solution files to ".vts" files for visualization in paraview is also available. To run this script, one should move to the "Solution" directory and run the postProcessing.py script with the appropriate equation set that is present in the src\_spacetime folder:
+\begin{lstlisting}[language=bash]
+  $ cd Solution 
+  $ python (PyDG home directory)/src_spacetime/postProcessing.py (Eqn set)
+\end{lstlisting}
+Currently implemented equation sets are:
+\begin{enumerate}
+\item Navier-Stokes
+\begin{itemize}
+\item This runs the script for the classic Navier-Stokes (or Euler) equations. It outputs fields of $\rho, \rho u_i, $ and $\rho E$.
+\end{itemize}
+\item Entropy
+\begin{itemize}
+\item This runs the script for the Navier-Stokes equations with entropy variables. It outputs fields of $\rho, \rho u_i, $ and $\rho E$.
+\end{itemize}
+\item Scalar
+\begin{itemize}
+\item This runs the script for a scalar equation. It outputs the field with the name $u$.
+\end{itemize}
+\end{enumerate}
+
+\subsection{The Code}
+Here we dive into details about how the code works.
+
+\subsubsection{Spatial Discretization: The Discontinuous Galerkin Approach}
+PyDG utilizes Legendre polynomials for its spatial discretization. The Legendre polynomials consist of a hierarchical set of polynomials and are orthogonal on the unit cube. For multidimensional problems, PyDG uses tensor products. The remainder of this section will outline the discontinuous Galerkin approach;
+
+We consider the system of conservation laws,
+\begin{equation}\label{eq:genEq}
+\frac{\partial \mathbf{u}}{\partial t} +  \nabla \cdot \mathbf{F} = 0
+\end{equation}
+with $\mathbf{x} \in \Omega$. In the discontinuous Galerkin approach, the domain $\Omega$ is subdivided into individual elements, $\Omega_k$. The state variable $\mathbf{u}$ is then approximated by basis functions over $\Omega$,
+$$\mathbf{u}(\mathbf{x},t) = \sum_{k=0}^{N-1} \sum_{j = 0}^p \mathbf{a}_{j,k}(t) \mathbf{w}_{k,j}(\mathbf{x}),$$
+where $\mathbf{a}$ are the basis coefficients and $\mathbf{w}$ are the basis functions. Note that in the DG approach, the basis functions have local support and are hence discontinuous between the elements. 
+
+The DG approach proceeds by multiplying Eq.~\ref{eq:genEq} by the basis functions and integrating over the support of each basis function,
+\begin{equation}\label{eq:genEq2}
+\int_{\Omega_k} \mathbf{w}_{k,j} \bigg[\frac{\partial \mathbf{u}}{\partial t}  +  \nabla \cdot \mathbf{F} \bigg] d\Omega = 0.
+\end{equation}
+The flux term is then integrated by parts. This integration by parts couples all the elements and establishes the finite-volume aspect of the DG approach. One has~\cite{kfid_cfdnotes},
+\begin{equation}\label{eq:genEq3}
+\int_{\Omega_k} \mathbf{w}_{k,j}\frac{\partial \mathbf{u}}{\partial t} d\Omega   - \int_{\Omega_k} \nabla \mathbf{w}_{k,j} \cdot \mathbf{F}  d\Omega  + \int_{d \Omega_k} \mathbf{w}_{k,j}^+ \hat{\mathbf{F}} (\mathbf{u}^+,\mathbf{u}^-, \hat{n}) dl  = 0,
+\end{equation}
+where $+$ and $-$ refers to the element interior and exterior, respectively. The term $ \hat{\mathbf{F}} $ is the numerical flux between the faces. 
+
+The numerical implementation of the DG method has three parts:
+\begin{enumerate}
+\item Evaluation of the volumetric integrals (second term in Eq.~\ref{eq:genEq3}.)
+\item Evaluation of the fluxes (third term in Eq.~\ref{eq:genEq3}.)
+\item Coupling to a time marching scheme.
+\end{enumerate}
+
+
+
+
+\subsection{Code Layout}
+The general structure of the code is shown in Figure~\ref{fig:layout}. The code is driven by an inputfile, callled "inputfile.py". In this file, aspects such as the grid, order of accuracy, equation set, boundary conditions, etc. are defined. This file proceeds to call the driving script, "PyDG.py". The script "PyDG.py" first initializes variables and equation sets and then runs the main time loop. Inside the time loop, the script "timeSchemes.py" is called. The "timeSchemes.py" script contains the time scheme routines. In each stage of a time scheme routine, the script "turb\_model.py" is called. This "turb\_models.py" script contains manipulations that are performed in turbulence models. Note that the code mainly focuses on residual-based-type closure models and as such the "turb\_models.py" script exists outside of the traditional RHS evaluation files. The "turb\_models.py" script will call the script "DG\_functions.py". This script is responsible for calculating the flux and volume terms in a DG formulation. 
+\begin{figure}[h]
+\includegraphics[trim={0.05cm 0 1.75cm 1cm},clip,width=1.\linewidth]{figs/pydg_layout.pdf}
+\caption{Layout for PyDG. Yellow arrows are function calls, blue arrows are passed classes}
+\label{fig:layout}
+\end{figure}
+ 
+ 
+\subsection{General Dimension of Variables}
+The variables in PyDG primarily consist of variables in modal space and variables in physical space. The variables in modal space, which are typically referenced by a command similar to "classname.a", are of dimension,
+$$classname.a = N_{vars} \times N_{px} \times N_{py}  \times N_{pz}  \times N_{pt} \times N_{elx} \times N_{ely}  \times N_{elz}  \times N_{elt}.$$
+Yes, they are $8D$ arrays! The variable $N_{vars}$ is the number of unknown variables (eg. $5$ for compressible Euler). The term $N_{px}$ is the order of the polynomial in the $x$ direction, with $N_{py}$, $N_{pz}$, and $N_{pt}$ being the same for the $y$, $z$, and temporal direction, respectively. Similarly, the $N_{el}$ terms refer to the number of elements in each direction. 
+
+Variables in physical space have a similar structure. Typically referenced by a command similar to "classname.u", they are of dimension
+$$classname.u = N_{vars} \times N_{qx} \times N_{qy}  \times N_{qz}  \times N_{qt} \times N_{elx} \times N_{ely}  \times N_{elz}  \times N_{elt}.$$
+Similar to $N_{px}$, terms such as $N_{qx}$ refer to the number of quadrature points in each direction. Typically for the Euler equations, one uses twice the quadrature points as the order of the polynomial.
+
+\subsection{The variables class}
+The variables class, typically assigned "main", is the primary class used in the solver. The variables class is defined in "init\_Classes.py". Variables contains several important subvariables and subclasses
+\begin{itemize}
+\item variables.a: This is a subclass that represents the main state variables. 
+\begin{itemize}
+\item a.a: These are the Legendre coefficients associated with the state variable in $a$. The dimensions are 
+$$a.a = N_{vars} \times N_{px} \times N_{py}  \times N_{pz}  \times N_{pt} \times N_{elx} \times N_{ely}  \times N_{elz}  \times N_{elt} $$
+\item a.u: These are the physical space values associated with the state variable in $a$. The dimensions are 
+$$a.u = N_{vars} \times N_{qx} \times N_{qy}  \times N_{qz}  \times N_{qt} \times N_{elx} \times N_{ely}  \times N_{elz}  \times N_{elt} $$
+\end{itemize}
+
+\end{itemize}
+
 \end{document}
 
 
