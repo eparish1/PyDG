@@ -79,6 +79,7 @@ def getRHS_DEIM(main,MZ,eqns,args=[],args_phys=[]):
   main.comm.Barrier()
 
 
+## this is the main compute RHS function in PyDG
 def getRHS(main,MZ,eqns,args=[],args_phys=[]):
   t0 = time.time()
   main.basis.reconstructU(main,main.a)
