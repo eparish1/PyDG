@@ -38,7 +38,6 @@ def globalSum(r,main):
 ##########################################################################################################################################################################################################
 ##########################################################################################################################################################################################################
 
-
 def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main,regionManager):
 
   nRL = 0
@@ -89,7 +88,6 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main,regionManager):
  
   #======================================================
   else:
-
     if (main.rank_connect[0] != main.mpi_rank and ((main.leftBC.args[1] == -1 and (main.leftBC.BC_type == 'periodic' or main.leftBC.BC_type == 'patch') and left_face==True) or left_face==False)):
       nRL+=1
       main.comm.Send(fL[:,:,:,:,0,:,:].flatten(),dest=main.rank_connect[0],tag=main.mpi_rank)
@@ -173,7 +171,6 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main,regionManager):
 
   #======================================================
   else:
-    
     if (main.rank_connect[2] != main.mpi_rank and ((main.bottomBC.args[1] == -1 and (main.bottomBC.BC_type == 'periodic' or main.bottomBC.BC_type == 'patch') and bottom_face==True) or bottom_face==False)):
       nUD+=1
       main.comm.Send(fD[:,:,:,:,:,0,:].flatten(),dest=main.rank_connect[2],tag=main.mpi_rank+2*main.num_processes_global)
@@ -257,7 +254,6 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main,regionManager):
 
   #======================================================
   else:
-    
     if (main.rank_connect[4] != main.mpi_rank and ((main.backBC.args[1] == -1 and (main.backBC.BC_type == 'periodic' or main.backBC.BC_type == 'patch') and back_face==True) or back_face==False)):
       nFB+=1
       main.comm.Send(fB[:,:,:,:,:,:,0].flatten(),dest=main.rank_connect[4],tag=main.mpi_rank+4*main.num_processes_global)
@@ -762,7 +758,6 @@ def regionConnector(regionManager):
 	pos_z  = pz-rowz-1
 
       region.rank_connect[0] = sr + px*((pos_z*py) + pos_y) + offset
-
     #=============================================================================================================================
 
     if (region.rightBC.BC_type == 'patch' and region.BC_rank[1]):

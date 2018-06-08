@@ -1354,6 +1354,7 @@ def SSP_RK3(regionManager,eqns,args=None):
     regionManager.region[region_counter].a0[:] = regionManager.region[region_counter].a.a[:]
     region_counter += 1
 
+
   regionManager.getRHS_REGION_OUTER(regionManager,eqns) #includes loop over all regions
 
   for region in regionManager.region:

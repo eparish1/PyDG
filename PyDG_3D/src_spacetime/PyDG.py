@@ -17,34 +17,7 @@ from block_classes import *
 comm = MPI.COMM_WORLD
 mpi_rank = comm.Get_rank()
 
-if (len(BCs) != n_blocks):
-  if (mpi_rank == 0): 
-    print('==================================')
-    print('Size of BCs in inputfile.py is not the same as the number of blocks. Add information for other blocks. PyDG quitting')
-    print('==================================')
-  sys.exit()
-
-if (len(procx) != n_blocks):
-  if (mpi_rank == 0): 
-    print('==================================')
-    print('Size of procx in inputfile.py is not the same as the number of blocks. Add information for other blocks. PyDG quitting')
-    print('==================================')
-  sys.exit()
-
-if (len(procy) != n_blocks):
-  if (mpi_rank == 0): 
-    print('==================================')
-    print('Size of procy in inputfile.py is not the same as the number of blocks. Add information for other blocks. PyDG quitting')
-    print('==================================')
-  sys.exit()
-
-if (len(procz) != n_blocks):
-  if (mpi_rank == 0): 
-    print('==================================')
-    print('Size of procz in inputfile.py is not the same as the number of blocks. Add information for other blocks. PyDG quitting')
-    print('==================================')
-  sys.exit()
-
+execfile(PyDG_DIR + '/check_inputdeck.py')
 
 def getGlobU_scalar(u):
   quadpoints0,quadpoints1,quadpoints2,quadpoints3,Nelx,Nely,Nelz,Nelt = np.shape(u)
@@ -172,11 +145,11 @@ regionConnector(regionManager)
 #for i in range(0,regionManager.nblocks):
 region_counter = 0
 for i in regionManager.mpi_regions_owned:
-  main = regionManager.region[region_counter]
+  region = regionManager.region[region_counter]
   region_counter += 1
-  main.x,main.y,main.z = x_block[i],y_block[i],z_block[i]
-  vol_min = (np.amin(main.Jdet))**(1./3.)
-  CFL = ( np.amin(main.J_edge_det[0])*4. + np.amin(main.J_edge_det[1])*4 + np.amin(main.J_edge_det[2])*4. ) / (np.amin(main.Jdet)*8 )
+  region.x,region.y,region.z = x_block[i],y_block[i],z_block[i]
+  vol_min = (np.amin(region.Jdet))**(1./3.)
+  CFL = ( np.amin(region.J_edge_det[0])*4. + np.amin(region.J_edge_det[1])*4 + np.amin(region.J_edge_det[2])*4. ) / (np.amin(region.Jdet)*8 )
 #  if (mpi_rank == starting_rank[i]):
 #    print('dt*p/(Nt*dx) = ' + str(1.*dt*order[0]*CFL/order[-1] ))
 #    print('dt*(p/dx)**2*mu = ' + str(dt*order[0]**2*CFL**2*mu/order[-1] ))
@@ -184,23 +157,23 @@ for i in regionManager.mpi_regions_owned:
     eqnsEnriched = eqns#equations(enriched_eqn_str,enriched_schemes,turb_str)
     mainEnriched = variables(Nel,np.int64(order + enriched_add),quadpoints,eqnsEnriched,mu,x,y,z,turb_str,procx,procy,procz,BCs,fsource,source_mag,shock_capturing,mol_str,basis_args)
   else:
-    mainEnriched = main
+    mainEnriched = region 
   
   
   
-  getIC(main,IC_function[i],main.xG,main.yG,main.zG,main.zeta3,main.Npt)
+  getIC(region,IC_function[i],region.xG,region.yG,region.zG,region.zeta3,region.Npt)
   
-  reconstructU(main,main.a)
+  reconstructU(region,region.a)
   
   timescheme = timeschemes(time_integration,linear_solver_str,nonlinear_solver_str)
   #main.source_hook = source_hook
 
-  xG_global = gatherSolScalar(main,main.xG[:,:,:,None,:,:,:,None])
-  yG_global = gatherSolScalar(main,main.yG[:,:,:,None,:,:,:,None])
-  zG_global = gatherSolScalar(main,main.zG[:,:,:,None,:,:,:,None])
+  xG_global = gatherSolScalar(region,region.xG[:,:,:,None,:,:,:,None])
+  yG_global = gatherSolScalar(region,region.yG[:,:,:,None,:,:,:,None])
+  zG_global = gatherSolScalar(region,region.zG[:,:,:,None,:,:,:,None])
 
   Nel = Nel_block[i]
-  if (main.mpi_rank == starting_rank[i]):
+  if (region.mpi_rank == starting_rank[i]):
     xG_global = np.reshape( np.rollaxis(np.rollaxis(np.rollaxis(xG_global[:,:,:,0,:,:,:,0],3,0),4,2),5,4), (Nel[0]*quadpoints[0],Nel[1]*quadpoints[1],Nel[2]*quadpoints[2]) )
     yG_global = np.reshape( np.rollaxis(np.rollaxis(np.rollaxis(yG_global[:,:,:,0,:,:,:,0],3,0),4,2),5,4), (Nel[0]*quadpoints[0],Nel[1]*quadpoints[1],Nel[2]*quadpoints[2]) )
     zG_global = np.reshape( np.rollaxis(np.rollaxis(np.rollaxis(zG_global[:,:,:,0,:,:,:,0],3,0),4,2),5,4), (Nel[0]*quadpoints[0],Nel[1]*quadpoints[1],Nel[2]*quadpoints[2]) )
@@ -221,26 +194,41 @@ while (regionManager.t <= regionManager.et + regionManager.dt/2):
   if (regionManager.iteration%regionManager.save_freq == 0):
     #for z in range(0,regionManager.nblocks):
     region_counter = 0
+    savehook(regionManager)
+    regionManager.uG_norm = 0.
     for z in regionManager.mpi_regions_owned:
       main = regionManager.region[region_counter]
       region_counter += 1
       reconstructU(main,main.a)
-
       uG = gatherSolSlab(main,eqns,main.a)
+      if (mpi_rank == 0):
+        regionManager.uG_norm += np.sum(uG**2)
       aG = gatherSolSpectral(main.a.a,main)
-      savehook(main)
       if (main.mpi_rank - main.starting_rank == 0):
         UG = getGlobU(uG)
-        if (main.mpi_rank == 0):
-            sys.stdout.write('\n\n\n' + '======================================' + '\n\n')
-        sys.stdout.write('\n' + '--------------------------------------' + '\n\n')
-        sys.stdout.write('wall time = ' + str(time.time() - t0) + '\n' )
-        sys.stdout.write('t = ' + str(regionManager.t) +  '\n')
         np.savez('Solution/npsol_block' + str(z) + '_' + str(regionManager.iteration),U=(UG),a=aG,t=regionManager.t,iteration=regionManager.iteration,order=order)
         sys.stdout.flush()
+
+  if (mpi_rank == 0 and regionManager.iteration%save_freq == 0):
+    regionManager.uG_norm = np.sqrt(regionManager.uG_norm)
+    sys.stdout.write('======================================' + '\n')
+    sys.stdout.write('wall time = ' + str(time.time() - t0) + '\n' )
+    sys.stdout.write('t = ' + str(regionManager.t) +  '\n')
+    sys.stdout.flush()
+
   timescheme.advanceSol(regionManager,eqns,timescheme.args)
-  #advanceSolImplicit_MG(main,main,eqns)
 reconstructU(main,main.a)
 uG = gatherSolSlab(main,eqns,main.a)
 if (main.mpi_rank == 0):
-  print('Final Time = ' + str(time.time() - t0),'Sol Norm = ' + str(np.linalg.norm(uG)) ),
+  print('Final Time = ' + str(time.time() - t0),'Sol Norm = ' + str(np.sqrt(np.sum(uG**2))) )
+
+regionManager.uG_norm = 0.
+region_counter = 0
+for z in regionManager.mpi_regions_owned:
+  main = regionManager.region[region_counter]
+  uG = gatherSolSlab(regionManager.region[region_counter],eqns,regionManager.region[region_counter].a)
+  region_counter += 1
+  if (mpi_rank == 0):
+    regionManager.uG_norm += np.sum(uG**2)
+regionManager.uG_norm = np.sqrt(regionManager.uG_norm)
+
