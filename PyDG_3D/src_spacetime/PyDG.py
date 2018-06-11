@@ -199,6 +199,7 @@ while (regionManager.t <= regionManager.et + regionManager.dt/2):
     region_counter = 0
     savehook(regionManager)
     regionManager.a_norm = globalNorm(regionManager.a,regionManager)
+
     for region in regionManager.region:
       reconstructU(region,region.a)
       uG = gatherSolSlab(region,eqns,region.a)

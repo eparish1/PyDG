@@ -1,6 +1,7 @@
 import numpy as np
 import sys
-sys.path.append("/home/vsriv/Documents/PyDG/PyDG_3D/src_spacetime") #link the the source directory for PyDG
+PyDG_DIR = '../../src_spacetime'
+sys.path.append(PyDG_DIR) #link the the source directory for PyDG
 from ic_functions_premade import vortexICS,zeroFSIC  #import the IC for taylor green vortex.
 
 #==========================================================================
@@ -10,12 +11,26 @@ uinf      = 0.081*np.cos(alfa)
 vinf      = 0.081*np.sin(alfa)
 
 #==========================================================================
-
-def savehook(main):
-  
+def savehook(regionManager):
+  ### get a0
+  region_counter = 0
+  rho_int = 0.
+  s_int = 0.
+  for j in regionManager.mpi_regions_owned:
+    main = regionManager.region[region_counter]
+    region_counter += 1#
+    # compute entropy
+    p = (1.4 - 1.)*(main.a.u[4] - 0.5*main.a.u[1]**2/main.a.u[0] - 0.5*main.a.u[2]**2/main.a.u[0] - 0.5*main.a.u[3]**2/main.a.u[0])
+    shp = np.append(6,np.shape(main.a.u[0]))
+    tmp = np.zeros( shp )
+    tmp[0:5] = main.a.u
+    tmp[-1]  = ( ( np.log(p) - 1.4*np.log(main.a.u[0]) )*main.a.u[0]/(1.4 - 1.)*-1.)
+    vol_integral =  main.basis.volIntegrate(main.weights0,main.weights1,main.weights2,main.weights3,tmp*main.Jdet[None,:,:,:,None,:,:,:,None])
+    s_int += globalSum(vol_integral[-1] , regionManager)
+    rho_int += globalSum(vol_integral[0] , regionManager)
   if (main.mpi_rank == 0):
-      print('rho norm  ' + str(np.linalg.norm(main.a.u[0])))
-
+      sys.stdout.write('Mass = ' + str(rho_int) +  '  Entropy = ' + str(s_int) +  '\n')
+      sys.stdout.flush()
 #==========================================================================
 
 def airfoilIC(x,y,z,main):
@@ -358,5 +373,4 @@ nonlinear_solver_str = 'Newton'
 #== Assign initial condition function. Note that you can alternatively define this here
 #== function layout is my_ic_function(x,y,z), where x,y,z are the decomposed quadrature points
 IC_function = [airfoilIC,airfoilIC,airfoilIC,airfoilIC,airfoilIC,airfoilIC,airfoilIC,airfoilIC]                #|
-
-execfile('/home/vsriv/Documents/PyDG/PyDG_3D/src_spacetime/PyDG.py')      #|  call the solver
+execfile('../../src_spacetime/PyDG.py')      #|  call the solver

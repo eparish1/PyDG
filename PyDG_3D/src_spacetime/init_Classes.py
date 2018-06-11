@@ -305,7 +305,7 @@ class variables:
 
     self.a0 = np.zeros((eqns.nvars,self.order[0],self.order[1],self.order[2],self.order[3],self.Npx,self.Npy,self.Npz,self.Npt))
     self.a = variable(regionManager,region_counter,eqns.nvars,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz,self.Npt)
-    #self.b = variable(regionManager,region_counter,eqns.nvisc_vars,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz,self.Npt)
+    self.b = variable(regionManager,region_counter,eqns.nvisc_vars,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz,self.Npt)
 
     self.iFlux = fluxvariable(eqns.nvars,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz,self.Npt)
     self.vFlux = fluxvariable(eqns.nvisc_vars,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz,self.Npt)

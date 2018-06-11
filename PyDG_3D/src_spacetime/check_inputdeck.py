@@ -17,24 +17,6 @@ else:
   if (mpi_rank == 0):
     logger.warning("procz not found, setting procz=1")
 
-if (right_bc_args == []):
-  right_bc_args = [0,0,0,0]
-
-if (left_bc_args == []):
-  left_bc_args = [0,-1,0,0]
-
-if (top_bc_args == []):
-  top_bc_args = [0,0,0,0]
-
-if (bottom_bc_args == []):
-  bottom_bc_args = [0,-1,0,0]
-
-if (front_bc_args == []):
-  front_bc_args = [0,0,0,0]
-
-if (back_bc_args == []):
-  back_bc_args = [0,-1,0,0]
-
 if 'n_blocks' in globals():
   pass
 else:
@@ -52,8 +34,8 @@ else:
   IC_function = [IC_function]
 
 total_procs = 0
-for i in range(np.size(procx)):
-  total_procs += procx[i]*procy[i]*procz[i]
+#for i in range(np.size(procx)):
+total_procs = starting_rank[-1] +  procx[-1]*procy[-1]*procz[-1]
 
 if (total_procs != num_processes):
    if (mpi_rank == 0): 
