@@ -44,7 +44,7 @@ save_freq = 10.                      #|  frequency to save output and print to s
 eqn_str = 'Navier-Stokes'          #|  equation set
 schemes = ('roe','Inviscid')             #|  inviscid and viscous flux schemes
 procx = 2                         #|  processor decomposition in x
-procy = 1                          #|  same in y. Note that procx*procy needs to equal total number of procs
+procy = 2                          #|  same in y. Note that procx*procy needs to equal total number of procs
 procz = 1
 
 right_bc = 'periodic'
@@ -73,9 +73,10 @@ nonlinear_solver_str = 'Newton'
 IC_function = vortexICS                #|
                                    #|
 execfile(PyDG_DIR + '/PyDG.py')      #|  call the solver
-correct = 174.914240014
-if (main.mpi_rank == 0):
-  sol_norm = regionManager.uG_norm
+#correct = 174.914240014
+correct = 43.8721367915
+if (regionManager.mpi_rank == 0):
+  sol_norm = regionManager.a_norm
   if (np.abs(sol_norm - correct) >= 1e-7):
     print('Error in solution, check source code')
   else:

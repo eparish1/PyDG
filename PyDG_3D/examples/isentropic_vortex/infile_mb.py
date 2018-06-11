@@ -18,8 +18,8 @@ def savehook(regionManager):
     tmp[0:5] = main.a.u
     tmp[-1]  = ( ( np.log(p) - 1.4*np.log(main.a.u[0]) )*main.a.u[0]/(1.4 - 1.)*-1.)
     vol_integral =  main.basis.volIntegrate(main.weights0,main.weights1,main.weights2,main.weights3,tmp*main.Jdet[None,:,:,:,None,:,:,:,None])
-    s_int += globalSum(vol_integral[-1] , main)
-    rho_int += globalSum(vol_integral[0] , main)
+    s_int += globalSum(vol_integral[-1] , regionManager)
+    rho_int += globalSum(vol_integral[0] , regionManager)
   if (main.mpi_rank == 0):
       sys.stdout.write('Mass = ' + str(rho_int) +  '  Entropy = ' + str(s_int) +  '\n')
       sys.stdout.flush()
@@ -179,9 +179,10 @@ IC_function = [vortexICS,vortexICS,vortexICS,vortexICS]                #|
 execfile('../../src_spacetime/PyDG.py')      #|  call the solver
 
 
-correct = 174.914240014
-if (main.mpi_rank == 0):
-  sol_norm = np.linalg.norm(regionManager.uG_norm)
+#correct = 174.914240014
+correct = 43.8721367915
+if (regionManager.mpi_rank == 0):
+  sol_norm = regionManager.a_norm
   if (np.abs(sol_norm - correct) >= 1e-7):
     print('Error in solution, check source code')
   else:
