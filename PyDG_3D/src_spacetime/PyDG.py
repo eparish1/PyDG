@@ -16,6 +16,7 @@ from basis_class import *
 from block_classes import *
 comm = MPI.COMM_WORLD
 mpi_rank = comm.Get_rank()
+num_processes = comm.Get_size()
 
 execfile(PyDG_DIR + '/check_inputdeck.py')
 
@@ -134,9 +135,11 @@ iteration = 0
 eqns = equations(eqn_str,schemes,turb_str)
 #main = variables(Nel,order,quadpoints,eqns,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,fsource,source_mag,shock_capturing,mol_str,basis_args)
 
-regionManager = blockClass(n_blocks,starting_rank,procx,procy,procz,et,dt,save_freq,turb_str)
+regionManager = blockClass(n_blocks,starting_rank,procx,procy,procz,et,dt,save_freq,turb_str,Nel_block,order,eqns)
+region_counter = 0
 for i in regionManager.mpi_regions_owned:
-  regionManager.region.append( variables(i,Nel_block[i],order,quadpoints,eqns,mu,x_block[i],y_block[i],z_block[i],turb_str,procx[i],procy[i],procz[i],starting_rank[i],BCs[i],fsource,source_mag,shock_capturing,mol_str,basis_args) )
+  regionManager.region.append( variables(regionManager,region_counter,i,Nel_block[i],order,quadpoints,eqns,mu,x_block[i],y_block[i],z_block[i],turb_str,procx[i],procy[i],procz[i],starting_rank[i],BCs[i],fsource,source_mag,shock_capturing,mol_str,basis_args) )
+  region_counter += 1
 regionConnector(regionManager)
 #print('==============')
 #print('MPI INFO',regionManager.region[0].mpi_rank,regionManager.region[0].rank_connect[3])
@@ -195,40 +198,24 @@ while (regionManager.t <= regionManager.et + regionManager.dt/2):
     #for z in range(0,regionManager.nblocks):
     region_counter = 0
     savehook(regionManager)
-    regionManager.uG_norm = 0.
-    for z in regionManager.mpi_regions_owned:
-      main = regionManager.region[region_counter]
-      region_counter += 1
-      reconstructU(main,main.a)
-      uG = gatherSolSlab(main,eqns,main.a)
-      if (mpi_rank == 0):
-        regionManager.uG_norm += np.sum(uG**2)
-      aG = gatherSolSpectral(main.a.a,main)
-      if (main.mpi_rank - main.starting_rank == 0):
+    regionManager.a_norm = globalNorm(regionManager.a,regionManager)
+    for region in regionManager.region:
+      reconstructU(region,region.a)
+      uG = gatherSolSlab(region,eqns,region.a)
+      aG = gatherSolSpectral(region.a.a,region)
+      if (regionManager.mpi_rank - region.starting_rank == 0):
         UG = getGlobU(uG)
-        np.savez('Solution/npsol_block' + str(z) + '_' + str(regionManager.iteration),U=(UG),a=aG,t=regionManager.t,iteration=regionManager.iteration,order=order)
+        np.savez('Solution/npsol_block' + str(region.region_number) + '_' + str(regionManager.iteration),U=(UG),a=aG,t=regionManager.t,iteration=regionManager.iteration,order=order)
         sys.stdout.flush()
-
-  if (mpi_rank == 0 and regionManager.iteration%save_freq == 0):
-    regionManager.uG_norm = np.sqrt(regionManager.uG_norm)
-    sys.stdout.write('======================================' + '\n')
-    sys.stdout.write('wall time = ' + str(time.time() - t0) + '\n' )
-    sys.stdout.write('t = ' + str(regionManager.t) +  '\n')
-    sys.stdout.flush()
-
+    if (regionManager.mpi_rank == 0):
+      sys.stdout.write('======================================' + '\n')
+      sys.stdout.write('wall time = ' + str(time.time() - t0) + '\n' )
+      sys.stdout.write('t = ' + str(regionManager.t) +  '\n')
+      sys.stdout.flush()
   timescheme.advanceSol(regionManager,eqns,timescheme.args)
-reconstructU(main,main.a)
-uG = gatherSolSlab(main,eqns,main.a)
-if (main.mpi_rank == 0):
-  print('Final Time = ' + str(time.time() - t0),'Sol Norm = ' + str(np.sqrt(np.sum(uG**2))) )
 
-regionManager.uG_norm = 0.
-region_counter = 0
-for z in regionManager.mpi_regions_owned:
-  main = regionManager.region[region_counter]
-  uG = gatherSolSlab(regionManager.region[region_counter],eqns,regionManager.region[region_counter].a)
-  region_counter += 1
-  if (mpi_rank == 0):
-    regionManager.uG_norm += np.sum(uG**2)
-regionManager.uG_norm = np.sqrt(regionManager.uG_norm)
+
+regionManager.a_norm = globalNorm(regionManager.a,regionManager)
+if (regionManager.mpi_rank == 0):
+  print('Final Time = ' + str(time.time() - t0),'Sol Norm = ' + str(regionManager.a_norm))
 

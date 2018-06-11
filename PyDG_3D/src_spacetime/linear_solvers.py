@@ -3,18 +3,18 @@ from MPI_functions import globalNorm,globalSum
 import sys
 from jacobian_schemes import *
 import time
-def globalMax(r,main):
+def globalMax(r,regionManager):
   ## Create Global residual
-  data = main.comm.gather(np.amax(np.abs(r)),root = 0)
-  if (main.mpi_rank == 0):
-    rn_glob = np.zeros(main.num_processes)
-    for j in range(0,main.num_processes):
+  data = regionManager.comm.gather(np.amax(np.abs(r)),root = 0)
+  if (regionManager.mpi_rank == 0):
+    rn_glob = np.zeros(regionManager.num_processes)
+    for j in range(0,regionManager.num_processes):
       rn_glob[j] = data[j]
     rn_glob = np.amax(rn_glob)
-    for j in range(1,main.num_processes):
-      main.comm.send(rn_glob, dest=j)
+    for j in range(1,regionManager.num_processes):
+      regionManager.comm.send(rn_glob, dest=j)
   else:
-    rn_glob = main.comm.recv(source=0)
+    rn_glob = regionManager.comm.recv(source=0)
   return rn_glob
 
 
@@ -382,15 +382,15 @@ def rungeKutta(Af,b,x0,main,args,PC,PCargs,tol=1e-9,maxiter_outer=1,maxiter=20,p
        sys.stdout.write(' ================================== ' +  '\n')
      return x
 
-def GMRes(Af, b, x0,main,args,PC=None,PCargs=None,tol=1e-9,maxiter_outer=1,maxiter=20,printnorm=0):
+def GMRes(Af, b, x0,regionManager,args,PC=None,PCargs=None,tol=1e-9,maxiter_outer=1,maxiter=20,printnorm=0):
     k_outer = 0
-    bnorm = globalNorm(b,main)
+    bnorm = globalNorm(b,regionManager)
     error = 10.
     x = np.zeros(np.shape(x0))
     x[:] = x0[:]
     while (k_outer < maxiter_outer and error >= tol):
-      r = b - Af(x0,args,main)
-      if (main.mpi_rank == 0 and printnorm==1):
+      r = b - Af(x0,args,regionManager)
+      if (regionManager.mpi_rank == 0 and printnorm==1):
         print('Outer true norm = ' + str(np.linalg.norm(r)))
       cs = np.zeros(maxiter) #should be the same on all procs
       sn = np.zeros(maxiter) #same on all procs
@@ -398,7 +398,7 @@ def GMRes(Af, b, x0,main,args,PC=None,PCargs=None,tol=1e-9,maxiter_outer=1,maxit
       e1 = np.zeros(maxiter+1)
       e1[0] = 1
   
-      rnorm = globalNorm(r,main) #same across procs
+      rnorm = globalNorm(r,regionManager) #same across procs
       Q = np.zeros((np.size(b),maxiter)) 
       #v = [0] * (nmax_iter)
       Q[:,0] = r / rnorm ## The first index of Q is across all procs
@@ -408,7 +408,7 @@ def GMRes(Af, b, x0,main,args,PC=None,PCargs=None,tol=1e-9,maxiter_outer=1,maxit
       k = 0
       while (k < maxiter - 1  and error >= tol):
   #    for k in range(0,nmax_iter-1):
-          Arnoldi(Af,H,Q,k,args,main)
+          Arnoldi(Af,H,Q,k,args,regionManager)
           apply_givens_rotation(H,cs,sn,k)
           #update the residual vector
           beta[k+1] = -sn[k]*beta[k]
@@ -419,7 +419,7 @@ def GMRes(Af, b, x0,main,args,PC=None,PCargs=None,tol=1e-9,maxiter_outer=1,maxit
           #x = x0 + np.dot(Q[:,0:k],y)
           #rt = b - Af(x)
           #rtnorm = np.linalg.norm(rt)#globalNorm(rt,main)
-          if (main.mpi_rank == 0 and printnorm == 1):
+          if (regionManager.mpi_rank == 0 and printnorm == 1):
             sys.stdout.write('Outer iteration = ' + str(k_outer) + ' Iteration = ' + str(k) + '  GMRES error = ' + str(error) +  '\n')
             #print('Outer iteration = ' + str(k_outer) + ' Iteration = ' + str(k) + '  GMRES error = ' + str(error), ' Real norm = ' + str(rtnorm))
 
@@ -432,34 +432,34 @@ def GMRes(Af, b, x0,main,args,PC=None,PCargs=None,tol=1e-9,maxiter_outer=1,maxit
 
 
 #routine for GMRES solver where the problem is local to each element
-def elementNorm(f,main):
+def elementNorm(f,regionManager):
   fsum = np.sum(f**2,axis=0)
   return np.sqrt(fsum)
 
-def elementSum(f,main):
+def elementSum(f,regionManager):
   return np.sum(f,axis=0)
 
-def GMRes_element(Af, b, x0,main,args,PC=None,PCargs=None,tol=1e-9,maxiter_outer=1,maxiter=20,printnorm=0):
+def GMRes_element(Af, b, x0,regionManager,args,PC=None,PCargs=None,tol=1e-9,maxiter_outer=1,maxiter=20,printnorm=0):
     k_outer = 0
-    bnorm = elementNorm(b,main)
+    bnorm = elementNorm(b,regionManager)
     error = 10.
     x = np.zeros(np.shape(x0))
     x[:] = x0[:]
-    while (k_outer < maxiter_outer and globalMax(error,main) >= tol):
-      r = b - Af(x0,args,main)
-      if (main.mpi_rank == 0 and printnorm==1):
+    while (k_outer < maxiter_outer and globalMax(error,regionManager) >= tol):
+      r = b - Af(x0,args,regionManager)
+      if (regionManager.mpi_rank == 0 and printnorm==1):
         print('Outer true norm = ' + str(np.linalg.norm(r)))
-      cs = np.zeros((maxiter,main.Npx,main.Npy,main.Npz,main.Npt)) #should be the same on all procs
-      sn = np.zeros((maxiter,main.Npx,main.Npy,main.Npz,main.Npt)) #same on all procs
-      e1 = np.zeros((maxiter+1,main.Npx,main.Npy,main.Npz,main.Npt))
+      cs = np.zeros((maxiter,regionManager.Npx,regionManager.Npy,regionManager.Npz,regionManager.Npt)) #should be the same on all procs
+      sn = np.zeros((maxiter,regionManager.Npx,regionManager.Npy,regionManager.Npz,regionManager.Npt)) #same on all procs
+      e1 = np.zeros((maxiter+1,regionManager.Npx,regionManager.Npy,regionManager.Npz,regionManager.Npt))
       e1[0] = 1
   
-      rnorm = elementNorm(r,main) #same across procs
+      rnorm = elementNorm(r,regionManager) #same across procs
       solve_size = np.shape(b)[0]
-      Q = np.zeros((solve_size,maxiter,main.Npx,main.Npy,main.Npz,main.Npt)) 
+      Q = np.zeros((solve_size,maxiter,regionManager.Npx,regionManager.Npy,regionManager.Npz,regionManager.Npt)) 
       #v = [0] * (nmax_iter)
       Q[:,0] = r / rnorm ## The first index of Q is across all procs
-      H = np.zeros((maxiter + 1, maxiter,main.Npx,main.Npy,main.Npz,main.Npt)) ### this should be the same on all procs
+      H = np.zeros((maxiter + 1, maxiter,regionManager.Npx,regionManager.Npy,regionManager.Npz,regionMangaer.Npt)) ### this should be the same on all procs
       beta = rnorm[None]*e1
 
       k = 0
@@ -489,54 +489,54 @@ def GMRes_element(Af, b, x0,main,args,PC=None,PCargs=None,tol=1e-9,maxiter_outer
 
 
 
-def BICGSTAB(Af, b, x0,main,args,PC=None,PC_args=None,tol=1e-9,maxiter_outer=1,maxiter=50,printnorm=0):
-  r0 = b - Af(x0,args,main)
+def BICGSTAB(Af, b, x0,regionManager,args,PC=None,PC_args=None,tol=1e-9,maxiter_outer=1,maxiter=50,printnorm=0):
+  r0 = b - Af(x0,args,regionManager)
   rhat0 = np.zeros(np.shape(r0))
   rhat0[:] = r0[:]
-  rhat0_norm = globalNorm(rhat0,main)
+  rhat0_norm = globalNorm(rhat0,regionManager)
   r0_norm = rhat0_norm*1.
   rho0,alpha,omega0 = 1.,1.,1.
   v0,p0 = np.zeros(np.shape(r0)),np.zeros(np.shape(r0))
   iterat = 0
   while (r0_norm/rhat0_norm  >= tol and iterat <= maxiter):
-    rhoi = globalSum(rhat0*r0,main)
+    rhoi = globalSum(rhat0*r0,regionManager)
     beta = rhoi/rho0*alpha/omega0
     p0 = r0 + beta*(p0 - omega0*v0)
-    v0 = Af(p0,args,main)
-    alpha = rhoi/globalSum(rhat0*v0,main)
+    v0 = Af(p0,args,regionManager)
+    alpha = rhoi/globalSum(rhat0*v0,regionManager)
     h = x0 + alpha*p0
     s = r0 - alpha*v0
-    t = Af(s,args,main)
-    omega0 = globalSum(t*s,main)/globalSum(t*t,main)
+    t = Af(s,args,regionManager)
+    omega0 = globalSum(t*s,regionManager)/globalSum(t*t,regionManager)
     x0 = h + omega0*s
     r0 = s - omega0*t
     #update old values
     rho0 = rhoi*1.
-    r0_norm = globalNorm(r0,main)
-    if (main.mpi_rank == 0 and printnorm == 1):
+    r0_norm = globalNorm(r0,regionManager)
+    if (regionManager.mpi_rank == 0 and printnorm == 1):
       sys.stdout.write(' Iteration = ' + str(iterat) + '  BICGSTAB residual = ' + str(r0_norm/rhat0_norm) +  '\n')
     iterat += 1
   return x0
 
 
-def fGMRes(Af, b, x0,main,args,PC=None,PC_args=None,tol=1e-9,maxiter_outer=1,maxiter=20,printnorm=1):
+def fGMRes(Af, b, x0,regionManager,args,PC=None,PC_args=None,tol=1e-9,maxiter_outer=1,maxiter=20,printnorm=1):
     #printnorm = 1
     k_outer = 0
-    bnorm = globalNorm(b,main)
+    bnorm = globalNorm(b,regionManager)
     error = 1.
     x = np.zeros(np.shape(x0))
     x[:] = x0[:]
-    coarse_order = np.shape(main.a.a)[1:5]
+    #coarse_order = np.shape(main.a.a)[1:5]
     while (k_outer < maxiter_outer and error >= tol):
-      r = b - Af(x0,args,main)
-      if (main.mpi_rank == 0 and printnorm==1):
+      r = b - Af(x0,args,regionManager)
+      if (regionManager.mpi_rank == 0 and printnorm==1):
         print('Outer true norm = ' + str(np.linalg.norm(r)))
       cs = np.zeros(maxiter) #should be the same on all procs
       sn = np.zeros(maxiter) #same on all procs
       e1 = np.zeros(np.size(b)) #should vary across procs
       e1[0] = 1
   
-      rnorm = globalNorm(r,main) #same across procs
+      rnorm = globalNorm(r,regionManager) #same across procs
       Q = np.zeros((np.size(b),maxiter)) 
       Z = np.zeros((np.size(b),maxiter)) 
       #v = [0] * (nmax_iter)
@@ -545,15 +545,15 @@ def fGMRes(Af, b, x0,main,args,PC=None,PC_args=None,tol=1e-9,maxiter_outer=1,max
       beta = rnorm*e1
       k = 0
       while (k < maxiter - 1  and error >= tol):
-          Z[:,k] = PC(Q[:,k],main,PC_args)
-          Q[:,k+1] = Af(Z[:,k],args,main)
-          Arnoldi_fgmres(Af,H,Q,k,args,main)
+          Z[:,k] = PC(Q[:,k],regionManager,PC_args)
+          Q[:,k+1] = Af(Z[:,k],args,regionManager)
+          Arnoldi_fgmres(Af,H,Q,k,args,regionManager)
           apply_givens_rotation(H,cs,sn,k)
           #update the residual vector
           beta[k+1] = -sn[k]*beta[k]
           beta[k] = cs[k]*beta[k]
           error = abs(beta[k+1])/bnorm
-          if (main.mpi_rank == 0 and printnorm == 1):
+          if (regionManager.mpi_rank == 0 and printnorm == 1):
             sys.stdout.write('Outer iteration = ' + str(k_outer) + \
             ' Iteration = ' + str(k) + '  GMRES error = ' + str(error) +  '\n')
           k += 1
@@ -564,32 +564,32 @@ def fGMRes(Af, b, x0,main,args,PC=None,PC_args=None,tol=1e-9,maxiter_outer=1,max
       k_outer += 1
     return x[:]
 
-def Arnoldi_fgmres(Af,H,Q,k,args,main):
+def Arnoldi_fgmres(Af,H,Q,k,args,regionManager):
     for i in range(0,k+1):
-        H[i, k] = globalSum(Q[:,i]*Q[:,k+1],main)
+        H[i, k] = globalSum(Q[:,i]*Q[:,k+1],regionManager)
         Q[:,k+1] = Q[:,k+1] - H[i, k] * Q[:,i]
-    H[k + 1, k] = globalNorm(Q[:,k+1],main)
+    H[k + 1, k] = globalNorm(Q[:,k+1],regionManager)
 #    if (h[k + 1, k] != 0 and k != nmax_iter - 1):
     Q[:,k + 1] = Q[:,k+1] / H[k + 1, k]
 
-def Arnoldi_element(Af,H,Q,k,args,main):
-    Q[:,k+1] = Af(Q[:,k],args,main)
+def Arnoldi_element(Af,H,Q,k,args,regionManager):
+    Q[:,k+1] = Af(Q[:,k],args,regionManager)
     for i in range(0,k+1):
-        H[i, k] = elementSum(Q[:,i]*Q[:,k+1],main)
+        H[i, k] = elementSum(Q[:,i]*Q[:,k+1],regionManager)
         Q[:,k+1] = Q[:,k+1] - H[i, k] * Q[:,i]
-    H[k + 1, k] = elementNorm(Q[:,k+1],main)
+    H[k + 1, k] = elementNorm(Q[:,k+1],regionManager)
 #    if (h[k + 1, k] != 0 and k != nmax_iter - 1):
     Q[:,k + 1] = Q[:,k+1] / H[k + 1, k]
 #    return h,v 
 
 
 
-def Arnoldi(Af,H,Q,k,args,main):
-    Q[:,k+1] = Af(Q[:,k],args,main)
+def Arnoldi(Af,H,Q,k,args,regionManager):
+    Q[:,k+1] = Af(Q[:,k],args,regionManager)
     for i in range(0,k+1):
-        H[i, k] = globalSum(Q[:,i]*Q[:,k+1],main)
+        H[i, k] = globalSum(Q[:,i]*Q[:,k+1],regionManager)
         Q[:,k+1] = Q[:,k+1] - H[i, k] * Q[:,i]
-    H[k + 1, k] = globalNorm(Q[:,k+1],main)
+    H[k + 1, k] = globalNorm(Q[:,k+1],regionManager)
 #    if (h[k + 1, k] != 0 and k != nmax_iter - 1):
     Q[:,k + 1] = Q[:,k+1] / H[k + 1, k]
 #    return h,v 

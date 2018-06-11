@@ -3,33 +3,33 @@ import mpi4py as MPI
 
 #========================================================================================
 
-def globalNorm(r,main):
+def globalNorm(r,regionManager):
   ## Create Global residual
-  data = main.comm.gather(np.linalg.norm(r)**2,root = 0)
-  if (main.mpi_rank == 0):
+  data = regionManager.comm.gather(np.linalg.norm(r)**2,root = 0)
+  if (regionManager.mpi_rank == 0):
     rn_glob = 0.
-    for j in range(0,main.num_processes):
+    for j in range(0,regionManager.num_processes):
       rn_glob += data[j]
     rn_glob = np.sqrt(rn_glob)
-    for j in range(1,main.num_processes):
-      main.comm.send(rn_glob, dest=j)
+    for j in range(1,regionManager.num_processes):
+      regionManager.comm.send(rn_glob, dest=j)
   else:
-    rn_glob = main.comm.recv(source=0)
+    rn_glob = regionManager.comm.recv(source=0)
   return rn_glob
 
 #========================================================================================
 
-def globalSum(r,main):
+def globalSum(r,regionManager):
   ## Create Global residual
-  data = main.comm.gather(np.sum(r),root = 0)
-  if (main.mpi_rank == 0):
+  data = regionManager.comm.gather(np.sum(r),root = 0)
+  if (regionManager.mpi_rank == 0):
     rn_glob = 0.
-    for j in range(0,main.num_processes_global):
+    for j in range(0,regionManager.num_processes):
       rn_glob += data[j]
-    for j in range(1,main.num_processes_global):
-      main.comm.send(rn_glob, dest=j)
+    for j in range(1,regionManager.num_processes):
+      regionManager.comm.send(rn_glob, dest=j)
   else:
-    rn_glob = main.comm.recv(source=0)
+    rn_glob = regionManager.comm.recv(source=0)
   return rn_glob
 
 
@@ -69,7 +69,6 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main,regionManager):
   if (main.rank_connect[0] == main.mpi_rank and main.rank_connect[1] == main.mpi_rank):
     uR[:] = fL[:,:,:,:, 0,:,:]
     uL[:] = fR[:,:,:,:,-1,:,:]
-    
     if (main.rightBC.BC_type == 'patch'):
         if (main.rightBC.args[1] ==  0):
             uR[:] = regionManager.region[main.rightBC.args[0]].a.uL[:,:,:,:, 0,:,:]
@@ -85,7 +84,7 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main,regionManager):
             uL[:] = regionManager.region[main.leftBC.args[0]].a.uL[:,:,:,:, 0,:,:]
     
     uL[:] = main.leftBC.applyBC(fL[:,:,:,:, 0,:,:],uL,main.leftBC.args,main)
- 
+# 
   #======================================================
   else:
     if (main.rank_connect[0] != main.mpi_rank and ((main.leftBC.args[1] == -1 and (main.leftBC.BC_type == 'periodic' or main.leftBC.BC_type == 'patch') and left_face==True) or left_face==False)):
@@ -155,17 +154,17 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main,regionManager):
     
     if (main.topBC.BC_type == 'patch'):
         if (main.topBC.args[1] ==  0):
-            uU[:] = regionManager.region[main.topBC.args[0]].a.uD[:,:,:,:, 0,:,:]
+            uU[:] = regionManager.region[main.topBC.args[0]].a.uD[:,:,:,:,:, 0]
         if (main.topBC.args[1] == -1):
-            uU[:] = regionManager.region[main.topBC.args[0]].a.uU[:,:,:,:,-1,:,:]
-    
+            uU[:] = regionManager.region[main.topBC.args[0]].a.uU[:,:,:,:,:,-1]
+#    
     uU[:] = main.topBC.applyBC(fU[:,:,:,:,:,-1,:],uU,main.topBC.args,main)
     
     if (main.bottomBC.BC_type == 'patch'):
         if (main.bottomBC.args[1] == -1):
-            uD[:] = regionManager.region[main.bottomBC.args[0]].a.uU[:,:,:,:,-1,:,:]
+            uD[:] = regionManager.region[main.bottomBC.args[0]].a.uU[:,:,:,:,:,-1]
         if (main.bottomBC.args[1] ==  0):
-            uD[:] = regionManager.region[main.bottomBC.args[0]].a.uD[:,:,:,:, 0,:,:]
+            uD[:] = regionManager.region[main.bottomBC.args[0]].a.uD[:,:,:,:,:, 0]
     
     uD[:] = main.bottomBC.applyBC(fD[:,:,:,:,:,0,:],uD,main.bottomBC.args,main)
 
@@ -235,7 +234,6 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main,regionManager):
   if (main.rank_connect[4] == main.mpi_rank and main.rank_connect[5] == main.mpi_rank):
     uF[:] = fB[:,:,:,:,:,:, 0]
     uB[:] = fF[:,:,:,:,:,:,-1]
-    
     if (main.frontBC.BC_type == 'patch'):
         if (main.frontBC.args[1] ==  0):
             uF[:] = regionManager.region[main.frontBC.args[0]].a.uB[:,:,:,:,:,:,0]
@@ -250,8 +248,7 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main,regionManager):
         if (main.backBC.args[1] ==  0):
             uB[:] = regionManager.region[main.backBC.args[0]].a.uB[:,:,:,:,:,:,0]
     
-    uB[:] = main.backBC.applyBC(fB[:,:,:,:,:,0,:],uB,main.backBC.args,main)
-
+    uB[:] = main.backBC.applyBC(fB[:,:,:,:,:,:,0],uB,main.backBC.args,main)
   #======================================================
   else:
     if (main.rank_connect[4] != main.mpi_rank and ((main.backBC.args[1] == -1 and (main.backBC.BC_type == 'periodic' or main.backBC.BC_type == 'patch') and back_face==True) or back_face==False)):
@@ -260,7 +257,7 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main,regionManager):
 
     #============================
 
-    if (main.rank_connect[5] != main.mpi_rank and ((main.frontBC.args[1] == 0 and (main.frontBC.BC_type == 'periodic' or main.frontBC.BC_type == 'patch') and front_Face==True) or front_face==False)):
+    if (main.rank_connect[5] != main.mpi_rank and ((main.frontBC.args[1] == 0 and (main.frontBC.BC_type == 'periodic' or main.frontBC.BC_type == 'patch') and front_face==True) or front_face==False)):
       nFB-=1
       tmp = np.zeros(np.size(fB[:,:,:,:,:,:,0]))
       main.comm.Recv(tmp,source=main.rank_connect[5],tag=main.rank_connect[5]+4*main.num_processes_global)
@@ -625,7 +622,7 @@ def gatherSolScalar(main,u):
   if (main.mpi_rank == main.starting_rank):
     
     uG = np.zeros((main.quadpoints[0],main.quadpoints[1],main.quadpoints[2],main.quadpoints[3],main.Nel[0],main.Nel[1],main.Nel[2],main.Nel[3]))
-    uG[:,:,:,:,0:main.Npx,0:main.Npy,:] = u[:]
+    uG[:,:,:,:,0:main.Npx,0:main.Npy,0:main.Npz] = u[:]
     
     for i in main.all_mpi_ranks[1::]:
       loc_rank = i - main.starting_rank
@@ -655,22 +652,19 @@ def gatherSolSlab(main,eqns,var):
   if (main.mpi_rank == main.starting_rank):
     
     uG = np.zeros((var.nvars,var.quadpoints[0],var.quadpoints[1],var.quadpoints[2],var.quadpoints[3],main.Nel[0],main.Nel[1],main.Nel[2],main.Nel[3]))
-    uG[:,:,:,:,:,0:main.Npx,0:main.Npy,:] = var.u[:]
-    
+    uG[:,:,:,:,:,0:main.Npx,0:main.Npy,0:main.Npz,:] = var.u[:]
+
     for i in main.all_mpi_ranks[1::]:
       loc_rank = i - main.starting_rank
       data = np.zeros(np.shape(var.u)).flatten()
       main.comm.Recv(data,source=loc_rank + main.starting_rank,tag = loc_rank + main.starting_rank)
-      
       xL = (int(loc_rank)%int(main.procx*main.procy))%int(main.procx)*main.Npx
       xR = (int(loc_rank)%int(main.procx*main.procy))%int(main.procx)*main.Npx + main.Npx
       yD = (int(loc_rank)%int(main.procx*main.procy))/int(main.procx)*main.Npy
       yU = (int(loc_rank)%int(main.procx*main.procy))/int(main.procx)*main.Npy + main.Npy
       zB = (int(loc_rank)/int(main.procx*main.procy))*main.Npz
       zF = (int(loc_rank)/int(main.procx*main.procy))*main.Npz + main.Npz
-      
       uG[:,:,:,:,:,xL:xR,yD:yU,zB:zF] = np.reshape(data,np.shape(main.a.u))
-
     return uG
   
   else:

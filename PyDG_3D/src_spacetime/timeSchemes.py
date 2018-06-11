@@ -21,98 +21,19 @@ import time
 from tensor_products import diffCoeffs
 from jacobian_schemes import *
 from navier_stokes_entropy import entropy_to_conservative, getEntropyMassMatrix,getEntropyMassMatrix_noinvert
-def gatherResid(Rstar,main):
+def gatherResid(Rstar,regionManager):
   ## Create Global residual
-  data = main.comm.gather(np.linalg.norm(Rstar)**2,root = 0)
-  if (main.mpi_rank == 0):
+  data = regionManager.comm.gather(np.linalg.norm(Rstar)**2,root = 0)
+  if (regionManager.mpi_rank == 0):
     Rstar_glob = 0.
-    for j in range(0,main.num_processes):
+    for j in range(0,regionManager.num_processes):
       Rstar_glob += data[j]
     Rstar_glob = np.sqrt(Rstar_glob)
-    for j in range(1,main.num_processes):
-      main.comm.send(Rstar_glob, dest=j)
+    for j in range(1,regionManager.num_processes):
+      regionManager.comm.send(Rstar_glob, dest=j)
   else:
-    Rstar_glob = main.comm.recv(source=0)
+    Rstar_glob = regionManager.comm.recv(source=0)
   return Rstar_glob
-
-def spaceTimeIncomp(main,MZ,eqns,args=None):
-  main.a.Upx,main.a.Upy,main.a.Upz = main.basis.diffU(main.a.a,main)
-  div = main.a.Upx[0] + main.a.Upy[1] + main.a.Upz[2]
-  print('Div = ' + str(np.linalg.norm(div)))
-  nonlinear_solver = args[0]
-  linear_solver = args[1]
-  sparse_quadrature = args[2]
-  main.a0[:] = main.a.a[:]
-  ord_arr0= np.linspace(0,main.order[0]-1,main.order[0])
-  ord_arr1= np.linspace(0,main.order[1]-1,main.order[1])
-  ord_arr2= np.linspace(0,main.order[2]-1,main.order[2])
-  ord_arr3= np.linspace(0,main.order[3]-1,main.order[3])
-  scale =  (2.*ord_arr0[:,None,None,None] + 1.)*(2.*ord_arr1[None,:,None,None] + 1.)*(2.*ord_arr2[None,None,:,None]+1.)*(2.*ord_arr3[None,None,None,:] + 1. )/16.
-
-  def unsteadyResidual(v):
-    ord_arr0= np.linspace(0,main.order[0]-1,main.order[0])
-    ord_arr1= np.linspace(0,main.order[1]-1,main.order[1])
-    ord_arr2= np.linspace(0,main.order[2]-1,main.order[2])
-    ord_arr3= np.linspace(0,main.order[3]-1,main.order[3])
-    scale =  (2.*ord_arr0[:,None,None,None] + 1.)*(2.*ord_arr1[None,:,None,None] + 1.)*(2.*ord_arr2[None,None,:,None]+1.)*(2.*ord_arr3[None,None,None,:] + 1. )/16.
-    main.a.a[:] = np.reshape(v,np.shape(main.a.a))
-    eqns.getRHS(main,main,eqns)
-    R1 = np.zeros(np.shape(main.RHS))
-    R1[:] = main.RHS[:]
-    ## now integrate the volume term ( \int ( dw/dt * u) )
-    volint_t = main.basis.volIntegrateGlob(main,main.a.u,main.w0,main.w1,main.w2,main.wp3)*scale[None,:,:,:,:,None,None,None,None]*2./main.dt
-    uFuture,uPast = main.basis.reconstructEdgesGeneralTime(main.a.a,main)
-    futureFlux = main.basis.faceIntegrateGlob(main,uFuture,main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
-    uPast[:,:,:,:,:,:,:,0] = main.a.uFuture[:,:,:,:,:,:,:,-1]
-    if (main.Npt > 1):
-      uPast[:,:,:,:,:,:,:,1::] = uFuture[:,:,:,:,:,:,:,0:-1]
-    pastFlux   = main.basis.faceIntegrateGlob(main,uPast  ,main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
-    volint_t[-1] = 0.
-    futureFlux[-1] = 0.
-    pastFlux[-1] = 0.
-    Rstar = volint_t - (futureFlux[:,:,:,:,None] - pastFlux[:,:,:,:,None]*main.altarray3[None,None,None,None,:,None,None,None,None])*scale[None,:,:,:,:,None,None,None,None]*2./main.dt + main.RHS[:]
-    Rstar[-1] = main.RHS[-1]*1000.
-    Rstar *= main.dt
-    print(np.linalg.norm(Rstar[0]),np.linalg.norm(Rstar[1]),np.linalg.norm(Rstar[2]),np.linalg.norm(Rstar[3]))
-    Rstar_glob = gatherResid(Rstar,main)
-    return Rstar,R1,Rstar_glob
-
-  def create_MF_Jacobian(v,args,main):
-    ord_arr0= np.linspace(0,main.order[0]-1,main.order[0])
-    ord_arr1= np.linspace(0,main.order[1]-1,main.order[1])
-    ord_arr2= np.linspace(0,main.order[2]-1,main.order[2])
-    ord_arr3= np.linspace(0,main.order[3]-1,main.order[3])
-    scale =  (2.*ord_arr0[:,None,None,None] + 1.)*(2.*ord_arr1[None,:,None,None] + 1.)*(2.*ord_arr2[None,None,:,None]+1.)*(2.*ord_arr3[None,None,None,:] + 1. )/16.
-    an = args[0]
-    Rn = args[1]
-    vr = np.reshape(v,np.shape(main.a.a))
-    eps = 5.e-2
-    main.a.a[:] = an + eps*vr
-    eqns.getRHS(main,main,eqns)
-    R1 = np.zeros(np.shape(main.RHS))
-    R1[:] = main.RHS[:]
-    vr_phys = main.basis.reconstructUGeneral(main,vr)
-    volint_t = main.basis.volIntegrateGlob(main,vr_phys,main.w0,main.w1,main.w2,main.wp3)*scale[None,:,:,:,:,None,None,None,None]*2./main.dt
-    uFuture,uPast = main.basis.reconstructEdgesGeneralTime(vr,main)
-    futureFlux = main.basis.faceIntegrateGlob(main,uFuture,main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
-    uPast[:,:,:,:,:,:,:,0] = 0.#main.a.uFuture[:,:,:,:,:,:,:,-1]
-    if (main.Npt > 1):
-      uPast[:,:,:,:,:,:,:,1::] = uFuture[:,:,:,:,:,:,:,0:-1]
-    pastFlux   = main.basis.faceIntegrateGlob(main,uPast  ,main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
-    volint_t[-1] = 0.
-    futureFlux[-1] = 0.
-    pastFlux[-1] = 0.
-    Av = volint_t - (futureFlux[:,:,:,:,None] - pastFlux[:,:,:,:,None]*main.altarray3[None,None,None,None,:,None,None,None,None])*scale[None,:,:,:,:,None,None,None,None]*2./main.dt + \
-         1./eps * (R1 - Rn) 
-    Av[-1] = 1./eps * (R1[-1] - Rn[-1])*1000
-    return Av.flatten()*main.dt
-
-  nonlinear_solver.solve(unsteadyResidual, create_MF_Jacobian,main,linear_solver,sparse_quadrature,eqns)
-  main.t += main.dt*main.Npt
-  main.iteration += 1
-  main.a.uFuture[:],uPast = main.basis.reconstructEdgesGeneralTime(main.a.a,main)
-
-
 
 def spaceTime(main,MZ,eqns,args=None):
   nonlinear_solver = args[0]
@@ -309,721 +230,6 @@ def spaceTime(main,MZ,eqns,args=None):
 
 
 ##########=============================================================
-
-def spaceTimeExperimental(main,MZ,eqns,args=None):
-  nonlinear_solver = args[0]
-  linear_solver = args[1]
-  sparse_quadrature = args[2]
-  main.a0[:] = main.a.a[:]
-  alpha = 0.1
-  def unsteadyResidual_element(main,v):
-    main.a.a[:] = np.reshape(v,np.shape(main.a.a))
-    getRHS_element(main,main,eqns)
-    R1 = np.zeros(np.shape(main.RHS))
-    R1[:] = main.RHS[:]
-    ## now integrate the volume term ( \int ( dw/dt * u) )
-    main.basis.reconstructU(main,main.a)
-    volint_t = main.basis.volIntegrateGlob(main,main.a.u[:]*main.Jdet[None,:,:,:,None,:,:,:,None],main.w0,main.w1,main.w2,main.wp3)*2./main.dt
-    uFuture,uPast = main.basis.reconstructEdgesGeneralTime(main.a.a,main)
-    futureFlux = main.basis.faceIntegrateGlob(main,uFuture*main.Jdet[None,:,:,:,:,:,:,None],main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
-    Rstar = volint_t - (futureFlux[:,:,:,:,None])*2./main.dt + main.RHS[:]
-    Rstar_glob = gatherResid(Rstar,main)
-    return Rstar,R1,Rstar_glob
-
-  def unsteadyResidual_element_zeta(main,v):
-    main.a.a[:] = np.reshape(v,np.shape(main.a.a))
-    getRHS_element_zeta(main,main,eqns)
-    R1 = np.zeros(np.shape(main.RHS))
-    R1[:] = main.RHS[:]
-    ## now integrate the volume term ( \int ( dw/dt * u) )
-    Rstar = main.RHS[:]*1.
-    Rstar_glob = gatherResid(Rstar,main)
-    return Rstar,R1,Rstar_glob
-
-  def unsteadyResidual_element_eta(main,v):
-    main.a.a[:] = np.reshape(v,np.shape(main.a.a))
-    getRHS_element_eta(main,main,eqns)
-    R1 = np.zeros(np.shape(main.RHS))
-    R1[:] = main.RHS[:]
-    ## now integrate the volume term ( \int ( dw/dt * u) )
-    Rstar = main.RHS[:]*1.
-    Rstar_glob = gatherResid(Rstar,main)
-    return Rstar,R1,Rstar_glob
-
-  def unsteadyResidual_element_mu(main,v):
-    main.a.a[:] = np.reshape(v,np.shape(main.a.a))
-    getRHS_element_mu(main,main,eqns)
-    R1 = np.zeros(np.shape(main.RHS))
-    R1[:] = main.RHS[:]
-    ## now integrate the volume term ( \int ( dw/dt * u) )
-    Rstar = main.RHS[:]*1.
-    Rstar_glob = gatherResid(Rstar,main)
-    return Rstar,R1,Rstar_glob
-
-
-
-  def unsteadyResidual_element_time(main,v):
-    main.a.a[:] = np.reshape(v,np.shape(main.a.a))
-    ## now integrate the volume term ( \int ( dw/dt * u) )
-    main.basis.reconstructU(main,main.a)
-    volint_t = main.basis.volIntegrateGlob(main,main.a.u[:]*main.Jdet[None,:,:,:,None,:,:,:,None],main.w0,main.w1,main.w2,main.wp3)*2./main.dt
-    uFuture,uPast = main.basis.reconstructEdgesGeneralTime(main.a.a,main)
-    futureFlux = main.basis.faceIntegrateGlob(main,uFuture*main.Jdet[None,:,:,:,:,:,:,None],main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
-    Rstar = volint_t - (futureFlux[:,:,:,:,None])*2./main.dt 
-    Rstar_glob = gatherResid(Rstar,main)
-    return Rstar,Rstar*1.,Rstar_glob
-
-
-  def create_MF_Jacobian_element_zeta(v,args,main):
-    an = args[0]
-    Rn = args[1]
-    vr = np.reshape(v,np.shape(main.a.a))
-    eps = 5.e-1
-#    main.a.a[:] = an + eps*vr
-#    getRHS_element_zeta(main,main,eqns)
-#    R1 = np.zeros(np.shape(main.RHS))
-#    R1[:] = main.RHS[:]
-#    Av = 1./eps * (R1 - Rn)
-#    main.a.a[:] = an[:]
-    main.a.a[:] = vr[:]
-    getRHS_element_zeta(main,main,eqns)
-    R1 = np.zeros(np.shape(main.RHS))
-    R1[:] = main.RHS[:]
-    Av = R1*1.
-    return Av#.flatten()
-
-  def create_MF_Jacobian_element_eta(v,args,main):
-    an = args[0]
-    Rn = args[1]
-    vr = np.reshape(v,np.shape(main.a.a))
-    eps = 5.e-1
-    main.a.a[:] = vr[:]
-    getRHS_element_eta(main,main,eqns)
-    R1 = np.zeros(np.shape(main.RHS))
-    R1[:] = main.RHS[:]
-    Av = R1*1.
-    return Av#.flatten()
-
-
-  def create_MF_Jacobian_element_time(v,args,main):
-    vr = np.reshape(v,np.shape(main.a.a))
-    vr_phys = main.basis.reconstructUGeneral(main,vr)
-    volint_t = main.basis.volIntegrateGlob(main,vr_phys*main.Jdet[None,:,:,:,None,:,:,:,None],main.w0,main.w1,main.w2,main.wp3)*2./main.dt
-    uFuture,uPast = main.basis.reconstructEdgesGeneralTime(vr,main)
-    futureFlux = main.basis.faceIntegrateGlob(main,uFuture*main.Jdet[None,:,:,:,:,:,:,None],main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
-    Av =  volint_t - (futureFlux[:,:,:,:,None])*2./main.dt 
-    return Av
-
-
-  def create_MF_Jacobian_element(v,args,main):
-    an = args[0]
-    Rn = args[1]
-    vr = np.reshape(v,np.shape(main.a.a))
-    eps = 5.e-3
-#    main.a.a[:] = an[:]
-#    getRHS_element(main,main,eqns)
-#    Rn = np.zeros(np.shape(main.RHS))
-#    Rn[:] = main.RHS[:]
-#    print('MF_resid',np.linalg.norm(Rn),np.linalg.norm(Rn2))
-
-    main.a.a[:] = an + eps*vr
-    getRHS_element(main,main,eqns)
-    R1 = np.zeros(np.shape(main.RHS))
-    R1[:] = main.RHS[:]
-    vr_phys = main.basis.reconstructUGeneral(main,vr)
-    volint_t = main.basis.volIntegrateGlob(main,vr_phys*main.Jdet[None,:,:,:,None,:,:,:,None],main.w0,main.w1,main.w2,main.wp3)*2./main.dt
-    uFuture,uPast = main.basis.reconstructEdgesGeneralTime(vr,main)
-    futureFlux = main.basis.faceIntegrateGlob(main,uFuture*main.Jdet[None,:,:,:,:,:,:,None],main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
-    Av = volint_t - (futureFlux[:,:,:,:,None])*2./main.dt + 1./eps * (R1 - Rn)
-    return Av.flatten()
-
-  def unsteadyResidual_element2(main,v):
-    main.a.a[:] = np.reshape(v,np.shape(main.a.a))
-    getRHS_element(main,main,eqns)
-    R1 = np.zeros(np.shape(main.RHS))
-    R1[:] = main.RHS[:]
-    ## now integrate the volume term ( \int ( dw/dt * u) )
-    main.basis.reconstructU(main,main.a)
-    volint_t = main.basis.volIntegrateGlob(main,main.a.u[:]*main.Jdet[None,:,:,:,None,:,:,:,None],main.w0,main.w1,main.w2,main.wp3)*2./main.dt
-    uFuture,uPast = main.basis.reconstructEdgesGeneralTime(main.a.a,main)
-    futureFlux = main.basis.faceIntegrateGlob(main,uFuture*main.Jdet[None,:,:,:,:,:,:,None],main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
-    Rstar = volint_t - (futureFlux[:,:,:,:,None])*2./main.dt + main.RHS[:]
-    Rstar_glob = gatherResid(Rstar,main)
-    return Rstar,R1,Rstar_glob
-
-
-  def create_MF_Jacobian_element2(v,args,main):
-    an = args[0]
-    Rn = args[1]
-    #print(np.linalg.norm(JinvX))
-    vr = np.reshape(v,np.shape(main.a.a))
-    eps = 1e-7
-
-#    Rstar0,R10,Rstar_glob0 = unsteadyResidual_element(main,main.a.a)
-#    Rstar1,R11,Rstar_glob1 = unsteadyResidual_element(main,main.a.a+eps*vr)
-#    Av= 1./eps*(Rstar1 - Rstar0)
-
-    main.a.a[:] = an + eps*vr
-    getRHS_element(main,main,eqns)
-    R1 = np.zeros(np.shape(main.RHS))
-    R1[:] = main.RHS[:]
-    vr_phys = main.basis.reconstructUGeneral(main,vr)
-    volint_t = main.basis.volIntegrateGlob(main,vr_phys*main.Jdet[None,:,:,:,None,:,:,:,None],main.w0,main.w1,main.w2,main.wp3)*2./main.dt
-    uFuture,uPast = main.basis.reconstructEdgesGeneralTime(vr,main)
-    futureFlux = main.basis.faceIntegrateGlob(main,uFuture*main.Jdet[None,:,:,:,:,:,:,None],main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
-    Av = volint_t - (futureFlux[:,:,:,:,None])*2./main.dt + 1./eps * (R1 - Rn)
-    Av = np.reshape(Av, (main.nvars*main.order[0]*main.order[1]*main.order[2]*main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
-#    main.a.a[:] = an[:]
-
-    return Av
-
-
-
-
-#  JXT02 = computeJacobianXT(main,eqns,unsteadyResidual_element)
-#  JXT02 = np.reshape(JXT02,(main.nvars,main.order[0],main.order[3],main.order[0]*main.order[3],main.order[1],main.order[2],main.Npx,main.Npy,main.Npz,main.Npt))
-#  JXT02 = np.reshape(JXT02,(main.nvars,main.order[0],main.order[3],main.order[0],main.order[3],main.order[1],main.order[2],main.Npx,main.Npy,main.Npz,main.Npt))
-#  t0 = time.time()
-#  J = computeBlockJacobian(main,unsteadyResidual_element) #get the Jacobian
-#  J2 = np.zeros(np.shape(J))
-#  J2[:] = J[:]
-#  print('Jac time = ' , time.time() - t0)
-
-#  JX = computeJacobianX(main,unsteadyResidual_element_zeta) #get the Jacobian
-#  JY = computeJacobianY(main,unsteadyResidual_element_eta) #get the Jacobian
-#  JT = computeJacobianT(main,unsteadyResidual_element_time) #get the Jacobian
-
-
-  def create_Dinv_splitting(f,main,args=None):
-    ImatX = np.eye(main.nvars*main.order[0])
-    ImatY = np.eye(main.nvars*main.order[1])
-    ImatZ = np.eye(main.nvars*main.order[2])
-    ImatT = np.eye(main.nvars*main.order[3])
-    rho = -1000.
-
-    JX = computeJacobianX(main,unsteadyResidual_element_zeta) #get the Jacobian
-    JX = np.reshape(JX, (main.nvars*main.order[0],main.nvars*main.order[0],main.order[1],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
-    JX = np.rollaxis(np.rollaxis(JX ,1,9),0,8)
-
-    JT = computeJacobianT(main,unsteadyResidual_element_time) #get the Jacobian
-    JT = np.reshape(JT, (main.nvars*main.order[3],main.nvars*main.order[3],main.order[0],main.order[1],main.order[2],main.Npx,main.Npy,main.Npz,main.Npt))
-    JT = np.rollaxis(np.rollaxis(JT ,1,9),0,8)
-
-    f = np.reshape(f, (main.nvars*main.order[0],main.order[1],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
-    f = np.rollaxis(f,0,8)
-    f[:] = np.linalg.solve(JX ,f)
-    f = np.rollaxis(f,7,0)
-    f = np.reshape(f, (main.nvars,main.order[1],main.order[0],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
-    f = np.rollaxis(f,1,3)
-
-
-    f = np.rollaxis(f,4,1)
-    f = np.reshape(f, (main.nvars*main.order[3],main.order[0],main.order[1],main.order[2],main.Npx,main.Npy,main.Npz,main.Npt))
-    f = np.rollaxis(f,0,8)
-    f[:] = np.linalg.solve(JT , f)
-    f = np.rollaxis(f,7,0)
-    f = np.reshape(f, (main.nvars,main.order[3],main.order[0],main.order[1],main.order[2],main.Npx,main.Npy,main.Npz,main.Npt))
-    f = np.rollaxis(f,1,5)
-
-
-
-    return f.flatten()
-
-
-
-  def create_Dinv2(f,main,args=None):
-    args[2] += 1
-    if (args[2]%10 == 0):
-      J2[:] = computeBlockJacobian(main,unsteadyResidual_element) #get the Jacobian
-    J = np.reshape(J2[0:main.nvars,0:main.order[0],0:main.order[1],0:main.order[2],0:main.order[3],0:main.nvars,0:main.order[0],0:main.order[1],0:main.order[2],0:main.order[3] ,0:main.Npx,0:main.Npy,0:main.Npz,0:main.Npt], (main.nvars*main.order[0]*main.order[1]*main.order[2]*main.order[3],main.nvars*main.order[0]*main.order[1]*main.order[2]*main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
-    J = np.rollaxis(np.rollaxis(J ,1,6),0,5)
-    f = np.reshape(f,np.shape(main.a.a))
-    f = np.reshape(f, (main.nvars*main.order[0]*main.order[1]*main.order[2]*main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
-    f = np.rollaxis(f,0,5)
-    f = np.linalg.solve(J,f)
-    f = np.rollaxis(f,4,0)
-    f = np.reshape(f,np.shape(main.a.a) )
-    return f.flatten()
-
-
-  def create_Dinv(f,main,args):
-    tol = args[1]
-    a0 = np.zeros(np.shape(main.a.a))
-    a0[:] = main.a.a[:]
-    f0 = np.zeros(np.size(f))
-    f0[:] = f[:]
-    f = np.reshape(f,np.shape(main.a.a))
-    f0r = np.reshape(f0,np.shape(main.a.a))
-    if (tol >= 1e-9):
-      Rstarn_pc,Rn_pc,Rstar_glob_pc = unsteadyResidual_element(main,f)
-      MF_Jacobian_args2 = [f,Rn_pc]
-      f0r2 = np.reshape(f0r, (main.nvars*main.order[0]*main.order[1]*main.order[2]*main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
-      unsteadyResiduals = [unsteadyResidual_element,unsteadyResidual_element_zeta,unsteadyResidual_element_eta,unsteadyResidual_element_mu,unsteadyResidual_element_time]
-      jacobians = None#[JX,JY,JT]
-      #Rstarn_pc = np.reshape(Rstarn_pc,np.shape(f0r2))
-      ferror = GMRes_element(create_MF_Jacobian_element2, f0r2, -np.reshape(a0,np.shape(f0r2))*0.,main,MF_Jacobian_args2,None,None,tol,1,50,False)
-      #ferror = operatorSplitting(create_MF_Jacobian_element,f0r.flatten(),f0.flatten()*0.,main,MF_Jacobian_args2,unsteadyResiduals,jacobians,tol,maxiter_outer=1,maxiter=20,printnorm=0)
-      #ferror = operatorSplitting(create_MF_Jacobian_element,-Rstarn_pc.flatten(),f0.flatten()*0.,main,MF_Jacobian_args2,unsteadyResiduals,jacobians,tol,maxiter_outer=1,maxiter=1,printnorm=0)
-      ff = np.reshape(ferror,np.shape(main.a.a))
-    else:
-      ff = f
-    return ff.flatten()
-
-  def unsteadyResidual(v):
-    main.a.a[:] = np.reshape(v,np.shape(main.a.a))
-    eqns.getRHS(main,main,eqns)
-    R1 = np.zeros(np.shape(main.RHS))
-    R1[:] = main.RHS[:]
-    ## now integrate the volume term ( \int ( dw/dt * u) )
-    volint_t = main.basis.volIntegrateGlob(main,main.a.u*main.Jdet[None,:,:,:,None,:,:,:,None],main.w0,main.w1,main.w2,main.wp3)*2./main.dt
-    uFuture,uPast = main.basis.reconstructEdgesGeneralTime(main.a.a,main)
-    futureFlux = main.basis.faceIntegrateGlob(main,uFuture*main.Jdet[None,:,:,:,:,:,:,None],main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
-    uPast[:,:,:,:,:,:,:,0] = main.a.uFuture[:,:,:,:,:,:,:,-1]
-    if (main.Npt > 1):
-      uPast[:,:,:,:,:,:,:,1::] = uFuture[:,:,:,:,:,:,:,0:-1]
-    pastFlux   = main.basis.faceIntegrateGlob(main,uPast*main.Jdet[None,:,:,:,:,:,:,None] ,main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
-    Rstar = volint_t - (futureFlux[:,:,:,:,None] - pastFlux[:,:,:,:,None]*main.altarray3[None,None,None,None,:,None,None,None,None])*2./main.dt + main.RHS[:]
-#    Rstar = np.einsum('zpqrij...,zpqrj...->zpqri...',JinvT,Rstar)
-#    Rstar = np.einsum('zij...,zj...->zi...',JinvX,Rstar)
-#    Rstar = np.einsum('ziljm...,zjpqm...->zipql...',JinvXT,Rstar)
-    Rstar_glob = gatherResid(Rstar,main)
-    return Rstar,R1,Rstar_glob
-
-  def create_MF_Jacobian(v,args,main):
-    an = args[0]
-    Rn = args[1]
-    #print(np.linalg.norm(JinvX))
-    vr = np.reshape(v,np.shape(main.a.a))
-    eps = 5.e-2
-    main.a.a[:] = an + eps*vr
-    eqns.getRHS(main,main,eqns)
-    R1 = np.zeros(np.shape(main.RHS))
-    R1[:] = main.RHS[:]
-    vr_phys = main.basis.reconstructUGeneral(main,vr)
-    volint_t = main.basis.volIntegrateGlob(main,vr_phys*main.Jdet[None,:,:,:,None,:,:,:,None],main.w0,main.w1,main.w2,main.wp3)*2./main.dt
-    uFuture,uPast = main.basis.reconstructEdgesGeneralTime(vr,main)
-    futureFlux = main.basis.faceIntegrateGlob(main,uFuture*main.Jdet[None,:,:,:,:,:,:,None],main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
-    uPast[:,:,:,:,:,:,:,0] = 0
-    if (main.Npt > 1):
-      uPast[:,:,:,:,:,:,:,1::] = uFuture[:,:,:,:,:,:,:,0:-1]
-    pastFlux   = main.basis.faceIntegrateGlob(main,uPast*main.Jdet[None,:,:,:,:,:,:,None]  ,main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
-    Av = volint_t - (futureFlux[:,:,:,:,None] - pastFlux[:,:,:,:,None]*main.altarray3[None,None,None,None,:,None,None,None,None])*2./main.dt + 1./eps * (R1 - Rn)
-    return Av.flatten()
-
-  unsteadyResiduals = [unsteadyResidual,unsteadyResidual_element_zeta,unsteadyResidual_element_eta,unsteadyResidual_element_mu,unsteadyResidual_element_time]
-  MF_Jacobians = [create_MF_Jacobian,create_MF_Jacobian_element_zeta,create_MF_Jacobian_element_eta,create_MF_Jacobian_element_time]
-  #ADISolver(unsteadyResiduals,MF_Jacobians,main,linear_solver,sparse_quadrature,eqns,PC=None)
-  #nonlinear_solver.solve(unsteadyResidual, create_MF_Jacobian,main,linear_solver,sparse_quadrature,eqns,unsteadyResiduals)
-  nonlinear_solver.solve(unsteadyResidual, create_MF_Jacobian,main,linear_solver,sparse_quadrature,eqns,create_Dinv)
-
-  main.t += main.dt*main.Npt
-  main.iteration += 1
-  main.a.uFuture[:],uPast = main.basis.reconstructEdgesGeneralTime(main.a.a,main)
-
-
-
-
-
-#######################################################
-
-def spaceTimeSplitting(main,MZ,eqns,args=None):
-  nonlinear_solver = args[0]
-  linear_solver = args[1]
-  sparse_quadrature = args[2]
-  main.a0[:] = main.a.a[:]
-
-  def unsteadyResidual_element(v):
-    main.a.a[:] = np.reshape(v,np.shape(main.a.a))
-    getRHS_element(main,main,eqns)
-    R1 = np.zeros(np.shape(main.RHS))
-    R1[:] = main.RHS[:]
-    ## now integrate the volume term ( \int ( dw/dt * u) )
-    volint_t = main.basis.volIntegrateGlob(main,main.a.u*main.Jdet[None,:,:,:,None,:,:,:,None],main.w0,main.w1,main.w2,main.wp3)*2./main.dt
-    uFuture,uPast = main.basis.reconstructEdgesGeneralTime(main.a.a,main)
-    futureFlux = main.basis.faceIntegrateGlob(main,uFuture*main.Jdet[None,:,:,:,:,:,:,None],main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
-    uPast[:,:,:,:,:,:,:,0] = main.a.uFuture[:,:,:,:,:,:,:,-1]
-    if (main.Npt > 1):
-      uPast[:,:,:,:,:,:,:,1::] = uFuture[:,:,:,:,:,:,:,0:-1]
-    pastFlux   = main.basis.faceIntegrateGlob(main,uPast*main.Jdet[None,:,:,:,:,:,:,None] ,main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
-    Rstar = volint_t - (futureFlux[:,:,:,:,None] - pastFlux[:,:,:,:,None]*main.altarray3[None,None,None,None,:,None,None,None,None])*2./main.dt + main.RHS[:]
-#    Rstar = main.a.a[:] + 2.*Rstar
-    Rstar_glob = gatherResid(Rstar,main)
-    return Rstar,R1,Rstar_glob
-
-  def unsteadyResidual_element_X(v):
-    main.a.a[:] = np.reshape(v,np.shape(main.a.a))
-    getRHS_element_zeta(main,main,eqns)
-    R1 = np.zeros(np.shape(main.RHS))
-    R1[:] = main.RHS[:]
-    ## now integrate the volume term ( \int ( dw/dt * u) )
-    volint_t = main.basis.volIntegrateGlob(main,main.a.u*main.Jdet[None,:,:,:,None,:,:,:,None],main.w0,main.w1,main.w2,main.wp3)*2./main.dt
-    uFuture,uPast = main.basis.reconstructEdgesGeneralTime(main.a.a,main)
-    futureFlux = main.basis.faceIntegrateGlob(main,uFuture*main.Jdet[None,:,:,:,:,:,:,None],main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
-    uPast[:,:,:,:,:,:,:,0] = main.a.uFuture[:,:,:,:,:,:,:,-1]
-    if (main.Npt > 1):
-      uPast[:,:,:,:,:,:,:,1::] = uFuture[:,:,:,:,:,:,:,0:-1]
-    pastFlux   = main.basis.faceIntegrateGlob(main,uPast*main.Jdet[None,:,:,:,:,:,:,None] ,main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
-    Rstar = volint_t - (futureFlux[:,:,:,:,None] - pastFlux[:,:,:,:,None]*main.altarray3[None,None,None,None,:,None,None,None,None])*2./main.dt + main.RHS[:]
-#    Rstar = main.a.a[:] + 2.*Rstar
-    Rstar_glob = gatherResid(Rstar,main)
-    return Rstar,R1,Rstar_glob
-
-  def unsteadyResidual_element_Y(v):
-    main.a.a[:] = np.reshape(v,np.shape(main.a.a))
-    getRHS_element_eta(main,main,eqns)
-    R1 = np.zeros(np.shape(main.RHS))
-    R1[:] = main.RHS[:]
-    ## now integrate the volume term ( \int ( dw/dt * u) )
-    volint_t = main.basis.volIntegrateGlob(main,main.a.u*main.Jdet[None,:,:,:,None,:,:,:,None],main.w0,main.w1,main.w2,main.wp3)*2./main.dt
-    uFuture,uPast = main.basis.reconstructEdgesGeneralTime(main.a.a,main)
-    futureFlux = main.basis.faceIntegrateGlob(main,uFuture*main.Jdet[None,:,:,:,:,:,:,None],main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
-    uPast[:,:,:,:,:,:,:,0] = main.a.uFuture[:,:,:,:,:,:,:,-1]
-    if (main.Npt > 1):
-      uPast[:,:,:,:,:,:,:,1::] = uFuture[:,:,:,:,:,:,:,0:-1]
-    pastFlux   = main.basis.faceIntegrateGlob(main,uPast*main.Jdet[None,:,:,:,:,:,:,None] ,main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
-    Rstar = volint_t - (futureFlux[:,:,:,:,None] - pastFlux[:,:,:,:,None]*main.altarray3[None,None,None,None,:,None,None,None,None])*2./main.dt + main.RHS[:]
- #   Rstar = main.a.a[:] + 2.*Rstar
-    Rstar_glob = gatherResid(Rstar,main)
-    return Rstar,R1,Rstar_glob
-
-  
-  JinvX = computeJacobianX(main,eqns,unsteadyResidual_element_X)
-  JinvY = computeJacobianY(main,eqns,unsteadyResidual_element_Y)
-
-  def unsteadyResidualX(v):
-    main.a.a[:] = np.reshape(v,np.shape(main.a.a))
-    #JinvX[:] = computeJacobianX(main,eqns,unsteadyResidual_element_X)
-
-    getRHS_zeta(main,main,eqns)
-    R1 = np.zeros(np.shape(main.RHS))
-    Rstar = np.zeros(np.shape(main.RHS))
-
-    R1[:] = main.RHS[:]
-    ## now integrate the volume term ( \int ( dw/dt * u) )
-    volint_t = main.basis.volIntegrateGlob(main,main.a.u*main.Jdet[None,:,:,:,None,:,:,:,None],main.w0,main.w1,main.w2,main.wp3)*2./main.dt
-    uFuture,uPast = main.basis.reconstructEdgesGeneralTime(main.a.a,main)
-    futureFlux = main.basis.faceIntegrateGlob(main,uFuture*main.Jdet[None,:,:,:,:,:,:,None],main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
-    uPast[:,:,:,:,:,:,:,0] = main.a.uFuture[:,:,:,:,:,:,:,-1]
-    if (main.Npt > 1):
-      uPast[:,:,:,:,:,:,:,1::] = uFuture[:,:,:,:,:,:,:,0:-1]
-    pastFlux   = main.basis.faceIntegrateGlob(main,uPast*main.Jdet[None,:,:,:,:,:,:,None] ,main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
-    Rstar[:] = (volint_t - (futureFlux[:,:,:,:,None] - pastFlux[:,:,:,:,None]*main.altarray3[None,None,None,None,:,None,None,None,None])*2./main.dt) + main.RHS[:]
-    Rstar = np.einsum('zij...,zj...->zi...',JinvX,Rstar)
-    Rstar_glob = gatherResid(Rstar,main)
-    return Rstar,R1,Rstar_glob
-
-  def create_MF_JacobianX(v,args,main):
-    an = args[0]
-    Rn = args[1]
-    #print(np.linalg.norm(JinvX))
-    vr = np.reshape(v,np.shape(main.a.a))
-    eps = 5.e-2
-    main.a.a[:] = an + eps*vr
-    getRHS_zeta(main,main,eqns)
-    R1 = np.zeros(np.shape(main.RHS))
-    R1[:] = main.RHS[:]
-    vr_phys = main.basis.reconstructUGeneral(main,vr)
-    volint_t = main.basis.volIntegrateGlob(main,vr_phys*main.Jdet[None,:,:,:,None,:,:,:,None],main.w0,main.w1,main.w2,main.wp3)*2./main.dt
-    uFuture,uPast = main.basis.reconstructEdgesGeneralTime(vr,main)
-    futureFlux = main.basis.faceIntegrateGlob(main,uFuture*main.Jdet[None,:,:,:,:,:,:,None],main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
-    uPast[:,:,:,:,:,:,:,0] = 0
-    if (main.Npt > 1):
-      uPast[:,:,:,:,:,:,:,1::] = uFuture[:,:,:,:,:,:,:,0:-1]
-    pastFlux   = main.basis.faceIntegrateGlob(main,uPast*main.Jdet[None,:,:,:,:,:,:,None]  ,main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
-    Av = (volint_t - (futureFlux[:,:,:,:,None] - pastFlux[:,:,:,:,None]*main.altarray3[None,None,None,None,:,None,None,None,None])*2./main.dt) + 1./eps * (R1 - Rn)
-    Av = np.einsum('zij...,zj...->zi...',JinvX,Av)
-    return Av.flatten()
-
-  def unsteadyResidualY(v):
-    main.a.a[:] = np.reshape(v,np.shape(main.a.a))
-    JinvY[:] = computeJacobianY(main,eqns,unsteadyResidual_element_Y)
-
-    getRHS_eta(main,main,eqns)
-    R1 = np.zeros(np.shape(main.RHS))
-    Rstar = np.zeros(np.shape(main.RHS))
-    R1[:] = main.RHS[:]
-    ## now integrate the volume term ( \int ( dw/dt * u) )
-    volint_t = main.basis.volIntegrateGlob(main,main.a.u*main.Jdet[None,:,:,:,None,:,:,:,None],main.w0,main.w1,main.w2,main.wp3)*2./main.dt
-    uFuture,uPast = main.basis.reconstructEdgesGeneralTime(main.a.a,main)
-    futureFlux = main.basis.faceIntegrateGlob(main,uFuture*main.Jdet[None,:,:,:,:,:,:,None],main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
-    uPast[:,:,:,:,:,:,:,0] = main.a.uFuture[:,:,:,:,:,:,:,-1]
-    if (main.Npt > 1):
-      uPast[:,:,:,:,:,:,:,1::] = uFuture[:,:,:,:,:,:,:,0:-1]
-    pastFlux   = main.basis.faceIntegrateGlob(main,uPast*main.Jdet[None,:,:,:,:,:,:,None] ,main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
-    Rstar[:] = (volint_t - (futureFlux[:,:,:,:,None] - pastFlux[:,:,:,:,None]*main.altarray3[None,None,None,None,:,None,None,None,None])*2./main.dt) + main.RHS[:]
-    Rstar = np.einsum('zmij...,zmj...->zmi...',JinvY,Rstar)
-    Rstar_glob = gatherResid(Rstar,main)
-    return Rstar,R1,Rstar_glob
-
-  def create_MF_JacobianY(v,args,main):
-    an = args[0]
-    Rn = args[1]
-    vr = np.reshape(v,np.shape(main.a.a))
-    eps = 5.e-2
-    main.a.a[:] = an + eps*vr
-    getRHS_eta(main,main,eqns)
-    R1 = np.zeros(np.shape(main.RHS))
-    R1[:] = main.RHS[:]
-    vr_phys = main.basis.reconstructUGeneral(main,vr)
-    volint_t = main.basis.volIntegrateGlob(main,vr_phys*main.Jdet[None,:,:,:,None,:,:,:,None],main.w0,main.w1,main.w2,main.wp3)*2./main.dt
-    uFuture,uPast = main.basis.reconstructEdgesGeneralTime(vr,main)
-    futureFlux = main.basis.faceIntegrateGlob(main,uFuture*main.Jdet[None,:,:,:,:,:,:,None],main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
-    uPast[:,:,:,:,:,:,:,0] = 0
-    if (main.Npt > 1):
-      uPast[:,:,:,:,:,:,:,1::] = uFuture[:,:,:,:,:,:,:,0:-1]
-    pastFlux   = main.basis.faceIntegrateGlob(main,uPast*main.Jdet[None,:,:,:,:,:,:,None]  ,main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
-    Av = (volint_t - (futureFlux[:,:,:,:,None] - pastFlux[:,:,:,:,None]*main.altarray3[None,None,None,None,:,None,None,None,None])*2./main.dt) + 1./eps * (R1 - Rn)
-    Av = np.einsum('zmij...,zmj...->zmi...',JinvY,Av)
-    return Av.flatten()
-
-
-
-#  unsteadyResidual(main.a.a)
-  nonlinear_solver.solve(unsteadyResidualX, create_MF_JacobianX,main,linear_solver,sparse_quadrature,eqns)
-
-  main.a.uFuture[:],uPast = main.basis.reconstructEdgesGeneralTime(main.a.a,main)
-  nonlinear_solver.solve(unsteadyResidualY, create_MF_JacobianY,main,linear_solver,sparse_quadrature,eqns)
-
-
-  #sol = linear_solver.solve(create_MF_Jacobian,-Rstar_pc.flatten(), np.zeros(np.size(main.a.a)),main,MF_Jacobian_args,1e-8,linear_solver.maxiter_outer,500,True)
-  main.t += main.dt*main.Npt
-  main.iteration += 1
-  main.a.uFuture[:],uPast = main.basis.reconstructEdgesGeneralTime(main.a.a,main)
-
-
-
-
-def spaceTimePC(main,MZ,eqns,args=None):
-  nonlinear_solver = args[0]
-  linear_solver = args[1]
-  sparse_quadrature = args[2]
-  main.a0[:] = main.a.a[:]
-
-  def unsteadyResidual_element(v):
-    main.a.a[:] = np.reshape(v,np.shape(main.a.a))
-    getRHS_element(main,main,eqns)
-    R1 = np.zeros(np.shape(main.RHS))
-    R1[:] = main.RHS[:]
-    ## now integrate the volume term ( \int ( dw/dt * u) )
-    volint_t = main.basis.volIntegrateGlob(main,main.a.u*main.Jdet[None,:,:,:,None,:,:,:,None],main.w0,main.w1,main.w2,main.wp3)*2./main.dt
-    uFuture,uPast = main.basis.reconstructEdgesGeneralTime(main.a.a,main)
-    futureFlux = main.basis.faceIntegrateGlob(main,uFuture*main.Jdet[None,:,:,:,:,:,:,None],main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
-    uPast[:,:,:,:,:,:,:,0] = main.a.uFuture[:,:,:,:,:,:,:,-1]
-    if (main.Npt > 1):
-      uPast[:,:,:,:,:,:,:,1::] = uFuture[:,:,:,:,:,:,:,0:-1]
-    pastFlux   = main.basis.faceIntegrateGlob(main,uPast*main.Jdet[None,:,:,:,:,:,:,None] ,main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
-    Rstar = volint_t - (futureFlux[:,:,:,:,None] - pastFlux[:,:,:,:,None]*main.altarray3[None,None,None,None,:,None,None,None,None])*2./main.dt + main.RHS[:]
-#    Rstar = main.a.a[:] + 2.*Rstar
-    Rstar_glob = gatherResid(Rstar,main)
-    return Rstar,R1,Rstar_glob
-
-  def unsteadyResidual_element_X(v):
-    main.a.a[:] = np.reshape(v,np.shape(main.a.a))
-    getRHS_element_zeta(main,main,eqns)
-    R1 = np.zeros(np.shape(main.RHS))
-    R1[:] = main.RHS[:]
-    ## now integrate the volume term ( \int ( dw/dt * u) )
-    volint_t = main.basis.volIntegrateGlob(main,main.a.u*main.Jdet[None,:,:,:,None,:,:,:,None],main.w0,main.w1,main.w2,main.wp3)*2./main.dt
-    uFuture,uPast = main.basis.reconstructEdgesGeneralTime(main.a.a,main)
-    futureFlux = main.basis.faceIntegrateGlob(main,uFuture*main.Jdet[None,:,:,:,:,:,:,None],main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
-    uPast[:,:,:,:,:,:,:,0] = main.a.uFuture[:,:,:,:,:,:,:,-1]
-    if (main.Npt > 1):
-      uPast[:,:,:,:,:,:,:,1::] = uFuture[:,:,:,:,:,:,:,0:-1]
-    pastFlux   = main.basis.faceIntegrateGlob(main,uPast*main.Jdet[None,:,:,:,:,:,:,None] ,main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
-    Rstar = volint_t - (futureFlux[:,:,:,:,None] - pastFlux[:,:,:,:,None]*main.altarray3[None,None,None,None,:,None,None,None,None])*2./main.dt + main.RHS[:]
-#    Rstar = main.a.a[:] + 2.*Rstar
-    Rstar_glob = gatherResid(Rstar,main)
-    return Rstar,R1,Rstar_glob
-
-  def unsteadyResidual_element_Y(v):
-    main.a.a[:] = np.reshape(v,np.shape(main.a.a))
-    getRHS_element_eta(main,main,eqns)
-    R1 = np.zeros(np.shape(main.RHS))
-    R1[:] = main.RHS[:]
-    ## now integrate the volume term ( \int ( dw/dt * u) )
-    volint_t = main.basis.volIntegrateGlob(main,main.a.u*main.Jdet[None,:,:,:,None,:,:,:,None],main.w0,main.w1,main.w2,main.wp3)*2./main.dt
-    uFuture,uPast = main.basis.reconstructEdgesGeneralTime(main.a.a,main)
-    futureFlux = main.basis.faceIntegrateGlob(main,uFuture*main.Jdet[None,:,:,:,:,:,:,None],main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
-    uPast[:,:,:,:,:,:,:,0] = main.a.uFuture[:,:,:,:,:,:,:,-1]
-    if (main.Npt > 1):
-      uPast[:,:,:,:,:,:,:,1::] = uFuture[:,:,:,:,:,:,:,0:-1]
-    pastFlux   = main.basis.faceIntegrateGlob(main,uPast*main.Jdet[None,:,:,:,:,:,:,None] ,main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
-    Rstar = volint_t - (futureFlux[:,:,:,:,None] - pastFlux[:,:,:,:,None]*main.altarray3[None,None,None,None,:,None,None,None,None])*2./main.dt + main.RHS[:]
- #   Rstar = main.a.a[:] + 2.*Rstar
-    Rstar_glob = gatherResid(Rstar,main)
-    return Rstar,R1,Rstar_glob
-
-  
-  JinvX = computeJacobianX(main,eqns,unsteadyResidual_element_X)
-  JinvY = computeJacobianY(main,eqns,unsteadyResidual_element_Y)
-
-  def unsteadyResidual(v):
-    main.a.a[:] = np.reshape(v,np.shape(main.a.a))
-    eqns.getRHS(main,main,eqns)
-    R1 = np.zeros(np.shape(main.RHS))
-    Rstar = np.zeros(np.shape(main.RHS))
-    R1[:] = main.RHS[:]
-    ## now integrate the volume term ( \int ( dw/dt * u) )
-    volint_t = main.basis.volIntegrateGlob(main,main.a.u*main.Jdet[None,:,:,:,None,:,:,:,None],main.w0,main.w1,main.w2,main.wp3)*2./main.dt
-    uFuture,uPast = main.basis.reconstructEdgesGeneralTime(main.a.a,main)
-    futureFlux = main.basis.faceIntegrateGlob(main,uFuture*main.Jdet[None,:,:,:,:,:,:,None],main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
-    uPast[:,:,:,:,:,:,:,0] = main.a.uFuture[:,:,:,:,:,:,:,-1]
-    if (main.Npt > 1):
-      uPast[:,:,:,:,:,:,:,1::] = uFuture[:,:,:,:,:,:,:,0:-1]
-    pastFlux   = main.basis.faceIntegrateGlob(main,uPast*main.Jdet[None,:,:,:,:,:,:,None] ,main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
-    Rstar[:] = (volint_t - (futureFlux[:,:,:,:,None] - pastFlux[:,:,:,:,None]*main.altarray3[None,None,None,None,:,None,None,None,None])*2./main.dt) + main.RHS[:]
-    Rstar_glob = gatherResid(Rstar,main)
-    return Rstar,R1,Rstar_glob
-
-  def create_MF_Jacobian(v,args,main):
-    an = args[0]
-    Rn = args[1]
-    vr = np.reshape(v,np.shape(main.a.a))
-    eps = 5.e-2
-    main.a.a[:] = an + eps*vr
-    eqns.getRHS(main,main,eqns)
-    R1 = np.zeros(np.shape(main.RHS))
-    R1[:] = main.RHS[:]
-    vr_phys = main.basis.reconstructUGeneral(main,vr)
-    volint_t = main.basis.volIntegrateGlob(main,vr_phys*main.Jdet[None,:,:,:,None,:,:,:,None],main.w0,main.w1,main.w2,main.wp3)*2./main.dt
-    uFuture,uPast = main.basis.reconstructEdgesGeneralTime(vr,main)
-    futureFlux = main.basis.faceIntegrateGlob(main,uFuture*main.Jdet[None,:,:,:,:,:,:,None],main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
-    uPast[:,:,:,:,:,:,:,0] = 0
-    if (main.Npt > 1):
-      uPast[:,:,:,:,:,:,:,1::] = uFuture[:,:,:,:,:,:,:,0:-1]
-    pastFlux   = main.basis.faceIntegrateGlob(main,uPast*main.Jdet[None,:,:,:,:,:,:,None]  ,main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
-    Av = (volint_t - (futureFlux[:,:,:,:,None] - pastFlux[:,:,:,:,None]*main.altarray3[None,None,None,None,:,None,None,None,None])*2./main.dt) + 1./eps * (R1 - Rn)
-    return Av.flatten()
-
-
-
-  def Minv(v,main):
-    ai = np.zeros(np.shape(main.a.a))
-    ai[:] = main.a.a[:]
-    #main.a.a[:] = np.reshape(v,np.shape(main.a.a))
-    vr = np.reshape(v,np.shape(main.a.a))
-
-    def unsteadyResidualX(v):
-      main.a.a[:] = np.reshape(v,np.shape(main.a.a))
-      #JinvX[:] = computeJacobianX(main,eqns,unsteadyResidual_element_X)
-  
-      getRHS_zeta(main,main,eqns)
-      R1 = np.zeros(np.shape(main.RHS))
-      Rstar = np.zeros(np.shape(main.RHS))
-  
-      R1[:] = main.RHS[:]
-      ## now integrate the volume term ( \int ( dw/dt * u) )
-      volint_t = main.basis.volIntegrateGlob(main,main.a.u*main.Jdet[None,:,:,:,None,:,:,:,None],main.w0,main.w1,main.w2,main.wp3)*2./main.dt
-      uFuture,uPast = main.basis.reconstructEdgesGeneralTime(main.a.a,main)
-      futureFlux = main.basis.faceIntegrateGlob(main,uFuture*main.Jdet[None,:,:,:,:,:,:,None],main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
-      uPast[:,:,:,:,:,:,:,0] = main.a.uFuture[:,:,:,:,:,:,:,-1]
-      if (main.Npt > 1):
-        uPast[:,:,:,:,:,:,:,1::] = uFuture[:,:,:,:,:,:,:,0:-1]
-      pastFlux   = main.basis.faceIntegrateGlob(main,uPast*main.Jdet[None,:,:,:,:,:,:,None] ,main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
-      Rstar[:] = (volint_t - (futureFlux[:,:,:,:,None] - pastFlux[:,:,:,:,None]*main.altarray3[None,None,None,None,:,None,None,None,None])*2./main.dt) + main.RHS[:]
-      Rstar = np.einsum('zij...,zj...->zi...',JinvX,Rstar)
-      return Rstar,R1
-  
-    def create_MF_JacobianX(v,args,main):
-      an = args[0]
-      Rn = args[1]
-      #print(np.linalg.norm(JinvX))
-      vr = np.reshape(v,np.shape(main.a.a))
-      eps = 5.e-2
-      main.a.a[:] = an + eps*vr
-      getRHS_zeta(main,main,eqns)
-      R1 = np.zeros(np.shape(main.RHS))
-      R1[:] = main.RHS[:]
-      vr_phys = main.basis.reconstructUGeneral(main,vr)
-      volint_t = main.basis.volIntegrateGlob(main,vr_phys*main.Jdet[None,:,:,:,None,:,:,:,None],main.w0,main.w1,main.w2,main.wp3)*2./main.dt
-      uFuture,uPast = main.basis.reconstructEdgesGeneralTime(vr,main)
-      futureFlux = main.basis.faceIntegrateGlob(main,uFuture*main.Jdet[None,:,:,:,:,:,:,None],main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
-      uPast[:,:,:,:,:,:,:,0] = 0
-      if (main.Npt > 1):
-        uPast[:,:,:,:,:,:,:,1::] = uFuture[:,:,:,:,:,:,:,0:-1]
-      pastFlux   = main.basis.faceIntegrateGlob(main,uPast*main.Jdet[None,:,:,:,:,:,:,None]  ,main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
-      Av = (volint_t - (futureFlux[:,:,:,:,None] - pastFlux[:,:,:,:,None]*main.altarray3[None,None,None,None,:,None,None,None,None])*2./main.dt) + 1./eps * (R1 - Rn)
-      Av = np.einsum('zij...,zj...->zi...',JinvX,Av)
-      return Av.flatten()
-
-    def unsteadyResidualY(v):
-      main.a.a[:] = np.reshape(v,np.shape(main.a.a))
-      JinvY[:] = computeJacobianY(main,eqns,unsteadyResidual_element_Y)
-  
-      getRHS_eta(main,main,eqns)
-      R1 = np.zeros(np.shape(main.RHS))
-      Rstar = np.zeros(np.shape(main.RHS))
-      R1[:] = main.RHS[:]
-      ## now integrate the volume term ( \int ( dw/dt * u) )
-      volint_t = main.basis.volIntegrateGlob(main,main.a.u*main.Jdet[None,:,:,:,None,:,:,:,None],main.w0,main.w1,main.w2,main.wp3)*2./main.dt
-      uFuture,uPast = main.basis.reconstructEdgesGeneralTime(main.a.a,main)
-      futureFlux = main.basis.faceIntegrateGlob(main,uFuture*main.Jdet[None,:,:,:,:,:,:,None],main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
-      uPast[:,:,:,:,:,:,:,0] = main.a.uFuture[:,:,:,:,:,:,:,-1]
-      if (main.Npt > 1):
-        uPast[:,:,:,:,:,:,:,1::] = uFuture[:,:,:,:,:,:,:,0:-1]
-      pastFlux   = main.basis.faceIntegrateGlob(main,uPast*main.Jdet[None,:,:,:,:,:,:,None] ,main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
-      Rstar[:] = (volint_t - (futureFlux[:,:,:,:,None] - pastFlux[:,:,:,:,None]*main.altarray3[None,None,None,None,:,None,None,None,None])*2./main.dt) + main.RHS[:]
-      Rstar = np.einsum('zmij...,zmj...->zmi...',JinvY,Rstar)
-      return Rstar,R1
-  
-    def create_MF_JacobianY(v,args,main):
-      an = args[0]
-      Rn = args[1]
-      vr = np.reshape(v,np.shape(main.a.a))
-      eps = 5.e-2
-      main.a.a[:] = an + eps*vr
-      getRHS_eta(main,main,eqns)
-      R1 = np.zeros(np.shape(main.RHS))
-      R1[:] = main.RHS[:]
-      vr_phys = main.basis.reconstructUGeneral(main,vr)
-      volint_t = main.basis.volIntegrateGlob(main,vr_phys*main.Jdet[None,:,:,:,None,:,:,:,None],main.w0,main.w1,main.w2,main.wp3)*2./main.dt
-      uFuture,uPast = main.basis.reconstructEdgesGeneralTime(vr,main)
-      futureFlux = main.basis.faceIntegrateGlob(main,uFuture*main.Jdet[None,:,:,:,:,:,:,None],main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
-      uPast[:,:,:,:,:,:,:,0] = 0
-      if (main.Npt > 1):
-        uPast[:,:,:,:,:,:,:,1::] = uFuture[:,:,:,:,:,:,:,0:-1]
-      pastFlux   = main.basis.faceIntegrateGlob(main,uPast*main.Jdet[None,:,:,:,:,:,:,None]  ,main.w0,main.w1,main.w2,main.weights0,main.weights1,main.weights2)
-      Av = (volint_t - (futureFlux[:,:,:,:,None] - pastFlux[:,:,:,:,None]*main.altarray3[None,None,None,None,:,None,None,None,None])*2./main.dt) + 1./eps * (R1 - Rn)
-      Av = np.einsum('zmij...,zmj...->zmi...',JinvY,Av)
-      return Av.flatten()
-
-
-
-
-    Rstarn_l,Rn_l = unsteadyResidualX(main.a.a)
-    MF_Jacobian_args = [ai,Rn_l]
-    sol = GMRes(create_MF_JacobianX,-Rstarn_l.flatten(), np.zeros(np.size(main.a.a)),main,MF_Jacobian_args,1e-6,linear_solver.maxiter_outer,10,False)
-    vr = np.reshape(sol,np.shape(main.a.a))
-    main.a.a[:] = ai[:] + vr[:]
-#    Rstarn_l,Rn_l = unsteadyResidualY(main.a.a + vr)
-#main.a.uFuture[:],uPast = main.basis.reconstructEdgesGeneralTime(main.a.a,main)
-#    MF_Jacobian_args = [ai,Rn_l]
-#    sol = GMRes(create_MF_JacobianY,-Rstarn_l.flatten(), np.zeros(np.size(main.a.a)),main,MF_Jacobian_args,1e-6,linear_solver.maxiter_outer,10,False)
-#    vr = vr + np.reshape(sol,np.shape(main.a.a))
- #   main.a.uFuture[:],uPast = main.basis.reconstructEdgesGeneralTime(main.a.a,main)
-#$    nonlinear_solver.solve(unsteadyResidualY, create_MF_JacobianY,main,linear_solver,sparse_quadrature,eqns)
-#    vr = main.a.a[:] - ai[:]
-#    main.a.a[:] = ai[:]
-#    vr = np.einsum('zij...,zj...->zi...',JinvX,vr)
-#    main.a.a[:] = a0[:]
-    return vr.flatten()
-
-  newtonSolver_PC2(unsteadyResidual, create_MF_Jacobian,Minv,main,linear_solver,sparse_quadrature,eqns)
-  main.a.uFuture[:],uPast = main.basis.reconstructEdgesGeneralTime(main.a.a,main)
-  main.t += main.dt*main.Npt
-  main.iteration += 1
-  main.a.uFuture[:],uPast = main.basis.reconstructEdgesGeneralTime(main.a.a,main)
-
-
-
-
-
-
-
-
-
-
-
 
 def limiter_MF(main):
    main.basis.reconstructU(main,main.a)
@@ -1326,57 +532,38 @@ def ExplicitRK2(main,MZ,eqns,args=None):
   main.t += main.dt
   main.iteration += 1
 
-
- 
 def ExplicitRK4(regionManager,eqns,args=None):
   region_counter = 0
-  for j in regionManager.mpi_regions_owned:
-    regionManager.region[region_counter].a0[:] = regionManager.region[region_counter].a.a[:]
-    region_counter += 1
+  regionManager.a0[:] = regionManager.a
   rk4const = np.array([1./4,1./3,1./2,1.])
   for i in range(0,4):
     region_counter = 0
     regionManager.getRHS_REGION_OUTER(regionManager,eqns)
-
-    for region in regionManager.region:
-      region.rkstage = i
-      region.basis.applyMassMatrix(region,region.RHS) 
-      region.a.a[:] = region.a0 + regionManager.dt*rk4const[i]*region.RHS
-    #limiter_MF(main)
+    regionManager.a[:] = regionManager.a0[:] + regionManager.dt*rk4const[i]*regionManager.RHS
   regionManager.t += regionManager.dt
   regionManager.iteration += 1
-
 
 def SSP_RK3(regionManager,eqns,args=None):
   ### get a0
   region_counter = 0
-  for j in regionManager.mpi_regions_owned:
-    regionManager.region[region_counter].a0[:] = regionManager.region[region_counter].a.a[:]
-    region_counter += 1
+  regionManager.a0[:] = regionManager.a[:]
+  regionManager.getRHS_REGION_OUTER(regionManager,eqns) #includes loop over all regions
 
+  regionManager.a1 = regionManager.a[:]  + regionManager.dt*regionManager.RHS[:]
+  regionManager.a[:] = regionManager.a1[:]
 
   regionManager.getRHS_REGION_OUTER(regionManager,eqns) #includes loop over all regions
 
-  for region in regionManager.region:
-    region.basis.applyMassMatrix(region,region.RHS)
-    region.a.a1 = region.a.a[:]  + regionManager.dt*(region.RHS[:])
-    region.a.a[:] = region.a.a1[:]
+  regionManager.a1 = 3./4.*regionManager.a0[:]  + 1./4.*(regionManager.a1 + regionManager.dt*regionManager.RHS[:])
+  regionManager.a[:] = regionManager.a1[:]
 
   regionManager.getRHS_REGION_OUTER(regionManager,eqns) #includes loop over all regions
 
-  for region in regionManager.region:
-    region.basis.applyMassMatrix(region,region.RHS)
-    region.a.a1 = 3./4.*region.a0[:]  + 1./4.*(region.a.a1 + regionManager.dt*(region.RHS[:]))
-    region.a.a[:] = region.a.a1[:]
-
-  regionManager.getRHS_REGION_OUTER(regionManager,eqns) #includes loop over all regions
-
-  for region in regionManager.region:
-    region.basis.applyMassMatrix(region,region.RHS)
-    region.a.a[:] = 1./3.*region.a0[:]  + 2./3.*(region.a.a1 + regionManager.dt*(region.RHS[:]))
+  regionManager.a[:] = 1./3.*regionManager.a0[:]  + 2./3.*(regionManager.a1 + regionManager.dt*regionManager.RHS[:])
 
   regionManager.t += regionManager.dt
   regionManager.iteration += 1
+
 
 
 def SteadyState(main,MZ,eqns,args):
@@ -1461,183 +648,7 @@ def SteadyStateExperimental(main,MZ,eqns,args):
 
 
 
-
-def CrankNicolsonIncomp(main,MZ,eqns,args):
-  nonlinear_solver = args[0]
-  linear_solver = args[1]
-  sparse_quadrature = args[2]
-  eqns.getRHS(main,main,eqns)
-  a0 = np.zeros(0)
-  R0 = np.zeros(0)
-  for region in regionManager.region:
-    a0[:] = np.append(a0,region.a.a[:].flatten())
-    R0 = np.append(R0,region.RHS.flatten())
-  def unsteadyResidual(regionManager,v):
-    ind1 = 0
-    for region in regionManager.region:
-      ind2 = ind1 + np.size(region.a.a)
-      region.a.a[:] = np.reshape(v[ind1:ind2],np.shape(region.a.a))
-      ind1 += np.size(region.a.a)
-
-    eqns.getRHS(regionManager,eqns)
-    R1 = np.zeros(0)
-    for region in regionManager.region:
-      R1 = np.append(R1,region.RHS.flatten()) 
-
-
-    Rstar_time = np.zeros(0)
-    for region in regionManager.region:
-      Rstar_time = np.append(Rstar_time,region.a.a.flatten())
-
-    Rstar_time -= a0 
-    Rstar = Rstar_time - 0.5*main.dt*(R0 + R1)
-
-    Rstar_glob = gatherResid(Rstar,main)
-    return Rstar,R1,Rstar_glob
-
-  def create_MF_Jacobian(v,args,main):
-    an = args[0]
-    Rn = args[1]
-
-    ind1 = 0
-    eps = 5.e-3
-    for region in regionManager.region:
-      ind2 = ind1 + np.size(region.a.a)
-      region.a.a[:] = np.reshape( an[ind1:ind2] + eps*vr[ind1:ind2] , np.shape(region.a.a))
-      ind1 += np.size(region.a.a) 
-
-    eqns.getRHS(main,main,eqns)
-
-    R1 = np.zeros(0)
-    for region in regionManager.region:
-      R1 = np.append(R1,region.RHS.flatten()) 
-
-    Av = vr - main.dt/2.*(R1 - Rn)/eps
-    return Av
-
-  nonlinear_solver.solve(unsteadyResidual, create_MF_Jacobian,main,linear_solver,sparse_quadrature,eqns)
-  main.t += main.dt
-  main.iteration += 1
-
-def fractionalStep(main,MZ,eqns,args):
-  ord_arr0= np.linspace(0,main.order[0]-1,main.order[0])
-  ord_arr1= np.linspace(0,main.order[1]-1,main.order[1])
-  ord_arr2= np.linspace(0,main.order[2]-1,main.order[2])
-  ord_arr3= np.linspace(0,main.order[3]-1,main.order[3])
-  scale =  (2.*ord_arr0[:,None,None,None] + 1.)*(2.*ord_arr1[None,:,None,None] + 1.)*(2.*ord_arr2[None,None,:,None]+1.)*(2.*ord_arr3[None,None,None,:] + 1. )/16.
-
-
-  nonlinear_solver = args[0]
-  linear_solver = args[1]
-  sparse_quadrature = args[2]
-  pressure_linear_solver = args[3]
-  main.a0[:] = main.a.a[:]
-  eqns.getRHS(main,main,eqns)
-  R0 = np.zeros(np.shape(main.RHS))
-  R0[:] = main.RHS[:]
-
-  def unsteadyResidual(v):
-    main.a.a[:] = np.reshape(v,np.shape(main.a.a))
-    eqns.getRHS(main,main,eqns)
-    R1 = np.zeros(np.shape(main.RHS))
-    R1[:] = main.RHS[:]
-    Rstar = ( main.a.a[:] - main.a0 ) - 0.5*main.dt*(R0 + R1)
-    Rstar_glob = gatherResid(Rstar,main)
-    return Rstar,R1,Rstar_glob
-
-  def create_MF_Jacobian(v,args,main):
-    an = args[0]
-    Rn = args[1]
-    vr = np.reshape(v,np.shape(main.a.a))
-    eps = 5.e-2
-    main.a.a[:] = an + eps*vr
-    eqns.getRHS(main,main,eqns)
-    R1 = np.zeros(np.shape(main.RHS))
-    R1[:] = main.RHS[:]
-    Av = vr - main.dt/2.*(R1 - Rn)/eps
-    return Av.flatten()
-
-  # solve for velocity
-  nonlinear_solver.solve(unsteadyResidual, create_MF_Jacobian,main,linear_solver,sparse_quadrature,eqns)
-
-  # now we need to solve for the pressure correction
-
-  right_bc = 'neumann'
-  left_bc = 'neumann'
-  top_bc = 'neumann'
-  bottom_bc = 'neumann'
-  #right_bc = 'dirichlet'
-  #left_bc = 'dirichlet'
-  #top_bc = 'dirichlet'
-  #bottom_bc = 'dirichlet'
-
-  right_bc_args = [0]
-  left_bc_args = [0]
-  top_bc_args = [0]
-  bottom_bc_args = [0]
-  BCs = [right_bc,right_bc_args,top_bc,top_bc_args,left_bc,left_bc_args,bottom_bc,bottom_bc_args]
-
-
-  eqnsPoisson = equations('Diffusion',('central','BR1'),'none' )
-  poisson_main = variables(main.Nel,main.order,main.quadpoints,eqnsPoisson,1,main.xG,main.yG,main.zG,main.t,main.et,main.dt,main.iteration,main.save_freq,main.turb_str,main.procx,main.procy,\
-                           main.procz,main.BCs,None,0,False,False)
-  main.a.Upx,main.a.Upy,main.a.Upz = main.basis.diffU(main.a.a,main)
-  div = main.a.Upx[0] + main.a.Upy[1] + main.a.Upz[2]
-  #div = div - np.mean(div)
-  print('Start div = ' ,np.linalg.norm(div),np.sum(div))
-  force =(div)/main.dt
-  source = main.basis.volIntegrateGlob(poisson_main, force ,poisson_main.w0,poisson_main.w1,poisson_main.w2,poisson_main.w3)*scale[None,:,:,:,:,None,None,None,None]
-  print(np.shape(force))
-  div_int = np.sum(source) 
-  vol_int = main.basis.volIntegrateGlob(poisson_main, np.ones(np.shape(force) ) ,poisson_main.w0,poisson_main.w1,poisson_main.w2,poisson_main.w3)*scale[None,:,:,:,:,None,None,None,None]
-  vol_int = np.sum(vol_int)
-#  print(np.sum(source2))
-#  difference = (np.sum(source) )/(2.*np.pi)**3
-  source = main.basis.volIntegrateGlob(poisson_main, force - div_int/vol_int ,poisson_main.w0,poisson_main.w1,poisson_main.w2,poisson_main.w3)*scale[None,:,:,:,:,None,None,None,None]
-  print(np.sum(source))
-  def unsteadyResidual_poisson(v):
-    poisson_main.a.a[:] = np.reshape(v[:],np.shape(poisson_main.a.a))
-    eqnsPoisson.getRHS(poisson_main,poisson_main,eqnsPoisson)
-    R1 = np.zeros(np.shape(poisson_main.RHS))
-    R1[:] = poisson_main.RHS[:]
-    Rstar = R1 - source 
-    Rstar_glob = gatherResid(Rstar,poisson_main)
-    Rstar = Rstar.flatten()
-    return Rstar,R1,Rstar_glob
-
-  def create_MF_Jacobian_poisson(v,args,poisson_main):
-    vr = np.reshape(v[:],np.shape(poisson_main.a.a))
-    poisson_main.a.a[:] = vr
-    eqnsPoisson.getRHS(poisson_main,poisson_main,eqnsPoisson)
-    R1 = np.zeros(np.shape(poisson_main.RHS))
-    R1[:] = poisson_main.RHS[:]
-    Av = ( R1 ).flatten()
-    return Av.flatten()
-
-  nonlinear_solver.solve(unsteadyResidual_poisson, create_MF_Jacobian_poisson,poisson_main,linear_solver,False,eqnsPoisson)
-#  v = np.zeros(np.size(poisson_main.a.a))
-#  v[:] = poisson_main.a.a.flatten()
-#  Rstarn,Rn,Rstar_glob = unsteadyResidual_poisson(v)
-#  old = np.zeros(np.size(poisson_main.a.a))
-#  sol = pressure_linear_solver.solve(create_MF_Jacobian_poisson, -Rstarn.flatten(), old.flatten(),poisson_main,[],1e-7,linear_solver.maxiter_outer,500,True)
-#  poisson_main.a.a[:] = np.reshape(sol[:],np.shape(poisson_main.a.a))
-  ## Now fix velocity
-  px,py,pz = poisson_main.basis.diffU(poisson_main.a.a,poisson_main)
-  main.a.u[0] = main.a.u[0] - main.dt*px
-  main.a.u[1] = main.a.u[1] - main.dt*py
-  main.a.u[2] = main.a.u[2] - main.dt*pz
-  main.a.a[:] = main.basis.volIntegrateGlob(main,main.a.u ,main.w0,main.w1,main.w2,main.w3)*scale[None,:,:,:,:,None,None,None,None]
-  main.a.Upx,main.a.Upy,main.a.Upz = main.basis.diffU(main.a.a,main)
-  div = main.a.Upx[0] + main.a.Upy[1] + main.a.Upz[2]
-  print('End div = ' ,np.linalg.norm(div))
-  main.t += main.dt
-  main.iteration += 1
-  main.a.p[:] = poisson_main.a.u[0]
-#  contourf(poisson_main.a.a[0,0,0,0,0,:,:,0,0],100)
-#  colorbar()
-#  pause(.2)
-#  clf() 
-
+## NOT UPDATED FOR MULTIBLOCK YET
 def CrankNicolsonEntropy(main,MZ,eqns,args):
   nonlinear_solver = args[0]
   linear_solver = args[1]
@@ -1834,47 +845,88 @@ def CrankNicolsonEntropyMZ(main,MZ,eqns,args):
   main.iteration += 1
 
 
-
-def CrankNicolson(main,MZ,eqns,args):
+### FUNCTION THAT ADVANCES THE SOLUTION VIA BACKWARD EULER IMPLICIT TIMESCHEME
+## a^{n+1} - a^{n} =  dt*R(a^n)
+def backwardEuler(regionManager,eqns,args=None):
   nonlinear_solver = args[0]
   linear_solver = args[1]
   sparse_quadrature = args[2]
-  main.a0[:] = main.a.a[:]
-  main.getRHS(main,MZ,eqns)
-  R0 = np.zeros(np.shape(main.RHS))
-  R0[:] = main.RHS[:]
-  def unsteadyResidual(main,v):
-    main.a.a[:] = np.reshape(v,np.shape(main.a.a))
-    main.getRHS(main,MZ,eqns)
-    R1 = np.zeros(np.shape(main.RHS))
-    RHS_CN = np.zeros(np.shape(main.RHS))
-    R1[:] = main.RHS[:]
-    RHS_CN[:] = 0.5*main.dt*(R0 + R1)
-    main.basis.applyMassMatrix(main,RHS_CN)
-    Rstar = ( main.a.a[:] - main.a0 ) - RHS_CN 
-    Rstar_glob = gatherResid(Rstar,main)
+  regionManager.a0[:] = regionManager.a[:] 
+  regionManager.getRHS_REGION_OUTER(regionManager,eqns) #includes loop over all regions
+  R0 = np.zeros(np.shape(regionManager.RHS))
+  R0[:] = regionManager.RHS[:]
+
+  ## Function to evaluate the unsteady residual
+  def unsteadyResidual(regionManager,v):
+    regionManager.a[:] = v[:] #set current state to be the solution iterate of the Newton Krylov solver
+    regionManager.getRHS_REGION_OUTER(regionManager,eqns) # evaluate the RHS includes loop over all regions
+    ## Construct the unsteady residual for Backward Euler in a few steps
+    RHS_BE = np.zeros(np.size(regionManager.RHS))
+    R1 = np.zeros(np.size(regionManager.RHS))
+    R1[:] = regionManager.RHS[:]
+    RHS_BE[:] = regionManager.dt*R1
+    Rstar = ( regionManager.a[:] - regionManager.a0 ) - RHS_BE
+    Rstar_glob = gatherResid(Rstar,regionManager) #gather the residual from all the different mpi_ranks
     return Rstar,R1,Rstar_glob
 
-  def create_MF_Jacobian(v,args,main):
+  ## Function to to a Matrix free approximation to the mat-vec product [dR/du][v] 
+  def create_MF_Jacobian(v,args,regionManager):
     an = args[0]
     Rn = args[1]
-    vr = np.reshape(v,np.shape(main.a.a))
+    vr = np.reshape(v,np.shape(regionManager.a))
     eps = 5.e-7
-    main.a.a[:] = an + eps*vr
-    main.getRHS(main,MZ,eqns)
-    RHS_CN = np.zeros(np.shape(main.RHS))
-    R1 = np.zeros(np.shape(main.RHS))
-    R1[:] = main.RHS[:]
-    RHS_CN[:] = 0.5*main.dt*(R1 - Rn)/eps
-    main.basis.applyMassMatrix(main,RHS_CN)
+    regionManager.a[:] = an + eps*vr
+    regionManager.getRHS_REGION_OUTER(regionManager,eqns) #includes loop over all regions
+    RHS_BE = np.zeros(np.shape(regionManager.RHS))
+    RHS_BE[:] = regionManager.dt*(regionManager.RHS - Rn)/eps
+    Av = vr - RHS_BE
+    return Av
+
+  nonlinear_solver.solve(unsteadyResidual, create_MF_Jacobian,regionManager,linear_solver,sparse_quadrature,eqns,None)
+
+  regionManager.t += regionManager.dt
+  regionManager.iteration += 1
+
+
+def CrankNicolson(regionManager,eqns,args=None):
+  nonlinear_solver = args[0]
+  linear_solver = args[1]
+  sparse_quadrature = args[2]
+  regionManager.a0[:] = regionManager.a[:] 
+  regionManager.getRHS_REGION_OUTER(regionManager,eqns) #includes loop over all regions
+  R0 = np.zeros(np.shape(regionManager.RHS))
+  R0[:] = regionManager.RHS[:]
+
+  ## Function to evaluate the unsteady residual
+  def unsteadyResidual(regionManager,v):
+    regionManager.a[:] = v[:] #set current state to be the solution iterate of the Newton Krylov solver
+    regionManager.getRHS_REGION_OUTER(regionManager,eqns) # evaluate the RHS includes loop over all regions
+    ## Construct the unsteady residual for Crank Nicolson in a few steps
+    RHS_CN = np.zeros(np.size(regionManager.RHS))
+    R1 = np.zeros(np.size(regionManager.RHS))
+    R1[:] = regionManager.RHS[:]
+    RHS_CN[:] = 0.5*regionManager.dt*(R0 + R1)
+    Rstar = ( regionManager.a[:] - regionManager.a0 ) - RHS_CN 
+    Rstar_glob = gatherResid(Rstar,regionManager) #gather the residual from all the different mpi_ranks
+    return Rstar,R1,Rstar_glob
+
+  ## Function to to a Matrix free approximation to the mat-vec product [dR/du][v] 
+  def create_MF_Jacobian(v,args,regionManager):
+    an = args[0]
+    Rn = args[1]
+    vr = np.reshape(v,np.shape(regionManager.a))
+    eps = 5.e-7
+    regionManager.a[:] = an + eps*vr
+    regionManager.getRHS_REGION_OUTER(regionManager,eqns) #includes loop over all regions
+    RHS_CN = np.zeros(np.shape(regionManager.RHS))
+    RHS_CN[:] = 0.5*regionManager.dt*(regionManager.RHS - Rn)/eps
     Av = vr - RHS_CN
+    return Av
 
-    return Av.flatten()
+  nonlinear_solver.solve(unsteadyResidual, create_MF_Jacobian,regionManager,linear_solver,sparse_quadrature,eqns,None)
 
-  nonlinear_solver.solve(unsteadyResidual, create_MF_Jacobian,main,linear_solver,sparse_quadrature,eqns,None)
-
-  main.t += main.dt
-  main.iteration += 1
+  regionManager.t += regionManager.dt
+  regionManager.iteration += 1
 
 def StrangSplitting(main,MZ,eqns,args):
   ## First run SSP_RK4 for half a time step with no source

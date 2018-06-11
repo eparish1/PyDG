@@ -4,7 +4,7 @@ from turb_models import *
 from MPI_functions import sendEdgesGeneralSlab,sendEdgesGeneralSlab_Derivs
 
 class blockClass:
-  def __init__(self,nblocks,starting_rank,procx,procy,procz,et,dt,save_freq,turb_str):
+  def __init__(self,nblocks,starting_rank,procx,procy,procz,et,dt,save_freq,turb_str,Nel_block,order,eqns):
     self.comm = MPI.COMM_WORLD
     self.num_processes = self.comm.Get_size()
     self.mpi_rank = self.comm.Get_rank()
@@ -33,6 +33,23 @@ class blockClass:
     self.et = et
     self.save_freq = save_freq
 
+
+    ### Create global arrays across the entire region for the state vector and the RHS.
+    solution_size = 0
+    self.solution_end_indx = np.zeros(0,dtype='int')
+    self.solution_start_indx = np.zeros(0,dtype='int')
+    for i in self.mpi_regions_owned:
+      self.solution_start_indx = np.append(self.solution_start_indx,solution_size)
+      Npx = int(float(Nel_block[i][0] / procx[i]))
+      Npy = int(float(Nel_block[i][1] / procy[i]))
+      Npz = int(float(Nel_block[i][2] / procz[i]))
+      Npt = Nel_block[i][3]
+      solution_size += eqns.nvars*order[0]*order[1]*order[2]*order[3]*Npx*Npy*Npz*Npt
+      self.solution_end_indx = np.append(self.solution_end_indx,solution_size)
+
+    self.a = np.zeros(solution_size)
+    self.a0 = np.zeros(solution_size)
+    self.RHS = np.zeros(solution_size)
     ### Check turbulence models
     self.turb_str = turb_str
     check = 0
@@ -49,14 +66,17 @@ class blockClass:
          print('Using turb model ' + turb_str)
 
     def getRHS_REGION_INNER(self,eqns):
-      for main in self.region:
-        main.basis.reconstructU(main,main.a)
-        main.a.uR[:],main.a.uL[:],main.a.uU[:],main.a.uD[:],main.a.uF[:],main.a.uB[:] = main.basis.reconstructEdgesGeneral(main.a.a,main)
+      for region in self.region:
+        region.basis.reconstructU(region,region.a)
+        region.a.uR[:],region.a.uL[:],region.a.uU[:],region.a.uD[:],region.a.uF[:],region.a.uB[:] = region.basis.reconstructEdgesGeneral(region.a.a,region)
 
-      for main in self.region:
-        main.a.uR_edge[:],main.a.uL_edge[:],main.a.uU_edge[:],main.a.uD_edge[:],main.a.uF_edge[:],main.a.uB_edge[:] = sendEdgesGeneralSlab(main.a.uL,main.a.uR,main.a.uD,main.a.uU,main.a.uB,main.a.uF,main,self)
+      for region in self.region:
+        region.a.uR_edge[:],region.a.uL_edge[:],region.a.uU_edge[:],region.a.uD_edge[:],region.a.uF_edge[:],region.a.uB_edge[:] = sendEdgesGeneralSlab(region.a.uL,region.a.uR,region.a.uD,region.a.uU,region.a.uB,region.a.uF,region,self)
 
       eqns.getRHS(self,eqns)
-    
+      for region in self.region:
+        region.basis.applyMassMatrix(region,region.RHS)
+  
+
     self.getRHS_REGION_INNER = getRHS_REGION_INNER 
 

@@ -17,11 +17,13 @@ from basis_class import *
 from grid_functions import *
 from init_reacting_additions import add_reacting_to_main
 class variable:
-  def __init__(self,nvars,order,quadpoints,Npx,Npy,Npz,Npt):
+  def __init__(self,regionManager,region_counter,nvars,order,quadpoints,Npx,Npy,Npz,Npt):
       self.nvars = nvars
       self.order = order
       self.quadpoints = quadpoints
-      self.a =np.zeros((nvars,order[0],order[1],order[2],order[3],Npx,Npy,Npz,Npt))
+      start_indx = regionManager.solution_start_indx[region_counter]
+      end_indx = regionManager.solution_end_indx[region_counter]
+      self.a = np.zeros((nvars,order[0],order[1],order[2],order[3],Npx,Npy,Npz,Npt))
       self.u =np.zeros((nvars,quadpoints[0],quadpoints[1],quadpoints[2],quadpoints[3],Npx,Npy,Npz,Npt))
       self.aR_edge = np.zeros((nvars,order[0],order[1],order[2],order[3],Npy,Npz,Npt))
       self.aL_edge = np.zeros((nvars,order[0],order[1],order[2],order[3],Npy,Npz,Npt))
@@ -174,7 +176,7 @@ class boundaryConditions:
     
 
 class variables:
-  def __init__(self,region_number,Nel,order,quadpoints,eqns,mu,x,y,z,turb_str,procx,procy,procz,starting_rank,BCs,source,source_mag,shock_capturing,mol_str,basis_args):
+  def __init__(self,regionManager,region_counter,region_number,Nel,order,quadpoints,eqns,mu,x,y,z,turb_str,procx,procy,procz,starting_rank,BCs,source,source_mag,shock_capturing,mol_str,basis_args):
     ## DG scheme information
     self.starting_rank = starting_rank
     self.all_mpi_ranks = range(starting_rank,starting_rank + procx*procy*procz)
@@ -200,6 +202,7 @@ class variables:
     self.Npy = int(float(Nel[1] / procy)) #number of points on each x plane. MUST BE UNIFORM BETWEEN PROCS
     self.Npx = int(float(Nel[0] / procx))
     self.Npz = int(float(Nel[2] / procz))
+    print(self.Npz)
     self.Npt = Nel[-1]
 
     self.sx = slice(((int(self.mpi_rank - starting_rank) % int(self.procx * self.procy)) % int(self.procx))     *self.Npx, \
@@ -301,8 +304,8 @@ class variables:
     self.nvars = eqns.nvars
 
     self.a0 = np.zeros((eqns.nvars,self.order[0],self.order[1],self.order[2],self.order[3],self.Npx,self.Npy,self.Npz,self.Npt))
-    self.a = variable(eqns.nvars,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz,self.Npt)
-    self.b = variable(eqns.nvisc_vars,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz,self.Npt)
+    self.a = variable(regionManager,region_counter,eqns.nvars,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz,self.Npt)
+    #self.b = variable(regionManager,region_counter,eqns.nvisc_vars,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz,self.Npt)
 
     self.iFlux = fluxvariable(eqns.nvars,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz,self.Npt)
     self.vFlux = fluxvariable(eqns.nvisc_vars,self.order,self.quadpoints,self.Npx,self.Npy,self.Npz,self.Npt)
@@ -329,8 +332,15 @@ class variables:
 #    self.tmp2 = np.zeros(np.shape(np.rollaxis(np.tensordot(self.w2*self.weights2[None,:],self.tmp1,axes=([1],[1])),0,9)))
 #    self.tmp3 = np.zeros(np.shape(np.rollaxis(np.tensordot(self.w3*self.weights3[None,:],self.tmp2,axes=([1],[1])),0,9)))
 
-    self.RHS = np.zeros((eqns.nvars,self.order[0],self.order[1],self.order[2],self.order[3],self.Npx,self.Npy,self.Npz,self.Npt))
-  
+
+    ### CREATE POINTERS FOR self.RHS and self.a
+    ## THESE POINTERS POINT TO "regionManager.a" and "regionManager.RHS"
+    ## DON'T EVER RE-INITIALIZE EITHER self.a, self.RHS, regionManager.a, or regionManager.RHS"
+    start_indx = regionManager.solution_start_indx[region_counter]
+    end_indx = regionManager.solution_end_indx[region_counter]
+    self.RHS = np.reshape(regionManager.RHS[start_indx:end_indx],(eqns.nvars,self.order[0],self.order[1],self.order[2],self.order[3],self.Npx,self.Npy,self.Npz,self.Npt))
+    self.a.a = np.reshape(regionManager.a[start_indx:end_indx],(eqns.nvars,self.order[0],self.order[1],self.order[2],self.order[3],self.Npx,self.Npy,self.Npz,self.Npt))
+
     ### Check turbulence models
     self.turb_str = turb_str
     check = 0

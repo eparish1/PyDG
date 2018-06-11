@@ -5,62 +5,54 @@ import matplotlib.pyplot as plt
 from init_Classes import variables,equations
 from linear_solvers import *
 from jacobian_schemes import *
-def newtonSolver(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadrature,eqns,PC=None):
-  if (sparse_quadrature):
-    coarsen = 2
-    quadpoints_coarsen = np.fmax(main.quadpoints/(coarsen),1)
-    quadpoints_coarsen[-1] = main.quadpoints[-1]
-    main_coarse = variables(main.Nel,main.order,quadpoints_coarsen,eqns,main.mus,main.xG,main.yG,main.zG,main.t,main.et,main.dt,main.iteration,main.save_freq,'DNS',main.procx,main.procy,main.procz,main.BCs,main.fsource,main.source_mag,main.shock_capturing,main.mol_str)
-    main_coarse.basis = main.basis
-    main_coarse.a.a[:] = main.a.a[:]
-    def newtonHook(main_coarse,main,Rn):
-      main_coarse.a.a[:] = main.a.a[:]
-      main_coarse.getRHS(main_coarse,main_coarse,eqns)
-      #getRHS_SOURCE(main_coarse,main_coarse,eqns)
-      Rn[:] = main_coarse.RHS[:]
-  else: 
-    main_coarse = main
-    def newtonHook(main_coarse,main,Rn):
-       pass
-  x = np.zeros(0)
-  for region in regionManager.regions:
-    x = np.append(x,region.a.a)
-  Rstarn,Rn,Rstar_glob = unsteadyResidual(regionManager,x)
+def newtonSolver(unsteadyResidual,MF_Jacobian,regionManager,linear_solver,sparse_quadrature,eqns,PC=None):
+#  if (sparse_quadrature):
+#    coarsen = 2
+#    quadpoints_coarsen = np.fmax(main.quadpoints/(coarsen),1)
+#    quadpoints_coarsen[-1] = main.quadpoints[-1]
+#    main_coarse = variables(main.Nel,main.order,quadpoints_coarsen,eqns,main.mus,main.xG,main.yG,main.zG,main.t,main.et,main.dt,main.iteration,main.save_freq,'DNS',main.procx,main.procy,main.procz,main.BCs,main.fsource,main.source_mag,main.shock_capturing,main.mol_str)
+#    main_coarse.basis = main.basis
+#    main_coarse.a.a[:] = main.a.a[:]
+#    def newtonHook(main_coarse,main,Rn):
+#      main_coarse.a.a[:] = main.a.a[:]
+#      main_coarse.getRHS(main_coarse,main_coarse,eqns)
+#      #getRHS_SOURCE(main_coarse,main_coarse,eqns)
+#      Rn[:] = main_coarse.RHS[:]
+#  else: 
+  regionManager_coarse = regionManager 
+  def newtonHook(regionManager_coarse,regionManager,Rn):
+     pass
+
+  Rstarn,Rn,Rstar_glob = unsteadyResidual(regionManager,regionManager.a)
   NLiter = 0
-  an = np.zeros(np.shape(main.a0))
-  an[:] = main.a0[:]
+  regionManager.NLiter = 0
+  an = np.zeros(np.shape(regionManager.a0))
+  an[:] = regionManager.a0[:]
   Rstar_glob0 = Rstar_glob*1. 
-  old = np.zeros(np.shape(main.a.a))
+  old = np.zeros(np.shape(regionManager.a))
   resid_hist = np.zeros(0)
   t_hist = np.zeros(0)
   tnls = time.time()
   while (Rstar_glob >= 1e-8 and Rstar_glob/Rstar_glob0 > 1e-8):
     NLiter += 1
+    regionManager.NLiter += 1
     ts = time.time()
-    newtonHook(main_coarse,main,Rn)
+    newtonHook(regionManager_coarse,regionManager,Rn)
     MF_Jacobian_args = [an,Rn]
     delta = 1
-#    if (Rstar_glob/Rstar_glob0 < 1e-4):
-#      delta = 2
-#    if (Rstar_glob/Rstar_glob0 < 1e-5):
-#      delta = 3
-#    if (Rstar_glob/Rstar_glob0 < 1e-6):
-#      delta = 3
     loc_tol = 0.1*Rstar_glob/Rstar_glob0
     PC_iteration = 0
     PC_args = [1,loc_tol,PC_iteration]
-    sol = linear_solver.solve(MF_Jacobian, -Rstarn.flatten(), old.flatten(),main_coarse,MF_Jacobian_args,PC,PC_args,loc_tol,1,20,0)
-    main.a.a[:] = an[:] + 1.0*np.reshape(sol,np.shape(main.a.a))
-    an[:] = main.a.a[:]
-    Rstarn,Rn,Rstar_glob = unsteadyResidual(main,main.a.a)
+    sol = linear_solver.solve(MF_Jacobian, -Rstarn.flatten(), old.flatten(),regionManager_coarse,MF_Jacobian_args,PC,PC_args,loc_tol,1,40,0)
+    regionManager.a[:] = an[:] + 1.0*np.reshape(sol,np.size(regionManager.a))
+    an[:] = regionManager.a[:]
+    Rstarn,Rn,Rstar_glob = unsteadyResidual(regionManager,regionManager.a)
     resid_hist = np.append(resid_hist,Rstar_glob)
     t_hist = np.append(t_hist,time.time() - tnls)
-    if (main.mpi_rank == 0):
+    if (regionManager.mpi_rank == 0):
       sys.stdout.write('Newton iteration = ' + str(NLiter) + '  NL residual = ' + str(Rstar_glob) + ' relative decrease = ' + str(Rstar_glob/Rstar_glob0) + ' Solve time = ' + str(time.time() - ts)  + '\n')
-      #print(np.linalg.norm(Rstarn[0]),np.linalg.norm(Rstarn[-1]))
       sys.stdout.flush()
   np.savez('resid_history',resid=resid_hist,t=t_hist)
-
 
 
 
