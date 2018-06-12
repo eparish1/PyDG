@@ -32,6 +32,19 @@ def globalSum(r,regionManager):
     rn_glob = regionManager.comm.recv(source=0)
   return rn_glob
 
+def globalDot(V,r,regionManager):
+  ## Create Global residual
+  data = regionManager.comm.gather(np.dot(V,r),root = 0)
+  #print(np.shape(data))
+  if (regionManager.mpi_rank == 0):
+    rn_glob = np.zeros(np.size(data[0]))
+    for j in range(0,regionManager.num_processes):
+      rn_glob[:] += data[j]
+    for j in range(1,regionManager.num_processes):
+      regionManager.comm.send(rn_glob, dest=j)
+  else:
+    rn_glob = regionManager.comm.recv(source=0)
+  return rn_glob
 
 ##########################################################################################################################################################################################################
 ##########################################################################################################################################################################################################

@@ -168,7 +168,7 @@ for i in regionManager.mpi_regions_owned:
   
   reconstructU(region,region.a)
   
-  timescheme = timeschemes(time_integration,linear_solver_str,nonlinear_solver_str)
+  timescheme = timeschemes(regionManager,time_integration,linear_solver_str,nonlinear_solver_str)
   #main.source_hook = source_hook
 
   xG_global = gatherSolScalar(region,region.xG[:,:,:,None,:,:,:,None])

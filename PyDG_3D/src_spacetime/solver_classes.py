@@ -4,7 +4,7 @@ from timeSchemes import *
 from linear_solvers import *
 from nonlinear_solvers import *
 class timeschemes:
-  def __init__(self,time_str='ExplicitRK4',lsolver_str='GMRes',nlsolver_str='Newton'):
+  def __init__(self,regionManager,time_str='ExplicitRK4',lsolver_str='GMRes',nlsolver_str='Newton'):
     comm = MPI.COMM_WORLD
     check_t = 0
     if (comm.Get_rank() == 0): print('Time marching is set to ' + time_str)
@@ -29,6 +29,11 @@ class timeschemes:
       self.advanceSol = SSP_RK3_DOUBLEFLUX
       self.args = None
 
+    if (time_str == 'SSP_RK3_POD'):
+      check_t = 0
+      self.advanceSol = SSP_RK3_POD
+      self.args = None
+      regionManager.V = np.load('pod_basis.npz')['V']
     if (time_str == 'SpaceTime'):
       check_t = 0
       self.advanceSol = spaceTime 

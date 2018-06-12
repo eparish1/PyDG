@@ -545,7 +545,6 @@ def ExplicitRK4(regionManager,eqns,args=None):
 
 def SSP_RK3(regionManager,eqns,args=None):
   ### get a0
-  region_counter = 0
   regionManager.a0[:] = regionManager.a[:]
   regionManager.getRHS_REGION_OUTER(regionManager,eqns) #includes loop over all regions
 
@@ -564,6 +563,25 @@ def SSP_RK3(regionManager,eqns,args=None):
   regionManager.t += regionManager.dt
   regionManager.iteration += 1
 
+
+def SSP_RK3_POD(regionManager,eqns,args=None):
+  regionManager.a0[:] = regionManager.a[:]
+  a0_pod = globalDot(regionManager.V.transpose(),regionManager.a0,regionManager)
+  ## First Stage
+  regionManager.getRHS_REGION_OUTER(regionManager,eqns) #includes loop over all regions
+  a1_pod = a0_pod  + regionManager.dt*globalDot(regionManager.V.transpose(),regionManager.RHS[:],regionManager) 
+  regionManager.a[:] = np.dot(regionManager.V,a1_pod)
+  ## Second Stage
+  regionManager.getRHS_REGION_OUTER(regionManager,eqns) #includes loop over all regions
+  a1_pod = 3./4.*a0_pod + 1./4.*(a1_pod + globalDot(regionManager.V.transpose(),regionManager.dt*regionManager.RHS[:],regionManager) ) #reuse a1 vector
+  regionManager.a[:] = np.dot(regionManager.V,a1_pod)
+  ## Third Stage
+  regionManager.getRHS_REGION_OUTER(regionManager,eqns) #includes loop over all regions
+  af_pod = 1./3.*a0_pod + 2./3.*(a1_pod[:] + regionManager.dt*globalDot(regionManager.V.transpose(), regionManager.RHS[:],regionManager) )
+  regionManager.a[:] = np.dot(regionManager.V,af_pod)
+
+  regionManager.t += regionManager.dt
+  regionManager.iteration += 1
 
 
 def SteadyState(main,MZ,eqns,args):
