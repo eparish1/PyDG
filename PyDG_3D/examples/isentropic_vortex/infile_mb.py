@@ -93,9 +93,9 @@ procy_block3 = 1
 procz_block3 = 1
 
 starting_rank0 = 0
-starting_rank1 = 0
-starting_rank2 = 0 
-starting_rank3 = 0
+starting_rank1 = 1
+starting_rank2 = 2 
+starting_rank3 = 3
 
 procx = [procx_block0,procx_block1,procx_block2,procx_block3]
 procy = [procy_block0,procy_block1,procy_block2,procy_block3]
@@ -167,8 +167,8 @@ source_mag = False
 #mol_str = False				   #|
 #turb_str = 'orthogonal subscale'
 #time_integration = 'SpaceTime'   #| 
-#time_integration = 'CrankNicolson'   #| 
-time_integration = 'SSP_RK3'
+time_integration = 'CrankNicolson'   #| 
+#time_integration = 'SSP_RK3'
 linear_solver_str = 'GMRes'
 nonlinear_solver_str = 'Newton'
 

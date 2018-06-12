@@ -42,8 +42,8 @@ dt = 0.025
 et = 10.                           #|  simulation end time
 save_freq = 10.                      #|  frequency to save output and print to screen
 eqn_str = 'Navier-Stokes'          #|  equation set
-schemes = ('roe','BR1')             #|  inviscid and viscous flux schemes
-procx = 1                         #|  processor decomposition in x
+schemes = ('roe','Inviscid')             #|  inviscid and viscous flux schemes
+procx = 4                         #|  processor decomposition in x
 procy = 1                          #|  same in y. Note that procx*procy needs to equal total number of procs
 procz = 1
 
