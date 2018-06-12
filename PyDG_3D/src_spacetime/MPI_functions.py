@@ -39,7 +39,6 @@ def globalSum(r,regionManager):
 ##########################################################################################################################################################################################################
 
 def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main,regionManager):
-
   nRL = 0
   nUD = 0
   nFB = 0
@@ -75,7 +74,7 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main,regionManager):
         if (main.rightBC.args[1] == -1):
             uR[:] = regionManager.region[main.rightBC.args[0]].a.uR[:,:,:,:,-1,:,:]
     
-    uR[:] = main.rightBC.applyBC(fR[:,:,:,:,-1,:,:],uR,main.rightBC.args,main)
+    uR[:] = main.rightBC.applyBC(fR[:,:,:,:,-1,:,:],uR,main.rightBC.args,main,main.normals[0,:,-1,:,:])
     
     if (main.leftBC.BC_type == 'patch'):
         if (main.leftBC.args[1] == -1):
@@ -83,14 +82,13 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main,regionManager):
         if (main.leftBC.args[1] ==  0):
             uL[:] = regionManager.region[main.leftBC.args[0]].a.uL[:,:,:,:, 0,:,:]
     
-    uL[:] = main.leftBC.applyBC(fL[:,:,:,:, 0,:,:],uL,main.leftBC.args,main)
+    uL[:] = main.leftBC.applyBC(fL[:,:,:,:, 0,:,:],uL,main.leftBC.args,main,main.normals[1,:,0,:,:])
 # 
   #======================================================
   else:
     if (main.rank_connect[0] != main.mpi_rank and ((main.leftBC.args[1] == -1 and (main.leftBC.BC_type == 'periodic' or main.leftBC.BC_type == 'patch') and left_face==True) or left_face==False)):
       nRL+=1
       main.comm.Send(fL[:,:,:,:,0,:,:].flatten(),dest=main.rank_connect[0],tag=main.mpi_rank)
-
     #============================
 
     if (main.rank_connect[1] != main.mpi_rank and ((main.rightBC.args[1] == 0 and (main.rightBC.BC_type == 'periodic' or main.rightBC.BC_type == 'patch') and right_face==True) or right_face==False)):
@@ -100,7 +98,6 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main,regionManager):
       uR[:] = np.reshape(tmp,np.shape(fL[:,:,:,:,0,:,:]))
 
     #============================
-
     if (main.rank_connect[0] != main.mpi_rank and main.leftBC.args[1] == 0 and (main.leftBC.BC_type == 'periodic' or main.leftBC.BC_type == 'patch') and left_face==True):
       tmp = np.zeros(np.size(fL[:,:,:,:,0,:,:]))
       main.comm.Sendrecv(fL[:,:,:,:,0,:,:].flatten(),dest=main.rank_connect[0],sendtag=main.mpi_rank,\
@@ -136,10 +133,10 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main,regionManager):
     #============================
 
     if (main.BC_rank[1]):
-      uR[:] = main.rightBC.applyBC(fR[:,:,:,:,-1,:,:],uR,main.rightBC.args,main)
+      uR[:] = main.rightBC.applyBC(fR[:,:,:,:,-1,:,:],uR,main.rightBC.args,main,main.normals[0,:,-1,:,:])
 
     if (main.BC_rank[0]):
-      uL[:] = main.leftBC.applyBC(fL[:,:,:,:,0 ,:,:],uL,main.leftBC.args,main)
+      uL[:] = main.leftBC.applyBC(fL[:,:,:,:,0 ,:,:],uL,main.leftBC.args,main,main.normals[1,:,0,:,:])
 
 
 
@@ -158,7 +155,7 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main,regionManager):
         if (main.topBC.args[1] == -1):
             uU[:] = regionManager.region[main.topBC.args[0]].a.uU[:,:,:,:,:,-1]
 #    
-    uU[:] = main.topBC.applyBC(fU[:,:,:,:,:,-1,:],uU,main.topBC.args,main)
+    uU[:] = main.topBC.applyBC(fU[:,:,:,:,:,-1,:],uU,main.topBC.args,main,main.normals[2,:,:,-1,:])
     
     if (main.bottomBC.BC_type == 'patch'):
         if (main.bottomBC.args[1] == -1):
@@ -166,7 +163,7 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main,regionManager):
         if (main.bottomBC.args[1] ==  0):
             uD[:] = regionManager.region[main.bottomBC.args[0]].a.uD[:,:,:,:,:, 0]
     
-    uD[:] = main.bottomBC.applyBC(fD[:,:,:,:,:,0,:],uD,main.bottomBC.args,main)
+    uD[:] = main.bottomBC.applyBC(fD[:,:,:,:,:,0,:],uD,main.bottomBC.args,main,main.normals[3,:,:,0,:])
 
   #======================================================
   else:
@@ -219,10 +216,10 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main,regionManager):
     #============================
 
     if (main.BC_rank[3]):
-      uU[:] = main.topBC.applyBC(fU[:,:,:,:,:,-1,:],uU,main.topBC.args,main)
+      uU[:] = main.topBC.applyBC(fU[:,:,:,:,:,-1,:],uU,main.topBC.args,main,main.normals[2,:,:,-1,:])
 
     if (main.BC_rank[2]):
-      uD[:] = main.bottomBC.applyBC(fD[:,:,:,:,:,0,:],uD,main.bottomBC.args,main)
+      uD[:] = main.bottomBC.applyBC(fD[:,:,:,:,:,0,:],uD,main.bottomBC.args,main,main.normals[3,:,:,0,:])
 
 
 
@@ -240,7 +237,7 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main,regionManager):
         if (main.frontBC.args[1] == -1):
             uF[:] = regionManager.region[main.frontBC.args[0]].a.uF[:,:,:,:,:,:,-1]
     
-    uF[:] = main.frontBC.applyBC(fF[:,:,:,:,:,:,-1],uF,main.frontBC.args,main)
+    uF[:] = main.frontBC.applyBC(fF[:,:,:,:,:,:,-1],uF,main.frontBC.args,main,main.normals[4,:,:,:,-1])
     
     if (main.backBC.BC_type == 'patch'):
         if (main.backBC.args[1] == -1):
@@ -248,7 +245,7 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main,regionManager):
         if (main.backBC.args[1] ==  0):
             uB[:] = regionManager.region[main.backBC.args[0]].a.uB[:,:,:,:,:,:,0]
     
-    uB[:] = main.backBC.applyBC(fB[:,:,:,:,:,:,0],uB,main.backBC.args,main)
+    uB[:] = main.backBC.applyBC(fB[:,:,:,:,:,:,0],uB,main.backBC.args,main,main.normals[5,:,:,:,0])
   #======================================================
   else:
     if (main.rank_connect[4] != main.mpi_rank and ((main.backBC.args[1] == -1 and (main.backBC.BC_type == 'periodic' or main.backBC.BC_type == 'patch') and back_face==True) or back_face==False)):
@@ -300,10 +297,10 @@ def sendEdgesGeneralSlab(fL,fR,fD,fU,fB,fF,main,regionManager):
     #============================
 
     if (main.BC_rank[5]):
-      uF[:] = main.frontBC.applyBC(fF[:,:,:,:,:,:,-1],uF,main.frontBC.args,main)
+      uF[:] = main.frontBC.applyBC(fF[:,:,:,:,:,:,-1],uF,main.frontBC.args,main,main.normals[4,:,:,:,-1])
 
     if (main.BC_rank[4]):
-      uB[:] = main.backBC.applyBC(fB[:,:,:,:,:,:,0],uB,main.backBC.args,main)
+      uB[:] = main.backBC.applyBC(fB[:,:,:,:,:,:,0],uB,main.backBC.args,main,main.normals[5,:,:,:,0])
 
 
 
@@ -352,14 +349,14 @@ def sendEdgesGeneralSlab_Derivs(fL,fR,fD,fU,fB,fF,main,regionManager):
             uR[:] = regionManager.region[main.rightBC.args[0]].b.uL[:,:,:,:, 0,:,:]
         if (main.rightBC.args[1] == -1):
             uR[:] = regionManager.region[main.rightBC.args[0]].b.uR[:,:,:,:,-1,:,:]
-        uR[:] = main.rightBC.applyBC(fR[:,:,:,:,-1,:,:],uR,main.rightBC.args,main)
+        uR[:] = main.rightBC.applyBC(fR[:,:,:,:,-1,:,:],uR,main.rightBC.args,main,main.normals[0,:,-1,:,:])
     
     if (main.leftBC.BC_type == 'patch'):
         if (main.leftBC.args[1] == -1):
             uL[:] = regionManager.region[main.leftBC.args[0]].b.uR[:,:,:,:,-1,:,:]
         if (main.leftBC.args[1] ==  0):
             uL[:] = regionManager.region[main.leftBC.args[0]].b.uL[:,:,:,:, 0,:,:]
-        uL[:] = main.leftBC.applyBC(fL[:,:,:,:,0,:,:],uL,main.leftBC.args,main)
+        uL[:] = main.leftBC.applyBC(fL[:,:,:,:,0,:,:],uL,main.leftBC.args,main,main.normals[1,:,0,:,:])
 
   else:
     
@@ -414,12 +411,12 @@ def sendEdgesGeneralSlab_Derivs(fL,fR,fD,fU,fB,fF,main,regionManager):
     if (main.BC_rank[1] and main.rightBC.BC_type != 'periodic' and main.rightBC.BC_type != 'patch'):
       uR[:] = fR[:,:,:,:,-1,:,:]
     elif (main.BC_rank[1] and (main.rightBC.BC_type == 'periodic' or main.leftBC.BC_type == 'patch')):
-      uR[:] = main.rightBC.applyBC(fR[:,:,:,:,-1,:,:],uR,main.rightBC.args,main)
+      uR[:] = main.rightBC.applyBC(fR[:,:,:,:,-1,:,:],uR,main.rightBC.args,main,main.normals[0,:,-1,:,:])
     
     if (main.BC_rank[0] and main.leftBC.BC_type != 'periodic' and main.leftBC.BC_type != 'patch'):
       uL[:] = fL[:,:,:,:,0 ,:,:]
     elif (main.BC_rank[0] and (main.rightBC.BC_type == 'periodic' or main.leftBC.BC_type == 'patch')):
-      uL[:] = main.leftBC.applyBC(fL[:,:,:,:,0,:,:],uL,main.leftBC.args,main)
+      uL[:] = main.leftBC.applyBC(fL[:,:,:,:,0,:,:],uL,main.leftBC.args,main,main.normals[1,:,0,:,:])
 
 
   
@@ -442,14 +439,14 @@ def sendEdgesGeneralSlab_Derivs(fL,fR,fD,fU,fB,fF,main,regionManager):
             uU[:] = regionManager.region[main.topBC.args[0]].b.uD[:,:,:,:,:, 0,:,:]
         if (main.topBC.args[1] == -1):
             uU[:] = regionManager.region[main.topBC.args[0]].b.uU[:,:,:,:,:,-1,:,:]
-        uU[:] = main.topBC.applyBC(fU[:,:,:,:,:,-1,:],uU,main.topBC.args,main)
+        uU[:] = main.topBC.applyBC(fU[:,:,:,:,:,-1,:],uU,main.topBC.args,main,main.normals[2,:,:,-1,:])
     
     if (main.bottomBC.BC_type == 'patch'):
         if (main.bottomBC.args[1] == -1):
             uD[:] = regionManager.region[main.bottomBC.args[0]].b.uU[:,:,:,:,:,-1,:,:]
         if (main.bottomBC.args[1] ==  0):
             uD[:] = regionManager.region[main.bottomBC.args[0]].b.uD[:,:,:,:,:, 0,:,:]
-        uD[:] = main.bottomBC.applyBC(fD[:,:,:,:,:,0,:],uD,main.bottomBC.args,main)
+        uD[:] = main.bottomBC.applyBC(fD[:,:,:,:,:,0,:],uD,main.bottomBC.args,main,main.normals[3,:,:,0,:])
 
   else:
     
@@ -504,12 +501,12 @@ def sendEdgesGeneralSlab_Derivs(fL,fR,fD,fU,fB,fF,main,regionManager):
     if (main.BC_rank[3] and main.topBC.BC_type != 'periodic' and main.topBC.BC_type != 'patch'): 
       uU[:] = fU[:,:,:,:,:,-1,:]
     elif (main.BC_rank[3] and (main.rightBC.BC_type == 'periodic' or main.leftBC.BC_type == 'patch')):
-      uU[:] = main.topBC.applyBC(fU[:,:,:,:,:,-1,:],uU,main.topBC.args,main)
+      uU[:] = main.topBC.applyBC(fU[:,:,:,:,:,-1,:],uU,main.topBC.args,main,main.normals[2,:,:,-1,:])
 
     if (main.BC_rank[2] and main.bottomBC.BC_type != 'periodic' and main.bottomBC.BC_type != 'patch'):
       uD[:] = fD[:,:,:,:,:,0,:]
     elif (main.BC_rank[2] and (main.rightBC.BC_type == 'periodic' or main.leftBC.BC_type == 'patch')):
-      uD[:] = main.bottomBC.applyBC(fD[:,:,:,:,:,0,:],uD,main.bottomBC.args,main)
+      uD[:] = main.bottomBC.applyBC(fD[:,:,:,:,:,0,:],uD,main.bottomBC.args,main,main.normals[3,:,:,0,:])
 
 
 
@@ -532,14 +529,14 @@ def sendEdgesGeneralSlab_Derivs(fL,fR,fD,fU,fB,fF,main,regionManager):
             uF[:] = regionManager.region[main.frontBC.args[0]].b.uB[:,:,:,:,:,:,0]
         if (main.frontBC.args[1] == -1):
             uF[:] = regionManager.region[main.frontBC.args[0]].b.uF[:,:,:,:,:,:,-1]
-        uF[:] = main.frontBC.applyBC(fF[:,:,:,:,:,:,-1],uF,main.frontBC.args,main)
+        uF[:] = main.frontBC.applyBC(fF[:,:,:,:,:,:,-1],uF,main.frontBC.args,main,main.normals[4,:,:,:,-1])
     
     if (main.backBC.BC_type == 'patch'):
         if (main.backBC.args[1] == -1):
             uB[:] = regionManager.region[main.backBC.args[0]].b.uF[:,:,:,:,:,:,-1]
         if (main.backBC.args[1] ==  0):
             uB[:] = regionManager.region[main.backBC.args[0]].b.uB[:,:,:,:,:,:,0]
-        uB[:] = main.backBC.applyBC(fB[:,:,:,:,:,:,0,:],uB,main.backBC.args,main)
+        uB[:] = main.backBC.applyBC(fB[:,:,:,:,:,:,0,:],uB,main.backBC.args,main,main.normals[5,:,:,:,0])
 
   else:
     
@@ -594,12 +591,12 @@ def sendEdgesGeneralSlab_Derivs(fL,fR,fD,fU,fB,fF,main,regionManager):
     if (main.BC_rank[5] and main.frontBC.BC_type != 'periodic' and main.frontBC.BC_type != 'patch'): 
       uF[:] = fF[:,:,:,:,:,:,-1]
     elif (main.BC_rank[5] and (main.rightBC.BC_type == 'periodic' or main.leftBC.BC_type == 'patch')):
-      uF[:] = main.frontBC.applyBC(fF[:,:,:,:,:,:,-1],uF,main.frontBC.args,main)
+      uF[:] = main.frontBC.applyBC(fF[:,:,:,:,:,:,-1],uF,main.frontBC.args,main,main.normals[4,:,:,:,-1])
 
     if (main.BC_rank[4] and main.backBC.BC_type != 'periodic'  and main.backBC.BC_type != 'patch'):
       uB[:] = fB[:,:,:,:,:,:,0]
     elif (main.BC_rank[4] and (main.rightBC.BC_type == 'periodic' or main.leftBC.BC_type == 'patch')):
-      uB[:] = main.backBC.applyBC(fB[:,:,:,:,:,:,0],uB,main.backBC.args,main)
+      uB[:] = main.backBC.applyBC(fB[:,:,:,:,:,:,0],uB,main.backBC.args,main,main.normals[5,:,:,:,0])
     
   
   
