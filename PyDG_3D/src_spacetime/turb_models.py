@@ -274,6 +274,40 @@ def orthogonalSubscale_POD(main,MZ,eqns):
   eps = 1e-5
   a0 = main.a.a*1.
   eqns.getRHS(main,MZ,eqns)
+  RHS0 = main.RHS*1.
+
+  R1 = np.zeros(np.shape(main.RHS))
+  R1[:] = main.RHS[:]
+  main.basis.applyMassMatrix(main,R1)
+
+  #==================================================
+  R_proj = projection_pod(R1,main.V,main)
+  R_ortho = R1 - np.reshape(R_proj,np.shape(main.a.a))
+
+  ##print(np.linalg.norm(R_ortho))
+  main.a.a[:] = a0[:] + eps*R_ortho
+  eqns.getRHS(main,MZ,eqns)  ## put RHS in a array since we don't need it
+  #main.basis.applyMassMatrix(main,main.RHS)
+  PLQLu = (main.RHS - RHS0)/eps
+  main.PLQLu[:] = PLQLu
+  tau = main.tau
+  #=====================================
+  main.RHS[:] =  RHS0[:]+ tau*PLQLu
+  main.a.a[:] = a0[:]
+
+
+def orthogonalSubscale_POD2(main,MZ,eqns):
+#  if (main.iteration%50 == 0):
+#    J = computeJacobian_full_pod(main,eqns)
+#    e,s = np.linalg.eig(J)
+#    tau = 0.45/np.amax(abs(e))
+#    main.tau = tau
+#    print('Spectral Radius = ',np.amax(abs(e)))
+#    print('tau             = ',np.amax(abs(tau)))
+
+  eps = 1e-5
+  a0 = main.a.a*1.
+  eqns.getRHS(main,MZ,eqns)
   #==================================================
   R_proj = projection_pod(main.RHS,main.V,main)
   R_ortho = main.RHS - np.reshape(R_proj,np.shape(main.a.a))
