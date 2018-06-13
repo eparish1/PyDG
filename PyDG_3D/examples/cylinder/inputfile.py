@@ -55,9 +55,9 @@ def savehook(regionManager):
 
 ## Make square grid
 L = 1.                             #|  length
-Nel = np.array([32,32,1,1])        #|  elements in x,y,z
-order =np.array([3,3,1,1])         #|  spatial order
-quadpoints = order               #|  number of quadrature points. 2x the order is reccomended
+Nel = np.array([64,64,1,1])        #|  elements in x,y,z
+order =np.array([2,2,1,1])         #|  spatial order
+quadpoints = order*2               #|  number of quadrature points. 2x the order is reccomended
 quadpoints[-2::] = order[-2::]
 
 D = 2.
@@ -80,7 +80,7 @@ y = r*np.sin(theta)
 #x,y,z = np.meshgrid(x,y,z,indexing='ij')
 
 t = 0                              #|  simulation start time
-dt = 0.02                       #|  simulation time step
+dt = 0.01                       #|  simulation time step
 et = 1000.                           #|  simulation end time
 save_freq = 100                      #|  frequency to save output and print to screen
 eqn_str = 'Navier-Stokes'          #|  equation set
