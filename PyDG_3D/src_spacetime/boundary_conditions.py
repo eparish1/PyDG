@@ -1,4 +1,44 @@
 import numpy as np
+
+def viscouswall_bc(Ue,UBC,args,main,normals):
+  cut = 30
+#  cut = 35
+  gamma = 1.4
+  #uw = args[0]
+  #vw = args[1]
+  #ww = args[2]
+  #Tw = args[3]
+  #cut = args[4]
+  gamma = main.gas.gamma
+  Cv = main.gas.Cv
+  Cp = main.gas.Cp
+  R = main.gas.R
+
+  u_plus = Ue[1]/Ue[0]
+  v_plus = Ue[2]/Ue[0]
+  w_plus = Ue[3]/Ue[0]
+  Un = u_plus*normals[0,None,None,None,:,:,None] + v_plus*normals[1,None,None,None,:,:,None] + w_plus*normals[2,None,None,None,:,:,None]
+  u_norm = Un*normals[0,None,None,None,:,:,None]
+  v_norm = Un*normals[1,None,None,None,:,:,None]
+  w_norm = Un*normals[2,None,None,None,:,:,None]
+
+  u_tang = u_plus - Un*normals[0,None,None,None,:,:,None]
+  v_tang = v_plus - Un*normals[1,None,None,None,:,:,None]
+  w_tang = w_plus - Un*normals[2,None,None,None,:,:,None]
+
+  pb = (gamma - 1.)*(Ue[4])
+  rhoE = pb/(gamma - 1.)
+
+  UBC[:] = 0.
+  UBC[0] = Ue[0]
+  UBC[1] = Ue[0]*0.#(u_tang - u_norm)
+  UBC[2] = Ue[0]*0.#(v_tang - v_norm)
+  UBC[3] = Ue[0]*0.#(w_tang - w_norm)
+  UBC[4] = rhoE
+  return UBC
+
+
+
 def inviscidwall_bc(Ue,UBC,args,main,normals):
   cut = 30
 #  cut = 35

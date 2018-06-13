@@ -130,6 +130,11 @@ class boundaryConditions:
       self.BC_type = BC_type
       self.applyBC = incompwall_bc
       self.args = BC_args
+    if (BC_type == 'viscous_wall'):
+      check = 1
+      self.BC_type = BC_type
+      self.applyBC = viscouswall_bc
+      self.args = BC_args
     if (BC_type == 'inviscid_wall'):
       check = 1
       self.BC_type = BC_type
