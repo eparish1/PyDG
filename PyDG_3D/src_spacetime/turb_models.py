@@ -519,7 +519,7 @@ def orthogonalSubscale_POD(regionManager,eqns):
   PLQLu = (regionManager.RHS - RHS0)/eps
   #regionManager.PLQLu[:] = PLQLu
   #tau = regionManager.region[0].tau
-  tau = regionManager.dt
+  tau = regionManager.tau
   #=====================================
   regionManager.RHS[:] =  RHS0[:]+ tau*PLQLu
   regionManager.a[:] = a0[:]
