@@ -397,7 +397,6 @@ def GMRes(Af, b, x0,regionManager,args,PC=None,PCargs=None,tol=1e-9,maxiter_oute
 #      e1 = np.zeros(np.size(b)) #should vary across procs
       e1 = np.zeros(maxiter+1)
       e1[0] = 1
-  
       rnorm = globalNorm(r,regionManager) #same across procs
       Q = np.zeros((np.size(b),maxiter)) 
       #v = [0] * (nmax_iter)
@@ -424,6 +423,9 @@ def GMRes(Af, b, x0,regionManager,args,PC=None,PCargs=None,tol=1e-9,maxiter_oute
             #print('Outer iteration = ' + str(k_outer) + ' Iteration = ' + str(k) + '  GMRES error = ' + str(error), ' Real norm = ' + str(rtnorm))
 
           k += 1
+      if (regionManager.mpi_rank == 0):
+        sys.stdout.write('Total GMRes Iterations = ' + str(k) + '  GMRES error = ' + str(error) +  '\n')
+
       y = np.linalg.solve(H[0:k,0:k],beta[0:k]) 
       x = x0 + np.dot(Q[:,0:k],y)
       x0[:] = x[:]
@@ -557,6 +559,8 @@ def fGMRes(Af, b, x0,regionManager,args,PC=None,PC_args=None,tol=1e-9,maxiter_ou
             sys.stdout.write('Outer iteration = ' + str(k_outer) + \
             ' Iteration = ' + str(k) + '  GMRES error = ' + str(error) +  '\n')
           k += 1
+      if (regionManager.mpi_rank == 0):
+        sys.stdout.write('Total GMRes Iterations = ' + str(k) + '  GMRES error = ' + str(error) +  '\n')
       y = np.linalg.solve(H[0:k,0:k],beta[0:k]) 
       Zy = np.dot(Z[:,0:k],y) 
       x = x0 + Zy 

@@ -12,7 +12,7 @@ from incompressible_navier_stokes import *
 from incompressible_navier_stokes_fractional import *
 
 from linear_advection import *
-from DG_functions import getRHS
+from DG_functions import getRHS,getRHS_element
 class equations:
   def __init__(self,eq_str,schemes,turb_str):
     comm = MPI.COMM_WORLD
@@ -24,6 +24,8 @@ class equations:
     vflux_str = schemes[1]
     check_eq = 0
     self.getRHS = getRHS
+    self.getRHS_element = getRHS_element
+
     if (vflux_str == 'BR1'):
       self.addViscousContribution = addViscousContribution_BR1
       self.vflux_type = 'BR1'

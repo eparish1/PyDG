@@ -59,8 +59,12 @@ class blockClass:
     if (turb_str == 'orthogonal subscale'):
       self.getRHS_REGION_OUTER = orthogonalSubscale
       check = 1
+    if (turb_str == 'orthogonal subscale POD'):
+      self.getRHS_REGION_OUTER = orthogonalSubscale_POD
+      check = 1
     if (check == 0):
       self.getRHS_REGION_OUTER = DNS
+      print('Error, ' + turb_str + ' not found. Using DNS')
     else:
       if (self.mpi_rank == 0):
          print('Using turb model ' + turb_str)
@@ -78,5 +82,20 @@ class blockClass:
         region.basis.applyMassMatrix(region,region.RHS)
   
 
+    def getRHS_REGION_INNER_ELEMENT(self,eqns):
+      for region in self.region:
+        region.basis.reconstructU(region,region.a)
+        region.a.uR[:],region.a.uL[:],region.a.uU[:],region.a.uD[:],region.a.uF[:],region.a.uB[:] = region.basis.reconstructEdgesGeneral(region.a.a,region)
+
+      for region in self.region:
+        region.a.uR_edge[:],region.a.uL_edge[:],region.a.uU_edge[:],region.a.uD_edge[:],region.a.uF_edge[:],region.a.uB_edge[:] = sendEdgesGeneralSlab(region.a.uL,region.a.uR,region.a.uD,region.a.uU,region.a.uB,region.a.uF,region,self)
+
+      eqns.getRHS_element(self,eqns)
+      for region in self.region:
+        region.basis.applyMassMatrix(region,region.RHS)
+
+
     self.getRHS_REGION_INNER = getRHS_REGION_INNER 
+    self.getRHS_REGION_INNER_ELEMENT = getRHS_REGION_INNER_ELEMENT 
+
 

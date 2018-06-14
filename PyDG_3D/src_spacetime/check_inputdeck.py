@@ -17,6 +17,14 @@ else:
   if (mpi_rank == 0):
     logger.warning("procz not found, setting procz=1")
 
+if 'tau' in globals():
+  pass
+else:
+  tau = dt 
+  if (mpi_rank == 0):
+    logger.warning("tau not found, setting tau = dt")
+
+
 if 'n_blocks' in globals():
   pass
 else:
@@ -98,4 +106,4 @@ if 'fsource' in globals():
   pass
 else:
   fsource = False
-  fsource_mag = []
+  source_mag = []

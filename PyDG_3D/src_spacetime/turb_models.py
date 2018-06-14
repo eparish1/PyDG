@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from MPI_functions import gatherSolSpectral
+from MPI_functions import gatherSolSpectral,globalDot
 from equations_class import *
 from tensor_products import *
 from navier_stokes import strongFormEulerXYZ
@@ -485,4 +485,41 @@ def shockCapturingSetViscosity(main):
 
 
 
+#########################################
+## POD FUNCTIONS
+#==============================
+def projection_pod(u,V,regionManager):
+  tmp = globalDot(V.transpose(),u,regionManager)
+  u_proj = np.dot(V, tmp)
+  return u_proj
 
+## Function for orthogonal subscale MZ tau model
+def orthogonalSubscale_POD(regionManager,eqns):
+
+#  if (main.iteration%50 == 0):
+#    J = computeJacobian_full_pod(main,eqns)
+#    e,s = np.linalg.eig(J)
+#    tau = 0.45/np.amax(abs(e))
+#    main.tau = tau
+#    print('Spectral Radius = ',np.amax(abs(e)))
+#    print('tau             = ',np.amax(abs(tau)))
+
+  eps = 1e-5
+  a0 = regionManager.a*1.
+  regionManager.getRHS_REGION_INNER(regionManager,eqns) #includes loop over all regions
+  RHS0 = regionManager.RHS*1.
+
+  #==================================================
+  R_ortho = RHS0 -  projection_pod(RHS0,regionManager.V,regionManager)
+
+  regionManager.a[:] = a0[:] + eps*R_ortho
+
+  regionManager.getRHS_REGION_INNER(regionManager,eqns) #includes loop over all regions
+  #main.basis.applyMassMatrix(main,main.RHS)
+  PLQLu = (regionManager.RHS - RHS0)/eps
+  #regionManager.PLQLu[:] = PLQLu
+  #tau = regionManager.region[0].tau
+  tau = regionManager.dt
+  #=====================================
+  regionManager.RHS[:] =  RHS0[:]+ tau*PLQLu
+  regionManager.a[:] = a0[:]

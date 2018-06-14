@@ -28,11 +28,18 @@ class timeschemes:
       check_t = 0
       self.advanceSol = SSP_RK3_DOUBLEFLUX
       self.args = None
-
     if (time_str == 'SSP_RK3_POD'):
       check_t = 0
       self.advanceSol = SSP_RK3_POD
       self.args = None
+      regionManager.V = np.load('pod_basis.npz')['V']
+    if (time_str == 'backwardEuler_LSPG'):
+      check_t = 0
+      self.advanceSol = backwardEuler_LSPG
+      self.linear_solver = linearSolver(lsolver_str)
+      self.nonlinear_solver = nonlinearSolver(nlsolver_str)
+      self.sparse_quadrature = False
+      self.args = [self.nonlinear_solver,self.linear_solver,self.sparse_quadrature]
       regionManager.V = np.load('pod_basis.npz')['V']
     if (time_str == 'SpaceTime'):
       check_t = 0

@@ -144,7 +144,7 @@ regionConnector(regionManager)
 #print('==============')
 #print('MPI INFO',regionManager.region[0].mpi_rank,regionManager.region[0].rank_connect[3])
 #print('==============')
-
+regionManager.tau = tau
 #for i in range(0,regionManager.nblocks):
 region_counter = 0
 for i in regionManager.mpi_regions_owned:

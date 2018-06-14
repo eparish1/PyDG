@@ -191,6 +191,7 @@ class variables:
     self.starting_rank = starting_rank
     self.all_mpi_ranks = range(starting_rank,starting_rank + procx*procy*procz)
     self.region_number = region_number
+    self.region_counter = region_counter
     self.basis_args = basis_args
     self.eq_str = eqns.eq_str
     self.Nel = Nel
@@ -362,6 +363,9 @@ class variables:
       check = 1
     if (turb_str == 'orthogonal subscale'):
       self.getRHS = orthogonalSubscale
+      check = 1
+    if (turb_str == 'orthogonal subscale POD'):
+      self.getRHS = orthogonalSubscale_POD
       check = 1
     if (turb_str == 'tau-modelFD'):
       self.getRHS = tauModelFD

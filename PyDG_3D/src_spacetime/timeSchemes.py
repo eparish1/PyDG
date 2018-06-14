@@ -8,6 +8,7 @@ from linear_solvers import *
 import matplotlib.pyplot as plt
 from mpi4py import MPI
 import sys
+from scipy.optimize import least_squares
 from init_Classes import variables,equations
 from nonlinear_solvers import *
 from scipy.sparse.linalg import LinearOperator
@@ -33,6 +34,7 @@ def gatherResid(Rstar,regionManager):
       regionManager.comm.send(Rstar_glob, dest=j)
   else:
     Rstar_glob = regionManager.comm.recv(source=0)
+  #print(np.size(Rstar_glob),Rstar_glob)
   return Rstar_glob
 
 def spaceTime(main,MZ,eqns,args=None):
@@ -873,6 +875,38 @@ def backwardEuler(regionManager,eqns,args=None):
   regionManager.getRHS_REGION_OUTER(regionManager,eqns) #includes loop over all regions
   R0 = np.zeros(np.shape(regionManager.RHS))
   R0[:] = regionManager.RHS[:]
+  ## Function to evaluate the unsteady residual
+  def unsteadyResidual_element(regionManager,v):
+    regionManager.a[:] = v[:] #set current state to be the solution iterate of the Newton Krylov solver
+    regionManager.getRHS_REGION_INNER_ELEMENT(regionManager,eqns) # evaluate the RHS includes loop over all regions
+#    regionManager.getRHS_REGION_OUTER(regionManager,eqns) # evaluate the RHS includes loop over all regions
+    ## Construct the unsteady residual for Backward Euler in a few steps
+    RHS_BE = np.zeros(np.size(regionManager.RHS))
+    R1 = np.zeros(np.size(regionManager.RHS))
+    R1[:] = regionManager.RHS[:]
+    RHS_BE[:] = regionManager.dt*R1
+    Rstar = ( regionManager.a[:] - regionManager.a0 ) - RHS_BE
+    return Rstar
+#  J = computeJacobian_full_element(regionManager,unsteadyResidual_element) 
+#  Jinv = np.linalg.inv(J)
+  jac_freq = 1
+  if (regionManager.iteration%jac_freq == 0):
+    computeJacobian_element(regionManager,unsteadyResidual_element) 
+    if (regionManager.mpi_rank == 0):
+      sys.stdout.write('Computing Block Jacobians' +  '\n')
+
+  def blockJacobian_PC(v,regionManager,args=None):
+    z = np.zeros(np.size(v))
+    #computeJacobian_element(regionManager,unsteadyResidual_element) 
+    for region in regionManager.region:
+      block_size = region.nvars*np.prod(region.order)
+      start_indx = regionManager.solution_start_indx[region.region_counter]
+      end_indx = regionManager.solution_end_indx[region.region_counter]
+      tmp = np.reshape(v[start_indx:end_indx],np.shape(region.a.a))
+      tmp = np.reshape(tmp,(block_size,region.Npx,region.Npy,region.Npz,region.Npt))
+      tmp = np.einsum('ij...,j...->i...',region.PCinv,tmp)
+      z[start_indx:end_indx] = tmp.flatten()
+    return z
 
   ## Function to evaluate the unsteady residual
   def unsteadyResidual(regionManager,v):
@@ -883,24 +917,45 @@ def backwardEuler(regionManager,eqns,args=None):
     R1 = np.zeros(np.size(regionManager.RHS))
     R1[:] = regionManager.RHS[:]
     RHS_BE[:] = regionManager.dt*R1
-    Rstar = ( regionManager.a[:] - regionManager.a0 ) - RHS_BE
+    Rstar = (regionManager.a[:] - regionManager.a0 ) - RHS_BE
+#    for region in regionManager.region:
+#      block_size = region.nvars*np.prod(region.order)
+#      start_indx = regionManager.solution_start_indx[region.region_counter]
+#      end_indx = regionManager.solution_end_indx[region.region_counter]
+#      tmp = np.reshape(Rstar[start_indx:end_indx],np.shape(region.a.a))
+#      tmp = np.reshape(tmp,(block_size,region.Npx,region.Npy,region.Npz,region.Npt))
+#      tmp = np.einsum('ij...,j...->i...',region.PCinv,tmp)
+#      Rstar[start_indx:end_indx] = tmp.flatten()
     Rstar_glob = gatherResid(Rstar,regionManager) #gather the residual from all the different mpi_ranks
-    return Rstar,R1,Rstar_glob
+    return Rstar,Rstar,Rstar_glob
 
   ## Function to to a Matrix free approximation to the mat-vec product [dR/du][v] 
   def create_MF_Jacobian(v,args,regionManager):
     an = args[0]
     Rn = args[1]
+    eps = 1.e-5
+#    regionManager.a[:] = an[:]
+#    R0,dum,dum = unsteadyResidual(regionManager,regionManager.a) #includes loop over all regions
+    regionManager.a[:] = an + eps*v
+    R1,dum,dum = unsteadyResidual(regionManager,regionManager.a) #includes loop over all regions
+    Av = (R1-  Rn)/eps
+    return Av 
+
+
+
+  def create_MF_Jacobian2(v,args,regionManager):
+    an = args[0]
+    Rn = args[1]
     vr = np.reshape(v,np.shape(regionManager.a))
-    eps = 5.e-7
+    eps = 1.e-4
     regionManager.a[:] = an + eps*vr
     regionManager.getRHS_REGION_OUTER(regionManager,eqns) #includes loop over all regions
     RHS_BE = np.zeros(np.shape(regionManager.RHS))
     RHS_BE[:] = regionManager.dt*(regionManager.RHS - Rn)/eps
-    Av = vr - RHS_BE
-    return Av
+    Av =vr - RHS_BE
+    return Av 
 
-  nonlinear_solver.solve(unsteadyResidual, create_MF_Jacobian,regionManager,linear_solver,sparse_quadrature,eqns,None)
+  nonlinear_solver.solve(unsteadyResidual, create_MF_Jacobian,regionManager,linear_solver,sparse_quadrature,eqns,blockJacobian_PC)
 
   regionManager.t += regionManager.dt
   regionManager.iteration += 1
@@ -933,7 +988,7 @@ def CrankNicolson(regionManager,eqns,args=None):
     an = args[0]
     Rn = args[1]
     vr = np.reshape(v,np.shape(regionManager.a))
-    eps = 5.e-7
+    eps = 5.e-4
     regionManager.a[:] = an + eps*vr
     regionManager.getRHS_REGION_OUTER(regionManager,eqns) #includes loop over all regions
     RHS_CN = np.zeros(np.shape(regionManager.RHS))
@@ -1219,3 +1274,67 @@ def advanceSolImplicit_PETsc(main,MZ,eqns):
   main.t += main.dt
   main.iteration += 1
 
+
+
+
+
+
+
+## function to implement LSPG for backward euler timescheme
+## uses scipys least_squares functionality
+def backwardEuler_LSPG(regionManager,eqns,args):
+  nonlinear_solver = args[0]
+  linear_solver = args[1]
+  sparse_quadrature = args[2]
+  regionManager.a0[:] = regionManager.a[:]
+  regionManager.getRHS_REGION_OUTER(regionManager,eqns)
+  R0 = np.zeros(np.size(regionManager.RHS))
+  R0[:] = regionManager.RHS[:]
+  def unsteadyResidual(v):
+    regionManager.a[:] = np.dot(regionManager.V,v[:]) #set current state to be the solution iterate of the Newton Krylov solver
+    regionManager.getRHS_REGION_OUTER(regionManager,eqns) # evaluate the RHS includes loop over all regions
+    ## Construct the unsteady residual for Backward Euler in a few steps
+    RHS_BE = np.zeros(np.size(regionManager.RHS))
+    R1 = np.zeros(np.size(regionManager.RHS))
+    R1[:] = regionManager.RHS[:]
+    RHS_BE[:] = regionManager.dt*R1
+    Rstar = ( regionManager.a[:]*1. - regionManager.a0[:] ) - RHS_BE
+#    Rstar_glob = gatherResid(Rstar,regionManager) #gather the residual from all the different mpi_ranks
+
+    return Rstar.flatten()
+
+
+  def create_mv(v):
+    def MF_Jacobian(v):
+      an = regionManager.a0*1.
+      #vr = np.reshape( np.dot(main.V,v) , np.shape(main.a.a) )
+      ##vr = np.reshape(v,np.shape(main.a.a))
+      #eps = 5.e-7
+      #main.a.a[:] = an + eps*vr
+      #main.getRHS(main,MZ,eqns)
+      #RHS_BE = np.zeros(np.shape(main.RHS))
+      #R1 = np.zeros(np.shape(main.RHS))
+      #R1[:] = main.RHS[:]
+      #RHS_BE[:] = main.dt*(R1 - Rn)/eps
+      #main.basis.applyMassMatrix(main,RHS_BE)
+      #Av = vr - RHS_BE
+      return globalDot(regionManager.V,v,regionManager)
+      #return Av.flatten()
+
+    def rmatvec(v):
+      return globalDot(regionManager.V.transpose(),v,regionManager)
+
+    mdim = np.size(regionManager.a)
+    ndim = np.shape(regionManager.V)[1]
+    return  LinearOperator((mdim,ndim),matvec=MF_Jacobian,rmatvec=rmatvec)
+
+
+  a0_pod = globalDot(regionManager.V.transpose(),regionManager.a.flatten(),regionManager)
+  print(np.linalg.norm(a0_pod))
+  A = create_mv(regionManager.a.flatten())
+  res_1 = least_squares(unsteadyResidual, a0_pod,ftol=1e-4,xtol=1e-8,jac=create_mv,method='dogbox',verbose=2)
+  #res_1 = scipy.sparse.linalg.lsmr(A,R0.flatten())
+  a_sol_pod = res_1.x
+  regionManager.a[:] = np.dot(regionManager.V,a_sol_pod)
+  regionManager.t += regionManager.dt
+  regionManager.iteration += 1
