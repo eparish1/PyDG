@@ -4,6 +4,7 @@ from MPI_functions import gatherSolSpectral,globalDot
 from equations_class import *
 from tensor_products import *
 from navier_stokes import strongFormEulerXYZ
+from jacobian_schemes import computeJacobian_full_pod
 def orthogonalDynamics(main,MZ,eqns):
     ### EVAL RESIDUAL AND DO MZ STUFF
     filtarray = np.ones(np.shape(main.a.a))
@@ -70,6 +71,7 @@ def orthogonalSubscale(regionManager,eqns):
      eqns.evalFluxXYZLin(region,region.a.u,region.iFlux.fx,region.iFlux.fy,region.iFlux.fz,[-region.R_orthogonal])
      region.basis.applyVolIntegral(region,region.iFlux.fx,region.iFlux.fy,region.iFlux.fz,PLQLu2)
      region.RHS[:] = region.R0[:] 
+     region.tau = 100.
      indx = region.tau*abs(PLQLu2[4]) > (  abs(region.R0[4]) + 1e-3)
      region.a.a[:,indx] = 0.
      region.RHS[:,indx] = 0.
@@ -496,13 +498,14 @@ def projection_pod(u,V,regionManager):
 ## Function for orthogonal subscale MZ tau model
 def orthogonalSubscale_POD(regionManager,eqns):
 
-#  if (main.iteration%50 == 0):
-#    J = computeJacobian_full_pod(main,eqns)
-#    e,s = np.linalg.eig(J)
-#    tau = 0.45/np.amax(abs(e))
-#    main.tau = tau
-#    print('Spectral Radius = ',np.amax(abs(e)))
-#    print('tau             = ',np.amax(abs(tau)))
+  if (regionManager.iteration%10 == 0 and regionManager.rk_stage == 0):
+    J = computeJacobian_full_pod(regionManager,eqns)
+    e,s = np.linalg.eig(J)
+    tau = 0.2/np.amax(abs(e))
+    regionManager.tau = tau 
+    if (regionManager.mpi_rank == 0):
+      print('Spectral Radius = ',np.amax(abs(e)))
+      print('tau             = ',np.amax(abs(tau)))
 
   eps = 1e-5
   a0 = regionManager.a*1.

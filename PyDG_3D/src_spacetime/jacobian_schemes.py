@@ -39,6 +39,32 @@ def computeJacobian_full(regionManager,eqns):
     regionManager.a[i] -= eps
   return J
 
+### FINITE DIFFERENCE SCHEME TO COMPUTE JACOBIANS FOR POD
+def computeJacobian_full_pod(regionManager,eqns):
+  sz = np.shape(regionManager.V)[1]
+  J = np.zeros((sz,sz))
+
+  Rstar0 = np.zeros(sz)
+  regionManager.getRHS_REGION_INNER(regionManager,eqns)
+  Rstar0[:] = globalDot(regionManager.V.transpose(),regionManager.RHS[:],regionManager)
+
+  regionManager.a0[:] = regionManager.a[:]
+  eps = 1e-4
+  count = 0
+
+  eps = 1.e-4
+  a0_pod = globalDot(regionManager.V.transpose(),regionManager.a0.flatten(),regionManager)
+  a_pod = a0_pod*1.
+  for i in range(0,sz):
+    a_pod[:] = a0_pod[:]
+    a_pod[i] = a0_pod[i] + eps
+    regionManager.a[:] = np.dot(regionManager.V,a_pod)
+    #regionManager.region[0].a.a[3] = a0[3]
+    regionManager.getRHS_REGION_INNER(regionManager,eqns)
+    J[:,i] = ( globalDot(regionManager.V.transpose(),regionManager.RHS,regionManager)-Rstar0)/eps
+  return J
+
+
 ## Compute brute force the Jacobian for all states over the region
 ## This is a test function to make sure that computeJacobian_element is right
 def computeJacobian_full_element(regionManager,nl_function):

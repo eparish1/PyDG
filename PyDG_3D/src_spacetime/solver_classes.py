@@ -46,7 +46,14 @@ class timeschemes:
       self.nonlinear_solver = nonlinearSolver(nlsolver_str)
       self.sparse_quadrature = False
       self.args = [self.nonlinear_solver,self.linear_solver,self.sparse_quadrature]
-      regionManager.V = np.load('pod_basis.npz')['V']
+      V = np.load('pod_basis.npz')['V']
+      n_basis = np.shape(V)[1]
+      for region in regionManager.region:
+        V2 = np.zeros((region.nvars,region.order[0],region.order[1],region.order[2],region.order[3],region.Npx,region.Npy,region.Npz,region.Npt,n_basis))
+        for i in range(0,n_basis):
+          V2[:,:,:,:,:,:,:,:,:,i] = np.reshape(V[:,i],(region.nvars,region.order[0],region.order[1],region.order[2],region.order[3],region.Nel[0],region.Nel[1],region.Nel[2],region.Nel[3]))[:,:,:,:,:,region.sx,region.sy,region.sz,:] 
+        regionManager.V = np.reshape(V2,(np.size(region.a.a),n_basis) ) 
+
     if (time_str == 'SpaceTime'):
       check_t = 0
       self.advanceSol = spaceTime 

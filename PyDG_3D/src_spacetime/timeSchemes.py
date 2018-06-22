@@ -567,14 +567,17 @@ def SSP_RK3(regionManager,eqns,args=None):
 
 
 def SSP_RK3_POD(regionManager,eqns,args=None):
+  regionManager.rk_stage = 0
   regionManager.a0[:] = regionManager.a[:]
   a0_pod = globalDot(regionManager.V.transpose(),regionManager.a0,regionManager)
   ## First Stage
   regionManager.getRHS_REGION_OUTER(regionManager,eqns) #includes loop over all regions
+  regionManager.rk_stage += 1
   a1_pod = a0_pod  + regionManager.dt*globalDot(regionManager.V.transpose(),regionManager.RHS[:],regionManager) 
   regionManager.a[:] = np.dot(regionManager.V,a1_pod)
   ## Second Stage
   regionManager.getRHS_REGION_OUTER(regionManager,eqns) #includes loop over all regions
+  regionManager.rk_stage += 1
   a1_pod = 3./4.*a0_pod + 1./4.*(a1_pod + globalDot(regionManager.V.transpose(),regionManager.dt*regionManager.RHS[:],regionManager) ) #reuse a1 vector
   regionManager.a[:] = np.dot(regionManager.V,a1_pod)
   ## Third Stage
@@ -1318,7 +1321,7 @@ def backwardEuler_LSPG(regionManager,eqns,args):
       #RHS_BE[:] = main.dt*(R1 - Rn)/eps
       #main.basis.applyMassMatrix(main,RHS_BE)
       #Av = vr - RHS_BE
-      return globalDot(regionManager.V,v,regionManager)
+      return np.dot(regionManager.V,v)
       #return Av.flatten()
 
     def rmatvec(v):
@@ -1330,10 +1333,70 @@ def backwardEuler_LSPG(regionManager,eqns,args):
 
 
   a0_pod = globalDot(regionManager.V.transpose(),regionManager.a.flatten(),regionManager)
-  print(np.linalg.norm(a0_pod))
+  A = create_mv(regionManager.a.flatten())
+  #res_1 = least_squares(unsteadyResidual, a0_pod,ftol=1e-4,xtol=1e-8,jac=create_mv,method='dogbox',verbose=2)
+  res_1 = least_squares(unsteadyResidual, a0_pod,ftol=1e-4,xtol=1e-8,method='dogbox',verbose=2)
+
+  a_sol_pod = res_1.x
+  regionManager.a[:] = np.dot(regionManager.V,a_sol_pod)
+  regionManager.t += regionManager.dt
+  regionManager.iteration += 1
+
+
+## function to implement LSPG for crank nicolson timescheme
+## uses scipys least_squares functionality
+def crankNicolson_LSPG(regionManager,eqns,args):
+  nonlinear_solver = args[0]
+  linear_solver = args[1]
+  sparse_quadrature = args[2]
+  regionManager.a0[:] = regionManager.a[:]
+  regionManager.getRHS_REGION_OUTER(regionManager,eqns)
+  R0 = np.zeros(np.size(regionManager.RHS))
+  R0[:] = regionManager.RHS[:]
+  def unsteadyResidual(v):
+    regionManager.a[:] = np.dot(regionManager.V,v[:]) #set current state to be the solution iterate of the Newton Krylov solver
+    regionManager.getRHS_REGION_OUTER(regionManager,eqns) # evaluate the RHS includes loop over all regions
+    ## Construct the unsteady residual for Backward Euler in a few steps
+    RHS_BE = np.zeros(np.size(regionManager.RHS))
+    R1 = np.zeros(np.size(regionManager.RHS))
+    R1[:] = regionManager.RHS[:]
+    RHS_BE[:] = regionManager.dt*R1
+    Rstar = ( regionManager.a[:]*1. - regionManager.a0[:] ) - RHS_BE
+#    Rstar_glob = gatherResid(Rstar,regionManager) #gather the residual from all the different mpi_ranks
+
+    return Rstar.flatten()
+
+
+  def create_mv(v):
+    def MF_Jacobian(v):
+      an = regionManager.a0*1.
+      #vr = np.reshape( np.dot(main.V,v) , np.shape(main.a.a) )
+      ##vr = np.reshape(v,np.shape(main.a.a))
+      #eps = 5.e-7
+      #main.a.a[:] = an + eps*vr
+      #main.getRHS(main,MZ,eqns)
+      #RHS_BE = np.zeros(np.shape(main.RHS))
+      #R1 = np.zeros(np.shape(main.RHS))
+      #R1[:] = main.RHS[:]
+      #RHS_BE[:] = main.dt*(R1 - Rn)/eps
+      #main.basis.applyMassMatrix(main,RHS_BE)
+      #Av = vr - RHS_BE
+      return np.dot(regionManager.V,v)
+      #return Av.flatten()
+
+    def rmatvec(v):
+      return globalDot(regionManager.V.transpose(),v,regionManager)
+
+    mdim = np.size(regionManager.a)
+    ndim = np.shape(regionManager.V)[1]
+    return  LinearOperator((mdim,ndim),matvec=MF_Jacobian,rmatvec=rmatvec)
+
+
+  a0_pod = globalDot(regionManager.V.transpose(),regionManager.a.flatten(),regionManager)
   A = create_mv(regionManager.a.flatten())
   res_1 = least_squares(unsteadyResidual, a0_pod,ftol=1e-4,xtol=1e-8,jac=create_mv,method='dogbox',verbose=2)
-  #res_1 = scipy.sparse.linalg.lsmr(A,R0.flatten())
+  #res_1 = least_squares(unsteadyResidual, a0_pod,ftol=1e-4,xtol=1e-8,method='dogbox',verbose=2)
+
   a_sol_pod = res_1.x
   regionManager.a[:] = np.dot(regionManager.V,a_sol_pod)
   regionManager.t += regionManager.dt
