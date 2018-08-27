@@ -7,7 +7,7 @@ from navier_stokes import *#strongFormEulerXYZ
 from fluxSchemes import generalFluxGen
 from MPI_functions import sendEdgesGeneralSlab,sendEdgesGeneralSlab_Derivs,globalSum
 from navier_stokes_entropy import entropy_to_conservative
-from jacobian_schemes import computeJacobian_full_pod
+#from jacobian_schemes import computeJacobian_full_pod
 #from pylab import *
 def orthogonalDynamics(main,MZ,eqns):
     ### EVAL RESIDUAL AND DO MZ STUFF
