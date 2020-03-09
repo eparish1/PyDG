@@ -1,6 +1,6 @@
 import numpy as np
 import sys
-PyDG_DIR = '../../src_spacetime'
+PyDG_DIR = sys.path[0] + '/../../src_spacetime'
 sys.path.append(PyDG_DIR) #link the the source directory for PyDG
 from ic_functions_premade import vortexICS  #import the IC for taylor green vortex.
 def savehook(regionManager):
@@ -30,9 +30,6 @@ Nel = np.array([8,8,2,1])   #|  elements in x,y,z
 order =np.array([4,4,1,1])                       #|  spatial order
 quadpoints = np.array([order[0],order[1],order[2],order[3] ])  #|  number of quadrature points. 2x the order is reccomended
 mu = 0.#5                       #|  viscocity
-#x = -np.cos( np.pi*np.linspace(0,Nel[0]+1 - 1 ,Nel[0] + 1) /(Nel[0] + 1 -1) )*L/2. + L/2.
-#y = -np.cos( np.pi*np.linspace(0,Nel[1]+1 - 1 ,Nel[1] + 1) /(Nel[1] + 1 -1) )*L/2. + L/2.
-#z = -np.cos( np.pi*np.linspace(0,Nel[2]+1 - 1 ,Nel[2] + 1) /(Nel[2] + 1 -1) )*L/2. + L/2.
 x = np.linspace(0,L,Nel[0]+1)      #|  x, y, and z
 y = np.linspace(0,L,Nel[1]+1)      #|
 z = np.linspace(0,L,Nel[2]+1)      #|
