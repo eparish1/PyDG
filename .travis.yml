@@ -2,5 +2,7 @@ language: python
 python:
   - "3.5"
 cache: pip
+install:
+  - pip install -r mpi4py
 script:
   - python PyDG_3D/examples/isentropic_vortex/inputfile.py
