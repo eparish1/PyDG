@@ -1,5 +1,5 @@
 import numpy as np
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 def computeSmagViscosity(main,Ux,Uy,Uz,mu0,u):
   ux = 1./u[0]*(Ux[1] - u[1]/u[0]*Ux[0])
   vx = 1./u[0]*(Ux[2] - u[2]/u[0]*Ux[0])
@@ -131,10 +131,10 @@ def computeDynSmagViscosity(main,Ux,Uy,Uz,mu0,u):
   div = ux + vy + wz
   div2 = Ux[1] + Uy[2] + Uz[3]
 
-  plt.plot(div2[0,0,0,:,0,0])
-  plt.plot(wz[0,0,0,:,0,0],'--')
+  #plt.plot(div2[0,0,0,:,0,0])
+  #plt.plot(wz[0,0,0,:,0,0],'--')
 
-  plt.pause(0.001)
+  #plt.pause(0.001)
   S12 = 0.5*(uy + vx)
   S13 = 0.5*(uz + wx)
   S23 = 0.5*(vz + wy)

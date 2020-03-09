@@ -4,13 +4,20 @@ import sys
 from navier_stokes import *
 from navier_stokes_entropy_eqn import *
 from navier_stokes_reacting import *
+from navier_stokes_entropy import *
+from navier_stokes_kOmega import *
+
+from viscous_br1 import addViscousContribution_BR1,addViscousContribution_BR1_hyper
+from viscous_ip import addViscousContribution_IP
+from viscous_inviscid import addViscousContribution_inviscid
 from incompressible_navier_stokes import *
 from incompressible_navier_stokes_fractional import *
-
+from shallow_water import *
 from linear_advection import *
-from DG_functions import getRHS,getRHS_BR1
+from DG_core import getRHS,getRHS_element,getRHS_hyper
 class equations:
-  def __init__(self,eq_str,schemes,turb_str):
+  def __init__(self,eq_str,schemes,turb_str,params):
+    self.params = params
     comm = MPI.COMM_WORLD
     self.nmus = 1
     self.turb_str = turb_str
@@ -19,6 +26,26 @@ class equations:
     iflux_str = schemes[0]
     vflux_str = schemes[1]
     check_eq = 0
+    self.getRHS = getRHS
+    self.getRHS_hyper = getRHS_hyper
+    self.getRHS_element = getRHS_element
+
+    if (vflux_str == 'BR1'):
+      self.addViscousContribution = addViscousContribution_BR1
+      self.addViscousContribution_hyper = addViscousContribution_BR1_hyper
+
+      self.vflux_type = 'BR1'
+      checkv = 1
+    if (vflux_str == 'IP'):
+      if (mpi_rank == 0): print('Error, viscous flux scheme ' + vflux_str + ' not yet implemented for non-orthogonal grids. Use BR1 if grid is not orthogonal')
+      self.addViscousContribution = addViscousContribution_IP
+      self.vflux_type = 'IP'
+    if (vflux_str == 'Inviscid'):
+      self.addViscousContribution = addViscousContribution_inviscid
+      self.addViscousContribution_hyper = addViscousContribution_inviscid
+
+      self.vflux_type = 'Inviscid'
+
     if (eq_str == 'FM1 Navier-Stokes'):
       self.nmus = 1
       self.eq_str = eq_str
@@ -53,7 +80,6 @@ class equations:
         checkv = 1
         self.viscousFlux = centralFlux
       if (vflux_str == 'IP'):
-        self.getRHS = getRHS
         self.evalViscousFluxX = evalViscousFluxXNS_IP
         self.evalViscousFluxY = evalViscousFluxYNS_IP
         self.evalViscousFluxZ = evalViscousFluxZNS_IP
@@ -64,7 +90,6 @@ class equations:
         self.vflux_type = 'IP'
         checkv = 1
       if (vflux_str == 'Inviscid'):
-        self.getRHS = getRHS_INVISCID
         self.vflux_type = 'Inviscid'
         checkv = 1
       if (checkv == 0):
@@ -79,6 +104,7 @@ class equations:
       check_eq = 1
       self.nvars = 5 + nscalars
       self.nvisc_vars = 9 + nscalars*3
+      self.evalFluxXYZ = evalFluxXYZEuler_reacting 
       self.evalFluxX = evalFluxXEuler_reacting 
       self.evalFluxY = evalFluxYEuler_reacting
       self.evalFluxZ = evalFluxZEuler_reacting
@@ -109,7 +135,6 @@ class equations:
       if (vflux_str == 'BR1'):
 #        print('Error, BR1 not completed for 3D. PyDG quitting')
 #        sys.exit()
-        self.getRHS = getRHS_BR1
         self.evalViscousFluxX = evalViscousFluxXNS_BR1_reacting
         self.evalViscousFluxY = evalViscousFluxYNS_BR1_reacting
         self.evalViscousFluxZ = evalViscousFluxZNS_BR1_reacting
@@ -120,7 +145,6 @@ class equations:
         checkv = 1
       if (vflux_str == 'IP'):
         self.viscous = True
-        self.getRHS = getRHS
         self.evalViscousFluxX = evalViscousFluxXNS_IP_reacting
         self.evalViscousFluxY = evalViscousFluxYNS_IP_reacting
         self.evalViscousFluxZ = evalViscousFluxZNS_IP_reacting
@@ -131,7 +155,6 @@ class equations:
         checkv = 1
       if (vflux_str == 'Inviscid'):
         self.viscous = False
-        self.getRHS = getRHS
         self.vflux_type = 'Inviscid'
         checkv = 1
       if (checkv == 0):
@@ -160,7 +183,6 @@ class equations:
         sys.exit()
       checkv = 0 
       if (vflux_str == 'BR1'):
-        self.getRHS = getRHS_BR1
         self.evalViscousFluxX = evalViscousFluxXIncomp_BR1
         self.evalViscousFluxY = evalViscousFluxYIncomp_BR1
         self.evalViscousFluxZ = evalViscousFluxZIncomp_BR1
@@ -171,7 +193,6 @@ class equations:
         checkv = 1
       if (vflux_str == 'Inviscid'):
         self.viscous = False
-        self.getRHS = getRHS
         self.vflux_type = 'Inviscid'
         checkv = 1
       if (checkv == 0):
@@ -200,7 +221,6 @@ class equations:
         sys.exit()
       checkv = 0 
       if (vflux_str == 'BR1'):
-        self.getRHS = getRHS_BR1
         self.evalViscousFluxX = evalViscousFluxXIncompFrac_BR1
         self.evalViscousFluxY = evalViscousFluxYIncompFrac_BR1
         self.evalViscousFluxZ = evalViscousFluxZIncompFrac_BR1
@@ -211,7 +231,6 @@ class equations:
         checkv = 1
       if (vflux_str == 'Inviscid'):
         self.viscous = False
-        self.getRHS = getRHS
         self.vflux_type = 'Inviscid'
         checkv = 1
       if (checkv == 0):
@@ -224,6 +243,33 @@ class equations:
       check_eq = 1
       self.nvars = 5
       self.nvisc_vars = 9
+      self.evalFluxX = evalFluxXEulerEntropyEqn 
+      self.evalFluxY = evalFluxYEulerEntropyEqn
+      self.evalFluxZ = evalFluxZEulerEntropyEqn
+      ## select appopriate flux scheme
+      checki = 0
+      if (iflux_str == 'central'):
+        self.inviscidFlux = eulerCentralFluxEntropyEqn
+        checki = 1
+      if (checki == 0):
+        if (mpi_rank == 0): print('Error, inviscid flux scheme ' + iflux_str + ' not valid. Options are "central". PyDG quitting')
+        sys.exit()
+      checkv = 0 
+      if (vflux_str == 'Inviscid'):
+        self.viscous = False
+        self.vflux_type = 'Inviscid'
+        checkv = 1
+      if (checkv == 0):
+        if (mpi_rank == 0): print('Error, viscous flux scheme ' + vflux_str + ' not valid. Not  yet implemented for ' + eq_str + '. PyDG quitting')
+        sys.exit() 
+
+    if (eq_str == 'Navier-Stokes Entropy'):
+      self.nmus = 1
+      self.eq_str = eq_str
+      check_eq = 1
+      self.nvars = 5
+      self.nvisc_vars = 9
+      self.evalFluxXYZ = evalFluxXYZEulerEntropy 
       self.evalFluxX = evalFluxXEulerEntropy 
       self.evalFluxY = evalFluxYEulerEntropy
       self.evalFluxZ = evalFluxZEulerEntropy
@@ -232,17 +278,52 @@ class equations:
       if (iflux_str == 'central'):
         self.inviscidFlux = eulerCentralFluxEntropy
         checki = 1
+      if (iflux_str == 'ismail'):
+        self.inviscidFlux = ismailFluxEntropy
+        checki = 1
+      if (iflux_str == 'roe'):
+        self.inviscidFlux = kfid_roefluxEntropy
+        checki = 1
+      if (iflux_str == 'rusanov'):
+        self.inviscidFlux = rusanovFluxEntropy
+        checki = 1
       if (checki == 0):
-        if (mpi_rank == 0): print('Error, inviscid flux scheme ' + iflux_str + ' not valid. Options are "central". PyDG quitting')
+        if (mpi_rank == 0): print('Error, inviscid flux scheme ' + iflux_str + ' not valid. Options are "central", "roe", "rusanov", "ismail". PyDG quitting')
         sys.exit()
       checkv = 0 
+      if (vflux_str == 'BR1'):
+        #print('Error, BR1 not completed for 3D. PyDG quitting')
+        #sys.exit()
+        self.addViscousContribution = addViscousContribution_BR1
+        self.evalViscousFlux = evalViscousFluxNS_BR1Entropy
+        self.evalViscousFluxX = evalViscousFluxXNS_BR1Entropy
+        self.evalViscousFluxY = evalViscousFluxYNS_BR1Entropy
+        self.evalViscousFluxZ = evalViscousFluxZNS_BR1Entropy
+        self.evalTauFlux = evalTauFluxNS_BR1Entropy
+        self.evalTauFluxX = evalTauFluxXNS_BR1Entropy
+        self.evalTauFluxY = evalTauFluxYNS_BR1Entropy
+        self.evalTauFluxZ = evalTauFluxZNS_BR1Entropy
+        self.vflux_type = 'BR1'
+        checkv = 1
+      if (vflux_str == 'IP'):
+        self.viscous = True
+        self.getRHS = getRHS
+        self.evalViscousFluxX = evalViscousFluxXNS_IPEntropy
+        self.evalViscousFluxY = evalViscousFluxYNS_IPEntropy
+        self.evalViscousFluxZ = evalViscousFluxZNS_IPEntropy
+        self.getGs = getGsNSEntropy 
+        self.getGsX = getGsNSX_FASTEntropy
+        self.getGsY = getGsNSY_FASTEntropy
+        self.getGsZ = getGsNSZ_FASTEntropy
+        self.vflux_type = 'IP'
+        checkv = 1
       if (vflux_str == 'Inviscid'):
         self.viscous = False
         self.getRHS = getRHS
         self.vflux_type = 'Inviscid'
         checkv = 1
       if (checkv == 0):
-        if (mpi_rank == 0): print('Error, viscous flux scheme ' + vflux_str + ' not valid. Not  yet implemented for ' + eq_str + '. PyDG quitting')
+        if (mpi_rank == 0): print('Error, viscous flux scheme ' + vflux_str + ' not valid. Options are, "IP", "Inviscid". PyDG quitting')
         sys.exit() 
 
 
@@ -252,6 +333,11 @@ class equations:
       check_eq = 1
       self.nvars = 5
       self.nvisc_vars = 9
+      self.evalFluxXYZ = evalFluxXYZEuler 
+      self.evalFluxXYZLin = evalFluxXYZEulerLin 
+      self.strongFormResidual = strongFormEulerXYZ
+      self.basicFlux = basicFluxEuler 
+
       self.evalFluxX = evalFluxXEuler 
       self.evalFluxY = evalFluxYEuler
       self.evalFluxZ = evalFluxZEuler
@@ -276,18 +362,20 @@ class equations:
       if (vflux_str == 'BR1'):
         #print('Error, BR1 not completed for 3D. PyDG quitting')
         #sys.exit()
-        self.getRHS = getRHS_BR1
+        self.addViscousContribution = addViscousContribution_BR1
+        self.evalViscousFlux = evalViscousFluxNS_BR1
         self.evalViscousFluxX = evalViscousFluxXNS_BR1
         self.evalViscousFluxY = evalViscousFluxYNS_BR1
         self.evalViscousFluxZ = evalViscousFluxZNS_BR1
+        self.evalTauFlux = evalTauFluxNS_BR1
         self.evalTauFluxX = evalTauFluxXNS_BR1
         self.evalTauFluxY = evalTauFluxYNS_BR1
         self.evalTauFluxZ = evalTauFluxZNS_BR1
         self.vflux_type = 'BR1'
         checkv = 1
       if (vflux_str == 'IP'):
-        self.viscous = True
-        self.getRHS = getRHS
+        if (mpi_rank == 0): print('Error, viscous flux scheme ' + vflux_str + ' not yet implemented for non-orthogonal grids. Use BR1 if grid is not orthogonal')
+        self.addViscousContribution = addViscousContribution_IP
         self.evalViscousFluxX = evalViscousFluxXNS_IP
         self.evalViscousFluxY = evalViscousFluxYNS_IP
         self.evalViscousFluxZ = evalViscousFluxZNS_IP
@@ -298,16 +386,167 @@ class equations:
         self.vflux_type = 'IP'
         checkv = 1
       if (vflux_str == 'Inviscid'):
-        self.viscous = False
-        self.getRHS = getRHS
+        self.addViscousContribution = addViscousContribution_inviscid
         self.vflux_type = 'Inviscid'
         checkv = 1
       if (checkv == 0):
         if (mpi_rank == 0): print('Error, viscous flux scheme ' + vflux_str + ' not valid. Options are, "IP", "Inviscid". PyDG quitting')
         sys.exit() 
 
+
+
+
+
+
+
+    if (eq_str == 'Navier-Stokes--kOmega'):
+      self.nmus = 1
+      self.eq_str = eq_str
+      check_eq = 1
+      self.nvars = 7
+      self.nvisc_vars = 15 
+      self.evalFluxXYZ = evalFluxXYZ_kOmega
+      ## select appopriate flux scheme
+      checki = 0
+      if (iflux_str == 'rusanov'):
+        self.inviscidFlux = rusanovFlux_kOmega
+        checki = 1
+      if (checki == 0):
+        if (mpi_rank == 0): print('Error, inviscid flux scheme ' + iflux_str + ' not valid. Options are "central", "roe", "rusanov", "ismail". PyDG quitting')
+        sys.exit()
+      checkv = 0 
+      if (vflux_str == 'BR1'):
+        #print('Error, BR1 not completed for 3D. PyDG quitting')
+        #sys.exit()
+        self.addViscousContribution = addViscousContribution_BR1
+        self.evalViscousFlux = evalViscousFluxNS_BR1_kOmega
+        self.evalViscousFluxX = evalViscousFluxXNS_BR1_kOmega
+        self.evalViscousFluxY = evalViscousFluxYNS_BR1_kOmega
+        self.evalViscousFluxZ = evalViscousFluxZNS_BR1_kOmega
+        self.evalTauFlux = evalTauFluxNS_BR1_kOmega
+        self.evalTauFluxX = evalTauFluxXNS_BR1_kOmega
+        self.evalTauFluxY = evalTauFluxYNS_BR1_kOmega
+        self.evalTauFluxZ = evalTauFluxZNS_BR1_kOmega
+        self.vflux_type = 'BR1'
+        checkv = 1
+      if (vflux_str == 'IP'):
+        if (mpi_rank == 0): print('Error, viscous flux scheme ' + vflux_str + ' not yet kOmega')
+        sys.exit()
+        self.addViscousContribution = addViscousContribution_IP
+        self.evalViscousFluxX = evalViscousFluxXNS_IP
+        self.evalViscousFluxY = evalViscousFluxYNS_IP
+        self.evalViscousFluxZ = evalViscousFluxZNS_IP
+        self.getGs = getGsNS 
+        self.getGsX = getGsNSX_FAST
+        self.getGsY = getGsNSY_FAST
+        self.getGsZ = getGsNSZ_FAST
+        self.vflux_type = 'IP'
+        checkv = 1
+      if (vflux_str == 'Inviscid'):
+        self.addViscousContribution = addViscousContribution_inviscid
+        self.vflux_type = 'Inviscid'
+        checkv = 1
+      if (checkv == 0):
+        if (mpi_rank == 0): print('Error, viscous flux scheme ' + vflux_str + ' not valid. Options are, "IP", "Inviscid". PyDG quitting')
+        sys.exit() 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     if (eq_str == 'Linearized Navier-Stokes'):
-      self.getRHS = getRHS
+      check_eq = 1
+      self.nvars = 5
+      self.nvisc_vars = 5
+      self.evalFluxX = evalFluxXEulerLin 
+      self.evalFluxY = evalFluxYEulerLin
+      self.evalFluxZ = evalFluxZEulerLin
+      self.viscous = False
+      ## select appopriate flux scheme
+      checki = 0
+      if (iflux_str == 'central'):
+        self.inviscidFlux = eulerCentralFluxLinearized
+        checki = 1
+      if (iflux_str == 'roe'):
+        self.inviscidFlux = kfid_roeflux
+        if (mpi_rank == 0): print('Error, inviscid flux scheme ' + iflux_str + ' not yet implemented for ' + eq_str + '. Options are "central". PyDG quitting')
+        sys.exit()
+        checki = 1
+      if (iflux_str == 'rusanov'):
+        self.inviscidFlux = rusanovFlux
+        self.inviscidFlux = kfid_roeflux
+        if (mpi_rank == 0): print('Error, inviscid flux scheme ' + iflux_str + ' not yet implemented for ' + eq_str + '. Options are "central". PyDG quitting')
+        sys.exit()
+        checki = 1
+      if (checki == 0):
+        if (mpi_rank == 0): print('Error, inviscid flux scheme ' + iflux_str + ' not yet implemented for ' + eq_str + '. Options are "central". PyDG quitting')
+        sys.exit()
+      checkv = 0 
+      if (vflux_str == 'BR1'):
+        print('Error, BR1 not completed for 3D. PyDG quitting')
+        sys.exit()
+        self.evalViscousFluxX = evalViscousFluxXNS_BR1
+        self.evalViscousFluxY = evalViscousFluxYNS_BR1
+        self.evalTauFluxX = evalTauFluxXNS_BR1
+        self.evalTauFluxY = evalTauFluxYNS_BR1
+        self.vflux_type = 'BR1'
+        checkv = 1
+        self.viscousFlux = centralFlux
+      if (vflux_str == 'IP'):
+        if (mpi_rank == 0): print('Error, viscous flux scheme ' + vflux_str + ' not yet implemented for ' + eq_str + '. Options are "INVISCID". PyDG quitting')
+        sys.exit()
+        self.viscous = True
+        self.evalViscousFluxX = evalViscousFluxXNS_IP
+        self.evalViscousFluxY = evalViscousFluxYNS_IP
+        self.evalViscousFluxZ = evalViscousFluxZNS_IP
+        self.getGs = getGsNS 
+        self.getGsX = getGsNSX_FAST
+        self.getGsY = getGsNSY_FAST
+        self.getGsZ = getGsNSZ_FAST
+        self.vflux_type = 'IP'
+        checkv = 1
+      if (vflux_str == 'Inviscid'):
+        self.vflux_type = 'Inviscid'
+        checkv = 1
+      if (checkv == 0):
+        if (mpi_rank == 0): print('Error, viscous flux scheme ' + vflux_str + ' not valid. Options are, "IP", "Inviscid". PyDG quitting')
+        sys.exit() 
+
+    if (eq_str == 'Shallow Water'):
+      self.eq_str = eq_str
+      check_eq = 1
+      self.nvars = 3
+      self.nvisc_vars = 0
+      self.evalFluxXYZ = evalFluxXYZ_shallowWater 
+      self.evalFluxXYZLin = None 
+      self.strongFormResidual = None
+      self.evalFluxX = None 
+      self.evalFluxY = None
+      self.evalFluxZ = None
+      ## select appopriate flux scheme
+      checki = 0
+      if (iflux_str == 'rusanov'):
+        self.inviscidFlux = swe_rusanovFlux
+        checki = 1
+      if (checki == 0):
+        if (mpi_rank == 0): print('Error, inviscid flux scheme ' + iflux_str + ' not valid. Options are "rusanov". PyDG quitting')
+        sys.exit()
+      checkv = 0 
+
+    if (eq_str == 'Linearized Navier-Stokes'):
       check_eq = 1
       self.nvars = 5
       self.nvisc_vars = 5
@@ -366,7 +605,6 @@ class equations:
         sys.exit() 
 
 
-
     if (eq_str == 'Linear-Advection'):
       check_eq = 1
       #print('Linear-Advection is not yet complete for 3D, PyDG quitting')
@@ -374,13 +612,20 @@ class equations:
       self.nvars = 1
       self.nvisc_vars = 2
       self.viscous = True
-      self.getRHS = getRHS 
       self.evalFluxX = evalFluxXLA
       self.evalFluxY = evalFluxYLA
       self.evalFluxZ = evalFluxZLA
-      self.inviscidFlux = linearAdvectionCentralFlux
+      self.evalFluxXYZ = evalFluxXYZLA
+
+      if (iflux_str == 'central'):
+        self.inviscidFlux = linearAdvectionCentralFlux 
+        checki = 1
+      if (iflux_str == 'upwind'):
+        self.inviscidFlux = linearAdvectionUpwindFlux 
+        checki = 1
 
       if (vflux_str == 'IP'):
+        if (mpi_rank == 0): print('Warning, ', vflux_str + ' not implemented yet for non-orthogonal grids.')
         self.evalViscousFluxX = evalViscousFluxXLA_IP
         self.evalViscousFluxY = evalViscousFluxYLA_IP
         self.evalViscousFluxZ = evalViscousFluxZLA_IP
@@ -390,18 +635,24 @@ class equations:
 
 
       if (vflux_str == 'BR1'):
-        self.evalViscousFluxX = evalViscousFluxXLA_BR1
-        self.evalViscousFluxY = evalViscousFluxYLA_BR1
-        self.evalTauFluxX = evalTauFluxXLA_BR1
-        self.evalTauFluxY = evalTauFluxYLA_BR1
+        self.evalViscousFluxX = evalViscousFluxXD_BR1
+        self.evalViscousFluxY = evalViscousFluxYD_BR1
+        self.evalViscousFluxZ = evalViscousFluxZD_BR1
+        self.evalViscousFlux = evalViscousFluxD_BR1
+        self.evalTauFluxX = evalTauFluxXD_BR1
+        self.evalTauFluxY = evalTauFluxYD_BR1
+        self.evalTauFluxZ = evalTauFluxZD_BR1
+        self.evalTauFlux = evalTauFluxD_BR1
+
+
 
     if (eq_str == 'Diffusion'):
       check_eq = 1
       self.viscous = True
-      self.getRHS = getRHS 
       self.inviscidFlux = diffusionCentralFlux
       self.nvars = 1
       self.nvisc_vars = 3
+      self.evalFluxXYZ = evalFluxXYZD
       self.evalFluxX = evalFluxD
       self.evalFluxY = evalFluxD
       self.evalFluxZ = evalFluxD
@@ -417,15 +668,14 @@ class equations:
         self.getGsZ = getGsD_Z
 
       if (vflux_str == 'BR1'):
-        self.getRHS = getRHS_BR1
         self.evalViscousFluxX = evalViscousFluxXD_BR1
         self.evalViscousFluxY = evalViscousFluxYD_BR1
         self.evalViscousFluxZ = evalViscousFluxZD_BR1
-
+        self.evalViscousFlux = evalViscousFluxD_BR1
         self.evalTauFluxX = evalTauFluxXD_BR1
         self.evalTauFluxY = evalTauFluxYD_BR1
         self.evalTauFluxZ = evalTauFluxZD_BR1
-
+        self.evalTauFlux = evalTauFluxD_BR1
     if (check_eq == 0):
        if (mpi_rank == 0): print('Equation set ' + str(eq_str) + ' is not valid, PyDG quitting')
        sys.exit()

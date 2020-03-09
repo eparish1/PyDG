@@ -71,6 +71,117 @@ def TGVIC(x,y,z,main):
   q[4] = rho*E
   return q
 
+def TGVICEntropy(x,y,z,main):
+  Lx = 2.*np.pi 
+  Ly = 2.*np.pi
+  Lz = 2.*np.pi
+  Minf = 0.2
+  nqx,nqy,nqz,Nelx,Nely,Nelz = np.shape(x)
+  gamma = main.gas.gamma
+  T0 = 1./gamma
+  R = main.gas.R #1
+  rho = 1.
+  p0 = rho*R*T0
+  a = np.sqrt(gamma*R*T0) 
+  V0 = Minf*a
+  Cv = 5./2.*R
+  u = V0*np.sin(x*2.*np.pi/Lx)*np.cos(y*2.*np.pi/Ly)*np.cos(z*2.*np.pi/Lz)
+  v = -V0*np.cos(x*2.*np.pi/Lx)*np.sin(y*2.*np.pi/Ly)*np.cos(z*2.*np.pi/Lz)
+  w = 0
+  p = p0 + rho*V0**2/16.*(np.cos(2.*x*2.*np.pi/Lx) + np.cos(2.*y*2.*np.pi/Ly) )*(np.cos(2.*z*2.*np.pi/Lz) + 2.)
+  T = p/(rho*R)
+  E = Cv*T + 0.5*(u**2 + v**2 + w**2)
+  q = np.zeros((5,nqx,nqy,nqz,Nelx,Nely,Nelz))
+  qv = np.zeros((5,nqx,nqy,nqz,Nelx,Nely,Nelz))
+  q[0] = rho
+  q[1] = rho*u
+  q[2] = rho*v
+  q[3] = rho*w
+  q[4] = rho*E
+  s = np.log(p) - gamma*np.log(rho)
+  s2 = np.log(p/rho**gamma)
+  qv[0] = -s/(gamma - 1.) + (gamma + 1.)/(gamma - 1.) - q[4]/p
+  qv[1] = q[1]/p
+  qv[2] = q[2]/p
+  qv[3] = q[3]/p
+  qv[4] = -q[0]/p
+  return qv
+
+
+def ShuOscherIC(x,y,z,main):
+  nqx,nqy,nqz,Nelx,Nely,Nelz = np.shape(x)
+  q = np.zeros((5,nqx,nqy,nqz,Nelx,Nely,Nelz))
+  gamma = main.gas.gamma 
+  Cv = main.gas.Cv
+  Cp = Cv*gamma
+  R = Cp - Cv
+  p = np.zeros((nqx,nqy,nqz,Nelx,Nely,Nelz))
+  rho = np.zeros(np.shape(p))
+  u = np.zeros(np.shape(rho))
+  v = np.zeros(np.shape(u))
+  w = np.zeros(np.shape(u))
+  E = np.zeros(np.shape(u))
+  mp = -4
+  p[:] = 10. + 1./3.
+  rho[:] = 3.857143
+  u[:] = 2.629369
+
+  p[x>mp] = 1.
+  rho[x>mp] = (1. + 0.2*np.sin(5.*x[x>mp]) )
+  u[x>mp] = 0
+#  rho[:,:,:,0:Nelx/2,:,:] = 1.
+#  rho[:,:,:,Nelx/2::,:,:] = 0.8
+  T = p/(rho*R)
+  E[:] = Cv*T + 0.5*(u**2 + v**2)
+  q[0] = rho
+  q[1] = rho*u
+  q[2] = rho*v
+  q[3] = rho*w
+  q[4] = rho*E
+  return q
+
+
+def ShuOscherICEntropy(x,y,z,main):
+  nqx,nqy,nqz,Nelx,Nely,Nelz = np.shape(x)
+  q = np.zeros((5,nqx,nqy,nqz,Nelx,Nely,Nelz))
+  qv = np.zeros((5,nqx,nqy,nqz,Nelx,Nely,Nelz))
+  gamma = main.gas.gamma 
+  Cv = main.gas.Cv
+  Cp = Cv*gamma
+  R = Cp - Cv
+  p = np.zeros((nqx,nqy,nqz,Nelx,Nely,Nelz))
+  rho = np.zeros(np.shape(p))
+  u = np.zeros(np.shape(rho))
+  v = np.zeros(np.shape(u))
+  w = np.zeros(np.shape(u))
+  E = np.zeros(np.shape(u))
+  mp = -4
+  p[:] = 10. + 1./3.
+  rho[:] = 3.857143
+  u[:] = 2.629369
+
+  p[x>mp] = 1.
+  rho[x>mp] = (1. + 0.2*np.sin(5.*x[x>mp]) )
+  u[x>mp] = 0
+#  rho[:,:,:,0:Nelx/2,:,:] = 1.
+#  rho[:,:,:,Nelx/2::,:,:] = 0.8
+  T = p/(rho*R)
+  E[:] = Cv*T + 0.5*(u**2 + v**2)
+  q[0] = rho
+  q[1] = rho*u
+  q[2] = rho*v
+  q[3] = rho*w
+  q[4] = rho*E
+
+  s = np.log(p) - gamma*np.log(rho)
+  s2 = np.log(p/rho**gamma)
+  qv[0] = -s/(gamma - 1.) + (gamma + 1.)/(gamma - 1.) - q[4]/p
+  qv[1] = q[1]/p
+  qv[2] = q[2]/p
+  qv[3] = q[3]/p
+  qv[4] = -q[0]/p
+  return qv
+
 
 def shocktubeIC(x,y,z,main):
   nqx,nqy,nqz,Nelx,Nely,Nelz = np.shape(x)
@@ -107,6 +218,7 @@ def zeroFSIC_incomp(x,y,z,main):
   return q
 
 
+
 def zeroFSIC(x,y,z,main):
   nqx,nqy,nqz,Nelx,Nely,Nelz = np.shape(x)
   q = np.zeros((5,nqx,nqy,nqz,Nelx,Nely,Nelz))
@@ -120,9 +232,9 @@ def zeroFSIC(x,y,z,main):
   v = np.zeros(np.shape(u))
   w = np.zeros(np.shape(u))
   E = np.zeros(np.shape(u))
-  T[:] = 1./gamma
-  rho[:] = T**(1./(gamma - 1.))
-  E[:] = Cv*T + 0.5*(u**2 + v**2)
+  rho[:] = 1. 
+  p = 1.
+  E[:] = p/(1.4 - 1.)
   q[0] = rho
   q[1] = rho*u
   q[2] = rho*v
@@ -161,7 +273,52 @@ def vortexICS(x,y,z,main):
   q[4] = rho*E
   return q
 
-def vortexICS_entropy(x,y,z,main):
+
+def vortexICSEntropy(x,y,z,main):
+  nqx,nqy,nqz,Nelx,Nely,Nelz = np.shape(x)
+  q = np.zeros((5,nqx,nqy,nqz,Nelx,Nely,Nelz))
+  qv = np.zeros((5,nqx,nqy,nqz,Nelx,Nely,Nelz))
+  gamma = main.gas.gamma
+  y0 = 5.
+  x0 = 5.
+  Cv = main.gas.Cv
+  Cp = Cv*gamma
+  R = Cp - Cv
+  T = np.zeros((nqx,nqy,nqz,Nelx,Nely,Nelz))
+  rho = np.zeros(np.shape(T))
+  u = np.zeros(np.shape(rho))
+  v = np.zeros(np.shape(u))
+  w = np.zeros(np.shape(u))
+  E = np.zeros(np.shape(u))
+  r = ( (x - x0)**2 + (y - y0)**2 )**0.5
+  beta = 5.
+  pi = np.pi
+  T[:] = 1. - (gamma - 1.)*beta**2/(8.*gamma*pi**2)*np.exp(1. - r**2)
+
+  rho[:] = T**(1./(gamma - 1.))
+  p = rho*R*T
+  u[:] = 1. + beta/(2.*pi)*np.exp( (1. - r**2)/2.)*-(y - y0)
+  v[:] = 1. +  beta/(2.*pi)*np.exp( (1. - r**2)/2.)*(x - x0)
+  w[:] = 0.
+  E[:] = Cv*T + 0.5*(u**2 + v**2)
+  q[0] = rho
+  q[1] = rho*u
+  q[2] = rho*v
+  q[3] = rho*w
+  q[4] = rho*E
+
+  s = np.log(p) - gamma*np.log(rho)
+  s2 = np.log(p/rho**gamma)
+  qv[0] = -s/(gamma - 1.) + (gamma + 1.)/(gamma - 1.) - q[4]/p
+  qv[1] = q[1]/p
+  qv[2] = q[2]/p
+  qv[3] = q[3]/p
+  qv[4] = -q[0]/p
+  return qv
+
+
+
+def vortexICS_entropy_eqn(x,y,z,main):
   nqx,nqy,nqz,Nelx,Nely,Nelz = np.shape(x)
   q = np.zeros((5,nqx,nqy,nqz,Nelx,Nely,Nelz))
   gamma = main.gas.gamma
@@ -193,7 +350,6 @@ def vortexICS_entropy(x,y,z,main):
   q[3] = rho*w
   q[4] = rho*s
   return q
-
 
 
 def TGVIC_2D(x,y,z,main):

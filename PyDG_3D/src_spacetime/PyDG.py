@@ -4,8 +4,8 @@ import sys
 from mpi4py import MPI
 from init_Classes import *
 from solver_classes import *
-from DG_functions import reconstructU_tensordot as reconstructU
-from DG_functions import volIntegrateGlob_tensordot as volIntegrateGlob
+from DG_core import reconstructU_tensordot as reconstructU
+from DG_core import volIntegrateGlob_tensordot as volIntegrateGlob
 from MPI_functions import gatherSolSlab,gatherSolSpectral,gatherSolScalar,globalSum
 from init_reacting_additions import *
 from timeSchemes import *#advanceSol,advanceSolImplicitMG,advanceSolImplicit,advanceSolImplicitPC
@@ -13,61 +13,16 @@ import time
 from scipy import interpolate
 from scipy.interpolate import RegularGridInterpolator
 from basis_class import *
-def getGlobGrid2(x,y,z,zeta0,zeta1,zeta2):
-#  dx = x[1] - x[0]
-#  dy = y[1] - y[0]
-#  dz = z[1] - z[0]
-
-  Npx,Npy,Npz = int(np.size(x)),int(np.size(y)),int(np.size(z))
-
-  nqx = np.size(zeta0)
-  nqy = np.size(zeta1)
-  nqz = np.size(zeta2)
-
-  xG = np.zeros((nqx,nqy,nqz,Npx-1,Npy-1,Npz-1))
-  yG = np.zeros((nqx,nqy,nqz,Npx-1,Npy-1,Npz-1))
-  zG = np.zeros((nqx,nqy,nqz,Npx-1,Npy-1,Npz-1))
-  for i in range(0,Npx-1):
-     dx = x[i+1] - x[i]
-     xG[:,:,:,i,:,:] = ( (2.*x[i]  + dx)/2. + zeta0/2.*(dx) )[:,None,None,None,None]
-  for i in range(0,Npy-1):
-     dy = y[i+1] - y[i]
-     yG[:,:,:,:,i,:] = ( (2.*y[i]  + dy)/2. + zeta1/2.*(dy) )[None,:,None,None,None]
-  for i in range(0,Npz-1):
-     dz = z[i+1] - z[i]
-     zG[:,:,:,:,:,i] = ( (2.*z[i]  + dz)/2. + zeta2/2.*(dz) )[None,None,:,None,None]
-  return xG,yG,zG
+from block_classes import *
+from adjoint_functions import *
 
 
-def getGlobGrid(x,y,z,zeta0,zeta1,zeta2):
-#  dx = x[1] - x[0]
-#  dy = y[1] - y[0]
-#  dz = z[1] - z[0]
-  Nelx,Nely,Nelz = np.size(x),np.size(y),np.size(z)
-  order0 = np.size(zeta0)
-  order1 = np.size(zeta1)
-  order2 = np.size(zeta2)
-  quadpoints = np.zeros(3,dtype='int')
-  quadpoints[0] =int( np.size(zeta0) )
-  quadpoints[1] =int( np.size(zeta1) )
-  quadpoints[2] =int( np.size(zeta2) )
 
-  xG = np.zeros(((np.size(x)-1)*np.size(zeta0)))
-  yG = np.zeros(((np.size(y)-1)*np.size(zeta1)))
-  zG = np.zeros(((np.size(z)-1)*np.size(zeta2)))
 
-  for i in range(0,Nelx-1):
-     dx = x[i+1] - x[i]
-     xG[i*quadpoints[0]:(i+1)*quadpoints[0]] = (2.*x[i]  + dx)/2. + zeta0/2.*(dx)
-  for i in range(0,Nely-1):
-     dy = y[i+1] - y[i]
-     yG[i*quadpoints[1]:(i+1)*quadpoints[1]] = (2.*y[i]  + dy)/2. + zeta1/2.*(dy)
-  for i in range(0,Nelz-1):
-     dz = z[i+1] - z[i]
-     zG[i*quadpoints[2]:(i+1)*quadpoints[2]] = (2.*z[i]  + dz)/2. + zeta2/2.*(dz)
-
-  return xG,yG,zG
-
+comm = MPI.COMM_WORLD
+mpi_rank = comm.Get_rank()
+num_processes = comm.Get_size()
+exec(open(PyDG_DIR + '/check_inputdeck.py').read())
 
 def getGlobU_scalar(u):
   quadpoints0,quadpoints1,quadpoints2,quadpoints3,Nelx,Nely,Nelz,Nelt = np.shape(u)
@@ -100,7 +55,7 @@ def getIC(main,f,x,y,z,zeta3,Npt):
   ord_arrz= np.linspace(0,order[2]-1,order[2])
   ord_arrt= np.linspace(0,order[3]-1,order[3])
   scale =  (2.*ord_arrx[:,None,None,None] + 1.)*(2.*ord_arry[None,:,None,None] + 1.)*(2.*ord_arrz[None,None,:,None] + 1.)*(2.*ord_arrt[None,None,None,:] + 1.)/16.
-
+  main.scale = scale
   U = np.zeros(np.shape(main.a.u))
   U[:,:,:,:,0,:,:,:,0] = f(x,y,z,main)
   for i in range(0,nt):
@@ -121,7 +76,6 @@ def getIC_collocate(main,f,x,y,z,zeta3,Npt):
   ord_arrz= np.linspace(0,order[2]-1,order[2])
   ord_arrt= np.linspace(0,order[3]-1,order[3])
   scale =  (2.*ord_arrx[:,None,None,None] + 1.)*(2.*ord_arry[None,:,None,None] + 1.)*(2.*ord_arrz[None,None,:,None] + 1.)*(2.*ord_arrt[None,None,None,:] + 1.)/16.
-  print(np.shape(y))
   U = np.zeros((Nvars,nqx,nqy,nqz,1,Nelx,Nely,Nelz,1))
   U[:,:,:,:,0,:,:,:,0] = f(x,y,z,main)
   for i in range(0,nt):
@@ -144,8 +98,9 @@ else:
 if 'enriched_ratio' in globals():
   pass
 else:
-  enriched_ratio = np.array([2,1,1,1])
-#  enriched_ratio = np.array([(order[0]*2)/order[0],(order[1])/order[1],(order[2]+1.)/order[2],1])
+  #enriched_ratio = np.array([2,2,2,1])
+  enriched_add = np.array([1,1,1,0])
+#  enriched_ratio = np.array([(order[0]+1.)/order[0],(order[1]+1.)/order[1],(order[2]+1.)/order[2],1])
 if 'enriched' in globals():
   pass
 else:
@@ -158,87 +113,127 @@ else:
   turb_str = 'DNS'
 
 if 'shock_capturing' in globals():
-  if (mpi_rank == 0): print('shock_capturing set to ' + str(shock_capturing) )
+  pass
+  if (mpi_rank == 0): print('WARNING, feature not up to date. Recommend shutting off')
 else:
-  if (mpi_rank == 0): print('shock_capturing not set, turned off by default' )
   shock_capturing = False
 
 if 'basis_functions_str' in globals():
   pass
 else:
   basis_functions_str = 'TensorDot'
+if 'orthogonal_str' in globals():
+  pass
+else:
+  orthogonal_str = False
+basis_args = [basis_functions_str,orthogonal_str]
+
 comm = MPI.COMM_WORLD
 num_processes = comm.Get_size()
 mpi_rank = comm.Get_rank()
-if (mpi_rank == 0):
+if (mpi_rank == 0 and write_output == 1):
   print('Running on ' + str(num_processes) + ' Procs')
-dx =  (x[-1] - x[0])/Nel[0]
 t = 0
-if (mpi_rank == 0):
-  print('dt*p/(Nt*dx) = ' + str(1.*dt*order[0]/dx/order[-1]))
-  print('dt*(p/dx)**2*mu = ' + str(dt*order[0]**2/dx**2*mu) )
 iteration = 0
-
-eqns = equations(eqn_str,schemes,turb_str)
-main = variables(Nel,order,quadpoints,eqns,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,fsource,source_mag,shock_capturing,mol_str)
-
-
-if (enriched):
-  eqnsEnriched = equations(enriched_eqn_str,enriched_schemes,turb_str)
-  mainEnriched = variables(Nel,np.int64(order*enriched_ratio),quadpoints,eqnsEnriched,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,source,source_mag,shock_capturing,mol_str)
+if 'params' in globals():
+  pass
 else:
-  mainEnriched = main
+  params = []
 
+eqns = equations(eqn_str,schemes,turb_str,params)
+#main = variables(Nel,order,quadpoints,eqns,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,fsource,source_mag,shock_capturing,mol_str,basis_args)
+regionManager = blockClass(n_blocks,starting_rank,procx,procy,procz,et,dt,save_freq,turb_str,Nel_block,order,eqns)
+region_counter = 0
+for i in regionManager.mpi_regions_owned:
+  regionManager.region.append( variables(regionManager,region_counter,i,Nel_block[i],order,quadpoints,eqns,mu,x_block[i],y_block[i],z_block[i],turb_str,procx[i],procy[i],procz[i],starting_rank[i],BCs[i],fsource,source_mag,shock_capturing,mol_str,basis_args) )
+#  regionManager.region[i].x = x_block[i]
+#  regionManager.region[i].y = y_block[i]
+#  regionManager.region[i].z = z_block[i]
 
-xG,yG,zG = getGlobGrid(x,y,z,main.zeta0,main.zeta1,main.zeta2)
-xG2,yG2,zG2 = getGlobGrid2(x,y,z,main.zeta0,main.zeta1,main.zeta2)
-xGc,yGc,zGc = getGlobGrid2(x,y,z,main.zeta0_c,main.zeta1_c,main.zeta2_c)
-xGc2,yGc2,zGc2 = getGlobGrid(x,y,z,main.zeta0_c,main.zeta1_c,main.zeta2_c)
+  region_counter += 1
+regionConnector(regionManager)
 
-main.basis = basis_class('Legendre',[basis_functions_str])
-mainEnriched.basis = main.basis
+#print('==============')
+#print('MPI INFO',regionManager.region[0].mpi_rank,regionManager.region[0].rank_connect[3])
+#print('==============')
+regionManager.tau = tau
+#for i in range(0,regionManager.nblocks):
+region_counter = 0
+for i in regionManager.mpi_regions_owned:
+  region = regionManager.region[region_counter]
+  region_counter += 1
+  region.x,region.y,region.z = x_block[i],y_block[i],z_block[i]
+  vol_min = (np.amin(region.Jdet))**(1./3.)
+  CFL = ( np.amin(region.J_edge_det[0])*4. + np.amin(region.J_edge_det[1])*4 + np.amin(region.J_edge_det[2])*4. ) / (np.amin(region.Jdet)*8 )
+#  if (mpi_rank == starting_rank[i]):
+#    print('dt*p/(Nt*dx) = ' + str(1.*dt*order[0]*CFL/order[-1] ))
+#    print('dt*(p/dx)**2*mu = ' + str(dt*order[0]**2*CFL**2*mu/order[-1] ))
+  if (enriched):
+    eqnsEnriched = eqns#equations(enriched_eqn_str,enriched_schemes,turb_str)
+    mainEnriched = variables(Nel,np.int64(order + enriched_add),quadpoints,eqnsEnriched,mu,x,y,z,turb_str,procx,procy,procz,BCs,fsource,source_mag,shock_capturing,mol_str,basis_args)
+  else:
+    mainEnriched = region 
+  
+  
+  
+  getIC(region,IC_function[i],region.xG,region.yG,region.zG,region.zeta3,region.Npt)
+  
+  reconstructU(region,region.a)
+  
+  timescheme = timeschemes(regionManager,time_integration,linear_solver_str,nonlinear_solver_str)
+  #main.source_hook = source_hook
 
-main.xG2 = xG2
+  xG_global = gatherSolScalar(region,region.xG[:,:,:,None,:,:,:,None])
+  yG_global = gatherSolScalar(region,region.yG[:,:,:,None,:,:,:,None])
+  zG_global = gatherSolScalar(region,region.zG[:,:,:,None,:,:,:,None])
 
-#getIC_collocate(main,IC_function,xGc[:,:,:,main.sx,main.sy,:],yGc[:,:,:,main.sx,main.sy,:],zGc[:,:,:,main.sx,main.sy,:],main.zeta3,main.Npt)
-getIC(main,IC_function,xG2[:,:,:,main.sx,main.sy,:],yG2[:,:,:,main.sx,main.sy,:],zG2[:,:,:,main.sx,main.sy,:],main.zeta3,main.Npt)
+  Nel = Nel_block[i]
+  MinvG = gatherMassMatrix(region,region.Minv)
+  if (region.mpi_rank == starting_rank[i]):
+    xG_global = np.reshape( np.rollaxis(np.rollaxis(np.rollaxis(xG_global[:,:,:,0,:,:,:,0],3,0),4,2),5,4), (Nel[0]*quadpoints[0],Nel[1]*quadpoints[1],Nel[2]*quadpoints[2]) )
+    yG_global = np.reshape( np.rollaxis(np.rollaxis(np.rollaxis(yG_global[:,:,:,0,:,:,:,0],3,0),4,2),5,4), (Nel[0]*quadpoints[0],Nel[1]*quadpoints[1],Nel[2]*quadpoints[2]) )
+    zG_global = np.reshape( np.rollaxis(np.rollaxis(np.rollaxis(zG_global[:,:,:,0,:,:,:,0],3,0),4,2),5,4), (Nel[0]*quadpoints[0],Nel[1]*quadpoints[1],Nel[2]*quadpoints[2]) )
+    if not os.path.exists('Solution'):
+       os.makedirs('Solution')
+    np.savez('DGgrid_block' + str(i),x=xG_global,y=yG_global,z=zG_global,Minv=MinvG)
+  
+  
+  t0 = time.time()
+ 
+  ord_arrx= np.linspace(0,order[0]-1,order[0])
+  ord_arry= np.linspace(0,order[1]-1,order[1])
+  ord_arrz= np.linspace(0,order[2]-1,order[2])
+  ord_arrt= np.linspace(0,order[3]-1,order[3])
+ 
+  scale =  (2.*ord_arrx[:,None,None,None] + 1.)*(2.*ord_arry[None,:,None,None] + 1.)*(2.*ord_arrz[None,None,:,None] + 1.)*(2.*ord_arrt[None,None,None,:] + 1.)/16.
 
-reconstructU(main,main.a)
+if (turb_str == 'adjoint'):
+  adjoint_init(regionManager,eqns,turb_str_adjoint)
+while (np.abs(regionManager.t) <= np.abs(regionManager.et + regionManager.dt/2)):
+  if (regionManager.iteration%regionManager.save_freq == 0):
+    #for z in range(0,regionManager.nblocks):
+    region_counter = 0
+    savehook(regionManager)
+    regionManager.a_norm = globalNorm(regionManager.a,regionManager)
 
-timescheme = timeschemes(time_integration,linear_solver_str,nonlinear_solver_str)
-#main.source_hook = source_hook
-if (main.mpi_rank == 0):
-  if not os.path.exists('Solution'):
-     os.makedirs('Solution')
-  np.savez('DGgrid',x=xG,y=yG,z=zG)
-
-t0 = time.time()
-
-ord_arrx= np.linspace(0,order[0]-1,order[0])
-ord_arry= np.linspace(0,order[1]-1,order[1])
-ord_arrz= np.linspace(0,order[2]-1,order[2])
-ord_arrt= np.linspace(0,order[3]-1,order[3])
-scale =  (2.*ord_arrx[:,None,None,None] + 1.)*(2.*ord_arry[None,:,None,None] + 1.)*(2.*ord_arrz[None,None,:,None] + 1.)*(2.*ord_arrt[None,None,None,:] + 1.)/16.
-
-
-while (main.t <= main.et + main.dt/2):
-  if (main.iteration%main.save_freq == 0):
-    reconstructU(main,main.a)
-    uG = gatherSolSlab(main,eqns,main.a)
-    aG = gatherSolSpectral(main.a.a,main)
-    savehook(main)
-    if (main.mpi_rank == 0):
-      UG = getGlobU(uG)
-      #uGF = getGlobU(uG)
+    for region in regionManager.region:
+      reconstructU(region,region.a)
+      uG = gatherSolSlab(region,eqns,region.a)
+      aG = gatherSolSpectral(region.a.a,region)
+      rG = gatherSolSpectral(region.RHS,region)
+      if (regionManager.mpi_rank - region.starting_rank == 0):
+        UG = getGlobU(uG)
+        np.savez('Solution/npsol_block' + str(region.region_number) + '_' + str(regionManager.iteration),U=(UG),a=aG,RHS=rG,t=regionManager.t,iteration=regionManager.iteration,order=order)
+        sys.stdout.flush()
+    if (regionManager.mpi_rank == 0 and write_output == 1):
       sys.stdout.write('======================================' + '\n')
       sys.stdout.write('wall time = ' + str(time.time() - t0) + '\n' )
-      sys.stdout.write('t = ' + str(main.t) +  '\n')
-      np.savez('Solution/npsol' + str(main.iteration),U=UG,a=aG,t=main.t,iteration=main.iteration,order=order)
+      sys.stdout.write('t = ' + str(regionManager.t) +  '\n')
       sys.stdout.flush()
+  timescheme.advanceSol(regionManager,eqns,timescheme.args)
 
-  timescheme.advanceSol(main,mainEnriched,eqns,timescheme.args)
-  #advanceSolImplicit_MG(main,main,eqns)
-reconstructU(main,main.a)
-uG = gatherSolSlab(main,eqns,main.a)
-if (main.mpi_rank == 0):
-  print('Final Time = ' + str(time.time() - t0),'Sol Norm = ' + str(np.linalg.norm(uG)) ),
+
+regionManager.a_norm = globalNorm(regionManager.a,regionManager)
+if (regionManager.mpi_rank == 0):
+  print('Final Time = ' + str(time.time() - t0),'Sol Norm = ' + str(regionManager.a_norm))
+

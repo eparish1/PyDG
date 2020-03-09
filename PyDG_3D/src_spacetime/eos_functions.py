@@ -27,8 +27,7 @@ def update_state(main):
     for i in range(0,np.shape(main.a.u)[0]-5):
       fa[:,i] = ( main.a.u[5+i]/main.a.u[0] ).flatten()
     fa[:,-1] = 1. - np.sum(fa[:,0:-1],axis=1)
-    if (main.fsource):
-     main.cgas_field.TPY = main.a.T.flatten(),main.a.p.flatten(),fa 
+    main.cgas_field.TPY = main.a.T.flatten(),main.a.p.flatten(),fa 
 
 def update_state_cantera(main):
     rhoi = 1./main.a.u[0]
@@ -102,21 +101,6 @@ def update_state_cantera(main):
     eD_edge = main.a.uD_edge[4]*rhoiD_edge - 0.5*rhoiD_edge**2*(main.a.uD_edge[1]**2 + main.a.uD_edge[2]**2 + main.a.uD_edge[3]**2)
     eF_edge = main.a.uF_edge[4]*rhoiF_edge - 0.5*rhoiF_edge**2*(main.a.uF_edge[1]**2 + main.a.uF_edge[2]**2 + main.a.uF_edge[3]**2)
     eB_edge = main.a.uB_edge[4]*rhoiB_edge - 0.5*rhoiB_edge**2*(main.a.uB_edge[1]**2 + main.a.uB_edge[2]**2 + main.a.uB_edge[3]**2)
-    for i in range(0,np.size(main.delta_h0)-1):
-      e += main.delta_h0[i]*main.a.u[5+i]*rhoi
-      eR += main.delta_h0[i]*main.a.uR[5+i]*rhoiR
-      eL += main.delta_h0[i]*main.a.uL[5+i]*rhoiL
-      eU += main.delta_h0[i]*main.a.uU[5+i]*rhoiU
-      eD += main.delta_h0[i]*main.a.uD[5+i]*rhoiD
-      eF += main.delta_h0[i]*main.a.uF[5+i]*rhoiF
-      eB += main.delta_h0[i]*main.a.uB[5+i]*rhoiB
-      eR_edge += main.delta_h0[i]*main.a.uR_edge[5+i]*rhoiR_edge
-      eL_edge += main.delta_h0[i]*main.a.uL_edge[5+i]*rhoiL_edge
-      eU_edge += main.delta_h0[i]*main.a.uU_edge[5+i]*rhoiU_edge
-      eD_edge += main.delta_h0[i]*main.a.uD_edge[5+i]*rhoiD_edge
-      eF_edge += main.delta_h0[i]*main.a.uF_edge[5+i]*rhoiF_edge
-      eB_edge += main.delta_h0[i]*main.a.uB_edge[5+i]*rhoiB_edge
-
     main.cgas_field.UVY = e.flatten(),rhoi.flatten(),fa
     main.cgas_field_R.UVY = eR.flatten(),rhoiR.flatten(),faR
     main.cgas_field_L.UVY = eL.flatten(),rhoiL.flatten(),faL
@@ -197,35 +181,39 @@ def computeEnergy(main,T,Y,u,v,w):
   return e 
 
 
-def computePressure_and_Temperature(main,u):
+def computePressure_CPG(main,u):
+  R = 8314.4621/1000.
+  Y_last = 1. - np.sum(u[5::]/u[None,0],axis=0)
+  Winv =  np.einsum('i...,ijk...->jk...',1./main.W[0:-1],u[5::]/u[None,0]) + 1./main.W[-1]*Y_last
+  Cp = np.einsum('i...,ijk...->jk...',main.Cp[0:-1],u[5::]/u[None,0]) + main.Cp[-1]*Y_last
+  Cv = Cp - R*Winv
+  gamma = Cp/Cv
+  p = (gamma - 1.)*(u[4] - 0.5*u[1]**2/u[0] - 0.5*u[2]**2/u[0] - 0.5*u[3]**2/u[0])
+  return p
+
+def computePressure_and_Temperature_CPG(main,u):
   R = 8314.4621/1000.
   T0 = 298.15*0.
   n_reacting = np.size(main.delta_h0)
-  #Cv = 0
-  #Winv = 0
-  #for i in range(0,n_reacting):
-  #  Cv += main.Cv[i]*u[5+i] #Cv of the mixture
-  #  Winv += u[5+i]/main.W[i] #mean molecular weight
   Y_last = 1. - np.sum(u[5::]/u[None,0],axis=0)
   Winv =  np.einsum('i...,ijk...->jk...',1./main.W[0:-1],u[5::]/u[None,0]) + 1./main.W[-1]*Y_last
-  #Cv = np.einsum('i...,ijk...->jk...',main.Cv[0:-1],u[5::]/u[None,0]) + main.Cv[-1]*Y_last
   Cp = np.einsum('i...,ijk...->jk...',main.Cp[0:-1],u[5::]/u[None,0]) + main.Cp[-1]*Y_last
-  #R = Cp - Cv
   Cv = Cp - R*Winv
   gamma = Cp/Cv
-  #print(np.mean(R*Winv),np.mean(Cp - Cv))
-
-  # sensible + chemical
   T = u[4]/u[0] - 0.5/u[0]**2*( u[1]**2 + u[2]**2 + u[3]**2 )
   T += R * T0 * Winv 
   T /= Cv
   T += T0
-  #p = u[0]*R*Winv*T
   p = (gamma - 1.)*(u[4] - 0.5*u[1]**2/u[0] - 0.5*u[2]**2/u[0] - 0.5*u[3]**2/u[0])
-
-  #print(np.mean(p),np.mean(p2),'EOS')
-  #print(np.amin(p),np.amax(p),'1')
-  #print(np.amin(p2),np.amax(p2),'2')
 
   return p,T
 
+
+def nasa_get_cps(main,T):
+  T0 = 298.
+  a = main.nasa_coeffs[:,0:7]
+  R = 8314.4621/1000./main.W
+  cp = R*(a[:,0]*T + a[:,1]*T**2/2. + a[:,2]*T**3/3. + a[:,3]*T**4/4. + a[:,4]*T**5/5.)
+  cp /= T
+  #cp -= R*(a[:,0]*T0 + a[:,1]*T0**2/2. + a[:,2]*T0**3/3. + a[:,3]*T0**4/4. + a[:,4]*T0**5/5.)
+  return cp

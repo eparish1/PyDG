@@ -1,11 +1,234 @@
 import numpy as np
+import time
+from tensor_products import *
+import scipy.sparse.linalg
+##### =========== Contains all the fluxes and physics neccesary to solve the Navier-Stokes equations using entropy variables within a DG framework #### ============
+## mass matrix for entropy - i.e we have \int w dU(v)/dt d\Omega
+## This function computes the inverse of the matrix \int w du/dv w'
+def getEntropyMassMatrix(main):
+  def getInnerMassMatrix(main,g):
+    norder = main.order[0]*main.order[1]*main.order[2]*main.order[3]
+    M2 = np.zeros((norder,norder,\
+                  main.Npx,main.Npy,main.Npz,1 ) )
+    M = np.zeros((main.order[0],main.order[1],main.order[2],main.order[3],main.order[0],main.order[1],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,1 ) )
 
-##### =========== Contains all the fluxes and physics neccesary to solve the Navier-Stokes equations within a DG framework #### ============
+    count = 0
+    t0 = time.time()
+    f = main.w0[:,None,None,None,:,None,None,None]*main.w1[None,:,None,None,None,:,None,None]\
+       *main.w2[None,None,:,None,None,None,:,None]*main.w3[None,None,None,:,None,None,None,:]
+    #for i in range(0,main.order[0]):
+    #  for j in range(0,main.order[1]):
+    #    for k in range(0,main.order[2]):
+    #      for l in range(0,main.order[3]):
+    #        #M2[count] =np.reshape( volIntegrateGlob_einsum_2(main,(f*f[i,j,k,l])[None,:,:,:,:,:,:,:,:,None,None,None,None]*main.Jdet[None,None,None,None,None,:,:,:,None,:,:,:,None]) , np.shape(M2[0]))
+    #        M[i,j,k,l] = volIntegrateGlob_tensordot(main,g*f[i,j,k,l][None,:,:,:,:,None,None,None,None]*main.Jdet[None,:,:,:,None,:,:,:,None],main.w0,main.w1,main.w2,main.w3)
+    #        count += 1
+    t1 = time.time()
+    f2 = g*main.Jdet[None,:,:,:,None,:,:,:,None] 
+    M2[:] = np.reshape( volIntegrateGlob_einsumMM2(main,f2,main.w0,main.w1,main.w2,main.w3) ,np.shape(M2))
+    #print('times = ', time.time() - t1,t1-t0)
+    return M2
+  #=================
+  dudv = mydUdV(main.a.u)
+  norder = main.order[0]*main.order[1]*main.order[2]*main.order[3]
+  #M = np.zeros((norder*5,norder*5,main.Npx,main.Npy,main.Npz,main.Npt) )
+  main.EMM[:] = 0.
+  count = 0
+  I = np.eye(5)
+  t0 = time.time()
+  for i in range(0,5):
+    for j in range(i,5):
+      main.EMM[i*norder:(i+1)*norder,j*norder:(j+1)*norder] = getInnerMassMatrix(main,dudv[i,j])
+      main.EMM[j*norder:(j+1)*norder,i*norder:(i+1)*norder] = main.EMM[i*norder:(i+1)*norder,j*norder:(j+1)*norder]
+  #for j in range(0,5):
+  #    main.EMM[:,j*norder:(j+1)*norder] = getInnerMassMatrix(main,dudv[:,j])
+  t1 = time.time()
+  main.EMM = np.rollaxis( np.rollaxis(main.EMM,1,6),0,5)
+#  test = np.reshape(main.RHS[:]*1.,(main.nvars*main.order[0]*main.order[1]*main.order[2]*main.order[3],main.Npx,main.Npy,main.Npz,main.Npt) )
+#  test = np.rollaxis(test,0,5)
+#  test = np.linalg.solve(main.EMM,test)
+#  test = np.rollaxis(test,4,0)
+#
+#  t2 = time.time()
+##  test3 = main.RHS.flatten()
+##  EMM2 = np.reshape(main.EMM,(5*norder,5*norder))
+##  test3 = scipy.linalg.lu(EMM2)
+#
+#  t3 = time.time()
+  main.EMM = np.linalg.inv(main.EMM)
+#  t4 = time.time()
+  main.EMM = np.rollaxis( np.rollaxis(main.EMM,4,0),5,1)
+#  R = np.reshape(main.RHS[:],(main.nvars*main.order[0]*main.order[1]*main.order[2]*main.order[3],main.Npx,main.Npy,main.Npz,main.Npt) )
+#  test2 = np.einsum('ij...,j...->i...',main.EMM,R*1.)
+#  if (main.mpi_rank == 0): print('times = ' , t4 - t3, t3 - t2,t2 - t1,t1-t0, 'Error = ' + str(np.linalg.norm(test2 - test) ) )
+
+
+## mass matrix for entropy - i.e we have \int w dU(v)/dt d\Omega
+## This function computes the matrix \int w du/dv w'
+def getEntropyMassMatrix_noinvert(main):
+  def getInnerMassMatrix(main,g):
+    norder = main.order[0]*main.order[1]*main.order[2]*main.order[3]
+    M2 = np.zeros((norder,norder,\
+                  main.Npx,main.Npy,main.Npz,1 ) )
+    count = 0
+    f2 = g*main.Jdet[None,:,:,:,None,:,:,:,None] 
+    M2[:] = np.reshape( volIntegrateGlob_einsumMM2(main,f2,main.w0,main.w1,main.w2,main.w3) ,np.shape(M2))
+    return M2
+  #=================
+  dudv = mydUdV(main.a.u)
+  norder = main.order[0]*main.order[1]*main.order[2]*main.order[3]
+  M = np.zeros((norder*5,norder*5,main.Npx,main.Npy,main.Npz,main.Npt) )
+  count = 0
+  I = np.eye(5)
+  t0 = time.time()
+  for i in range(0,5):
+    for j in range(i,5):
+      M[i*norder:(i+1)*norder,j*norder:(j+1)*norder] = getInnerMassMatrix(main,dudv[i,j])
+      M[j*norder:(j+1)*norder,i*norder:(i+1)*norder] = M[i*norder:(i+1)*norder,j*norder:(j+1)*norder]
+  t1 = time.time()
+  M = np.rollaxis( np.rollaxis(M,1,6),0,5)
+  return M
+
+
+## Mappings between entropy variables (V) and conservative variables (U)
+def mydUdV(V):
+  U = entropy_to_conservative(V)
+  gamma = 1.4
+  gamma_bar = gamma - 1.
+  es = 1.e-30
+  p = (gamma - 1.)*(U[4] - 0.5*U[1]**2/U[0] - 0.5*U[2]**2/U[0] - 0.5*U[3]**2/U[0])
+  H = (U[4] + p) / U[0]
+  asqr = gamma*p/U[0]
+  sz = np.shape(V)
+  sz = np.append(5,sz)
+  A0 = np.zeros(sz)
+  A0[0,:] = U[:]
+  A0[1,0] = A0[0,1]
+  A0[1,1] = U[1]**2/U[0] + p#U[1]*(1./(V[1]+es) - V[1]/V[4])
+  A0[1,2] = -U[1]*V[2]/V[4]
+  A0[1,3] = -U[1]*V[3]/V[4]
+  A0[1,4] = -U[1]/V[4] - V[1]*U[4]/V[4]
+  A0[2,0] = A0[0,2]
+  A0[2,1] = A0[1,2]
+  A0[2,2] = U[2]**2/U[0] + p#U[2]*(1./(V[2]+es) - V[2]/V[4])
+  A0[2,3] = -U[2]*V[3]/V[4]
+  A0[2,4] = -U[2]/V[4] - V[2]*U[4]/V[4]
+  A0[3,0] = A0[0,3]
+  A0[3,1] = A0[1,3]
+  A0[3,2] = A0[2,3]
+  A0[3,3] = U[3]**2/U[0] + p#U[3]*(1./(V[3]+es) - V[3]/V[4])
+  A0[3,4] = -U[3]/V[4] - V[3]*U[4]/V[4]
+  A0[4,0] = A0[0,4]
+  A0[4,1] = A0[1,4]
+  A0[4,2] = A0[2,4]
+  A0[4,3] = A0[3,4]
+  A0[4,4] = U[0]*H**2 - asqr*p/(gamma - 1.)
+  return A0 
+
+
+### This is from Hughes, probably not right
+def dVdU(V):
+  print('DONT USE THIS')
+  sz = np.shape(V[0])
+  sz = np.append(5,sz)
+  A0inv = np.zeros(sz)
+  gamma = 1.4
+  gamma_bar = gamma - 1.
+  k1 = 0.5*(V[1]**2 + V[2]**2 + V[3]**2)/V[4]
+  k2 = k1 - gamma
+  k3 = k1**2 - 2.*gamma*k1 + gamma
+  k4 = k2 - gamma_bar
+  k5 = k2**2 - gamma_bar*(k1 + k2)	
+  c1 = gamma_bar*V[4] - V[1]**2
+  c2 = vamma_bar*V[4] - V[2]**2
+  c3 = vamma_bar*V[4] - V[3]**2
+  d1 = -V[1]*V[2]
+  d2 = -V[1]*V[3]
+  d3 = -V[2]*V[3]
+  e1 = V[1]*V[4]
+  e2 = V[2]*V[4]
+  e3 = V[3]*V[4]
+
+  A0inv[0,0] = k1**2 + gamma
+  A0inv[0,1] = K1*V[1]
+  A0inv[0,2] = k1*V[2]
+  A0inv[0,3] = k1*V[3]
+  A0inv[0,4] = (k1 + 1.)*V[4]
+  A0inv[1,0] = A0inv[0,1]
+  A0inv[1,1] = -V[1]**2 - V[4]
+  A0inv[1,2] = -d1
+  A0inv[1,3] = -d2
+  A0inv[1,4] = e1
+  A0inv[2,0] = A0inv[0,2]
+  A0inv[2,1] = A0inv[1,2]
+  A0inv[2,2] = -V[2]**2 - V[4]
+  A0inv[2,3] = -d3
+  A0inv[2,4] = e2
+  A0inv[3,0] = A0inv[0,3]
+  A0inv[3,1] = A0inv[1,3]
+  A0inv[3,2] = A0inv[2,3]
+  A0inv[3,3] = V[3]**2 - V[4]
+  A0inv[3,4] = e3
+  A0inv[4,0] = A0inv[0,4]
+  A0inv[4,1] = A0inv[1,4]
+  A0inv[4,2] = A0inv[2,4]
+  A0inv[4,3] = A0inv[3,4]
+  A0inv[4,4] = V[4]**2
+  return - A0inv * gamma_bar/( p * V[4] )
+
+# function to take entropy variables V and get conservative variables U
+def entropy_to_conservative(V):
+  gamma = 1.4
+  U = np.zeros(np.shape(V))
+  gamma1 = gamma - 1.
+  igamma1 = 1./gamma1
+  gmogm1 = gamma*igamma1
+  iu4 = 1./V[4]  #- p / rho
+  u = -iu4*V[1]
+  v = -iu4*V[2]
+  w = -iu4*V[3]
+  t0 = -0.5*iu4*(V[1]**2 + V[2]**2 + V[3]**2)
+  t1 = V[0] - gmogm1 + t0
+  t2 =np.exp(-igamma1*np.log(-V[4]) )
+  t3 = np.exp(t1)
+  U[0] = t2*t3
+  H = -iu4*(gmogm1 + t0)
+  E = (H + iu4)
+  U[1] = U[0]*u 
+  U[2] = U[0]*v
+  U[3] = U[0]*w
+  U[4] = U[0]*E
+  return U
 
 
 ###### ====== Inviscid Fluxes Fluxes and Eigen Values (Eigenvalues currently not in use) ==== ############
-def evalFluxXEuler(u,f,args): 
-  #f = np.zeros(np.shape(u))
+def evalFluxXYZEulerEntropy(main,v,fx,fy,fz,args):
+  u = entropy_to_conservative(v) 
+  es = 1.e-30
+  gamma = 1.4
+  p = (gamma - 1.)*(u[4] - 0.5*u[1]**2/u[0] - 0.5*u[2]**2/u[0] - 0.5*u[3]**2/u[0])
+  rhoi = 1./u[0]
+  fx[0] = u[1]
+  fx[1] = rhoi*u[1]*u[1] + p
+  fx[2] = rhoi*u[1]*u[2]
+  fx[3] = rhoi*u[1]*u[3]
+  fx[4] = rhoi*(u[4] + p)*u[1]
+
+  fy[0] = u[2]
+  fy[1] = fx[2]#u[1]*u[2]/u[0]
+  fy[2] = rhoi*u[2]*u[2] + p
+  fy[3] = rhoi*u[2]*u[3]
+  fy[4] = rhoi*(u[4] + p)*u[2]
+
+  fz[0] = u[3]
+  fz[1] = fx[3]#$u[1]*u[3]/u[0]
+  fz[2] = fy[3]#u[2]*u[3]/u[0] 
+  fz[3] = rhoi*u[3]*u[3] + p 
+  fz[4] = rhoi*(u[4] + p)*u[3]
+
+
+def evalFluxXEulerEntropy(main,v,f,args):
+  u = entropy_to_conservative(v) 
   es = 1.e-30
   gamma = 1.4
   p = (gamma - 1.)*(u[4] - 0.5*u[1]**2/u[0] - 0.5*u[2]**2/u[0] - 0.5*u[3]**2/u[0])
@@ -16,8 +239,8 @@ def evalFluxXEuler(u,f,args):
   f[4] = (u[4] + p)*u[1]/(u[0])
 
 
-def evalFluxYEuler(u,f,args):
-  #f = np.zeros(np.shape(u))
+def evalFluxYEulerEntropy(main,v,f,args):
+  u = entropy_to_conservative(v) 
   gamma = 1.4
   p = (gamma - 1.)*(u[4] - 0.5*u[1]**2/u[0] - 0.5*u[2]**2/u[0] - 0.5*u[3]**2/u[0])
   f[0] = u[2]
@@ -26,10 +249,8 @@ def evalFluxYEuler(u,f,args):
   f[3] = u[2]*u[3]/u[0] 
   f[4] = (u[4] + p)*u[2]/u[0]
 
-
-
-def evalFluxZEuler(u,f,args):
-  #f = np.zeros(np.shape(u))
+def evalFluxZEulerEntropy(main,v,f,args):
+  u = entropy_to_conservative(v) 
   gamma = 1.4
   p = (gamma - 1.)*(u[4] - 0.5*u[1]**2/u[0] - 0.5*u[2]**2/u[0] - 0.5*u[3]**2/u[0])
   f[0] = u[3]
@@ -39,97 +260,12 @@ def evalFluxZEuler(u,f,args):
   f[4] = (u[4] + p)*u[3]/u[0]
 
 
-def evalFluxXEulerLin(U0,f,args): 
-  up = args[0]
-  #decompose as U = U0 + up, where up is the perturbation
-  #f = np.zeros(np.shape(u))
-  es = 1.e-30
-  gamma = 1.4
-  u = U0[1]/U0[0]
-  v = U0[2]/U0[0]
-  w = U0[3]/U0[0]
-  qsqr = u**2 + v**2 + w**2
-  # compute H in three steps (H = E + p/rho)
-  H = (gamma - 1.)*(U0[4] - 0.5*U0[0]*qsqr) #compute pressure
-  H += U0[4]
-  H /= U0[0]
-  f[0] = up[1]
-  f[1] = ( (gamma - 1.)/2.*qsqr - u**2)*up[0] + (3. - gamma)*u*up[1] + (1. - gamma)*v*up[2] + \
-         (1. - gamma)*w*up[3] + (gamma - 1.)*up[4]
-  f[2] = -u*v*up[0] + v*up[1] + u*up[2]
-  f[3] = -u*w*up[0] + w*up[1] + u*up[3]
-  f[4] = ((gamma - 1.)/2.*qsqr - H)*u*up[0] + (H + (1. - gamma)*u**2)*up[1] + (1. - gamma)*u*v*up[2] + \
-         (1. - gamma)*u*w*up[3] + gamma*u*up[4]
-
-
-def evalFluxYEulerLin(U0,f,args):
-  up = args[0]
-  gamma = 1.4
-  u = U0[1]/U0[0]
-  v = U0[2]/U0[0]
-  w = U0[3]/U0[0]
-  qsqr = u**2 + v**2 + w**2
-  # compute H in three steps (H = E + p/rho)
-  H = (gamma - 1.)*(U0[4] - 0.5*U0[0]*qsqr) #compute pressure
-  H += U0[4]
-  H /= U0[0]
-  f[0] = up[2]
-  f[1] = -v*u*up[0] + v*up[1] + u*up[2]
-  f[2] = ( (gamma - 1.)/2.*qsqr - v**2)*up[0] + (1. - gamma)*u*up[1] + (3. - gamma)*v*up[2] + \
-         (1. - gamma)*w*up[3] + (gamma - 1.)*up[4]
-  f[3] = -v*w*up[0] + w*up[2] + v*up[3]
-  f[4] = ((gamma - 1.)/2.*qsqr - H)*v*up[0] + (1. - gamma)*u*v*up[1] + (H + (1. - gamma)*v**2)*up[2] + \
-         (1. - gamma)*v*w*up[3] + gamma*v*up[4]
-
-
-
-def evalFluxZEulerLin(U0,f,args):
-  up = args[0]
-  gamma = 1.4
-  u = U0[1]/U0[0]
-  v = U0[2]/U0[0]
-  w = U0[3]/U0[0]
-  qsqr = u**2 + v**2 + w**2
-  # compute H in three steps (H = E + p/rho)
-  H = (gamma - 1.)*(U0[4] - 0.5*U0[0]*qsqr) #compute pressure
-  H += U0[4]
-  H /= U0[0]
-  f[0] = up[3]
-  f[1] = -u*w*up[0] + w*up[1] + u*up[3]
-  f[2] = -v*w*up[0] + w*up[2] + v*up[3]
-  f[3] = ( (gamma - 1.)/2.*qsqr - w**2)*up[0] + (1. - gamma)*u*up[1] + (1. - gamma)*v*up[2] + \
-         (3. - gamma)*w*up[3] + (gamma - 1.)*up[4]
-  f[4] = ((gamma - 1.)/2.*qsqr - H)*w*up[0] + (1. - gamma)*u*w*up[1] + (1. - gamma)*v*w*up[2] + \
-          (H + (1. - gamma)*w**2)*up[3] + gamma*w*up[4]
-
-
-
-def getEigs(ustarLR,ustarUD,ustarFB):
-  eigsLR = zeros(shape(ustarLR))
-  eigsUD = zeros(shape(ustarLR))
-  eigsFB = zeros(shape(ustarLR))
-  pLR = (gamma - 1.)*ustarLR[0]*(ustarLR[4]/ustarLR[0] - 0.5*ustarLR[1]**2/ustarLR[0]**2 - 0.5*ustarLR[2]**2/ustarLR[0]**2 - 0.5*ustarLR[3]**2/ustarLR[0]**2)
-  aLR = sqrt(gamma*pLR/ustarLR[0])
-  pUD = (gamma - 1.)*ustarUD[0]*(ustarUD[4]/ustarUD[0] - 0.5*ustarUD[1]**2/ustarUD[0]**2 - 0.5*ustarUD[2]**2/ustarUD[0]**2 - 0.5*ustarUD[3]**2/ustarUD[0]**2)
-  aUD = sqrt(gamma*pUD/ustarUD[0])
-  pFB = (gamma - 1.)*ustarFB[0]*(ustarFB[4]/ustarFB[0] - 0.5*ustarFB[1]**2/ustarFB[0]**2 - 0.5*ustarFB[2]**2/ustarFB[0]**2 - 0.5*ustarFB[3]**2/ustarFB[0]**2)
-  aFB = sqrt(gamma*pFB/ustarFB[0])
-  eigsLR[0] = maximum(abs(ustarLR[1]/ustarLR[0] + aLR),abs(ustarLR[1]/ustarLR[0] - aLR))
-  eigsLR[1:5] = eigsLR[0]
-  eigsUD[0] = maximum(abs(ustarUD[2]/ustarUD[0] + aUD),abs(ustarUD[2]/ustarUD[0] - aUD))
-  eigsUD[1:5] = eigsUD[0]
-  eigsFB[0] = maximum(abs(ustarFB[3]/ustarFB[0] + aFB),abs(ustarFB[3]/ustarFB[0] - aFB))
-  eigsFB[1:5] = eigsFB[0]
-  return eigsLR,eigsUD,eigsFB
-
-
-
 #==================== Numerical Fluxes for the Faces =====================
 #== central flux
 #== rusanov flux
 #== Roe flux
 
-def eulerCentralFlux(UL,UR,n,args=None):
+def eulerCentralFluxEntropy(F,main,VL,VR,n,args=None):
 # PURPOSE: This function calculates the flux for the Euler equations
 # using the Roe flux function
 #
@@ -142,6 +278,9 @@ def eulerCentralFlux(UL,UR,n,args=None):
 #  F   : the flux out of the left cell (into the right cell)
 #  smag: the maximum propagation speed of disturbance
 #
+  UL = entropy_to_conservative(VL) 
+  UR = entropy_to_conservative(VR) 
+
   gamma = 1.4
   gmi = gamma-1.0
   #process left state
@@ -183,7 +322,6 @@ def eulerCentralFlux(UL,UR,n,args=None):
   FR[2] = UR[2]*unR + pR*n[1]
   FR[3] = UR[3]*unR + pR*n[2]
   FR[4] = rHR*unR
-  F = np.zeros(np.shape(FL))  # for allocation
   F[0]    = 0.5*(FL[0]+FR[0])#-0.5*smax*(UR[0] - UL[0])
   F[1]    = 0.5*(FL[1]+FR[1])#-0.5*smax*(UR[1] - UL[1])
   F[2]    = 0.5*(FL[2]+FR[2])#-0.5*smax*(UR[2] - UL[2])
@@ -192,57 +330,98 @@ def eulerCentralFlux(UL,UR,n,args=None):
   return F
 
 
-def eulerCentralFluxLinearized(U0L,U0R,n,args):
+def ismailFluxEntropy(F,main,VL,VR,n,args=None):
+# PURPOSE: This function calculates the flux for the Euler equations
+# using the ismail flux function
+#
+# INPUTS:
+#    UL: conservative state vector in left cell
+#    UR: conservative state vector in right cell
+#    n: normal pointing from the left cell to the right cell
+#
+# OUTPUTS:
+#  F   : the flux out of the left cell (into the right cell)
+#  smag: the maximum propagation speed of disturbance
+#
+  UL = entropy_to_conservative(VL) 
+  UR = entropy_to_conservative(VR) 
   gamma = 1.4
-  upL = args[0]
-  upR = args[1]
-  K = gamma - 1.
-  uL = U0L[1]/U0L[0]
-  vL = U0L[2]/U0L[0]
-  wL = U0L[3]/U0L[0]
-  uR = U0R[1]/U0R[0]
-  vR = U0R[2]/U0R[0]
-  wR = U0R[3]/U0R[0]
+  gmi = gamma-1.0
+  #process left state
+  rL = UL[0]
+  uL = UL[1]/rL
+  vL = UL[2]/rL
+  wL = UL[3]/rL
 
-  qnL = uL*n[0] + vL*n[1] + wL*n[2]
-  qnR = uR*n[0] + vR*n[1] + wR*n[2]
-  qsqrL = uL**2 + vL**2 + wL**2
-  qsqrR = uR**2 + vR**2 + wR**2
+  qL = np.sqrt(UL[1]*UL[1] + UL[2]*UL[2] + UL[3]*UL[3])/rL
+  pL = (gamma-1)*(UL[4] - 0.5*rL*qL**2.)
 
-  # compute H in three steps (H = E + p/rho)
-  HL = (gamma - 1.)*(U0L[4] - 0.5*U0L[0]*qsqrL) #compute pressure
-  HL += U0L[4]
-  HL /= U0L[0]
-  HR = (gamma - 1.)*(U0R[4] - 0.5*U0R[0]*qsqrR) #compute pressure
-  HR += U0R[4]
-  HR /= U0R[0]
-  
-  FL = np.zeros(np.shape(U0L))
-  FR = np.zeros(np.shape(U0R))
+  z1L = np.sqrt(rL/pL)
+  z2L = uL*z1L
+  z3L = vL*z1L
+  z4L = wL*z1L
+  z5L = pL*z1L
 
-  #Evaluate linearized normal flux (evaluated as dF/dU V nx + dG/dU v ny + dH/dU v nz. Jacobiam from I do like CFD, vol II) 
-  FL[0] = n[0]*upL[1] + n[1]*upL[2] + n[2]*upL[3]
-  FL[1] = (K/2.*qsqrL*n[0] - uL*qnL)*upL[0] + (uL*n[0] - K*uL*n[0] + qnL)*upL[1] + (uL*n[1] - K*vL*n[0])*upL[2] + (uL*n[2] - K*wL*n[0])*upL[3] + K*n[0]*upL[4]
-  FL[2] = (K/2.*qsqrL*n[1] - vL*qnL)*upL[0] + (vL*n[0] - K*uL*n[1])*upL[1] + (vL*n[1] - K*vL*n[1] + qnL)*upL[2] + (vL*n[2] - K*wL*n[1])*upL[3] + K*n[1]*upL[4]
-  FL[3] = (K/2.*qsqrL*n[2] - wL*qnL)*upL[0] + (wL*n[0] - K*uL*n[2])*upL[1] + (wL*n[1] - K*vL*n[2])*upL[2] + (wL*n[2] - K*wL*n[2] + qnL)*upL[3] + K*n[2]*upL[4]
-  FL[4] = (K/2.*qsqrL - HL)*qnL*upL[0] + (HL*n[0] - K*uL*qnL)*upL[1] + (HL*n[1] - K*vL*qnL)*upL[2] + (HL*n[2] - K*wL*qnL)*upL[3] + gamma*qnL*upL[4]
 
-  FR[0] = n[0]*upR[1] + n[1]*upR[2] + n[2]*upR[3]
-  FR[1] = (K/2.*qsqrR*n[0] - uR*qnR)*upR[0] + (uR*n[0] - K*uR*n[0] + qnR)*upR[1] + (uR*n[1] - K*vR*n[0])*upR[2] + (uR*n[2] - K*wR*n[0])*upR[3] + K*n[0]*upR[4]
-  FR[2] = (K/2.*qsqrR*n[1] - vR*qnR)*upR[0] + (vR*n[0] - K*uR*n[1])*upR[1] + (vR*n[1] - K*vR*n[1] + qnR)*upR[2] + (vR*n[2] - K*wR*n[1])*upR[3] + K*n[1]*upR[4]
-  FR[3] = (K/2.*qsqrR*n[2] - wR*qnR)*upR[0] + (wR*n[0] - K*uR*n[2])*upR[1] + (wR*n[1] - K*vR*n[2])*upR[2] + (wR*n[2] - K*wR*n[2] + qnR)*upR[3] + K*n[2]*upR[4]
-  FR[4] = (K/2.*qsqrR - HR)*qnR*upR[0] + (HR*n[0] - K*uR*qnR)*upR[1] + (HR*n[1] - K*vR*qnR)*upR[2] + (HR*n[2] - K*wR*qnR)*upR[3] + gamma*qnR*upR[4]
+  # process right state
+  rR = UR[0]
+  uR = UR[1]/rR
+  vR = UR[2]/rR
+  wR = UR[3]/rR
+  qR = np.sqrt(UR[1]*UR[1] + UR[2]*UR[2] + UR[3]*UR[3])/rR
+  pR = (gamma-1)*(UR[4] - 0.5*rR*qR**2.)
 
-  F = np.zeros(np.shape(FL))  
-  F[0]    = 0.5*(FL[0]+FR[0])
-  F[1]    = 0.5*(FL[1]+FR[1])
-  F[2]    = 0.5*(FL[2]+FR[2])
-  F[3]    = 0.5*(FL[3]+FR[3])
-  F[4]    = 0.5*(FL[4]+FR[4])
+  z1R = np.sqrt(rR/pR)
+  z2R = uR*z1R
+  z3R = vR*z1R
+  z4R = wR*z1R
+  z5R = pR*z1R
+
+  z1bar = 0.5*(z1L + z1R)
+  z2bar = 0.5*(z2L + z2R)
+  z3bar = 0.5*(z3L + z3R)
+  z4bar = 0.5*(z4L + z4R)
+  z5bar = 0.5*(z5L + z5R)
+ 
+  zeta = z1L/z1R
+  f =  (zeta - 1.)/(zeta + 1.)
+  uf = f*f
+  Fa = 1.0 + 1./3.*uf + 1./5.*uf**2 + 1./7.*uf**3 + 1./9.*uf**4
+  eps = 1e-3
+  Fa[uf>eps] = (0.5*np.log(zeta[uf>eps])/f[uf>eps])
+  z1log = z1bar/Fa
+
+  zeta = z5L/z5R
+  f =  (zeta - 1.)/(zeta + 1.)
+  uf = f*f
+  Fa = 1.0 + 1./3.*uf + 1./5.*uf**2 + 1./7.*uf**3 + 1./9.*uf**4
+  eps = 1e-3
+  Fa[uf>eps] = (0.5*np.log(zeta[uf>eps])*1./f[uf>eps])
+  z5log = z5bar/Fa
+
+  rhohat = z1bar*z5log
+  uhat = z2bar/z1bar
+  vhat = z3bar/z1bar
+  what = z4bar/z1bar
+  V_sqr = uhat**2 + vhat**2 + what**2
+  V_n = uhat*n[0] + vhat*n[1] + what*n[2]
+
+  p1hat = z5bar/z1bar
+  p2hat = 0.5*(gamma+1)/(gamma)*z5log/z1log + 0.5*(gamma - 1.)/gamma*z5bar/z1bar
+  ahat_sqr = gamma*p2hat/rhohat
+  Hhat = ahat_sqr/(gamma - 1.) + 0.5*V_sqr
+
+  # right flux
+  rhoV_n = rhohat*V_n
+  F[0]    = rhoV_n 
+  F[1]    = rhoV_n*uhat + p1hat*n[0]
+  F[2]    = rhoV_n*vhat + p1hat*n[1]
+  F[3]    = rhoV_n*what + p1hat*n[2]
+  F[4]    = rhoV_n*Hhat 
   return F
 
 
-def rusanovFlux(UL,UR,n,args=None):
+def rusanovFluxEntropy(F,main,VL,VR,n,args=None):
 # PURPOSE: This function calculates the flux for the Euler equations
 # using the Roe flux function
 #
@@ -255,6 +434,9 @@ def rusanovFlux(UL,UR,n,args=None):
 #  F   : the flux out of the left cell (into the right cell)
 #  smag: the maximum propagation speed of disturbance
 #
+  UL = entropy_to_conservative(VL) 
+  UR = entropy_to_conservative(VR) 
+
   gamma = 1.4
   gmi = gamma-1.0
   #process left state
@@ -327,7 +509,6 @@ def rusanovFlux(UL,UR,n,args=None):
   smax = np.abs(ucp) + np.abs(ci)
   #smax = np.maximum(np.abs(l[0]),np.abs(l[1]))
   # flux assembly
-  F = np.zeros(np.shape(FL))  # for allocation
   F[0]    = 0.5*(FL[0]+FR[0])-0.5*smax*(UR[0] - UL[0])
   F[1]    = 0.5*(FL[1]+FR[1])-0.5*smax*(UR[1] - UL[1])
   F[2]    = 0.5*(FL[2]+FR[2])-0.5*smax*(UR[2] - UL[2])
@@ -337,7 +518,7 @@ def rusanovFlux(UL,UR,n,args=None):
                
   
 
-def kfid_roeflux(UL,UR,n,args=None):
+def kfid_roefluxEntropy(F,main,VL,VR,n,args=None):
 # PURPOSE: This function calculates the flux for the Euler equations
 # using the Roe flux function
 #
@@ -350,6 +531,9 @@ def kfid_roeflux(UL,UR,n,args=None):
 #  F   : the flux out of the left cell (into the right cell)
 #  smag: the maximum propagation speed of disturbance
 #
+  UL = entropy_to_conservative(VL) 
+  UR = entropy_to_conservative(VR) 
+
   gamma = 1.4
   gmi = gamma-1.0
   #process left state
@@ -443,7 +627,6 @@ def kfid_roeflux(UL,UR,n,args=None):
   C2    = G1*s2*ci1          + G2*(s1-l3)
 
   # flux assembly
-  F = np.zeros(np.shape(FL))  # for allocation
   F[0]    = 0.5*(FL[0]+FR[0])-0.5*(l3*du[0] + C1   )
   F[1]    = 0.5*(FL[1]+FR[1])-0.5*(l3*du[1] + C1*ui + C2*n[0])
   F[2]    = 0.5*(FL[2]+FR[2])-0.5*(l3*du[2] + C1*vi + C2*n[1])
@@ -454,7 +637,9 @@ def kfid_roeflux(UL,UR,n,args=None):
 
 
 ###============= Diffusion Fluxes =====================
-def getGsNS(u,main):
+def getGsNSEntropy(v,main):
+  u = entropy_to_conservative(v) 
+
   nvars = np.shape(u)[0]
   gamma = 1.4
   Pr = 0.72
@@ -565,7 +750,8 @@ def getGsNS(u,main):
 
 
 
-def getGsNSX_FAST(u,main,mu,V):
+def getGsNSX_FASTEntropy(v,main,mu,V):
+  u = entropy_to_conservative(v)
   nvars = np.shape(u)[0]
   gamma = 1.4
   Pr = 0.72
@@ -600,7 +786,7 @@ def getGsNSX_FAST(u,main,mu,V):
   return fvG11,fvG21,fvG31
 
 
-def getGsNSY_FAST(u,main,mu,V):
+def getGsNSY_FASTEntropy(u,main,mu,V):
   nvars = np.shape(u)[0]
   gamma = 1.4
   Pr = 0.72
@@ -635,7 +821,9 @@ def getGsNSY_FAST(u,main,mu,V):
 
   return fvG12,fvG22,fvG32
 
-def getGsNSZ_FAST(u,main,mu,V):
+def getGsNSZ_FASTEntropy(v,main,mu,V):
+  u = entropy_to_conservative(v)
+
   nvars = np.shape(u)[0]
   gamma = 1.4
   Pr = 0.72
@@ -672,7 +860,9 @@ def getGsNSZ_FAST(u,main,mu,V):
 
 
 
-def getGsNSX(u,main,mu):
+def getGsNSXEntropy(v,main,mu):
+  u = entropy_to_conservative(v)
+
   nvars = np.shape(u)[0]
   gamma = 1.4
   Pr = 0.72
@@ -721,7 +911,9 @@ def getGsNSX(u,main,mu):
 
 
 
-def getGsNSY(u,main,mu):
+def getGsNSYEntropy(v,main,mu):
+  u = entropy_to_conservative(v)
+
   nvars = np.shape(u)[0]
   gamma = 1.4
   Pr = 0.72
@@ -768,7 +960,9 @@ def getGsNSY(u,main,mu):
   G32[4,3] = G12[4,1]#v2*mu_by_rho
   return G12,G22,G32
 
-def getGsNSZ(u,main,mu):
+def getGsNSZEntropy(v,main,mu):
+  u = entropy_to_conservative(v)
+
   nvars = np.shape(u)[0]
   gamma = 1.4
   Pr = 0.72
@@ -816,7 +1010,10 @@ def getGsNSZ(u,main,mu):
   return G13,G23,G33
 
 
-def evalViscousFluxXNS_IP(main,u,Ux,Uy,Uz,mu):
+def evalViscousFluxXNS_IPEntropy(main,v,Ux,Uy,Uz,mu):
+
+  u = entropy_to_conservative(v)
+
   gamma = 1.4
   Pr = 0.72
   ## ->  v_x = 1/rho d/dx(rho v) - rho v /rho^2 rho_x
@@ -846,7 +1043,9 @@ def evalViscousFluxXNS_IP(main,u,Ux,Uy,Uz,mu):
   return fx
 
 
-def evalViscousFluxYNS_IP(main,u,Ux,Uy,Uz,mu):
+def evalViscousFluxYNS_IPEntropy(main,v,Ux,Uy,Uz,mu):
+  u = entropy_to_conservative(v)
+
   gamma = 1.4
   Pr = 0.72
   ## ->  v_x = 1/rho d/dx(rho v) - rho v /rho^2 rho_x
@@ -875,7 +1074,9 @@ def evalViscousFluxYNS_IP(main,u,Ux,Uy,Uz,mu):
   fy[4] = fy[1]*v1 + fy[2]*v2 + fy[3]*v3 + kTy
   return fy
 
-def evalViscousFluxZNS_IP(main,u,Ux,Uy,Uz,mu):
+def evalViscousFluxZNS_IPEntropy(main,v,Ux,Uy,Uz,mu):
+  u = entropy_to_conservative(v)
+
   gamma = 1.4
   Pr = 0.72
   ## ->  v_x = 1/rho d/dx(rho v) - rho v /rho^2 rho_x
@@ -903,4 +1104,212 @@ def evalViscousFluxZNS_IP(main,u,Ux,Uy,Uz,mu):
   fz[3] = 2./3.*mu*(2.*wz - ux - vy)
   fz[4] = fz[1]*v1 + fz[2]*v2 + fz[3]*v3 + kTz
   return fz
+
+
+### Diffusion fluxes for BR1
+
+### viscous fluxes
+def evalViscousFluxNS_BR1Entropy(fv,main,VL,VR,n,args=None):
+  UL = entropy_to_conservative(VL)
+  UR = entropy_to_conservative(VR)
+
+  nvars = 9
+  sz = np.append(nvars,np.shape(UL[0]))
+  fvL = np.zeros(sz)
+  fvR = np.zeros(sz)
+#  fvZL = np.zeros(sz)
+#  fvXR = np.zeros(sz)
+#  fvYR = np.zeros(sz)
+#  fvZR = np.zeros(sz)
+
+  rhoi = 1./UL[0]
+  u = rhoi*UL[1]
+  v = rhoi*UL[2]
+  w = rhoi*UL[3]
+  T = (rhoi*UL[4] - 0.5*( u**2 + v**2 + w**2 ) ) #kinda a psuedo tmp, should divide by Cv but it's constant so this is taken care of in the tauFlux with gamma
+
+  mtwo_thirds_un = u*n[0]
+  mtwo_thirds_un += v*n[1]
+  mtwo_thirds_un += w*n[2]
+  mtwo_thirds_un *= -2./3.
+  fvL[0] = mtwo_thirds_un
+  fvL[0] += 2.*u*n[0]
+  fvL[1] = mtwo_thirds_un
+  fvL[1] += 2.*v*n[1]
+  fvL[2] = mtwo_thirds_un
+  fvL[2] += 2.*w*n[2]
+  fvL[3] = v*n[0] + u*n[1]
+  fvL[4] = w*n[0] + u*n[2] 
+  fvL[5] = w*n[1] + v*n[2]
+  fvL[6] = T*n[0]
+  fvL[7] = T*n[1]
+  fvL[8] = T*n[2]
+
+  rhoi = 1./UR[0]
+  u = rhoi*UR[1]
+  v = rhoi*UR[2]
+  w = rhoi*UR[3]
+  T = (rhoi*UR[4] - 0.5*( u**2 + v**2 + w**2 ) ) #kinda a psuedo tmp, should divide by Cv but it's constant so this is taken care of in the tauFlux with gamma
+  mtwo_thirds_un = u*n[0]
+  mtwo_thirds_un += v*n[1]
+  mtwo_thirds_un += w*n[2]
+  mtwo_thirds_un *= -2./3.
+  fvR[0] = mtwo_thirds_un
+  fvR[0] += 2.*u*n[0]
+  fvR[1] = mtwo_thirds_un
+  fvR[1] += 2.*v*n[1]
+  fvR[2] = mtwo_thirds_un
+  fvR[2] += 2.*w*n[2]
+  fvR[3] = v*n[0] + u*n[1]
+  fvR[4] = w*n[0] + u*n[2] 
+  fvR[5] = w*n[1] + v*n[2]
+  fvR[6] = T*n[0]
+  fvR[7] = T*n[1]
+  fvR[8] = T*n[2]
+  fv[:] = 0.5*(fvL + fvR)
+  return fv
+
+
+def evalViscousFluxXNS_BR1Entropy(main,V,fv):
+  U = entropy_to_conservative(V)
+  u = U[1]/U[0]
+  v = U[2]/U[0]
+  w = U[3]/U[0]
+  fv[0] =  4./3.*u  #tau11 = (du/dx + du/dx - 2/3 (du/dx + dv/dy + dw/dz) ) 
+  fv[1] = -2./3.*u  #tau22 = (dv/dy + dv/dy - 2/3 (du/dx + dv/dy + dw/dZ) )
+  fv[2] = -2./3.*u  #tau33 = (dw/dz + dw/dz - 2/3 (du/dx + dv/dy + dw/dz) )
+  fv[3] = v         #tau12 = (du/dy + dv/dx)
+  fv[4] = w         #tau13 = (du/dz + dw/dx)
+  fv[5] = 0.           #tau23 = (dv/dz + dw/dy)
+  T = (U[4]/U[0] - 0.5*( u**2 + v**2 + w**2 ) ) #kinda a psuedo tmp, should divide by Cv but it's constant so this is taken care of in the tauFlux with gamma
+  fv[6] = T
+  fv[7] = 0.
+  fv[8] = 0.
+
+
+#
+def evalViscousFluxYNS_BR1Entropy(main,V,fv):
+  U = entropy_to_conservative(V)
+  u = U[1]/U[0]
+  v = U[2]/U[0]
+  w = U[3]/U[0]
+  fv[0] = -2./3.*v  #tau11 = (du/dx + du/dx - 2/3 (du/dx + dv/dy + dw/dz) ) 
+  fv[1] =  4./3.*v  #tau22 = (dv/dy + dv/dy - 2/3 (du/dx + dv/dy + dw/dZ) )
+  fv[2] = -2./3.*v  #tau33 = (dw/dz + dw/dz - 2/3 (du/dx + dv/dy + dw/dz) )
+  fv[3] = u        #tau12 = (du/dy + dv/dx)
+  fv[4] = 0            #tau13 = (du/dz + dw/dx)
+  fv[5] = w         #tau23 = (dv/dz + dw/dy)
+  fv[6] = 0.
+  T = (U[4]/U[0] - 0.5*( u**2 + v**2 + w**2 ) )
+  fv[7] = T
+  fv[8] = 0.
+
+def evalViscousFluxZNS_BR1Entropy(main,V,fv):
+  U = entropy_to_conservative(V)
+  u = U[1]/U[0]
+  v = U[2]/U[0]
+  w = U[3]/U[0]
+  fv[0] = -2./3.*w  #tau11 = (du/dx + du/dx - 2/3 (du/dx + dv/dy + dw/dz) ) 
+  fv[1] = -2./3.*w  #tau22 = (dv/dy + dv/dy - 2/3 (du/dx + dv/dy + dw/dZ) )
+  fv[2] =  4./3.*w  #tau33 = (dw/dz + dw/dz - 2/3 (du/dx + dv/dy + dw/dz) )
+  fv[3] = 0.           #tau12 = (du/dy + dv/dx)
+  fv[4] = u         #tau13 = (du/dz + dw/dx)
+  fv[5] = v        #tau23 = (dv/dz + dw/dy)
+  T = (U[4]/U[0] - 0.5*( u**2 + v**2 + w**2 ) )
+  fv[6] = 0.
+  fv[7] = 0.
+  fv[8] = T
+
+
+def evalTauFluxNS_BR1Entropy(fv,main,VL,VR,n,args):
+  uL = entropy_to_conservative(VL)
+  uR = entropy_to_conservative(VR)
+
+  tauL = args[0]
+  tauR = args[1]
+  mu = main.mus
+  muL,muR = mu,mu
+  sz = np.shape(uL)
+  fvL = np.zeros(sz)
+  fvR = np.zeros(sz)
+
+  Pr = 0.72
+  Pri = 1./Pr
+  gamma = 1.4
+
+  rhoinv = 1./uL[0]
+  fvL[1] = tauL[0]*n[0]
+  fvL[1] += tauL[3]*n[1]
+  fvL[1] += tauL[4]*n[2]  #tau11*n1 + tau21*n2 + tau31*n3
+
+  fvL[2] = tauL[3]*n[0]
+  fvL[2] += tauL[1]*n[1]
+  fvL[2] += tauL[5]*n[2]  #tau12*n1 + tau22*n2 + tau32*n3
+
+  fvL[3] = tauL[4]*n[0]
+  fvL[3] += tauL[5]*n[1]
+  fvL[3] += tauL[2]*n[2]  #tau12*n1 + tau22*n2 + tau32*n3
+
+  fvL[4] = fvL[1]*uL[1]
+  fvL[4] += fvL[2]*uL[2]
+  fvL[4] += fvL[3]*uL[3]
+  fvL[4] *= rhoinv
+  fvL[4] += gamma*Pri*(tauL[6]*n[0] + tauL[7]*n[1] + tauL[8]*n[2])
+
+  fvL *= mu
+
+  rhoinv = 1./uR[0]
+  fvR[1] = tauR[0]*n[0]
+  fvR[1] += tauR[3]*n[1]
+  fvR[1] += tauR[4]*n[2]  #tau11*n1 + tau21*n2 + tau31*n3
+
+  fvR[2] = tauR[3]*n[0]
+  fvR[2] += tauR[1]*n[1]
+  fvR[2] += tauR[5]*n[2]  #tau12*n1 + tau22*n2 + tau32*n3
+
+  fvR[3] = tauR[4]*n[0]
+  fvR[3] += tauR[5]*n[1]
+  fvR[3] += tauR[2]*n[2]  #tau12*n1 + tau22*n2 + tau32*n3
+
+  fvR[4] = fvR[1]*uR[1]
+  fvR[4] += fvR[2]*uR[2]
+  fvR[4] += fvR[3]*uR[3]
+  fvR[4] *= rhoinv
+  fvR[4] += gamma*Pri*(tauR[6]*n[0] + tauR[7]*n[1] + tauR[8]*n[2])
+
+  fvR *= mu
+
+  fv[:] = 0.5*(fvL + fvR)
+ 
+  return fv
+
+def evalTauFluxXNS_BR1Entropy(main,tau,v,fvX,mu,cgas):
+  u = entropy_to_conservative(v)
+  Pr = 0.72
+  gamma = 1.4
+  fvX[0] = 0.
+  fvX[1] = mu*tau[0] #tau11
+  fvX[2] = mu*tau[3] #tau21
+  fvX[3] = mu*tau[4] #tau31
+  fvX[4] = mu*(tau[0]*u[1]/u[0] + tau[3]*u[2]/u[0] + tau[4]*u[3]/u[0] + gamma/Pr*tau[6] )
+
+def evalTauFluxYNS_BR1Entropy(main,tau,v,fvY,mu,cgas):
+  u = entropy_to_conservative(v)
+  Pr = 0.72
+  gamma = 1.4
+  fvY[0] = 0.
+  fvY[1] = mu*tau[3] #tau21
+  fvY[2] = mu*tau[1] #tau22
+  fvY[3] = mu*tau[5] #tau23
+  fvY[4] = mu*(tau[3]*u[1]/u[0] + tau[1]*u[2]/u[0] + tau[5]*u[3]/u[0] + gamma/Pr*tau[7])
+
+def evalTauFluxZNS_BR1Entropy(main,tau,v,fvZ,mu,cgas):
+  u = entropy_to_conservative(v)
+  Pr = 0.72
+  gamma = 1.4
+  fvZ[0] = 0.
+  fvZ[1] = mu*tau[4] #tau31
+  fvZ[2] = mu*tau[5] #tau32
+  fvZ[3] = mu*tau[2] #tau33
+  fvZ[4] = mu*(tau[4]*u[1]/u[0] + tau[5]*u[2]/u[0] + tau[2]*u[3]/u[0] + gamma/Pr*tau[8])
 

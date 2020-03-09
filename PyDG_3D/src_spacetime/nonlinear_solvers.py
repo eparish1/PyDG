@@ -3,13 +3,65 @@ import sys
 import time
 import matplotlib.pyplot as plt
 from init_Classes import variables,equations
-from DG_functions import getRHS_SOURCE
-def newtonSolver(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadrature,eqns):
+from linear_solvers import *
+from jacobian_schemes import *
+def newtonSolver(unsteadyResidual,MF_Jacobian,regionManager,linear_solver,sparse_quadrature,eqns,PC=None):
+#  if (sparse_quadrature):
+#    coarsen = 2
+#    quadpoints_coarsen = np.fmax(main.quadpoints/(coarsen),1)
+#    quadpoints_coarsen[-1] = main.quadpoints[-1]
+#    main_coarse = variables(main.Nel,main.order,quadpoints_coarsen,eqns,main.mus,main.xG,main.yG,main.zG,main.t,main.et,main.dt,main.iteration,main.save_freq,'DNS',main.procx,main.procy,main.procz,main.BCs,main.fsource,main.source_mag,main.shock_capturing,main.mol_str)
+#    main_coarse.basis = main.basis
+#    main_coarse.a.a[:] = main.a.a[:]
+#    def newtonHook(main_coarse,main,Rn):
+#      main_coarse.a.a[:] = main.a.a[:]
+#      main_coarse.getRHS(main_coarse,main_coarse,eqns)
+#      #getRHS_SOURCE(main_coarse,main_coarse,eqns)
+#      Rn[:] = main_coarse.RHS[:]
+#  else: 
+  regionManager_coarse = regionManager 
+  def newtonHook(regionManager_coarse,regionManager,Rn):
+     pass
+
+  Rstarn,Rn,Rstar_glob = unsteadyResidual(regionManager,regionManager.a)
+  NLiter = 0
+  regionManager.NLiter = 0
+  an = np.zeros(np.shape(regionManager.a0))
+  an[:] = regionManager.a0[:]
+  Rstar_glob0 = Rstar_glob*1. 
+  old = np.zeros(np.shape(regionManager.a))
+  resid_hist = np.zeros(0)
+  t_hist = np.zeros(0)
+  tnls = time.time()
+  while (Rstar_glob >= 1e-8 and Rstar_glob/Rstar_glob0 > 1e-8):
+    NLiter += 1
+    regionManager.NLiter += 1
+    ts = time.time()
+    newtonHook(regionManager_coarse,regionManager,Rn)
+    MF_Jacobian_args = [an,Rn]
+    delta = 1
+    loc_tol = 0.1*Rstar_glob/Rstar_glob0
+    PC_iteration = 0
+    PC_args = [1,loc_tol,PC_iteration]
+    sol = linear_solver.solve(MF_Jacobian, -Rstarn.flatten(), old.flatten(),regionManager_coarse,MF_Jacobian_args,PC,PC_args,loc_tol,1,40,0)
+    regionManager.a[:] = an[:] + 1.0*np.reshape(sol,np.size(regionManager.a))
+    an[:] = regionManager.a[:]
+    Rstarn,Rn,Rstar_glob = unsteadyResidual(regionManager,regionManager.a)
+    resid_hist = np.append(resid_hist,Rstar_glob)
+    t_hist = np.append(t_hist,time.time() - tnls)
+    if (regionManager.mpi_rank == 0):
+      sys.stdout.write('Newton iteration = ' + str(NLiter) + '  NL residual = ' + str(Rstar_glob) + ' relative decrease = ' + str(Rstar_glob/Rstar_glob0) + ' Solve time = ' + str(time.time() - ts)  + '\n')
+      sys.stdout.flush()
+  np.savez('resid_history',resid=resid_hist,t=t_hist)
+
+
+
+def NEJSolver(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadrature,eqns,PC=None):
   if (sparse_quadrature):
     coarsen = 2
     quadpoints_coarsen = np.fmax(main.quadpoints/(coarsen),1)
     quadpoints_coarsen[-1] = main.quadpoints[-1]
-    main_coarse = variables(main.Nel,main.order,quadpoints_coarsen,eqns,main.mus,main.xG,main.yG,main.zG,main.t,main.et,main.dt,main.iteration,main.save_freq,'DNS',main.procx,main.procy,main.BCs,main.fsource,main.source_mag,main.shock_capturing,main.mol_str)
+    main_coarse = variables(main.Nel,main.order,quadpoints_coarsen,eqns,main.mus,main.xG,main.yG,main.zG,main.t,main.et,main.dt,main.iteration,main.save_freq,'DNS',main.procx,main.procy,main.procz,main.BCs,main.fsource,main.source_mag,main.shock_capturing,main.mol_str)
     main_coarse.basis = main.basis
     main_coarse.a.a[:] = main.a.a[:]
     def newtonHook(main_coarse,main,Rn):
@@ -24,50 +76,281 @@ def newtonSolver(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadratu
   Rstarn,Rn,Rstar_glob = unsteadyResidual(main.a.a)
   NLiter = 0
   an = np.zeros(np.shape(main.a0))
-  an[:] = main.a0[:]
+  an[:] = main.a.a[:]
   Rstar_glob0 = Rstar_glob*1. 
   old = np.zeros(np.shape(main.a.a))
   resid_hist = np.zeros(0)
   t_hist = np.zeros(0)
   tnls = time.time()
+  omega = 1. 
+  PC_iteration = 1
   while (Rstar_glob >= 1e-8 and Rstar_glob/Rstar_glob0 > 1e-8):
     NLiter += 1
     ts = time.time()
-    newtonHook(main_coarse,main,Rn)
-    MF_Jacobian_args = [an,Rn]
-    delta = 1
-#    if (Rstar_glob/Rstar_glob0 < 1e-4):
-#      delta = 2
-#    if (Rstar_glob/Rstar_glob0 < 1e-5):
-#      delta = 3
-#    if (Rstar_glob/Rstar_glob0 < 1e-6):
-#      delta = 3
-    sol = linear_solver.solve(MF_Jacobian, -Rstarn.flatten(), old.flatten(),main_coarse,MF_Jacobian_args,np.fmin(Rstar_glob,0.1),linear_solver.maxiter_outer,20,False)
-    main.a.a[:] = an[:] + 1.0*np.reshape(sol,np.shape(main.a.a))
+    main.a.a[:] = an[:]
+    loc_tol = 0.1*Rstar_glob/Rstar_glob0
+    PC_args = [omega,loc_tol,PC_iteration]
+    r = PC(-Rstarn.flatten(),main,PC_args)
+    main.a.a[:] = omega*np.reshape(r,np.shape(main.a.a)) + an[:]
     an[:] = main.a.a[:]
+    rnorm = globalNorm(r,main) #same across procs
     Rstarn,Rn,Rstar_glob = unsteadyResidual(main.a.a)
+    PC_iteration += 1
     resid_hist = np.append(resid_hist,Rstar_glob)
     t_hist = np.append(t_hist,time.time() - tnls)
     if (main.mpi_rank == 0):
-      sys.stdout.write('NL iteration = ' + str(NLiter) + '  NL residual = ' + str(Rstar_glob) + ' relative decrease = ' + str(Rstar_glob/Rstar_glob0) + ' Solve time = ' + str(time.time() - ts)  + '\n')
-      #print(np.linalg.norm(Rstarn[0]),np.linalg.norm(Rstarn[-1]))
-    
+      sys.stdout.write('NEJ iteration = ' + str(NLiter) + '  NL residual = ' + str(Rstar_glob) + ' relative decrease = ' + str(Rstar_glob/Rstar_glob0) + ' Solve time = ' + str(time.time() - ts)  + '\n')
       sys.stdout.flush()
   np.savez('resid_history',resid=resid_hist,t=t_hist)
 
 
-def psuedoTimeSolver(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadrature,eqns):
+def ADISolver(unsteadyResiduals,MF_Jacobians,main,linear_solver,sparse_quadrature,eqns,PC=None):
+  #computeJacobianX = computeJacobians[0]
+  #computeJacobianT = computeJacobians[1]
+  unsteadyResidual = unsteadyResiduals[0]
+  unsteadyResidual_element_zeta = unsteadyResiduals[1]
+  unsteadyResidual_element_eta = unsteadyResiduals[2]
+  unsteadyResidual_element_mu = unsteadyResiduals[3]
+  unsteadyResidual_element_time = unsteadyResiduals[4]
+
+  MF_Jacobian = MF_Jacobians[0]
+  MF_Jacobian_element_zeta = MF_Jacobians[1]
+  MF_Jacobian_element_eta = MF_Jacobians[2]
+  MF_Jacobian_element_time = MF_Jacobians[3]
+
+  f = np.zeros(np.shape(main.a.a))
+  f0 = np.zeros(np.shape(main.a.a))
+  dum,Rn_el,dum = unsteadyResidual_element_zeta(main,main.a.a)
+#  print('ADI resid',np.linalg.norm(Rn_el))
+  Rstarn0,Rn,Rstar_glob = unsteadyResidual(main.a.a)
   NLiter = 0
-  tau = 0.0002
-  Rstarn,Rn,Rstar_glob = unsteadyResidual(main.a.a)
+  an = np.zeros(np.shape(main.a0))
+  an[:] = main.a.a[:]
+  Rstar_glob0 = Rstar_glob*1. 
+  resid_hist = np.zeros(0)
+  t_hist = np.zeros(0)
+  tnls = time.time()
+  rho = -40.
+  args = [an,Rn]
+  args_el = [an,Rn_el]
+  JX = computeJacobianX(main,unsteadyResidual_element_zeta) #get the Jacobian
+  JX = np.reshape(JX, (main.nvars*main.order[0],main.nvars*main.order[0],main.order[1],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
+  JX = np.rollaxis(np.rollaxis(JX ,1,9),0,8)
+
+  JY = computeJacobianY(main,unsteadyResidual_element_eta) #get the Jacobian
+  JY = np.reshape(JY, (main.nvars*main.order[1],main.nvars*main.order[1],main.order[0],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
+  JY = np.rollaxis(np.rollaxis(JY ,1,9),0,8)
+
+
+  JT = computeJacobianT(main,unsteadyResidual_element_time) #get the Jacobian
+  JT = np.reshape(JT, (main.nvars*main.order[3],main.nvars*main.order[3],main.order[0],main.order[1],main.order[2],main.Npx,main.Npy,main.Npz,main.Npt))
+  JT = np.rollaxis(np.rollaxis(JT ,1,9),0,8)
+
+  ImatX = np.eye(main.nvars*main.order[0])
+  ImatY = np.eye(main.nvars*main.order[1])
+  ImatZ = np.eye(main.nvars*main.order[2])
+  ImatT = np.eye(main.nvars*main.order[3])
+  while (Rstar_glob >= 1e-8 and Rstar_glob/Rstar_glob0 > 1e-8):
+    f0[:] = f0[:]
+    #Jxf = MF_Jacobian_element_zeta(f,args_el,main)
+    Jf = MF_Jacobian(f,args,main)
+    # perform iteration in the zeta direction   
+    if (np.shape(f) != np.shape(main.a.a)):
+      print('shape error') 
+    f = np.reshape(f, (main.nvars*main.order[0],main.order[1],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
+    f = np.rollaxis(f,0,8)
+    #Jxf = np.reshape(Jxf, (main.nvars*main.order[0],main.order[1],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
+    #Jxf = np.rollaxis(Jxf,0,8)
+    Jf = np.reshape(Jf, (main.nvars*main.order[0],main.order[1],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
+    Jf = np.rollaxis(Jf,0,8)
+    Rstarn0 = np.reshape(Rstarn0, (main.nvars*main.order[0],main.order[1],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
+    Rstarn0 = np.rollaxis(Rstarn0,0,8)
+    Jxf = np.einsum('pqrijklmn...,pqrijkln...->pqrijklm...',JX,f)
+    #print('MF_x',np.linalg.norm(Jxfb - Jxf))
+    f[:] = np.linalg.solve(JX + rho*ImatX,-Rstarn0 - (Jf - Jxf ) + rho*f) 
+    f = np.rollaxis(f,7,0)
+    f = np.reshape(f,np.shape(main.a.a) )
+    Jf = np.rollaxis(Jf,7,0)
+    Jf = np.reshape(Jf,np.shape(main.a.a) )
+    Rstarn0 = np.rollaxis(Rstarn0,7,0)
+    Rstarn0 = np.reshape(Rstarn0,np.shape(main.a.a))
+
+
+    # now perform iteration in the eta direction
+    if (np.shape(f) != np.shape(main.a.a)):
+      print('shape error') 
+    #Jyf2 = MF_Jacobian_element_eta(f,args_el,main)
+    Jf = MF_Jacobian(f,args,main)
+    f = np.rollaxis(f,2,1)
+    f = np.reshape(f, (main.nvars*main.order[1],main.order[0],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
+    f = np.rollaxis(f,0,8)
+    Jf = np.rollaxis(Jf,2,1)
+    Jf = np.reshape(Jf, (main.nvars*main.order[1],main.order[0],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
+    Jf = np.rollaxis(Jf,0,8)
+    #Jyf2 = np.rollaxis(Jyf2,2,1)
+    #Jyf2 = np.reshape(Jyf2, (main.nvars*main.order[1],main.order[0],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
+    #Jyf2 = np.rollaxis(Jyf2,0,8)
+    Jyf = np.einsum('pqrijklmn...,pqrijkln...->pqrijklm...',JY,f)
+    #print('MF_Y',np.linalg.norm(Jyf2 - Jyf))
+    Rstarn0 = np.rollaxis(Rstarn0,2,1)
+    Rstarn0 = np.reshape(Rstarn0, (main.nvars*main.order[1],main.order[0],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
+    Rstarn0 = np.rollaxis(Rstarn0,0,8)
+    #f[:] = np.linalg.solve(JY + rho*ImatY,-Rstarn0 - (Jf - Jyf) + rho*f)
+    f = np.rollaxis(f,7,0)
+    f = np.reshape(f, (main.nvars,main.order[1],main.order[0],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
+    f = np.rollaxis(f,1,3)
+    Rstarn0 = np.rollaxis(Rstarn0,7,0)
+    Rstarn0 = np.reshape(Rstarn0, (main.nvars,main.order[1],main.order[0],main.order[2],main.order[3],main.Npx,main.Npy,main.Npz,main.Npt))
+    Rstarn0 = np.rollaxis(Rstarn0,1,3)
+
+
+
+
+
+
+    # now perform iteration in the time direction
+    if (np.shape(f) != np.shape(main.a.a)):
+      print('shape error') 
+    #Jtf = MF_Jacobian_element_time(f,args_el,main)
+    Jf = MF_Jacobian(f,args,main)
+    f = np.rollaxis(f,4,1)
+    f = np.reshape(f, (main.nvars*main.order[3],main.order[0],main.order[1],main.order[2],main.Npx,main.Npy,main.Npz,main.Npt))
+    f = np.rollaxis(f,0,8)
+    Jf = np.rollaxis(Jf,4,1)
+    Jf = np.reshape(Jf, (main.nvars*main.order[3],main.order[0],main.order[1],main.order[2],main.Npx,main.Npy,main.Npz,main.Npt))
+    Jf = np.rollaxis(Jf,0,8)
+    #Jtf = np.rollaxis(Jtf,4,1)
+    #Jtf = np.reshape(Jtf, (main.nvars*main.order[3],main.order[0],main.order[1],main.order[2],main.Npx,main.Npy,main.Npz,main.Npt))
+    #Jtf = np.rollaxis(Jtf,0,8)
+    Jtf = np.einsum('pqrijklmn...,pqrijkln...->pqrijklm...',JT,f)
+    #print('MF_T',np.linalg.norm(Jtfb - Jtf))
+    Rstarn0 = np.rollaxis(Rstarn0,4,1)
+    Rstarn0 = np.reshape(Rstarn0, (main.nvars*main.order[3],main.order[0],main.order[1],main.order[2],main.Npx,main.Npy,main.Npz,main.Npt))
+    Rstarn0 = np.rollaxis(Rstarn0,0,8)
+    f[:] = np.linalg.solve(JT + rho*ImatT,-Rstarn0 - (Jf - Jtf) + rho*f)
+    f = np.rollaxis(f,7,0)
+    f = np.reshape(f, (main.nvars,main.order[3],main.order[0],main.order[1],main.order[2],main.Npx,main.Npy,main.Npz,main.Npt))
+    f = np.rollaxis(f,1,5)
+    Rstarn0 = np.rollaxis(Rstarn0,7,0)
+    Rstarn0 = np.reshape(Rstarn0, (main.nvars,main.order[3],main.order[0],main.order[1],main.order[2],main.Npx,main.Npy,main.Npz,main.Npt))
+    Rstarn0 = np.rollaxis(Rstarn0,1,5)
+#    print(np.shape(Rstarn0),np.shape(f),np.shape(main.a.a))
+    NLiter += 1
+    ts = time.time()
+    #an[:] = main.a.a[:]
+    Rstarn,dum,Rstar_globn = unsteadyResidual(an+f)
+    if (Rstar_globn <= Rstar_glob):
+      rho = rho*0.98
+    else:
+      rho = rho*3
+    Rstar_glob = Rstar_globn*1.
+    resid_hist = np.append(resid_hist,Rstar_glob)
+    t_hist = np.append(t_hist,time.time() - tnls)
+    if (main.mpi_rank == 0):
+      sys.stdout.write('ADI iteration = ' + str(NLiter) + '  NL residual = ' + str(Rstar_glob) + ' relative decrease = ' + str(Rstar_glob/Rstar_glob0) + ' Solve time = ' + str(time.time() - ts)  + '  rho = ' + str(rho) + '\n')
+      sys.stdout.flush()
+  main.a.a[:] = an[:] + f[:]
+  np.savez('resid_history',resid=resid_hist,t=t_hist)
+
+def pseudoTimeSolver_MG(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadrature,eqns,PC=None):
+  NLiter = 0
+  mg_classes = main.mg_classes 
+  mg_Rn = main.mg_Rn 
+  mg_an =main.mg_an 
+  mg_b = main.mg_b
+  mg_e = main.mg_e
+  n_levels =  main.mg_args[0]#int( np.log(np.amax(main.order))/np.log(2))  
+  coarsen = np.linspace(0,n_levels-1,n_levels)
+  def restrict(fh,fH,order_coarsen):
+    fH[:]= fh[:,0:order_coarsen[0],0:order_coarsen[1],0:order_coarsen[2],0:order_coarsen[3]]
+  def prolongate_add(fh,fH,order_coarsen):
+    fh[:,0:order_coarsen[0],0:order_coarsen[1],0:order_coarsen[2],0:order_coarsen[3]] += fH[:]
+
+  def advancePT(mg,b,num_its,tau):
+    rk4const = np.array([0.5,1.0])
+    a0 = np.zeros(np.shape(mg.a.a))
+    for counter in range(0,num_its):
+      a0[:] = mg.a.a[:]
+      for k in range(0,np.size(rk4const)):
+        Rstarn,Rn,Rstar_glob = unsteadyResidual(mg,mg.a.a)
+        mg.a.a[:] = a0[:] + tau*rk4const[k]*(Rstarn - b)
+    return Rstarn,Rstar_glob 
+  tau = 0.005
+  Rstar0,R0,Rstar_glob0 = unsteadyResidual(main,main.a.a)
+
+  Rstar_glob = Rstar_glob0*1.
+  save_freq = 1
+  tnls = time.time()
+  resid_hist = np.zeros(0)
+  t_hist = np.zeros(0)
+  mg_classes[0].a.a[:] = main.a.a[:]
+  #vs = np.int8(np.linspace(1,n_levels,n_levels))*6
+  vs = np.array([6,3,9]) 
+  #vs[-1] = 20
+  taus = np.zeros(n_levels)
+  for i in range(0,n_levels):
+    taus[i] = np.sqrt(np.size(mg_an[0])*1./np.size(mg_an[i]))
+
+  mg_classes[0].a.uFuture[:] = main.a.uFuture[:]
+  mg_classes[1].a.uFuture[:] = main.a.uFuture[:,0:-1,0:-1]
+#  mg_classes[2].a.uFuture[:] = main.a.uFuture[:,0:-2,0:-2]
+
+  while (Rstar_glob >= 1e-20 and Rstar_glob/Rstar_glob0 > 1e-8):
+    NLiter += 1
+    #======== Finest grid =============
+    mg_classes[0].a.uFuture[:] = main.a.uFuture[:]
+    mg_e[0],dum = advancePT(mg_classes[0],mg_an[0]*0,vs[0],tau)
+    mg_Rn[0] = 0.
+    #==================================
+    for i in range(0,n_levels - 1):
+      restrict(mg_e[i],mg_b[i+1],np.int32(np.fmax(main.order-coarsen[i+1],1)))
+      restrict(mg_classes[i].a.a,mg_classes[i+1].a.a,np.int32(np.fmax(main.order-coarsen[i+1],1)))
+      mg_an[i+1][:] = mg_classes[i+1].a.a[:]
+      mg_Rn[i+1],dum,dum = unsteadyResidual(mg_classes[i+1],mg_classes[i+1].a.a)
+      mg_e[i+1],dum = advancePT(main.mg_classes[i+1],(mg_Rn[i+1] - mg_b[i+1]),vs[i+1],tau*taus[i+1])
+
+    for i in range(n_levels-2,-1,-1):
+      prolongate_add(mg_classes[i].a.a,mg_classes[i+1].a.a - mg_an[i+1],np.int32(np.fmax(main.order-coarsen[i+1],1)) )
+      mg_e[i],Rstar_glob = advancePT(main.mg_classes[i],(mg_Rn[i] - mg_b[i]),vs[i],tau*taus[i])
+
+
+#    restrict(mg_Rn[0],mg_b[1],np.int32(np.fmax(main.order-coarsen[1],1)))
+#    restrict(mg_classes[0].a.a,mg_classes[1].a.a,np.int32(np.fmax(main.order-coarsen[1],1)))
+#    mg_an[1][:] = mg_classes[1].a.a[:]
+#    mg_Rn[1],dum,dum = unsteadyResidual(mg_classes[1],mg_classes[1].a.a)
+#    mg_e[1],dum = advancePT(main.mg_classes[1],(mg_Rn[1] - mg_b[1]),7,tau)
+#
+#    restrict(mg_e[1] - mg_Rn[1] ,mg_b[2],np.int32(np.fmax(main.order-coarsen[2],1)))
+#    restrict(mg_classes[1].a.a,mg_classes[2].a.a,np.int32(np.fmax(main.order-coarsen[2],1)))
+#    mg_an[2][:] = mg_classes[2].a.a[:]
+#    mg_Rn[2],dum,dum = unsteadyResidual(mg_classes[2],mg_classes[2].a.a)
+#    dum,dum = advancePT(main.mg_classes[2],(mg_Rn[2] - mg_b[2]),7,tau)
+##
+#    prolongate_add(mg_classes[1].a.a,mg_classes[2].a.a - mg_an[2],np.int32(np.fmax(main.order-coarsen[2],1)) )
+#    mg_e[1],dum = advancePT(main.mg_classes[1],(mg_Rn[1] - mg_b[1]),7,tau)
+#
+##
+#    prolongate_add(mg_classes[0].a.a,mg_classes[1].a.a-mg_an[1],np.int32(np.fmax(main.order-coarsen[1],1)) )
+#    mg_Rn[0],Rstar_glob = advancePT(main.mg_classes[0],mg_an[0]*0,20,tau) 
+
+    if (main.mpi_rank == 0 and NLiter%save_freq == 0):
+      sys.stdout.write('Psuedo time iteration = ' + str(NLiter) + '  NL residual = ' + str(Rstar_glob) + ' relative decrease = ' + str(Rstar_glob/Rstar_glob0) + '  tau = ' + str(tau) + ' Solve time = ' + str(time.time() - tnls)  + '\n')
+      sys.stdout.flush()
+    np.savez('resid_history',resid=resid_hist,t=t_hist)
+
+
+
+def pseudoTimeSolver(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadrature,eqns,PC=None):
+  NLiter = 0
+  tau = 0.04
+  Rstarn,Rn,Rstar_glob = unsteadyResidual(main,main.a.a)
   Rstar_glob0 = Rstar_glob*1. 
 #  rk4const = np.array([1./4,1./3,1./2,1.])
 #  rk4const = np.array([0.15,0.4,1.0])
-  rk4const = np.array([0.15,1.0])
-
+  rk4const = np.array([0.5,1.0])
   a0 = np.zeros(np.shape(main.a.a))
-  Rstarn,Rn,Rstar_glob_old = unsteadyResidual(main.a.a) 
-  save_freq = 10
+  Rstarn,Rn,Rstar_glob_old = unsteadyResidual(main,main.a.a) 
+  save_freq = 1
   tnls = time.time()
   resid_hist = np.zeros(0)
   t_hist = np.zeros(0)
@@ -76,48 +359,37 @@ def psuedoTimeSolver(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quad
     ts = time.time()
     a0[:] = main.a.a[:]
     tau = tau*np.fmin(Rstar_glob_old/Rstar_glob,1.005)
-
     for k in range(0,np.size(rk4const)):
-      Rstarn,Rn,Rstar_glob = unsteadyResidual(main.a.a) 
-      #print('tau = ' + str(tau))
+      Rstarn,Rn,Rstar_glob = unsteadyResidual(main,main.a.a) 
       main.a.a[:] = a0[:] + tau*Rstarn*rk4const[k]
-  #    main.a.a[:] = a0[:] + tau*Rstarn
       Rstar_glob_old = Rstar_glob*1.
     resid_hist = np.append(resid_hist,Rstar_glob)
     t_hist = np.append(t_hist,time.time() - tnls)
     if (main.mpi_rank == 0 and NLiter%save_freq == 0):
-      sys.stdout.write('NL iteration = ' + str(NLiter) + '  NL residual = ' + str(Rstar_glob) + ' relative decrease = ' + str(Rstar_glob/Rstar_glob0) + ' Solve time = ' + str(time.time() - tnls)  + '\n')
-      sys.stdout.write('tau = ' + str(tau)  + '\n')
+      sys.stdout.write('Psuedo time iteration = ' + str(NLiter) + '  NL residual = ' + str(Rstar_glob) + ' relative decrease = ' + str(Rstar_glob/Rstar_glob0) + '  tau = ' + str(tau) + ' Solve time = ' + str(time.time() - tnls)  + '\n')
       sys.stdout.flush()
     np.savez('resid_history',resid=resid_hist,t=t_hist)
 
 
 
 
-def newtonSolver_MG(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadrature,eqns):
-  n_levels =  int( np.log(np.amax(main.order))/np.log(2))  
-  coarsen = np.int32(2**np.linspace(0,n_levels-1,n_levels))
+def newtonSolver_MG(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadrature,eqns,PC=None):
+  n_levels =  main.mg_args[0]#int( np.log(np.amax(main.order))/np.log(2))  
+  #coarsen = np.int32(2**np.linspace(0,n_levels-1,n_levels))
+  coarsen = np.linspace(0,n_levels-1,n_levels)
   mg_classes = []
   mg_Rn = []
   mg_an = []
   #eqns2 = equations('Navier-Stokes',('roe','Inviscid'),'DNS')
   mg_b = []
   mg_e = []
-  for i in range(0,n_levels):
-    order_coarsen = np.int32(np.fmax(main.order/coarsen[i],1))
-    quadpoints_coarsen = np.int32(np.fmax(main.quadpoints/(coarsen[i]),1))
-    order_coarsen[-1] = main.order[-1]
-    quadpoints_coarsen[-1] = main.quadpoints[-1]
-    mg_classes.append( variables(main.Nel,order_coarsen,quadpoints_coarsen,eqns,main.mus,main.xG,main.yG,main.zG,main.t,main.et,main.dt,main.iteration,main.save_freq,'DNS',main.procx,main.procy,main.BCs,main.fsource,main.source_mag,main.shock_capturing) )
-    mg_classes[i].basis = main.basis
-    mg_Rn.append( np.zeros(np.shape(mg_classes[i].RHS)) )
-    mg_an.append( np.zeros(np.shape(mg_classes[i].a.a) ) )
-    mg_b.append( np.zeros(np.size(mg_classes[i].RHS)) )
-    mg_e.append(  np.zeros(np.size(mg_classes[i].RHS)) )
+  iterations = main.mg_args[1]
+  omega = main.mg_args[2]
   def newtonHook(main,mg_classes,mg_Rn,mg_an):
     for i in range(0,n_levels):
-      order_coarsen = np.fmax(main.order/coarsen[i],1)
-      order_coarsen[-1] = main.order[-1]
+      #order_coarsen = np.fmax(main.order/coarsen[i],1)
+      order_coarsen = np.int32(np.fmax(main.order-coarsen[i],1))
+#      order_coarsen[-1] = main.order[-1]
       mg_classes[i].a.a[:] = main.a.a[:,0:order_coarsen[0],0:order_coarsen[1],0:order_coarsen[2],0:order_coarsen[3]]
       mg_classes[i].getRHS(mg_classes[i],mg_classes[i],eqns)
       mg_Rn[i][:] = mg_classes[i].RHS[:]
@@ -136,28 +408,44 @@ def newtonSolver_MG(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadr
   resid_hist = np.zeros(0)
   t_hist = np.zeros(0)
 
-  while (Rstar_glob >= 1e-9 and Rstar_glob/Rstar_glob0 > 1e-9):
+  mg_classes = main.mg_classes 
+  mg_Rn = main.mg_Rn 
+  mg_an =main.mg_an 
+  mg_b = main.mg_b
+  mg_e = main.mg_e
+
+  while (Rstar_glob >= 1e-8 and Rstar_glob/Rstar_glob0 > 1e-8):
     NLiter += 1
     ts = time.time()
     old[:] = 0.
     newtonHook(main,mg_classes,mg_Rn,mg_an)
-    mg_b[0][:] = -Rstarn.flatten()
+    mg_b[0][:] = -Rstarn#.flatten()
+    loc_tol = 1e-6
+    loc_tol = 0.1*Rstar_glob/Rstar_glob0
     for i in range(0,1):
       for j in range(0,n_levels):
         MF_Jacobian_args = [mg_an[j],mg_Rn[j]]
-        mg_e[j][:] = linear_solver.solve(MF_Jacobian,mg_b[j].flatten(),np.zeros(np.size(mg_b[j])),mg_classes[j],MF_Jacobian_args,tol=1e-5,maxiter_outer=1,maxiter=10,printnorm=0)
+        PC_iteration = 0
+        PC_args = [omega[j],loc_tol,PC_iteration]
+        mg_e[j][:] = linear_solver.solve(MF_Jacobian,mg_b[j].flatten(),np.zeros(np.size(mg_b[j])),mg_classes[j],MF_Jacobian_args,PC,PC_args,tol=1e-8,maxiter_outer=1,maxiter=iterations[j],printnorm=0)
+        #mg_e[j][:] = Jacobi(MF_Jacobian,mg_b[j].flatten(),np.zeros(np.size(mg_b[j])),PC,omega[j],mg_classes[j],MF_Jacobian_args,tol=1e-9,maxiter_outer=1,maxiter=iterations[j],printnorm=0)
         Resid  =  np.reshape( mv_resid(MF_Jacobian,MF_Jacobian_args,mg_classes[j],mg_e[j],mg_b[j].flatten()) , np.shape(mg_classes[j].a.a ) )
         if (j != n_levels-1):
-          order_coarsen = np.int32(np.fmax(main.order/coarsen[j+1],1))
-          order_coarsen[-1] = main.order[-1]
+          #order_coarsen = np.int32(np.fmax(main.order/coarsen[j+1],1))
+          order_coarsen = np.int32(np.fmax(main.order-coarsen[j+1],1))
+#          order_coarsen[-1] = main.order[-1]
           mg_b[j+1]= Resid[:,0:order_coarsen[0],0:order_coarsen[1],0:order_coarsen[2],0:order_coarsen[3]]
       for j in range(n_levels-2,-1,-1):
-        order_coarsen = np.int32(np.fmax(main.order/coarsen[j+1],1))
-        order_coarsen[-1] = main.order[-1]
+        #order_coarsen = np.int32(np.fmax(main.order/coarsen[j+1],1))
+        order_coarsen = np.int32(np.fmax(main.order-coarsen[j+1],1)) 
+#        order_coarsen[-1] = main.order[-1]
         etmp = np.reshape(mg_e[j][:],np.shape(mg_classes[j].a.a))
         etmp[:,0:order_coarsen[0],0:order_coarsen[1],0:order_coarsen[2],0:order_coarsen[3]] += np.reshape(mg_e[j+1],np.shape(mg_classes[j+1].a.a))
         MF_Jacobian_args = [mg_an[j],mg_Rn[j]]
-        mg_e[j][:] = linear_solver.solve(MF_Jacobian,mg_b[j].flatten(),etmp.flatten(),mg_classes[j],MF_Jacobian_args,tol=1e-6,maxiter_outer=1,maxiter=10,printnorm=0)
+        #mg_e[j][:] = Jacobi(MF_Jacobian,mg_b[j].flatten(),etmp.flatten(),PC,omega[j],mg_classes[j],MF_Jacobian_args,tol=1e-9,maxiter_outer=1,maxiter=iterations[j],printnorm=0)
+        PC_iteration = 0
+        PC_args = [omega[j],loc_tol,PC_iteration]
+        mg_e[j][:] = linear_solver.solve(MF_Jacobian,mg_b[j].flatten(),etmp.flatten(),mg_classes[j],MF_Jacobian_args,PC,PC_args,tol=1e-8,maxiter_outer=1,maxiter=iterations[j],printnorm=0)
         #mg_e[j][:] = etmp.flatten()
     alpha = 1. 
     main.a.a[:] = an[:] + alpha*np.reshape(mg_e[0],np.shape(main.a.a))
@@ -176,216 +464,95 @@ def newtonSolver_MG(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadr
 
 
 
-def newtonSolver_PC2(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadrature,eqns):
-  if (sparse_quadrature):
-    coarsen = 2
-    quadpoints_coarsen = np.fmax(main.quadpoints/(coarsen),1)
-    quadpoints_coarsen[-1] = main.quadpoints[-1]
-    main_coarse = variables(main.Nel,main.order,quadpoints_coarsen,eqns,main.mus,main.xG,main.yG,main.zG,main.t,main.et,main.dt,main.iteration,main.save_freq,'DNS',main.procx,main.procy,main.BCs,main.fsource,main.source_mag,main.shock_capturing)
-    main_coarse.basis = main.basis
-    main_coarse.a.a[:] = main.a.a[:]
-    def newtonHook(main_coarse,main,Rn):
-      main_coarse.a.a[:] = main.a.a[:]
-      main_coarse.getRHS(main_coarse,main_coarse,eqns)
-      Rn[:] = main_coarse.RHS[:]
-  else: 
-    main_coarse = main
-    def newtonHook(main_coarse,main,Rn):
-       pass
-  Rstarn,Rn,Rstar_glob = unsteadyResidual(main.a.a)
-  NLiter = 0
-  an = np.zeros(np.shape(main.a0))
-  an[:] = main.a0[:]
-  Rstar_glob0 = Rstar_glob*1. 
-  old = np.zeros(np.shape(main.a.a))
-
-  def Minv(v,main,MF_Jacobian,MF_Jacobian_args,k):
-    sol = linear_solver.solvePC(MF_Jacobian,v.flatten()*1.,v.flatten()*0.,main,MF_Jacobian_args, 1e-6,linear_solver.maxiter_outer,5,False)
-    return sol.flatten()
-
-  while (Rstar_glob >= 1e-20 and Rstar_glob/Rstar_glob0 > 1e-9):
-    NLiter += 1
-    ts = time.time()
-    newtonHook(main_coarse,main,Rn)
-    MF_Jacobian_args = [an,Rn]
-    delta = 1
-    sol = linear_solver.solve(MF_Jacobian,-Rstarn.flatten(), np.zeros(np.size(main_coarse.a.a)),main_coarse,MF_Jacobian_args,Minv,linear_solver.tol,linear_solver.maxiter_outer,10,False)
-
-    main.a.a[:] = an[:] + np.reshape(sol,np.shape(main.a.a))
-    an[:] = main.a.a[:]
-
-    Rstarn,Rn,Rstar_glob = unsteadyResidual(main.a.a)
-    if (main.mpi_rank == 0):
-      sys.stdout.write('NL iteration = ' + str(NLiter) + '  NL residual = ' + str(Rstar_glob) + ' relative decrease = ' + str(Rstar_glob/Rstar_glob0) + ' Solve time = ' + str(time.time() - ts)  + '\n')
-      sys.stdout.flush()
-
-
-
-
-
-
-
-def newtonSolver_PC8(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadrature,eqns):
-  order_coarsen = np.fmax(main.order/2,1)
-#  order_coarsen[-1] = main.order[-1]
-  quadpoints_coarsen = np.fmax(main.quadpoints/2,1)
-  quadpoints_coarsen[-1] = main.quadpoints[-1]
-  main_coarse = variables(main.Nel,order_coarsen,quadpoints_coarsen,eqns,main.mus,main.xG,main.yG,main.zG,main.t,main.et,main.dt,main.iteration,main.save_freq,'DNS',main.procx,main.procy,main.BCs,main.fsource,main.source_mag,main.shock_capturing)
-  main_coarse.basis = main.basis
-  main_coarse.a.a[:] = main.a.a[:,0:main_coarse.order[0],0:main_coarse.order[1],0:main_coarse.order[2],0:main_coarse.order[3] ]
-  def newtonHook(main,main_coarse,Rn,Rnc):
-    eqns.getRHS(main,main,eqns)
-    Rn[:] = main.RHS[:]
-    eqns.getRHS(main_coarse,main_coarse,eqns)
-    Rnc[:] = main_coarse.RHS[:]
-
-  def Minv(v,main,main_coarse,MF_Jacobian_args,MF_Jacobian_args2):
-    def mv_resid(MF_Jacobian,args,main,v,b):
-      return b - MF_Jacobian(v,args,main)
-    coarse_order = np.shape(main_coarse.a.a)[1:5]
-    old = np.zeros(np.shape(main.a.a))
-    for i in range(0,1):
-      # solve on the fine mesh
-      sol = linear_solver.solvePC(MF_Jacobian ,v.flatten()*1.,old.flatten(),main,MF_Jacobian_args2, 1e-6,linear_solver.maxiter_outer,7,False)
-  
-      # restrict
-      R =  np.reshape( mv_resid(MF_Jacobian,MF_Jacobian_args2,main,sol,v.flatten()) , np.shape(main.a.a ) )
-      R_coarse = R[:,0:order_coarsen[0],0:order_coarsen[1],0:order_coarsen[2],0:order_coarsen[3]]
-      # solve for the error on the coarse mesh
-      e = linear_solver.solvePC(MF_Jacobian,R_coarse.flatten(), np.zeros(np.shape(R_coarse.flatten())),main_coarse,MF_Jacobian_args,1e-6,linear_solver.maxiter_outer,1,False)
-#  
-      old = np.zeros(np.shape(main.a.a))
-      old[:] = np.reshape(sol,np.shape(main.a.a))
-      old[:,0:order_coarsen[0],0:order_coarsen[1],0:order_coarsen[2],0:order_coarsen[3]] += np.reshape( e , np.shape(main_coarse.a.a) )
-  
-      # Run the final iterations on the fine mesh
-      sol = linear_solver.solvePC(MF_Jacobian, v.flatten(), old.flatten(),main,MF_Jacobian_args2, 1e-6,linear_solver.maxiter_outer,7,False)
-
-#    Minv_v = np.zeros(np.shape(main.a.a))
-#    Minv_v[:] = np.reshape(v,np.shape(main.a.a))
-#    tmp_coarse = Minv_v[:,0:coarse_order[0],0:coarse_order[1],0:coarse_order[2],0:coarse_order[3]]
-#    Minv_v2 = np.zeros(np.shape(main.a.a))
-#    Minv_v2[:] = Minv_v[:]
-#    tmp_coarse2 = np.zeros(np.shape(tmp_coarse))
-#    tmp_coarse2[:] = tmp_coarse[:]
-#    tmp_coarse = linear_solver.solvePC(MF_Jacobian, tmp_coarse2.flatten(), tmp_coarse2.flatten()*0.,main_coarse,MF_Jacobian_args, 1e-6,linear_solver.maxiter_outer,10,False)
-#    Minv_v[:,0:coarse_order[0],0:coarse_order[1],0:coarse_order[2],0:coarse_order[3]] = np.reshape(tmp_coarse[:],np.shape(main_coarse.a.a))
-#    sol = linear_solver.solvePC(MF_Jacobian, v2.flatten(), Minv_v.flatten()*1.,main,MF_Jacobian_args2, 1e-6,linear_solver.maxiter_outer,20,False)
-#
-# 
-#    plt.plot( np.reshape(tmp_coarse[:],np.shape(main_coarse.a.a))[0,:,0,0,0,0,0,0,0])
-#    plt.plot( np.reshape(tmp_coarse1[:],np.shape(main.a.a))[0,:,0,0,0,0,0,0,0])
-#    plt.pause(0.01)
-#    plt.clf()
-
-    return sol.flatten()
-
-
-  Rstarn,Rn,Rstar_glob = unsteadyResidual(main.a.a)
-  NLiter = 0
-  an = np.zeros(np.shape(main.a0))
-  an[:] = main.a0[:]
-  Rnc = np.zeros(np.shape(main_coarse.a0))
-  anc = np.zeros(np.shape(main_coarse.a0))
-  anc[:] = main.a0[:,0:main_coarse.order[0],0:main_coarse.order[1],0:main_coarse.order[2],0:main_coarse.order[3] ]
-  Rstar_glob0 = Rstar_glob*1.
-  while (Rstar_glob >= 1e-20 and Rstar_glob/Rstar_glob0 > 1e-9):
-    NLiter += 1
-    ts = time.time()
-    newtonHook(main,main_coarse,Rn,Rnc)
-    MF_Jacobian_args = [an,Rn]
-    MF_Jacobian_args_coarse = [anc,Rnc]
-    delta = 1
-
-    sol = linear_solver.solve(MF_Jacobian, -Rstarn.flatten(), np.zeros(np.size(main.a.a)),main,MF_Jacobian_args,main_coarse,MF_Jacobian_args_coarse,Minv,linear_solver.tol,linear_solver.maxiter_outer,10,False)
-    main.a.a[:] = an[:] + np.reshape(sol,np.shape(main.a.a))
-    an[:] = main.a.a[:]
-    anc[:] = an[:,0:main_coarse.order[0],0:main_coarse.order[1],0:main_coarse.order[2],0:main_coarse.order[3] ]
-    main_coarse.a.a[:] = main.a.a[:,0:main_coarse.order[0],0:main_coarse.order[1],0:main_coarse.order[2],0:main_coarse.order[3] ]
-
-    Rstarn,Rn,Rstar_glob = unsteadyResidual(main.a.a)
-    if (main.mpi_rank == 0):
-      sys.stdout.write('NL iteration = ' + str(NLiter) + '  NL residual = ' + str(Rstar_glob) + ' relative decrease = ' + str(Rstar_glob/Rstar_glob0) + ' Solve time = ' + str(time.time() - ts)  + '\n')
-      sys.stdout.flush()
-
-
-#### OUTDATED. USE FOR VALIDATION
-def newtonSolver_MG2(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadrature,eqns):
-  coarsen = 2
-  coarsen2 = 4
-  eqns2 = equations('Navier-Stokes',('roe','Inviscid'))
-  main_coarse = variables(main.Nel,main.order/coarsen,main.quadpoints/(2*coarsen),eqns2,main.mu,main.xG,main.yG,main.zG,main.t,main.et,main.dt,main.iteration,main.save_freq,'DNS',main.procx,main.procy)
-  main_qc = variables(main.Nel,main.order,main.quadpoints/2,eqns2,main.mu,main.xG,main.yG,main.zG,main.t,main.et,main.dt,main.iteration,main.save_freq,'DNS',main.procx,main.procy)
-  main_coarse2 = variables(main.Nel,main.order/coarsen2,main.quadpoints/(2*coarsen2),eqns2,main.mu,main.xG,main.yG,main.zG,main.t,main.et,main.dt,main.iteration,main.save_freq,'DNS',main.procx,main.procy)
-
-  Rnc = np.zeros(np.shape(main_coarse.RHS))
-  Rn_qc = np.zeros(np.shape(main_qc.RHS))
-  Rnc2 = np.zeros(np.shape(main_coarse2.RHS))
-  anc = np.zeros(np.shape(main_coarse.a.a))
-  anc2 = np.zeros(np.shape(main_coarse2.a.a))
-
-  def newtonHook(main,main_coarse,main_qc):
-    main_coarse.a.a[:] = main.a.a[:,0:main.order[0]/coarsen,0:main.order[1]/coarsen,0:main.order[2]/coarsen]
-    main_coarse.getRHS(main_coarse,eqns)
-    Rnc[:] = main_coarse.RHS[:]
- 
-    main_qc.a.a[:] = main.a.a[:]
-    main_qc.getRHS(main_qc,eqns)
-    Rn_qc[:] = main_qc.RHS[:]
-    anc[:] = main_coarse.a.a[:]
- 
-    main_coarse2.a.a[:] = main.a.a[:,0:main.order[0]/coarsen2,0:main.order[1]/coarsen2,0:main.order[2]/coarsen2]
-    main_coarse2.getRHS(main_coarse2,eqns)
-    Rnc2[:] = main_coarse2.RHS[:]
-    anc2[:] = main_coarse2.a.a[:]
-
+def newtonSolver_MG2(unsteadyResidual,MF_Jacobian,main,linear_solver,sparse_quadrature,eqns,PC=None):
+  n_levels =  main.mg_args[0]#int( np.log(np.amax(main.order))/np.log(2))  
+  coarsen = np.int32(2**np.linspace(0,n_levels-1,n_levels))
+  #coarsen = np.linspace(0,n_levels-1,n_levels)
+  mg_classes = []
+  mg_Rn = []
+  mg_an = []
+  #eqns2 = equations('Navier-Stokes',('roe','Inviscid'),'DNS')
+  mg_b = []
+  mg_e = []
+  iterations = main.mg_args[1]
+  omega = main.mg_args[2]
+  def newtonHook(main,mg_classes,mg_Rn,mg_an):
+    for i in range(0,n_levels):
+      order_coarsen = np.fmax(main.order/coarsen[i],1)
+      #order_coarsen = np.int32(np.fmax(main.order-coarsen[i],1))
+#      order_coarsen[-1] = main.order[-1]
+      mg_classes[i].a.a[:] = main.a.a[:,0:order_coarsen[0],0:order_coarsen[1],0:order_coarsen[2],0:order_coarsen[3]]
+      mg_classes[i].getRHS(mg_classes[i],mg_classes[i],eqns)
+      mg_Rn[i][:] = mg_classes[i].RHS[:]
+      mg_an[i][:] = mg_classes[i].a.a[:]
+      mg_e[i][:] = 0. 
 
   def mv_resid(MF_Jacobian,args,main,v,b):
     return b - MF_Jacobian(v,args,main)
-
   Rstarn,Rn,Rstar_glob = unsteadyResidual(main.a.a)
   NLiter = 0
   an = np.zeros(np.shape(main.a0))
   an[:] = main.a0[:]
   Rstar_glob0 = Rstar_glob*1.
   old = np.zeros(np.shape(main.a.a))
+  tnls = time.time()
+  resid_hist = np.zeros(0)
+  t_hist = np.zeros(0)
+
+  mg_classes = main.mg_classes 
+  mg_Rn = main.mg_Rn 
+  mg_an =main.mg_an 
+  mg_b = main.mg_b
+  mg_e = main.mg_e
+
   while (Rstar_glob >= 1e-8 and Rstar_glob/Rstar_glob0 > 1e-8):
     NLiter += 1
     ts = time.time()
     old[:] = 0.
-    newtonHook(main,main_coarse,main_qc)
+    newtonHook(main,mg_classes,mg_Rn,mg_an)
+    mg_b[0][:] = -Rstarn
+    loc_tol = 1e-6
+    loc_tol = 0.1*Rstar_glob/Rstar_glob0
+    for j in range(0,n_levels-1):
+      order_coarsen = np.int32(np.fmax(main.order/coarsen[j+1],1))
+      #order_coarsen = np.int32(np.fmax(main.order-coarsen[j+1],1))
+
+      mg_b[j+1]= mg_b[0][:,0:order_coarsen[0],0:order_coarsen[1],0:order_coarsen[2],0:order_coarsen[3]]
+      mg_b[j+1]= mg_b[0][:,0:order_coarsen[0],0:order_coarsen[1],0:order_coarsen[2],0:order_coarsen[3]]
     for i in range(0,1):
-      #run the solution on the fine mesh (probably with sparse quadrature)
-      MF_Jacobian_args = [an,Rn_qc]
-      sol = linear_solver.solve(MF_Jacobian,-Rstarn.flatten(), old.flatten(),main_qc,MF_Jacobian_args,tol=1e-5,maxiter_outer=1,maxiter=10,printnorm=0)
-      # restrict
-      R =  np.reshape( mv_resid(MF_Jacobian,MF_Jacobian_args,main_qc,sol,-Rstarn.flatten()) , np.shape(main.a.a ) )
-      R_coarse = R[:,0:main.order[0]/coarsen,0:main.order[1]/coarsen,0:main.order[2]/coarsen]
-      # solve for the error on the coarse mesh
-      MF_Jacobian_argsc = [anc,Rnc]
-      e = linear_solver.solve(MF_Jacobian,R_coarse.flatten(), np.zeros(np.shape(R_coarse.flatten())),main_coarse,MF_Jacobian_argsc,tol=1e-6,maxiter_outer=1,maxiter=30,printnorm=0)
-      R1 =  np.reshape( mv_resid(MF_Jacobian,MF_Jacobian_argsc,main_coarse,e,R_coarse.flatten()) , np.shape(main_coarse.a.a ) )
-      R_coarse2 = R1[:,0:main.order[0]/coarsen2,0:main.order[1]/coarsen2,0:main.order[2]/coarsen2]
-      ##
-      MF_Jacobian_argsc2 = [anc2,Rnc2]
-      e2 = linear_solver.solve(MF_Jacobian,R_coarse2.flatten(),np.zeros(np.size(R_coarse2)),main_coarse2,MF_Jacobian_argsc2,tol=1e-5,maxiter_outer=1,maxiter=30,printnorm=0)
-      ###
-      etmp = np.reshape(e,np.shape(main_coarse.a.a))
-      etmp[:,0:main.order[0]/coarsen2,0:main.order[1]/coarsen2,0:main.order[2]/coarsen2] += np.reshape(e2,np.shape(main_coarse2.a.a))
-      e = linear_solver.solve(MF_Jacobian,R_coarse.flatten(),etmp.flatten(),main_coarse,MF_Jacobian_argsc,tol=1e-6,maxiter_outer=1,maxiter=30,printnorm=0)
+      for j in range(n_levels-1,n_levels):
+        print(j)
+        MF_Jacobian_args = [mg_an[j],mg_Rn[j]]
+        PC_iteration = 0
+        PC_args = [omega[j],loc_tol,PC_iteration]
+        mg_e[j][:] = linear_solver.solve(MF_Jacobian,mg_b[j].flatten(),np.zeros(np.size(mg_b[j])),mg_classes[j],MF_Jacobian_args,PC,PC_args,tol=1e-8,maxiter_outer=100,maxiter=20,printnorm=0)
+        Resid  =  np.reshape( mv_resid(MF_Jacobian,MF_Jacobian_args,mg_classes[j],mg_e[j],mg_b[j].flatten()) , np.shape(mg_classes[j].a.a ) )
+      for j in range(n_levels-2,-1,-1):
+        print(j)
+        order_coarsen = np.int32(np.fmax(main.order/coarsen[j+1],1))
+        #order_coarsen = np.int32(np.fmax(main.order-coarsen[j+1],1))
 
-      old[:] = np.reshape(sol,np.shape(main.a.a))
-      old[:,0:main.order[0]/coarsen,0:main.order[1]/coarsen,0:main.order[2]/coarsen] += np.reshape( e , np.shape(main_coarse.a.a) )
+        etmp = np.reshape(mg_e[j][:],np.shape(mg_classes[j].a.a))
+        etmp[:,0:order_coarsen[0],0:order_coarsen[1],0:order_coarsen[2],0:order_coarsen[3]] += np.reshape(mg_e[j+1],np.shape(mg_classes[j+1].a.a))
+        MF_Jacobian_args = [mg_an[j],mg_Rn[j]]
+        PC_iteration = 0
+        PC_args = [omega[j],loc_tol,PC_iteration]
+        mg_e[j][:] = linear_solver.solve(MF_Jacobian,mg_b[j].flatten(),etmp.flatten(),mg_classes[j],MF_Jacobian_args,PC,PC_args,tol=1e-8,maxiter_outer=1000,maxiter=20,printnorm=0)
+   
 
-    # Run the final iterations on the fine mesh
-    #sol = linear_solver.solve(MF_Jacobian, -Rstarn.flatten(), np.zeros(np.size(main.a.a)),main_qc,MF_Jacobian_args, linear_solver.tol,linear_solver.maxiter_outer,linear_solver.maxiter,linear_solver.printnorm)
-    sol = linear_solver.solve(MF_Jacobian, -Rstarn.flatten(), old.flatten(),main_qc,MF_Jacobian_args, 1e-5,1,30,linear_solver.printnorm)
-
-    main.a.a[:] = an[:] + np.reshape(sol,np.shape(main.a.a))
+    alpha = 1. 
+    main.a.a[:] = an[:] + alpha*np.reshape(mg_e[0],np.shape(main.a.a))
+    Rstar_glob_p = Rstar_glob*1.
+    Rstarn,Rn,Rstar_glob = unsteadyResidual(main.a.a)
+#    if (Rstar_glob/Rstar_glob_p <
     an[:] = main.a.a[:]
     Rstarn,Rn,Rstar_glob = unsteadyResidual(main.a.a)
+    resid_hist = np.append(resid_hist,Rstar_glob)
+    t_hist = np.append(t_hist,time.time() - tnls)
+
     if (main.mpi_rank == 0):
       sys.stdout.write('NL iteration = ' + str(NLiter) + '  NL residual = ' + str(Rstar_glob) + ' relative decrease = ' + str(Rstar_glob/Rstar_glob0) + ' Solve time = ' + str(time.time() - ts)  + '\n')
       sys.stdout.flush()
+  np.savez('resid_history',resid=resid_hist,t=t_hist)
 
 
