@@ -3,6 +3,8 @@ python:
   - "3.5"
 cache: pip
 install:
-  - pip install -r mpi4py
+  - pip install mpi4py
+  - pip install numpy==1.14.1
+  - pip install scipy==1.0.0
 script:
   - python PyDG_3D/examples/isentropic_vortex/inputfile.py
