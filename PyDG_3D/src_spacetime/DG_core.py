@@ -98,40 +98,18 @@ def addInviscidFlux_hyper(regionManager,eqns,args=[],args_phys=[]):
     cell_ijk = region.cell_ijk
     stencil_ijk = region.stencil_ijk
     generalFluxGen_hyper(region,eqns,region.iFlux,region.a,eqns.inviscidFlux,cell_ijk,args)
-    #generalFluxGen(region,eqns,region.iFlux,region.a,eqns.inviscidFlux,args)
-    #region.iFlux.fRS[:] = region.iFlux.fRLS[:,:,:,:,1::]
-    #region.iFlux.fLS[:] = region.iFlux.fRLS[:,:,:,:,0:-1]
-    #region.iFlux.fUS[:] = region.iFlux.fUDS[:,:,:,:,:,1::]
-    #region.iFlux.fDS[:] = region.iFlux.fUDS[:,:,:,:,:,0:-1]
-    #region.iFlux.fFS[:] = region.iFlux.fFBS[:,:,:,:,:,:,1::]
-    #region.iFlux.fBS[:] = region.iFlux.fFBS[:,:,:,:,:,:,0:-1]
-    #region.iFlux.fRLI = region.basis.faceIntegrateGlob(region,region.iFlux.fRLS*region.J_edge_det[0][None,:,:,None,:,:,:,None],MZ.w1,MZ.w2,MZ.w3,MZ.weights1,MZ.weights2,MZ.weights3)
-    #region.iFlux.fUDI = region.basis.faceIntegrateGlob(region,region.iFlux.fUDS*region.J_edge_det[1][None,:,:,None,:,:,:,None],MZ.w0,MZ.w2,MZ.w3,MZ.weights0,MZ.weights2,MZ.weights3)
-    #region.iFlux.fFBI = region.basis.faceIntegrateGlob(region,region.iFlux.fFBS*region.J_edge_det[2][None,:,:,None,:,:,:,None],MZ.w0,MZ.w1,MZ.w3,MZ.weights0,MZ.weights1,MZ.weights3)
-    #region.iFlux.fRI[:] = region.iFlux.fRLI[:,:,:,:,1::]
-    #region.iFlux.fLI[:] = region.iFlux.fRLI[:,:,:,:,0:-1]
-    #region.iFlux.fUI[:] = region.iFlux.fUDI[:,:,:,:,:,1::]
-    #region.iFlux.fDI[:] = region.iFlux.fUDI[:,:,:,:,:,0:-1]
-    #region.iFlux.fFI[:] = region.iFlux.fFBI[:,:,:,:,:,:,1::]
-    #region.iFlux.fBI[:] = region.iFlux.fFBI[:,:,:,:,:,:,0:-1]
 
-    ## now add inviscid flux contribution to the RHS
-    #region.RHS[:] =  -region.iFlux.fRLI[:,None,:,:,:,1::] 
-    #region.RHS[:] += region.iFlux.fRLI[:,None,:,:,:,0:-1]*region.altarray0[None,:,None,None,None,None,None,None,None]
-    #region.RHS[:] -= region.iFlux.fUDI[:,:,None,:,:,:,1::]
-    #region.RHS[:] += region.iFlux.fUDI[:,:,None,:,:,:,0:-1]*region.altarray1[None,None,:,None,None,None,None,None,None]
-    #region.RHS[:] -= region.iFlux.fFBI[:,:,:,None,:,:,:,1::] 
-    #region.RHS[:] += region.iFlux.fFBI[:,:,:,None,:,:,:,0:-1]*region.altarray2[None,None,None,:,None,None,None,None,None]
+    region.iFlux.fRI_hyper[:] = region.basis.faceIntegrateGlob(region,region.iFlux.fRS[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]*region.J_edge_det_hyper_x1p1,MZ.w1,MZ.w2,MZ.w3,MZ.weights1,MZ.weights2,MZ.weights3)
 
-
-    region.iFlux.fRI_hyper[:] = region.basis.faceIntegrateGlob(region,region.iFlux.fRS[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]*region.J_edge_det[0][None,:,:,None,cell_ijk[5][0]+1,cell_ijk[6][0],cell_ijk[7][0]],MZ.w1,MZ.w2,MZ.w3,MZ.weights1,MZ.weights2,MZ.weights3)
-    region.iFlux.fLI_hyper[:] = region.basis.faceIntegrateGlob(region,region.iFlux.fLS[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]*region.J_edge_det[0][None,:,:,None,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0]],MZ.w1,MZ.w2,MZ.w3,MZ.weights1,MZ.weights2,MZ.weights3)
+    region.iFlux.fLI_hyper[:] = region.basis.faceIntegrateGlob(region,region.iFlux.fLS[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]*region.J_edge_det_hyper_x1,MZ.w1,MZ.w2,MZ.w3,MZ.weights1,MZ.weights2,MZ.weights3)
   
-    region.iFlux.fUI_hyper[:] = region.basis.faceIntegrateGlob(region,region.iFlux.fUS[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]*region.J_edge_det[1][None,:,:,None,cell_ijk[5][0],cell_ijk[6][0]+1,cell_ijk[7][0]],MZ.w0,MZ.w2,MZ.w3,MZ.weights0,MZ.weights2,MZ.weights3)
-    region.iFlux.fDI_hyper[:] = region.basis.faceIntegrateGlob(region,region.iFlux.fDS[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]*region.J_edge_det[1][None,:,:,None,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0]],MZ.w0,MZ.w2,MZ.w3,MZ.weights0,MZ.weights2,MZ.weights3)
+    region.iFlux.fUI_hyper[:] = region.basis.faceIntegrateGlob(region,region.iFlux.fUS[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]*region.J_edge_det_hyper_x2p1,MZ.w0,MZ.w2,MZ.w3,MZ.weights0,MZ.weights2,MZ.weights3)
 
-    region.iFlux.fFI_hyper[:] = region.basis.faceIntegrateGlob(region,region.iFlux.fFS[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]*region.J_edge_det[2][None,:,:,None,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0]+1],MZ.w0,MZ.w1,MZ.w3,MZ.weights0,MZ.weights1,MZ.weights3)
-    region.iFlux.fBI_hyper[:] = region.basis.faceIntegrateGlob(region,region.iFlux.fBS[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]*region.J_edge_det[2][None,:,:,None,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0]],MZ.w0,MZ.w1,MZ.w3,MZ.weights0,MZ.weights1,MZ.weights3)
+    region.iFlux.fDI_hyper[:] = region.basis.faceIntegrateGlob(region,region.iFlux.fDS[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]*region.J_edge_det_hyper_x2,MZ.w0,MZ.w2,MZ.w3,MZ.weights0,MZ.weights2,MZ.weights3)
+
+    region.iFlux.fFI_hyper[:] = region.basis.faceIntegrateGlob(region,region.iFlux.fFS[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]*region.J_edge_det_hyper_x3p1,MZ.w0,MZ.w1,MZ.w3,MZ.weights0,MZ.weights1,MZ.weights3)
+
+    region.iFlux.fBI_hyper[:] = region.basis.faceIntegrateGlob(region,region.iFlux.fBS[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]*region.J_edge_det_hyper_x3,MZ.w0,MZ.w1,MZ.w3,MZ.weights0,MZ.weights1,MZ.weights3)
 
     region.RHS_hyper[:] =  -region.iFlux.fRI_hyper[:,None]
     region.RHS_hyper[:] +=  region.iFlux.fLI_hyper[:,None]*region.altarray0[None,:,None,None,None,None]
@@ -147,23 +125,15 @@ def addVolume_and_Viscous_hyper(regionManager,eqns,args=[],args_phys=[]):
   for region in regionManager.region:
     #cell_list = range(0,region.Npx*region.Npy*region.Npz*region.Npt)
     cell_ijk = region.cell_ijk
-    #tmpfx = np.zeros(np.shape(region.iFlux.fx[:,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]),dtype=region.iFlux.fx.dtype)
-    #tmpfy = np.zeros(np.shape(region.iFlux.fy[:,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]),dtype=region.iFlux.fy.dtype)
-    #tmpfz = np.zeros(np.shape(region.iFlux.fz[:,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]),dtype=region.iFlux.fz.dtype)
-    #eqns.evalFluxXYZ(eqns,region,region.a.u[:,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]*1.,tmpfx,tmpfy,tmpfz,args_phys)
-#    eqns.evalFluxXYZ(eqns,region,region.a.u[:,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]*1.,region.iFlux.fx_hyper,region.iFlux.fy_hyper,region.iFlux.fz_hyper,args_phys)
     eqns.evalFluxXYZ(eqns,region,region.a.u_hyper_cell,region.iFlux.fx_hyper,region.iFlux.fy_hyper,region.iFlux.fz_hyper,args_phys)
 
-#    region.iFlux.fx[:,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] = tmpfx[:]
-#    region.iFlux.fy[:,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] = tmpfy[:]
-#    region.iFlux.fz[:,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] = tmpfz[:]
-  #print('Test',np.linalg.norm( region.iFlux.fx[:,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]),np.linalg.norm(  region.iFlux.fx_hyper ) ) 
-  #print('Test',np.shape( region.iFlux.fx[:,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]),np.shape(region.iFlux.fx_hyper ) ) 
   eqns.addViscousContribution_hyper(regionManager,eqns)
   for region in regionManager.region:
-#    region.RHS[:,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] = applyVolIntegral_indices(region,region.iFlux.fx[:,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]],region.iFlux.fy[:,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]],region.iFlux.fz[:,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]],region.RHS[:,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]],cell_ijk)
     region.RHS_hyper[:] = applyVolIntegral_indices(region,region.iFlux.fx_hyper*1.,region.iFlux.fy_hyper*1.,region.iFlux.fz_hyper*1.,region.RHS_hyper,cell_ijk)
-  region.RHS[:,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] = region.RHS_hyper[:]
+  #region.RHS[:,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] = region.RHS_hyper[:]
+  region.RHS = region.RHS_hyper[:]
+
+
 
 def addInviscidFlux(regionManager,eqns,args=[],args_phys=[]):
   for region in regionManager.region:
@@ -179,6 +149,9 @@ def addInviscidFlux(regionManager,eqns,args=[],args_phys=[]):
     region.RHS[:] += region.iFlux.fUDI[:,:,None,:,:,:,0:-1]*region.altarray1[None,None,:,None,None,None,None,None,None]
     region.RHS[:] -= region.iFlux.fFBI[:,:,:,None,:,:,:,1::] 
     region.RHS[:] += region.iFlux.fFBI[:,:,:,None,:,:,:,0:-1]*region.altarray2[None,None,None,:,None,None,None,None,None]
+
+
+
 
 def addVolume_and_Viscous(regionManager,eqns,args=[],args_phys=[]):
   for region in regionManager.region:

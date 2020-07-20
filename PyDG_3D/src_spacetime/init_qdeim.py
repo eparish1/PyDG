@@ -264,3 +264,26 @@ def init_stencil_qdeim(region,eqns,order):
 
 
     region.RHS_hyper = np.zeros(np.shape(region.RHS[:,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]),dtype=region.RHS.dtype)
+
+
+
+    region.J_edge_det_hyper_x1p1 = region.J_edge_det[0][:,:,cell_ijk[5][0]+1,cell_ijk[6][0],cell_ijk[7][0]]
+    region.J_edge_det_hyper_x1 = region.J_edge_det[0][:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0]]
+    region.J_edge_det_hyper_x2p1 = region.J_edge_det[1][:,:,cell_ijk[5][0],cell_ijk[6][0]+1,cell_ijk[7][0]]
+    region.J_edge_det_hyper_x2 = region.J_edge_det[1][:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0]]
+    region.J_edge_det_hyper_x3p1 = region.J_edge_det[2][:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0]+1]
+    region.J_edge_det_hyper_x3 = region.J_edge_det[2][:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0]]
+
+
+    region.iFlux.fRS_hyper = np.zeros(np.shape( region.iFlux.fRS[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] ) ,dtype=region.iFlux.fRS.dtype)
+    #region.iFlux.fRS_hyper_edge = np.zeros(np.shape( region.iFlux.fRS[:,:,:,:,-1,cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] ) ,dtype=region.iFlux.fRS.dtype)
+
+
+
+
+
+
+
+
+
+

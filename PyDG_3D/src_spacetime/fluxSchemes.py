@@ -295,8 +295,9 @@ def generalFluxGen_hyper(region,eqns,fluxVar,var,fluxFunction,cell_ijk,args):
   #cell_ijk = region.cell_ijk
   fluxArgs = []
   for i in range(0,nargs):
-    fluxArgs.append(args[i].uR[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]])
-    fluxArgs.append(args[i].uL[:,:,:,:,(cell_ijk[5][0]+1)%region.Npx,cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]])
+    print('Not yet implemented for args in generalFluxGen_hyper')
+    #fluxArgs.append(args[i].uR[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]])
+    #fluxArgs.append(args[i].uL[:,:,:,:,(cell_ijk[5][0]+1)%region.Npx,cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]])
 
   ftmp = np.zeros(np.shape( fluxVar.fRS[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] ) ,dtype=fluxVar.fRS.dtype)
   fluxFunction(eqns,ftmp,region,var.uR[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]],var.uL[:,:,:,:, (cell_ijk[5][0]+1)%region.Npx,cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]],region.normals[0][:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0] ],fluxArgs)

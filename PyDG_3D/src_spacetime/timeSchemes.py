@@ -684,6 +684,63 @@ def SSP_RK3_POD_QDEIM(regionManager,eqns,args=None):
   regionManager.getRHS_REGION_OUTER(regionManager,eqns) #includes loop over all regions
   regionManager.rk_stage += 1
 
+  R = np.dot(regionManager.VR,regionManager.RHS)
+  #R = np.einsum('ij,j->i',regionManager.VR,regionManager.region[0].RHS[cell_ijk[0][0],cell_ijk[1][0],cell_ijk[2][0],cell_ijk[3][0],cell_ijk[4][0],cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]].flatten() )
+  a1_pod = a0_pod  + regionManager.dt*R.flatten()#globalDot(regionManager.V.transpose(),regionManager.RHS[:],regionManager) 
+  regionManager.a[rec_stencil_list] = np.dot(regionManager.V_rec,a1_pod)
+  regionManager.a[:] = np.dot(regionManager.V[:,:],a1_pod)
+  ## Second Stage
+  regionManager.getRHS_REGION_OUTER(regionManager,eqns) #includes loop over all regions
+  R = np.dot(regionManager.VR,regionManager.RHS)
+  #R = np.einsum('ij,j->i',regionManager.VR,regionManager.region[0].RHS[cell_ijk[0][0],cell_ijk[1][0],cell_ijk[2][0],cell_ijk[3][0],cell_ijk[4][0],cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]].flatten() )
+
+  regionManager.rk_stage += 1
+  a1_pod = 3./4.*a0_pod + 1./4.*(a1_pod + regionManager.dt*R ) #reuse a1 vector
+  regionManager.a[rec_stencil_list] = np.dot(regionManager.V_rec,a1_pod)
+  #regionManager.a[:] = np.dot(regionManager.V[:,:],a1_pod)
+
+  ## Third Stage
+  regionManager.getRHS_REGION_OUTER(regionManager,eqns) #includes loop over all regions
+  R = np.dot(regionManager.VR,regionManager.RHS)
+  #R = np.einsum('ij,j->i',regionManager.VR,regionManager.region[0].RHS[cell_ijk[0][0],cell_ijk[1][0],cell_ijk[2][0],cell_ijk[3][0],cell_ijk[4][0],cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]].flatten() )
+
+  af_pod = 1./3.*a0_pod + 2./3.*(a1_pod[:] + regionManager.dt*R )
+  regionManager.a[rec_stencil_list] = np.dot(regionManager.V_rec,af_pod*1.)
+  #regionManager.a[:] = np.dot(regionManager.V[:,:],af_pod*1.)
+  regionManager.t += regionManager.dt
+  regionManager.iteration += 1
+  regionManager.a_pod[:] = af_pod[:]
+
+  ### Update the global state for saving
+  if (regionManager.iteration%regionManager.save_freq == 0):
+    regionManager.a[:] = np.dot(regionManager.V,af_pod)
+
+
+
+
+def SSP_RK3_POD_QDEIM2(regionManager,eqns,args=None):
+  cell_ijk = regionManager.region[0].cell_ijk
+  stencil_list = regionManager.region[0].stencil_list
+  stencil_ijk = regionManager.region[0].stencil_ijk
+  rec_stencil_list = regionManager.region[0].rec_stencil_list
+  cell_list = regionManager.region[0].cell_list
+  viscous_stencil_list = regionManager.region[0].viscous_stencil_list
+
+  regionManager.rk_stage = 0
+  if (regionManager.iteration == 0):
+    print('Starting Simulation')
+    regionManager.a0[:] = regionManager.a[:]
+    a0_pod = globalDot(regionManager.V.transpose(),regionManager.a0,regionManager)
+    regionManager.MR_rec = regionManager.MR[rec_stencil_list]
+    regionManager.V_rec = regionManager.V[rec_stencil_list]
+
+  else:
+    a0_pod = regionManager.a_pod*1.
+  #a0_pod = np.dot(regionManager.V[stencil_list,:].transpose(),regionManager.a[stencil_list]*1.)
+  ## First Stage
+  regionManager.getRHS_REGION_OUTER(regionManager,eqns) #includes loop over all regions
+  regionManager.rk_stage += 1
+
   R = np.dot(regionManager.VR,regionManager.RHS[cell_list])
   #R = np.einsum('ij,j->i',regionManager.VR,regionManager.region[0].RHS[cell_ijk[0][0],cell_ijk[1][0],cell_ijk[2][0],cell_ijk[3][0],cell_ijk[4][0],cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]].flatten() )
   a1_pod = a0_pod  + regionManager.dt*R.flatten()#globalDot(regionManager.V.transpose(),regionManager.RHS[:],regionManager) 
