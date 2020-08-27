@@ -10,8 +10,6 @@ from navier_stokes_kOmega import *
 from viscous_br1 import addViscousContribution_BR1,addViscousContribution_BR1_hyper
 from viscous_ip import addViscousContribution_IP, addViscousContribution_IP_hyper
 from viscous_inviscid import addViscousContribution_inviscid
-from incompressible_navier_stokes import *
-from incompressible_navier_stokes_fractional import *
 from shallow_water import *
 from linear_advection import *
 from DG_core import getRHS,getRHS_element,getRHS_hyper
