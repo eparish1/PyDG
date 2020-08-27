@@ -128,6 +128,34 @@ def applyVolIntegral_numexpr_orthogonal(main,f1,f2,f3,RHS):
   RHS[:] += main.basis.volIntegrateGlob(main,f,main.w0,main.w1,main.wp2,main.w3)
 
 
+
+def diffU_tensordot_sample(a,main,Jinv):
+  tmp = np.tensordot(a,main.wp0,axes=([1],[0]))
+  tmp = np.tensordot(tmp,main.w1,axes=([1],[0]))
+  tmp = np.tensordot(tmp,main.w2,axes=([1],[0]))
+  tmp = np.tensordot(tmp,main.w3,axes=([1],[0]))
+  uzeta = np.rollaxis( np.rollaxis( np.rollaxis( np.rollaxis( tmp , -4 , 1) , -3 , 2), -2, 3), -1, 4)
+  tmpu = np.tensordot(a,main.w0,axes=([1],[0]))
+  tmp = np.tensordot(tmpu,main.wp1,axes=([1],[0]))
+  tmp = np.tensordot(tmp,main.w2,axes=([1],[0]))
+  tmp = np.tensordot(tmp,main.w3,axes=([1],[0]))
+  ueta = np.rollaxis( np.rollaxis( np.rollaxis( np.rollaxis( tmp , -4 , 1) , -3 , 2), -2, 3), -1, 4)
+
+  #tmp = np.tensordot(a,main.w,axes=([1],[0]))
+  tmp = np.tensordot(tmpu,main.w1,axes=([1],[0]))
+  tmp = np.tensordot(tmp,main.wp2,axes=([1],[0]))
+  tmp = np.tensordot(tmp,main.w3,axes=([1],[0]))
+  umu = np.rollaxis( np.rollaxis( np.rollaxis( np.rollaxis( tmp , -4 , 1) , -3 , 2), -2, 3), -1, 4)
+
+  ux = uzeta*Jinv[0,0][None,:,:,:,None] + ueta*Jinv[1,0][None,:,:,:,None] + umu*Jinv[2,0][None,:,:,:,None]
+  uy = uzeta*Jinv[0,1][None,:,:,:,None] + ueta*Jinv[1,1][None,:,:,:,None] + umu*Jinv[2,1][None,:,:,:,None]
+  uz = uzeta*Jinv[0,2][None,:,:,:,None] + ueta*Jinv[1,2][None,:,:,:,None] + umu*Jinv[2,2][None,:,:,:,None]
+
+  return ux,uy,uz
+
+
+
+
 def diffU_tensordot(a,main):
   tmp = np.tensordot(a,main.wp0,axes=([1],[0]))
   tmp = np.tensordot(tmp,main.w1,axes=([1],[0]))
@@ -267,6 +295,177 @@ def diffUZEdge_edge_tensordot(main):
   tmp = np.tensordot(tmp,main.w1,axes=([1],[0]))*2./main.dx
   uzB = np.rollaxis( np.rollaxis( tmp , -2 , 1) , -1 , 2)
   return uzR,uzL,uzU,uzD,uzF,uzB
+
+
+
+def diffUXYZ_edge_tensordot_hyper(a,main,Jinv):
+  aR = np.tensordot(a,main.wpedge0[:,1],axes=([1],[0]))
+  aL = np.tensordot(a,main.wpedge0[:,0],axes=([1],[0]))
+
+  aU = np.sum(a,axis=2)
+  aD = np.tensordot(a,main.altarray1[:],axes=([2],[0]))
+
+  aF = np.sum(a,axis=3)
+  aB = np.tensordot(a,main.altarray2[:],axes=([3],[0]))
+
+
+
+#  uU = np.zeros((main.nvars,main.quadpoints,main.quadpoints,main.Npx,main.Npy,main.Npz))
+  # need to do 2D reconstruction to the gauss points on each face
+  tmp = np.tensordot(aR,main.w1[:,:,None,None,None,None]*main.w2[None,None,:,:,None,None]*main.w3[None,None,None,None,:],axes=([1,2,3],[0,2,4]))
+  #tmp = np.tensordot(aR,main.w1,axes=([1],[0])) #reconstruct in y and z
+  #tmp = np.tensordot(tmp,main.w2,axes=([1],[0]))
+  #tmp = np.tensordot(tmp,main.w3,axes=([1],[0]))
+  uzetaR = np.rollaxis(np.rollaxis( np.rollaxis( tmp , -3 , 1) , -2 , 2), -1, 3)
+  tmp = np.tensordot(aL,main.w1[:,:,None,None,None,None]*main.w2[None,None,:,:,None,None]*main.w3[None,None,None,None,:],axes=([1,2,3],[0,2,4]))
+  #tmp = np.tensordot(aL,main.w1,axes=([1],[0]))
+  #tmp = np.tensordot(tmp,main.w2,axes=([1],[0]))
+  #tmp = np.tensordot(tmp,main.w3,axes=([1],[0]))
+  uzetaL = np.rollaxis(np.rollaxis( np.rollaxis( tmp , -3 , 1) , -2 , 2), -1, 3)
+
+  tmp = np.tensordot(aU,main.wp0[:,:,None,None,None,None]*main.w2[None,None,:,:,None,None]*main.w3[None,None,None,None,:],axes=([1,2,3],[0,2,4]))
+  #tmp = np.tensordot(aU,main.wp0,axes=([1],[0])) #reconstruct in x and z 
+  #tmp = np.tensordot(tmp,main.w2,axes=([1],[0]))
+  #tmp = np.tensordot(tmp,main.w3,axes=([1],[0]))
+  uzetaU = np.rollaxis(np.rollaxis( np.rollaxis( tmp , -3 , 1) , -2 , 2), -1, 3)
+  tmp = np.tensordot(aD,main.wp0[:,:,None,None,None,None]*main.w2[None,None,:,:,None,None]*main.w3[None,None,None,None,:],axes=([1,2,3],[0,2,4]))
+  #tmp = np.tensordot(aD,main.wp0,axes=([1],[0]))
+  #tmp = np.tensordot(tmp,main.w2,axes=([1],[0]))
+  #tmp = np.tensordot(tmp,main.w3,axes=([1],[0]))
+  uzetaD = np.rollaxis(np.rollaxis( np.rollaxis( tmp , -3 , 1) , -2 , 2), -1, 3)
+
+
+  tmp = np.tensordot(aF,main.wp0[:,:,None,None,None,None]*main.w1[None,None,:,:,None,None]*main.w3[None,None,None,None,:],axes=([1,2,3],[0,2,4]))
+  #tmp = np.tensordot(aF,main.wp0,axes=([1],[0])) #reconstruct in x and y 
+  #tmp = np.tensordot(tmp,main.w1,axes=([1],[0]))
+  #tmp = np.tensordot(tmp,main.w3,axes=([1],[0]))
+  uzetaF = np.rollaxis(np.rollaxis( np.rollaxis( tmp , -3 , 1) , -2 , 2), -1, 3)
+  tmp = np.tensordot(aB,main.wp0[:,:,None,None,None,None]*main.w1[None,None,:,:,None,None]*main.w3[None,None,None,None,:],axes=([1,2,3],[0,2,4]))
+  #tmp = np.tensordot(aB,main.wp0,axes=([1],[0]))
+  #tmp = np.tensordot(tmp,main.w1,axes=([1],[0]))
+  #tmp = np.tensordot(tmp,main.w3,axes=([1],[0]))
+  uzetaB = np.rollaxis(np.rollaxis( np.rollaxis( tmp , -3 , 1) , -2 , 2), -1, 3)
+
+
+  aR = np.sum(a,axis=1)
+  aL = np.tensordot(a,main.altarray0,axes=([1],[0]))
+
+  aU = np.tensordot(a,main.wpedge1[:,1],axes=([2],[0]))
+  aD = np.tensordot(a,main.wpedge1[:,0],axes=([2],[0]))
+
+  #aF = np.sum(a,axis=3)
+  #aB = np.tensordot(a,main.altarray2[:],axes=([3],[0]))
+
+
+
+#  uU = np.zeros((main.nvars,main.quadpoints,main.quadpoints,main.Npx,main.Npy,main.Npz))
+  # need to do 2D reconstruction to the gauss points on each face
+  tmp = np.tensordot(aR,main.wp1[:,:,None,None,None,None]*main.w2[None,None,:,:,None,None]*main.w3[None,None,None,None,:],axes=([1,2,3],[0,2,4]))
+  #tmp = np.tensordot(aR,main.wp1,axes=([1],[0])) #reconstruct in y and z
+  #tmp = np.tensordot(tmp,main.w2,axes=([1],[0]))
+  #tmp = np.tensordot(tmp,main.w3,axes=([1],[0]))
+  uetaR = np.rollaxis(np.rollaxis( np.rollaxis( tmp , -3 , 1) , -2 , 2), -1, 3)
+  tmp = np.tensordot(aL,main.wp1[:,:,None,None,None,None]*main.w2[None,None,:,:,None,None]*main.w3[None,None,None,None,:],axes=([1,2,3],[0,2,4]))
+  #tmp = np.tensordot(aL,main.wp1,axes=([1],[0]))
+  #tmp = np.tensordot(tmp,main.w2,axes=([1],[0]))
+  #tmp = np.tensordot(tmp,main.w3,axes=([1],[0]))
+  uetaL = np.rollaxis(np.rollaxis( np.rollaxis( tmp , -3 , 1) , -2 , 2), -1, 3)
+
+  tmp = np.tensordot(aU,main.w0[:,:,None,None,None,None]*main.w2[None,None,:,:,None,None]*main.w3[None,None,None,None,:],axes=([1,2,3],[0,2,4]))
+  #tmp = np.tensordot(aU,main.w0,axes=([1],[0])) #reconstruct in x and z 
+  #tmp = np.tensordot(tmp,main.w2,axes=([1],[0]))
+  #tmp = np.tensordot(tmp,main.w3,axes=([1],[0]))
+  uetaU = np.rollaxis(np.rollaxis( np.rollaxis( tmp , -3 , 1) , -2 , 2), -1, 3)
+  tmp = np.tensordot(aD,main.w0[:,:,None,None,None,None]*main.w2[None,None,:,:,None,None]*main.w3[None,None,None,None,:],axes=([1,2,3],[0,2,4]))
+  #tmp = np.tensordot(aD,main.w0,axes=([1],[0]))
+  #tmp = np.tensordot(tmp,main.w2,axes=([1],[0]))
+  #tmp = np.tensordot(tmp,main.w3,axes=([1],[0]))
+  uetaD = np.rollaxis(np.rollaxis( np.rollaxis( tmp , -3 , 1) , -2 , 2), -1, 3)
+
+  tmp = np.tensordot(aF,main.w0[:,:,None,None,None,None]*main.wp1[None,None,:,:,None,None]*main.w3[None,None,None,None,:],axes=([1,2,3],[0,2,4]))
+  #tmp = np.tensordot(aF,main.w0,axes=([1],[0])) #reconstruct in x and y 
+  #tmp = np.tensordot(tmp,main.wp1,axes=([1],[0]))
+  #tmp = np.tensordot(tmp,main.w3,axes=([1],[0]))
+  uetaF = np.rollaxis(np.rollaxis( np.rollaxis( tmp , -3 , 1) , -2 , 2), -1, 3)
+  tmp = np.tensordot(aB,main.w0[:,:,None,None,None,None]*main.wp1[None,None,:,:,None,None]*main.w3[None,None,None,None,:],axes=([1,2,3],[0,2,4]))
+  #tmp = np.tensordot(aB,main.w0,axes=([1],[0]))
+  #tmp = np.tensordot(tmp,main.wp1,axes=([1],[0]))
+  #tmp = np.tensordot(tmp,main.w3,axes=([1],[0]))
+  uetaB = np.rollaxis(np.rollaxis( np.rollaxis( tmp , -3 , 1) , -2 , 2), -1, 3)
+
+
+  #aR = np.sum(a,axis=1)
+  #aL = np.tensordot(a,main.altarray0,axes=([1],[0]))
+
+  aU = np.sum(a,axis=2)
+  aD = np.tensordot(a,main.altarray1[:],axes=([2],[0]))
+
+  aF = np.tensordot(a,main.wpedge2[:,1],axes=([3],[0]))
+  aB = np.tensordot(a,main.wpedge2[:,0],axes=([3],[0]))
+
+
+#  uU = np.zeros((main.nvars,main.quadpoints,main.quadpoints,main.Npx,main.Npy,main.Npz))
+  # need to do 2D reconstruction to the gauss points on each face
+  tmp = np.tensordot(aR,main.w1[:,:,None,None,None,None]*main.wp2[None,None,:,:,None,None]*main.w3[None,None,None,None,:],axes=([1,2,3],[0,2,4]))
+  #tmp = np.tensordot(aR,main.w1,axes=([1],[0])) #reconstruct in y and z
+  #tmp = np.tensordot(tmp,main.wp2,axes=([1],[0]))
+  #tmp = np.tensordot(tmp,main.w3,axes=([1],[0]))
+  umuR = np.rollaxis(np.rollaxis( np.rollaxis( tmp , -3 , 1) , -2 , 2), -1, 3)
+  tmp = np.tensordot(aL,main.w1[:,:,None,None,None,None]*main.wp2[None,None,:,:,None,None]*main.w3[None,None,None,None,:],axes=([1,2,3],[0,2,4]))
+  #tmp = np.tensordot(aL,main.w1,axes=([1],[0]))
+  #tmp = np.tensordot(tmp,main.wp2,axes=([1],[0]))
+  #tmp = np.tensordot(tmp,main.w3,axes=([1],[0]))
+  umuL = np.rollaxis(np.rollaxis( np.rollaxis( tmp , -3 , 1) , -2 , 2), -1, 3)
+
+
+  tmp = np.tensordot(aU,main.w0[:,:,None,None,None,None]*main.wp2[None,None,:,:,None,None]*main.w3[None,None,None,None,:],axes=([1,2,3],[0,2,4]))
+  #tmp = np.tensordot(aU,main.w0,axes=([1],[0])) #reconstruct in x and z 
+  #tmp = np.tensordot(tmp,main.wp2,axes=([1],[0]))
+  #tmp = np.tensordot(tmp,main.w3,axes=([1],[0]))
+  umuU = np.rollaxis(np.rollaxis( np.rollaxis( tmp , -3 , 1) , -2 , 2), -1, 3)
+  tmp = np.tensordot(aD,main.w0[:,:,None,None,None,None]*main.wp2[None,None,:,:,None,None]*main.w3[None,None,None,None,:],axes=([1,2,3],[0,2,4]))
+  #tmp = np.tensordot(aD,main.w0,axes=([1],[0]))
+  #tmp = np.tensordot(tmp,main.wp2,axes=([1],[0]))
+  #tmp = np.tensordot(tmp,main.w3,axes=([1],[0]))
+  umuD = np.rollaxis(np.rollaxis( np.rollaxis( tmp , -3 , 1) , -2 , 2), -1, 3)
+
+  tmp = np.tensordot(aF,main.w0[:,:,None,None,None,None]*main.w1[None,None,:,:,None,None]*main.w3[None,None,None,None,:],axes=([1,2,3],[0,2,4]))
+  #tmp = np.tensordot(aF,main.w0,axes=([1],[0])) #reconstruct in x and y 
+  #tmp = np.tensordot(tmp,main.w1,axes=([1],[0]))
+  #tmp = np.tensordot(tmp,main.w3,axes=([1],[0]))
+  umuF = np.rollaxis(np.rollaxis( np.rollaxis( tmp , -3 , 1) , -2 , 2), -1, 3)
+  tmp = np.tensordot(aB,main.w0[:,:,None,None,None,None]*main.w1[None,None,:,:,None,None]*main.w3[None,None,None,None,:],axes=([1,2,3],[0,2,4]))
+  #tmp = np.tensordot(aB,main.w0,axes=([1],[0]))
+  #tmp = np.tensordot(tmp,main.w1,axes=([1],[0]))
+  #tmp = np.tensordot(tmp,main.w3,axes=([1],[0]))
+  umuB = np.rollaxis(np.rollaxis( np.rollaxis( tmp , -3 , 1) , -2 , 2), -1, 3)
+
+
+
+  uxR = uzetaR*Jinv[0,0][None,-1,:,:,None] + uetaR*Jinv[1,0][None,-1,:,:,None] + umuR*Jinv[2,0][None,-1,:,:,None]
+  uxL = uzetaL*Jinv[0,0][None,0,:,:,None] + uetaL*Jinv[1,0][None,0,:,:,None] + umuL*Jinv[2,0][None,0,:,:,None]
+  uxU = uzetaU*Jinv[0,0][None,:,-1,:,None] + uetaU*Jinv[1,0][None,:,-1,:,None] + umuU*Jinv[2,0][None,:,-1,:,None]
+  uxD = uzetaD*Jinv[0,0][None,:,0,:,None] + uetaD*Jinv[1,0][None,:,0,:,None] + umuD*Jinv[2,0][None,:,0,:,None]
+  uxF = uzetaF*Jinv[0,0][None,:,:,-1,None] + uetaF*Jinv[1,0][None,:,:,-1,None] + umuF*Jinv[2,0][None,:,:,-1,None]
+  uxB = uzetaB*Jinv[0,0][None,:,:,0,None] + uetaB*Jinv[1,0][None,:,:,0,None] + umuB*Jinv[2,0][None,:,:,0,None]
+
+
+  uyR = uzetaR*Jinv[0,1][None,-1,:,:,None] + uetaR*Jinv[1,1][None,-1,:,:,None] + umuR*Jinv[2,1][None,-1,:,:,None]
+  uyL = uzetaL*Jinv[0,1][None,0,:,:,None] + uetaL*Jinv[1,1][None,0,:,:,None] + umuL*Jinv[2,1][None,0,:,:,None]
+  uyU = uzetaU*Jinv[0,1][None,:,-1,:,None] + uetaU*Jinv[1,1][None,:,-1,:,None] + umuU*Jinv[2,1][None,:,-1,:,None]
+  uyD = uzetaD*Jinv[0,1][None,:,0,:,None] + uetaD*Jinv[1,1][None,:,0,:,None] + umuD*Jinv[2,1][None,:,0,:,None]
+  uyF = uzetaF*Jinv[0,1][None,:,:,-1,None] + uetaF*Jinv[1,1][None,:,:,-1,None] + umuF*Jinv[2,1][None,:,:,-1,None]
+  uyB = uzetaB*Jinv[0,1][None,:,:,0,None] + uetaB*Jinv[1,1][None,:,:,0,None] + umuB*Jinv[2,1][None,:,:,0,None]
+
+  uzR = uzetaR*Jinv[0,2][None,-1,:,:,None] + uetaR*Jinv[1,2][None,-1,:,:,None] + umuR*Jinv[2,2][None,-1,:,:,None]
+  uzL = uzetaL*Jinv[0,2][None,0,:,:,None] + uetaL*Jinv[1,2][None,0,:,:,None] + umuL*Jinv[2,2][None,0,:,:,None]
+  uzU = uzetaU*Jinv[0,2][None,:,-1,:,None] + uetaU*Jinv[1,2][None,:,-1,:,None] + umuU*Jinv[2,2][None,:,-1,:,None]
+  uzD = uzetaD*Jinv[0,2][None,:,0,:,None] + uetaD*Jinv[1,2][None,:,0,:,None] + umuD*Jinv[2,2][None,:,0,:,None]
+  uzF = uzetaF*Jinv[0,2][None,:,:,-1,None] + uetaF*Jinv[1,2][None,:,:,-1,None] + umuF*Jinv[2,2][None,:,:,-1,None]
+  uzB = uzetaB*Jinv[0,2][None,:,:,0,None] + uetaB*Jinv[1,2][None,:,:,0,None] + umuB*Jinv[2,2][None,:,:,0,None]
+
+  return uxR,uxL,uxU,uxD,uxF,uxB , uyR,uyL,uyU,uyD,uyF,uyB , uzR,uzL,uzU,uzD,uzF,uzB
+
 
 
 

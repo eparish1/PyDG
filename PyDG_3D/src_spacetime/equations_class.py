@@ -8,7 +8,7 @@ from navier_stokes_entropy import *
 from navier_stokes_kOmega import *
 
 from viscous_br1 import addViscousContribution_BR1,addViscousContribution_BR1_hyper
-from viscous_ip import addViscousContribution_IP
+from viscous_ip import addViscousContribution_IP, addViscousContribution_IP_hyper
 from viscous_inviscid import addViscousContribution_inviscid
 from incompressible_navier_stokes import *
 from incompressible_navier_stokes_fractional import *
@@ -39,6 +39,8 @@ class equations:
     if (vflux_str == 'IP'):
       if (mpi_rank == 0): print('Error, viscous flux scheme ' + vflux_str + ' not yet implemented for non-orthogonal grids. Use BR1 if grid is not orthogonal')
       self.addViscousContribution = addViscousContribution_IP
+      self.addViscousContribution_hyper = addViscousContribution_IP_hyper
+
       self.vflux_type = 'IP'
     if (vflux_str == 'Inviscid'):
       self.addViscousContribution = addViscousContribution_inviscid
@@ -161,81 +163,6 @@ class equations:
         if (mpi_rank == 0): print('Error, viscous flux scheme ' + vflux_str + ' not valid. Options are, "IP", "Inviscid". PyDG quitting')
         sys.exit() 
 
-    if (eq_str == 'Incompressible Navier-Stokes'):
-      self.nmus = 1
-      self.eq_str = eq_str
-      check_eq = 1
-      self.nvars = 4
-      self.nvisc_vars = 12
-      self.evalFluxX = evalFluxXEulerIncomp 
-      self.evalFluxY = evalFluxYEulerIncomp
-      self.evalFluxZ = evalFluxZEulerIncomp
-      ## select appopriate flux scheme
-      checki = 0
-      if (iflux_str == 'central'):
-        self.inviscidFlux = eulerCentralFluxIncomp
-        checki = 1
-      if (iflux_str == 'LaxFriedrichs'):
-        self.inviscidFlux = LaxFriedrichsFluxIncomp
-        checki = 1
-      if (checki == 0):
-        if (mpi_rank == 0): print('Error, inviscid flux scheme ' + iflux_str + ' not valid. Options are "central, LaxFriedrichs", PyDG quitting')
-        sys.exit()
-      checkv = 0 
-      if (vflux_str == 'BR1'):
-        self.evalViscousFluxX = evalViscousFluxXIncomp_BR1
-        self.evalViscousFluxY = evalViscousFluxYIncomp_BR1
-        self.evalViscousFluxZ = evalViscousFluxZIncomp_BR1
-        self.evalTauFluxX = evalTauFluxXIncomp_BR1
-        self.evalTauFluxY = evalTauFluxYIncomp_BR1
-        self.evalTauFluxZ = evalTauFluxZIncomp_BR1
-        self.vflux_type = 'BR1'
-        checkv = 1
-      if (vflux_str == 'Inviscid'):
-        self.viscous = False
-        self.vflux_type = 'Inviscid'
-        checkv = 1
-      if (checkv == 0):
-        if (mpi_rank == 0): print('Error, viscous flux scheme ' + vflux_str + ' not valid. Options are, "BR1", "Inviscid". PyDG quitting')
-        sys.exit() 
-
-    if (eq_str == 'Incompressible Navier-Stokes Fractional'):
-      self.nmus = 1
-      self.eq_str = eq_str
-      check_eq = 1
-      self.nvars = 3
-      self.nvisc_vars = 9
-      self.evalFluxX = evalFluxXEulerIncompFrac 
-      self.evalFluxY = evalFluxYEulerIncompFrac
-      self.evalFluxZ = evalFluxZEulerIncompFrac
-      ## select appopriate flux scheme
-      checki = 0
-      if (iflux_str == 'central'):
-        self.inviscidFlux = eulerCentralFluxIncompFrac
-        checki = 1
-      if (iflux_str == 'LaxFriedrichs'):
-        self.inviscidFlux = LaxFriedrichsFluxIncompFrac
-        checki = 1
-      if (checki == 0):
-        if (mpi_rank == 0): print('Error, inviscid flux scheme ' + iflux_str + ' not valid. Options are "central, LaxFriedrichs", PyDG quitting')
-        sys.exit()
-      checkv = 0 
-      if (vflux_str == 'BR1'):
-        self.evalViscousFluxX = evalViscousFluxXIncompFrac_BR1
-        self.evalViscousFluxY = evalViscousFluxYIncompFrac_BR1
-        self.evalViscousFluxZ = evalViscousFluxZIncompFrac_BR1
-        self.evalTauFluxX = evalTauFluxXIncompFrac_BR1
-        self.evalTauFluxY = evalTauFluxYIncompFrac_BR1
-        self.evalTauFluxZ = evalTauFluxZIncompFrac_BR1
-        self.vflux_type = 'BR1'
-        checkv = 1
-      if (vflux_str == 'Inviscid'):
-        self.viscous = False
-        self.vflux_type = 'Inviscid'
-        checkv = 1
-      if (checkv == 0):
-        if (mpi_rank == 0): print('Error, viscous flux scheme ' + vflux_str + ' not valid. Options are, "BR1", "Inviscid". PyDG quitting')
-        sys.exit() 
 
     if (eq_str == 'Navier-Stokes Entropy Equation'):
       self.nmus = 1
@@ -360,8 +287,6 @@ class equations:
         sys.exit()
       checkv = 0 
       if (vflux_str == 'BR1'):
-        #print('Error, BR1 not completed for 3D. PyDG quitting')
-        #sys.exit()
         self.addViscousContribution = addViscousContribution_BR1
         self.evalViscousFlux = evalViscousFluxNS_BR1
         self.evalViscousFluxX = evalViscousFluxXNS_BR1
@@ -449,16 +374,6 @@ class equations:
       if (checkv == 0):
         if (mpi_rank == 0): print('Error, viscous flux scheme ' + vflux_str + ' not valid. Options are, "IP", "Inviscid". PyDG quitting')
         sys.exit() 
-
-
-
-
-
-
-
-
-
-
 
 
 

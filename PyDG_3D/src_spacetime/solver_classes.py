@@ -72,6 +72,8 @@ class timeschemes:
         #regionManager.V = np.reshape(V2,(np.size(region.a.a),n_basis) ) 
         regionManager.V = np.append(regionManager.V,np.reshape(V2,(np.size(region.a.a),n_basis) ) , axis=0) 
 
+
+
     if (time_str == 'SSP_RK3_POD_QDEIM'):
       check_t = 0
       self.advanceSol = SSP_RK3_POD_QDEIM
@@ -117,7 +119,7 @@ class timeschemes:
         regionManager.V = np.append(regionManager.V,np.reshape(V2,(np.size(region.a.a),n_basis) ) , axis=0) 
     if (time_str == 'backwardEuler_LSPG'):
       check_t = 0
-      self.advanceSol = backwardEuler_LSPG2
+      self.advanceSol = backwardEuler_LSPG
       self.linear_solver = linearSolver(lsolver_str)
       self.nonlinear_solver = nonlinearSolver(nlsolver_str)
       self.sparse_quadrature = False
@@ -129,6 +131,23 @@ class timeschemes:
         for i in range(0,n_basis):
           V2[:,:,:,:,:,:,:,:,:,i] = np.reshape(V[:,i],(region.nvars,region.order[0],region.order[1],region.order[2],region.order[3],region.Nel[0],region.Nel[1],region.Nel[2],region.Nel[3]))[:,:,:,:,:,region.sx,region.sy,region.sz,:] 
         regionManager.V = np.reshape(V2,(np.size(region.a.a),n_basis) ) 
+
+
+    if (time_str == 'backwardEuler_LSPG_collocation_validate'):
+      check_t = 0
+      self.advanceSol = backwardEuler_LSPG_collocation_validate
+      self.linear_solver = linearSolver(lsolver_str)
+      self.nonlinear_solver = nonlinearSolver(nlsolver_str)
+      self.sparse_quadrature = False
+      self.args = [self.nonlinear_solver,self.linear_solver,self.sparse_quadrature]
+      V = np.load('pod_basis.npz')['V']
+      n_basis = np.shape(V)[1]
+      for region in regionManager.region:
+        V2 = np.zeros((region.nvars,region.order[0],region.order[1],region.order[2],region.order[3],region.Npx,region.Npy,region.Npz,region.Npt,n_basis))
+        for i in range(0,n_basis):
+          V2[:,:,:,:,:,:,:,:,:,i] = np.reshape(V[:,i],(region.nvars,region.order[0],region.order[1],region.order[2],region.order[3],region.Nel[0],region.Nel[1],region.Nel[2],region.Nel[3]))[:,:,:,:,:,region.sx,region.sy,region.sz,:] 
+        regionManager.V = np.reshape(V2,(np.size(region.a.a),n_basis) ) 
+
 
      
     if (time_str == 'SSP_RK3_POD'):
@@ -144,28 +163,32 @@ class timeschemes:
         V2 = np.zeros((region.nvars,region.order[0],region.order[1],region.order[2],region.order[3],region.Npx,region.Npy,region.Npz,region.Npt,n_basis))
         for i in range(0,n_basis):
           V2[:,:,:,:,:,:,:,:,:,i] = np.reshape(V[start_indx:end_indx,i],(region.nvars,region.order[0],region.order[1],region.order[2],region.order[3],region.Nel[0],region.Nel[1],region.Nel[2],region.Nel[3]))[:,:,:,:,:,region.sx,region.sy,region.sz,:] 
-        #regionManager.V = np.reshape(V2,(np.size(region.a.a),n_basis) ) 
-        regionManager.V = np.append(regionManager.V,np.reshape(V2,(np.size(region.a.a),n_basis) ) , axis=0) 
+        regionManager.V = np.reshape(V2,(np.size(region.a.a),n_basis) ) 
+#        regionManager.V = np.append(regionManager.V,np.reshape(V2,(np.size(region.a.a),n_basis) ) , axis=0) 
 #      try:
 #        regionManager.W = np.load('pod_basis.npz')['W']
 #        regionManager.V = np.load('pod_basis.npz')['V']
 #      except:
 #        print('Test basis not found, using W = V')
       
-    if (time_str == 'backwardEuler_LSPG'):
-      check_t = 0
-      self.advanceSol = backwardEuler_LSPG2
-      self.linear_solver = linearSolver(lsolver_str)
-      self.nonlinear_solver = nonlinearSolver(nlsolver_str)
-      self.sparse_quadrature = False
-      self.args = [self.nonlinear_solver,self.linear_solver,self.sparse_quadrature]
-      V = np.load('pod_basis.npz')['V']
-      n_basis = np.shape(V)[1]
-      for region in regionManager.region:
-        V2 = np.zeros((region.nvars,region.order[0],region.order[1],region.order[2],region.order[3],region.Npx,region.Npy,region.Npz,region.Npt,n_basis))
-        for i in range(0,n_basis):
-          V2[:,:,:,:,:,:,:,:,:,i] = np.reshape(V[:,i],(region.nvars,region.order[0],region.order[1],region.order[2],region.order[3],region.Nel[0],region.Nel[1],region.Nel[2],region.Nel[3]))[:,:,:,:,:,region.sx,region.sy,region.sz,:] 
-        regionManager.V = np.reshape(V2,(np.size(region.a.a),n_basis) ) 
+#    if (time_str == 'backwardEuler_LSPG'):
+#      check_t = 0
+#      self.advanceSol = backwardEuler_LSPG2
+#      self.linear_solver = linearSolver(lsolver_str)
+#      self.nonlinear_solver = nonlinearSolver(nlsolver_str)
+#      self.sparse_quadrature = False
+#      self.args = [self.nonlinear_solver,self.linear_solver,self.sparse_quadrature]
+#      V = np.load('pod_basis.npz')['V']
+#      n_basis = np.shape(V)[1]
+#      for region in regionManager.region:
+#        V2 = np.zeros((region.nvars,region.order[0],region.order[1],region.order[2],region.order[3],region.Npx,region.Npy,region.Npz,region.Npt,n_basis))
+#        for i in range(0,n_basis):
+#          V2[:,:,:,:,:,:,:,:,:,i] = np.reshape(V[:,i],(region.nvars,region.order[0],region.order[1],region.order[2],region.order[3],region.Nel[0],region.Nel[1],region.Nel[2],region.Nel[3]))[:,:,:,:,:,region.sx,region.sy,region.sz,:] 
+#        regionManager.V = np.reshape(V2,(np.size(region.a.a),n_basis) ) 
+
+
+
+
 
     if (time_str == 'crankNicolson_GNAT'):
       check_t = 0

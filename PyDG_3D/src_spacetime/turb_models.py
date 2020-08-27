@@ -84,7 +84,11 @@ def DNS(regionManager,eqns):
   regionManager.getRHS_REGION_INNER(regionManager,eqns)
 
 def ROM(regionManager,eqns):
-  regionManager.getRHS_REGION_INNER_ROM(regionManager,eqns)
+  regionManager.getRHS_REGION_INNER(regionManager,eqns)
+
+def ROM_M_Orthogonal(regionManager,eqns):
+  regionManager.getRHS_REGION_INNER_ROM_MORTHOGONAL(regionManager,eqns)
+
 
 
 def DNS_stochastic(regionManager,eqns):
@@ -550,6 +554,9 @@ def shockCapturingSetViscosity(main):
 #==============================
 def QDEIM(regionManager,eqns):
   regionManager.getRHS_REGION_INNER_QDEIM(regionManager,eqns)
+
+def ROM_COLLOCATION_MORTHOGONAL(regionManager,eqns):
+  regionManager.getRHS_REGION_INNER_ROM_COLLOCATION_MORTHOGONAL(regionManager,eqns)
 
 
 def projection_pod(u,V,regionManager):

@@ -619,7 +619,6 @@ def rusanovFlux(eqns,F,main,UL,UR,n,args=None):
   F[2]    = 0.5*(FL[2]+FR[2])-0.5*smax*(UR[2] - UL[2])
   F[3]    = 0.5*(FL[3]+FR[3])-0.5*smax*(UR[3] - UL[3])
   F[4]    = 0.5*(FL[4]+FR[4])-0.5*smax*(UR[4] - UL[4])
-  return F
 
 
 def basicFluxEuler(eqns,region,UL,n,args=None):
@@ -909,9 +908,9 @@ def getGsNSX_FAST(u,main,mu,V):
   nvars = np.shape(u)[0]
   gamma = 1.4
   Pr = 0.72
-  fvG11 = np.zeros(np.shape(u))
-  fvG21 = np.zeros(np.shape(u))
-  fvG31 = np.zeros(np.shape(u))
+  fvG11 = np.zeros(np.shape(u),dtype=u.dtype)
+  fvG21 = np.zeros(np.shape(u),dtype=u.dtype)
+  fvG31 = np.zeros(np.shape(u),dtype=u.dtype)
 
   v1 = u[1]/u[0]
   v2 = u[2]/u[0]
@@ -944,9 +943,9 @@ def getGsNSY_FAST(u,main,mu,V):
   nvars = np.shape(u)[0]
   gamma = 1.4
   Pr = 0.72
-  fvG12 = np.zeros(np.shape(u))
-  fvG22 = np.zeros(np.shape(u))
-  fvG32 = np.zeros(np.shape(u))
+  fvG12 = np.zeros(np.shape(u),dtype=u.dtype)
+  fvG22 = np.zeros(np.shape(u),dtype=u.dtype)
+  fvG32 = np.zeros(np.shape(u),dtype=u.dtype)
 
   v1 = u[1]/u[0]
   v2 = u[2]/u[0]
@@ -979,9 +978,9 @@ def getGsNSZ_FAST(u,main,mu,V):
   nvars = np.shape(u)[0]
   gamma = 1.4
   Pr = 0.72
-  fvG13 = np.zeros(np.shape(u))
-  fvG23 = np.zeros(np.shape(u))
-  fvG33 = np.zeros(np.shape(u))
+  fvG13 = np.zeros(np.shape(u),dtype=u.dtype)
+  fvG23 = np.zeros(np.shape(u),dtype=u.dtype)
+  fvG33 = np.zeros(np.shape(u),dtype=u.dtype)
 
   v1 = u[1]/u[0]
   v2 = u[2]/u[0]
@@ -1175,7 +1174,7 @@ def evalViscousFluxXNS_IP(main,u,Ux,Uy,Uz,mu):
   ## ->  E_x = 1/rho d/x(rho E) - rho E /rho^2 rho_x
   kTx =( 1./u[0]*(Ux[4] - u[4]/u[0]*Ux[0] - (u[1]*ux + u[2]*vx + u[3]*wx)  ))*mu*gamma/Pr
 
-  fx = np.zeros(np.shape(u))
+  fx = np.zeros(np.shape(u),dtype=u.dtype)
   v1 = u[1]/u[0]
   v2 = u[2]/u[0]
   v3 = u[3]/u[0]
@@ -1205,7 +1204,7 @@ def evalViscousFluxYNS_IP(main,u,Ux,Uy,Uz,mu):
   ## ->  E_x = 1/rho d/x(rho E) - rho E /rho^2 rho_x
   kTy =( 1./u[0]*(Uy[4] - u[4]/u[0]*Uy[0] - (u[1]*uy + u[2]*vy + u[3]*wy)  ))*mu*gamma/Pr
 
-  fy = np.zeros(np.shape(u))
+  fy = np.zeros(np.shape(u),dtype=u.dtype)
   v1 = u[1]/u[0]
   v2 = u[2]/u[0]
   v3 = u[3]/u[0]
@@ -1234,7 +1233,7 @@ def evalViscousFluxZNS_IP(main,u,Ux,Uy,Uz,mu):
   ## ->  E_x = 1/rho d/x(rho E) - rho E /rho^2 rho_x
   kTz =( 1./u[0]*(Uz[4] - u[4]/u[0]*Uz[0] - (u[1]*uz + u[2]*vz + u[3]*wz) ) )*mu*gamma/Pr
 
-  fz = np.zeros(np.shape(u))
+  fz = np.zeros(np.shape(u),dtype=u.dtype)
   v1 = u[1]/u[0]
   v2 = u[2]/u[0]
   v3 = u[3]/u[0]

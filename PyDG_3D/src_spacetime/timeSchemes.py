@@ -23,6 +23,7 @@ import time
 from tensor_products import diffCoeffs
 #from jacobian_schemes import *
 from navier_stokes_entropy import entropy_to_conservative, getEntropyMassMatrix,getEntropyMassMatrix_noinvert
+#from block_classes import getRHS_REGION_INNER_ROM_MORTHOGONAL
 def gatherResid(Rstar,regionManager):
   ## Create Global residual
   data = regionManager.comm.gather(np.linalg.norm(Rstar)**2,root = 0)
@@ -602,14 +603,23 @@ def SSP_RK3(regionManager,eqns,args=None):
   regionManager.iteration += 1
   #filter_shock(regionManager,eqns)
 
-def SSP_RK3_POD_COLLOCATE(regionManager,eqns,args=None):
+def SSP_RK3_POD_QDEIM(regionManager,eqns,args=None):
+  regionManager.rk_stage = 0
+  a0 = regionManager.a[:]*1.
+  for region in regionManager.region:
+    region.a.a[:] = np.sum(region.M[None]*region.a.a[:,None,None,None,None],axis=(5,6,7,8) )
+  regionManager.a0[:] = regionManager.a[:]
+  a0_pod = globalDot(regionManager.V.transpose(),regionManager.a0,regionManager)
+  regionManager.a[:] = a0[:]
+
   cell_ijk = regionManager.region[0].cell_ijk
   stencil_list = regionManager.region[0].stencil_list
   stencil_ijk = regionManager.region[0].stencil_ijk
+  '''
+
   rec_stencil_list = regionManager.region[0].rec_stencil_list
   cell_list = regionManager.region[0].cell_list
   viscous_stencil_list = regionManager.region[0].viscous_stencil_list
-
   regionManager.rk_stage = 0
   if (regionManager.iteration == 0):
     print('Starting Simulation')
@@ -622,9 +632,19 @@ def SSP_RK3_POD_COLLOCATE(regionManager,eqns,args=None):
     a0_pod = regionManager.a_pod*1.
   #a0_pod = np.dot(regionManager.V[stencil_list,:].transpose(),regionManager.a[stencil_list]*1.)
   ## First Stage
-  regionManager.getRHS_REGION_OUTER(regionManager,eqns) #includes loop over all regions
-  regionManager.rk_stage += 1
+  '''
+  print(np.linalg.norm(regionManager.a))
+  t0 = time.time()
+  for i in range(0,100):
+    regionManager.getRHS_REGION_OUTER(regionManager,eqns) #includes loop over all regions
+  print('walltime = ' , time.time() - t0)
+  norm1 = np.linalg.norm(regionManager.region[0].RHS_hyper)
 
+  regionManager.getRHS_REGION_INNER_ROM_MORTHOGONAL(regionManager,eqns)
+  norm2 = np.linalg.norm(regionManager.region[0].RHS[:,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]) 
+  print(norm1, norm2, norm1 - norm2)
+  #regionManager.rk_stage += 1
+  '''
   R = np.dot(regionManager.V[cell_list].transpose(),regionManager.RHS[cell_list])
   #R = np.einsum('ij,j->i',regionManager.VR,regionManager.region[0].RHS[cell_ijk[0][0],cell_ijk[1][0],cell_ijk[2][0],cell_ijk[3][0],cell_ijk[4][0],cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]].flatten() )
   a1_pod = a0_pod  + regionManager.dt*R.flatten()#globalDot(regionManager.V.transpose(),regionManager.RHS[:],regionManager) 
@@ -648,20 +668,20 @@ def SSP_RK3_POD_COLLOCATE(regionManager,eqns,args=None):
   af_pod = 1./3.*a0_pod + 2./3.*(a1_pod[:] + regionManager.dt*R )
   regionManager.a[rec_stencil_list] = np.dot(regionManager.V_rec,af_pod*1.)
   #regionManager.a[:] = np.dot(regionManager.V[:,:],af_pod*1.)
-  regionManager.t += regionManager.dt
   regionManager.iteration += 1
   regionManager.a_pod[:] = af_pod[:]
 
   ### Update the global state for saving
   if (regionManager.iteration%regionManager.save_freq == 0):
     regionManager.a[:] = np.dot(regionManager.V,af_pod)
+  '''
+  regionManager.t += regionManager.dt
 
 
 
 
 
-
-def SSP_RK3_POD_QDEIM(regionManager,eqns,args=None):
+def SSP_RK3_POD_QDEIM3(regionManager,eqns,args=None):
   cell_ijk = regionManager.region[0].cell_ijk
   stencil_list = regionManager.region[0].stencil_list
   stencil_ijk = regionManager.region[0].stencil_ijk
@@ -1685,7 +1705,11 @@ def backwardEuler_LSPG(regionManager,eqns,args):
   nonlinear_solver = args[0]
   linear_solver = args[1]
   sparse_quadrature = args[2]
+  #regionManager.a0[:] = regionManager.a[:]
+  regionManager.a[:] = np.dot(regionManager.V,np.dot(regionManager.V.transpose(),regionManager.a))
   regionManager.a0[:] = regionManager.a[:]
+  print('here')
+  print(np.linalg.norm(regionManager.a))
   def unsteadyResidual(v):
     regionManager.a[:] = v[:]# np.dot(regionManager.V,v[:]) #set current state to be the solution iterate of the Newton Krylov solver
     regionManager.getRHS_REGION_OUTER(regionManager,eqns) # evaluate the RHS includes loop over all regions
@@ -1956,13 +1980,92 @@ def crankNicolson_LSPG_QDEIM(regionManager,eqns,args):
     regionManager.a[:] = np.dot(regionManager.V,regionManager.a_pod)
 
 
+## using QDEIM 
+def backwardEuler_LSPG_collocation_validate(regionManager,eqns,args):
+  if (regionManager.iteration == 0):
+    print('Starting Simulation')
+    a0_pod = globalDot(regionManager.V.transpose(),regionManager.a,regionManager)
+    regionManager.jacobian_update_freq = 1
+    regionManager.jacobian_iteration = 0
+  else:
+    a0_pod = regionManager.a_pod*1.
+  regionManager.a_pod[:] = a0_pod[:]*1.
+  cell_list = regionManager.region[0].cell_list
+  rec_stencil_list = regionManager.region[0].rec_stencil_list
+  nonlinear_solver = args[0]
+  linear_solver = args[1]
+  sparse_quadrature = args[2]
+  regionManager.a0[rec_stencil_list] = regionManager.a[rec_stencil_list]*1.
+  def unsteadyResidual(v):
+    regionManager.a[rec_stencil_list] = v[:]# np.dot(regionManager.V[rec_stencil_list],v[:]) #set current state to be the solution iterate of the Newton Krylov solver
+    regionManager.getRHS_REGION_OUTER(regionManager,eqns) # evaluate the RHS includes loop over all regions - should be calling QDEIM
+    ## Construct the unsteady residual for Backward Euler in a few steps
+    RHS_BE = np.zeros(np.size(regionManager.RHS[cell_list]))
+    R1 = np.zeros(np.size(regionManager.RHS[cell_list]))
+    R1[:] = regionManager.RHS[cell_list]
+    RHS_BE[:] = regionManager.dt*R1
+    Rstar = ( regionManager.a[cell_list]*1. - regionManager.a0[cell_list] ) - RHS_BE
+    return Rstar.flatten()
+
+  nx,nbasis = np.shape(regionManager.V[cell_list])
+  JV = np.zeros((nx,nbasis) )
+  regionManager.an = regionManager.a[rec_stencil_list]*1.
+  # compute residual
+  r = unsteadyResidual(regionManager.a[rec_stencil_list])
+  da_norm = 1.
+  r_norm = globalNorm(r,regionManager)
+  if (regionManager.mpi_rank == 0):
+    print('Initial Residual = ' + str(r_norm) )
+
+  while (r_norm > 1e-4 and da_norm >= 1e-4):
+    eps = 1e-5
+    an = regionManager.a[rec_stencil_list]*1.
+    for i in range(0,nbasis):
+      regionManager.a[rec_stencil_list] = an[:] + eps*regionManager.V[rec_stencil_list,i]
+      Jv_column = unsteadyResidual(regionManager.a[rec_stencil_list])
+      JV[:,i] = (Jv_column - r[:]) / eps
+    ## do global sum to get the dot product
+
+    JSQ = np.dot(JV.transpose(),JV)
+    data = regionManager.comm.gather(JSQ,root = 0)
+    JSQ_glob = np.zeros(np.shape(JSQ) )
+    if (regionManager.mpi_rank == 0):
+      for j in range(0,regionManager.num_processes):
+        JSQ_glob[:] += data[j]
+      for j in range(1,regionManager.num_processes):
+        comm.Send(JSQ_glob, dest=j)
+    else:
+      comm.Recv(JSQ_glob,source=0)
+    JVr = globalDot(JV.transpose(),r,regionManager)
+    da_pod = np.linalg.solve(JSQ_glob,-JVr)
+    da_norm = np.linalg.norm(da_pod)
+    #print(np.linalg.norm(da_pod))
+    regionManager.a_pod[:] += da_pod[:]
+    regionManager.a[rec_stencil_list] = np.dot(regionManager.V[rec_stencil_list],regionManager.a_pod[:])
+    #regionManager.a[rec_stencil_list] = regionManager.a0[rec_stencil_list]
+    #regionManager.a[rec_stencil_list] = regionManager.a[rec_stencil_list] + np.dot(regionManager.V[rec_stencil_list],da_pod[:])
+    r = unsteadyResidual(regionManager.a[rec_stencil_list])
+    r_norm = globalNorm(r,regionManager)
+    if (regionManager.mpi_rank == 0):
+      print('Residual = ' + str(r_norm), ' Change to solution is ' + str(da_norm))
+
+  regionManager.t += regionManager.dt
+  regionManager.iteration += 1
+
+  ### Update the global state for saving
+  if (regionManager.iteration%regionManager.save_freq == 0):
+    #regionManager.a_pod[:] = np.dot(regionManager.V[cell_list].transpose(),regionManager.a[cell_list] )
+    regionManager.a[:] = np.dot(regionManager.V,regionManager.a_pod)
+
+
+
 
 ## using QDEIM 
 def backwardEuler_LSPG_QDEIM(regionManager,eqns,args):
   if (regionManager.iteration == 0):
     print('Starting Simulation')
     a0_pod = globalDot(regionManager.V.transpose(),regionManager.a,regionManager)
-    regionManager.jacobian_update_freq = 10
+    regionManager.jacobian_update_freq = 1
     regionManager.jacobian_iteration = 0
   else:
     a0_pod = regionManager.a_pod*1.
@@ -2131,6 +2234,7 @@ def backwardEuler_LSPG2(regionManager,eqns,args):
   regionManager.getRHS_REGION_OUTER(regionManager,eqns)
   R0 = np.zeros(np.size(regionManager.RHS))
   R0[:] = regionManager.RHS[:]
+  print(np.linalg.norm(regionManager.a))
   def unsteadyResidual(v):
     regionManager.a[:] = np.dot(regionManager.V,v[:]) #set current state to be the solution iterate of the Newton Krylov solver
     regionManager.getRHS_REGION_OUTER(regionManager,eqns) # evaluate the RHS includes loop over all regions
@@ -2175,8 +2279,8 @@ def backwardEuler_LSPG2(regionManager,eqns,args):
 
   #A = create_mv(regionManager.a.flatten())
   #res_1 = least_squares(unsteadyResidual, a0_pod,ftol=1e-4,xtol=1e-8,jac=create_mv,method='dogbox',verbose=2)
-  #res_1 = least_squares(unsteadyResidual, a0_pod,ftol=1e-4,xtol=1e-8,method='dogbox',verbose=2)
-  res_1 = scipy.optimize.minimize(unsteadyResidual, a0_pod)
+  res_1 = least_squares(unsteadyResidual, a0_pod,ftol=1e-4,xtol=1e-8,method='dogbox',verbose=2)
+  #res_1 = scipy.optimize.minimize(unsteadyResidual, a0_pod)
 
   a_sol_pod = res_1.x
   regionManager.a[:] = np.dot(regionManager.V,a_sol_pod)

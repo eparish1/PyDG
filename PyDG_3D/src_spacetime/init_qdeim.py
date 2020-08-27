@@ -1,4 +1,22 @@
 import numpy as np
+import copy
+
+class sampleMesh:
+    def __init__(self,region):
+      cell_ijk = region.cell_ijk
+      stencil_ijk = region.stencil_ijk
+
+      self.Jinv_cell = region.Jinv[:,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0]] 
+      self.Jinv_stencil = region.Jinv[:,:,:,:,:,stencil_ijk[5][0],stencil_ijk[6][0],stencil_ijk[7][0]] 
+
+      self.wp0 = copy.deepcopy(region.wp0)
+      self.wp1 = copy.deepcopy(region.wp1)
+      self.wp2 = copy.deepcopy(region.wp2)
+      self.wp3 = copy.deepcopy(region.wp3)
+      self.w0 = copy.deepcopy(region.w0)
+      self.w1 = copy.deepcopy(region.w1)
+      self.w2 = copy.deepcopy(region.w2)
+      self.w3 = copy.deepcopy(region.w3)
 
 
 def init_stencil_qdeim(region,eqns,order):
@@ -177,22 +195,14 @@ def init_stencil_qdeim(region,eqns,order):
 
     ## now make the reconstruct stencil. This should have all quad points and all conserved variables
     ## ADD ALL CONSERVED VARIABLES TO RECONSTRUCT STENCIL
-#    stencil_ijk0 = np.copy(stencil_ijk)
-#    viscous_stencil_ijk0 = np.copy(viscous_stencil_ijk)
-    if (eqns.vflux_type == 'Inviscid'):
-      print('Running inviscid, not doing extended BR1 stencil')
+    if (eqns.vflux_type == 'Inviscid' or eqns.vflux_type == 'IP'):
+      print('Running inviscid or IP, not doing extended BR1 stencil')
       viscous_stencil_ijk = stencil_ijk
 
     rec_stencil_ijk0 = np.copy(viscous_stencil_ijk)
     rec_stencil_ijk = np.copy(viscous_stencil_ijk)
 
     for i in range(0,eqns.nvars):
-#       tmp = np.copy(stencil_ijk0)
-#       tmp[0][0][:] = i
-#       stencil_ijk = np.append(stencil_ijk,tmp,axis=2)
-#       tmp = np.copy(viscous_stencil_ijk0)
-#       tmp[0][0][:] = i
-#       viscous_stencil_ijk = np.append(viscous_stencil_ijk,tmp,axis=2)
        tmp = np.copy(rec_stencil_ijk0)
        tmp[0][0][:] = i
        rec_stencil_ijk = np.append(rec_stencil_ijk,tmp,axis=2)
@@ -209,6 +219,34 @@ def init_stencil_qdeim(region,eqns,order):
             tmp[4][0][:] = l
             rec_stencil_ijk = np.append(rec_stencil_ijk,tmp,axis=2)
 
+
+
+    ## now make the gllobal indices for the sample mesh. This should have all quad points and all conserved variables
+    ## ADD ALL CONSERVED VARIABLES TO RECONSTRUCT STENCIL
+
+    sample_mesh_ijk0 = np.copy(region.cell_ijk)
+    sample_mesh_ijk = np.copy(region.cell_ijk)
+
+    for i in range(0,eqns.nvars):
+       tmp  = np.copy(sample_mesh_ijk0)
+       tmp[0][0][:] = i
+       sample_mesh_ijk = np.append(sample_mesh_ijk,tmp,axis=2)
+
+    sample_mesh_ijk0 = np.copy(sample_mesh_ijk)
+    for i in range(0,order[0]):
+      for j in range(0,order[1]):
+        for k in range(0,order[2]):
+          for l in range(0,order[3]): 
+            tmp = np.copy(sample_mesh_ijk0)
+            tmp[1][0][:] = i
+            tmp[2][0][:] = j
+            tmp[3][0][:] = k
+            tmp[4][0][:] = l
+            sample_mesh_ijk = np.append(sample_mesh_ijk,tmp,axis=2)
+
+
+    region.sample_mesh_ijk = sample_mesh_ijk
+    region.cell_list= np.unique(np.ravel_multi_index( (sample_mesh_ijk[0,0,:],sample_mesh_ijk[1,0,:],sample_mesh_ijk[2,0,:],sample_mesh_ijk[3,0,:],sample_mesh_ijk[4,0,:],sample_mesh_ijk[5,0,:],sample_mesh_ijk[6,0,:],sample_mesh_ijk[7,0,:],sample_mesh_ijk[8,0,:]),(eqns.nvars,order[0],order[1],order[2],order[3],region.Npx,region.Npy,region.Npz,region.Npt)))
 
 
     region.stencil_ijk = stencil_ijk
@@ -267,22 +305,36 @@ def init_stencil_qdeim(region,eqns,order):
 
 
 
-    region.J_edge_det_hyper_x1p1 = region.J_edge_det[0][:,:,cell_ijk[5][0]+1,cell_ijk[6][0],cell_ijk[7][0]]
-    region.J_edge_det_hyper_x1 = region.J_edge_det[0][:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0]]
-    region.J_edge_det_hyper_x2p1 = region.J_edge_det[1][:,:,cell_ijk[5][0],cell_ijk[6][0]+1,cell_ijk[7][0]]
-    region.J_edge_det_hyper_x2 = region.J_edge_det[1][:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0]]
-    region.J_edge_det_hyper_x3p1 = region.J_edge_det[2][:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0]+1]
-    region.J_edge_det_hyper_x3 = region.J_edge_det[2][:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0]]
+    region.J_edge_det_hyper_x1p1 = copy.deepcopy(region.J_edge_det[0][:,:,cell_ijk[5][0]+1,cell_ijk[6][0],cell_ijk[7][0]])
+    region.J_edge_det_hyper_x1 = copy.deepcopy(region.J_edge_det[0][:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0]] )
+    region.J_edge_det_hyper_x2p1 = copy.deepcopy(region.J_edge_det[1][:,:,cell_ijk[5][0],cell_ijk[6][0]+1,cell_ijk[7][0]] )
+    region.J_edge_det_hyper_x2 = copy.deepcopy(region.J_edge_det[1][:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0]] )
+    region.J_edge_det_hyper_x3p1 = copy.deepcopy(region.J_edge_det[2][:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0]+1] )
+    region.J_edge_det_hyper_x3 = copy.deepcopy(region.J_edge_det[2][:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0]] )
 
 
-    region.iFlux.fRS_hyper = np.zeros(np.shape( region.iFlux.fRS[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] ) ,dtype=region.iFlux.fRS.dtype)
+    region.J_edge_det_stencil_x1p1 = copy.deepcopy(region.J_edge_det[0][:,:,stencil_ijk[5][0]+1,stencil_ijk[6][0],stencil_ijk[7][0]])
+    region.J_edge_det_stencil_x1 = copy.deepcopy(region.J_edge_det[0][:,:,stencil_ijk[5][0],stencil_ijk[6][0],stencil_ijk[7][0]] )
+    region.J_edge_det_stencil_x2p1 = copy.deepcopy(region.J_edge_det[1][:,:,stencil_ijk[5][0],stencil_ijk[6][0]+1,stencil_ijk[7][0]] )
+    region.J_edge_det_stencil_x2 = copy.deepcopy(region.J_edge_det[1][:,:,stencil_ijk[5][0],stencil_ijk[6][0],stencil_ijk[7][0]] )
+    region.J_edge_det_stencil_x3p1 = copy.deepcopy(region.J_edge_det[2][:,:,stencil_ijk[5][0],stencil_ijk[6][0],stencil_ijk[7][0]+1] )
+    region.J_edge_det_stencil_x3 = copy.deepcopy(region.J_edge_det[2][:,:,stencil_ijk[5][0],stencil_ijk[6][0],stencil_ijk[7][0]] )
+
+
+    #region.iFlux.fRS_hyper = np.zeros(np.shape( region.iFlux.fRS[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] ) ,dtype=region.iFlux.fRS.dtype)
+    #region.a.uLp1 = region.a.uL[:,:,:,:, (cell_ijk[5][0]+1)%region.Npx,cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]
+
+    #region.iFlux.fRS_hyper = np.zeros(np.shape(  region.iFlux.fRS[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]  ) )
+    #region.iFlux.fRS_hyper[:] = copy.copy( region.iFlux.fRS[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] )
     #region.iFlux.fRS_hyper_edge = np.zeros(np.shape( region.iFlux.fRS[:,:,:,:,-1,cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] ) ,dtype=region.iFlux.fRS.dtype)
 
 
 
 
 
+    region.a.a_hyper = region.a.a[:,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]
 
+    region.b.a_hyper = copy.copy(region.b.a[:,:,:,:,:,stencil_ijk[5][0],stencil_ijk[6][0],stencil_ijk[7][0],stencil_ijk[8][0]])
 
 
 

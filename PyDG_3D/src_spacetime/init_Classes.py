@@ -385,8 +385,10 @@ class variables:
 
 
 
-    if (turb_str == 'QDEIM' or turb_str == 'orthogonal subscale QDEIM' or turb_str == 'QDEIM VALIDATE' or turb_str == 'orthogonal subscale COLLOCATE'):
+    if (turb_str == 'ROM_COLLOCATION_MORTHOGONAL' or turb_str == 'QDEIM' or turb_str == 'orthogonal subscale QDEIM' or turb_str == 'QDEIM VALIDATE' or turb_str == 'orthogonal subscale COLLOCATE'):
       init_stencil_qdeim(self,eqns,order)
+      regionManager.regionSampleMesh.append( sampleMesh(self))
+
     ### Check turbulence models
     self.turb_str = turb_str	
     check = 0

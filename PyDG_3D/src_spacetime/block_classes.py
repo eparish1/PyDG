@@ -42,6 +42,8 @@ class blockClass:
    #self.nblocks = nblocks
     self.region_owned_local = range(0,np.size(self.mpi_regions_owned))
     self.region = []
+    self.regionSampleMesh = []
+
     self.t = 0
     self.iteration = 0
     self.dt = dt
@@ -110,7 +112,17 @@ class blockClass:
       check = 1
     if (turb_str == 'ROM'):
       self.getRHS_REGION_OUTER = ROM 
+      print('Using ROM model, assuming that the ROM basis V^T V = I')
       check = 1
+    if (turb_str == 'ROM_M_Orthogonal'):
+      self.getRHS_REGION_OUTER = ROM_M_Orthogonal 
+      print('Using ROM model, assuming that the ROM basis V^T M V = I')
+      check = 1
+
+    if (turb_str == 'ROM_COLLOCATION_MORTHOGONAL'):
+      self.getRHS_REGION_OUTER = ROM_COLLOCATION_MORTHOGONAL
+      check = 1
+
     if (turb_str == 'QDEIM'):
       self.getRHS_REGION_OUTER = QDEIM
       check = 1
@@ -197,11 +209,41 @@ class blockClass:
          print('Using turb model ' + turb_str)
 
 
+
+
+    def getRHS_REGION_INNER_ROM_COLLOCATION_MORTHOGONAL(self,eqns):
+      for region in self.region:
+        cell_ijk = region.cell_ijk
+        stencil_ijk = region.viscous_stencil_ijk
+        stencil2_ijk = region.stencil_ijk
+
+        region.a.u_hyper_stencil =  reconstructUGeneral_tensordot(region,region.a.a[:,:,:,:,:,stencil2_ijk[5][0],stencil2_ijk[6][0],stencil2_ijk[7][0],stencil2_ijk[8][0]])
+        region.a.u_hyper_cell =  reconstructUGeneral_tensordot(region,region.a.a[:,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]])
+
+        v1,v2,v3,v4,v5,v6 = region.basis.reconstructEdgesGeneral(region.a.a[:,:,:,:,:,stencil_ijk[5][0],stencil_ijk[6][0],stencil_ijk[7][0],stencil_ijk[8][0]],region)
+        region.a.uR[:,:,:,:,stencil_ijk[5][0],stencil_ijk[6][0],stencil_ijk[7][0],stencil_ijk[8][0]] = v1[:]
+        region.a.uL[:,:,:,:,stencil_ijk[5][0],stencil_ijk[6][0],stencil_ijk[7][0],stencil_ijk[8][0]] = v2[:]
+        region.a.uU[:,:,:,:,stencil_ijk[5][0],stencil_ijk[6][0],stencil_ijk[7][0],stencil_ijk[8][0]] = v3[:]
+        region.a.uD[:,:,:,:,stencil_ijk[5][0],stencil_ijk[6][0],stencil_ijk[7][0],stencil_ijk[8][0]] = v4[:]
+        region.a.uF[:,:,:,:,stencil_ijk[5][0],stencil_ijk[6][0],stencil_ijk[7][0],stencil_ijk[8][0]] = v5[:]
+        region.a.uB[:,:,:,:,stencil_ijk[5][0],stencil_ijk[6][0],stencil_ijk[7][0],stencil_ijk[8][0]] = v6[:]
+        stencil_ijk = region.stencil_ijk
+
+      for region in self.region:
+        region.a.uR_edge[:],region.a.uL_edge[:],region.a.uU_edge[:],region.a.uD_edge[:],region.a.uF_edge[:],region.a.uB_edge[:] = sendEdgesGeneralSlab(region.a.uL,region.a.uR,region.a.uD,region.a.uU,region.a.uB,region.a.uF,region,self)
+
+      eqns.getRHS_hyper(self,eqns)
+      #for region in self.region:
+      #  region.RHS_hyper[:] = np.sum(region.Minv[None,:,:,:,:,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]*region.RHS_hyper[:,None,None,None,None],axis=(5,6,7,8) )
+
+    self.getRHS_REGION_INNER_ROM_COLLOCATION_MORTHOGONAL = getRHS_REGION_INNER_ROM_COLLOCATION_MORTHOGONAL
+
+
+
     def getRHS_REGION_INNER_QDEIM(self,eqns):
 #      for region in self.region:
 #        region.basis.reconstructU(region,region.a)
 #        region.a.uR[:],region.a.uL[:],region.a.uU[:],region.a.uD[:],region.a.uF[:],region.a.uB[:] = region.basis.reconstructEdgesGeneral(region.a.a,region)
-
       for region in self.region:
         cell_ijk = region.cell_ijk
         #stencil_ijk = region.stencil_ijk
@@ -211,10 +253,11 @@ class blockClass:
         #region.a.u[:,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] =  reconstructUGeneral_einsum(region,region.a.a[:,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]])
         #region.a.u[:,:,:,:,:,stencil_ijk[5][0],stencil_ijk[6][0],stencil_ijk[7][0],stencil_ijk[8][0]] =  reconstructUGeneral_einsum(region,region.a.a[:,:,:,:,:,stencil_ijk[5][0],stencil_ijk[6][0],stencil_ijk[7][0],stencil_ijk[8][0]])
         #region.a.u[:,:,:,:,:,stencil_ijk[5][0],stencil_ijk[6][0],stencil_ijk[7][0],stencil_ijk[8][0]] =  reconstructUGeneral_tensordot(region,region.a.a[:,:,:,:,:,stencil_ijk[5][0],stencil_ijk[6][0],stencil_ijk[7][0],stencil_ijk[8][0]])
+        region.a.a_hyper_stencil =  region.a.a[:,:,:,:,:,stencil2_ijk[5][0],stencil2_ijk[6][0],stencil2_ijk[7][0],stencil2_ijk[8][0]]
+
         region.a.u_hyper_stencil =  reconstructUGeneral_tensordot(region,region.a.a[:,:,:,:,:,stencil2_ijk[5][0],stencil2_ijk[6][0],stencil2_ijk[7][0],stencil2_ijk[8][0]])
         region.a.u_hyper_cell =  reconstructUGeneral_tensordot(region,region.a.a[:,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]])
 
-        #print('hi',np.linalg.norm(region.a.a[:,:,:,:,:,stencil_ijk[5][0],stencil_ijk[6][0],stencil_ijk[7][0],stencil_ijk[8][0]]))
         v1,v2,v3,v4,v5,v6 = region.basis.reconstructEdgesGeneral(region.a.a[:,:,:,:,:,stencil_ijk[5][0],stencil_ijk[6][0],stencil_ijk[7][0],stencil_ijk[8][0]],region)
         region.a.uR[:,:,:,:,stencil_ijk[5][0],stencil_ijk[6][0],stencil_ijk[7][0],stencil_ijk[8][0]] = v1[:]
         region.a.uL[:,:,:,:,stencil_ijk[5][0],stencil_ijk[6][0],stencil_ijk[7][0],stencil_ijk[8][0]] = v2[:]
@@ -231,7 +274,9 @@ class blockClass:
       for region in self.region:
         #region.RHS[:,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] = np.einsum('ijklpqrs...,zpqrs...->zijkl...',region.Minv[:,:,:,:,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]], region.RHS[:,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]])
         #print(np.shape(region.Minv[None,:,:,:,:,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]))
-        region.RHS[:,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] = np.sum(region.Minv[None,:,:,:,:,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]*region.RHS[:,None,None,None,None,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]],axis=(5,6,7,8) )
+        #region.RHS[:,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] = np.sum(region.Minv[None,:,:,:,:,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]*region.RHS[:,None,None,None,None,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]],axis=(5,6,7,8) )
+        region.RHS_hyper[:] = np.sum(region.Minv[None,:,:,:,:,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]*region.RHS_hyper[:,None,None,None,None],axis=(5,6,7,8) )
+
         #region.basis.applyMassMatrix(region,region.RHS)
 
 
@@ -247,7 +292,7 @@ class blockClass:
       for region in self.region:
         region.basis.applyMassMatrix(region,region.RHS)
 
-    def getRHS_REGION_INNER_ROM(self,eqns):
+    def getRHS_REGION_INNER_ROM_MORTHOGONAL(self,eqns):
       for region in self.region:
         region.basis.reconstructU(region,region.a)
         region.a.uR[:],region.a.uL[:],region.a.uU[:],region.a.uD[:],region.a.uF[:],region.a.uB[:] = region.basis.reconstructEdgesGeneral(region.a.a,region)
@@ -256,8 +301,9 @@ class blockClass:
         region.a.uR_edge[:],region.a.uL_edge[:],region.a.uU_edge[:],region.a.uD_edge[:],region.a.uF_edge[:],region.a.uB_edge[:] = sendEdgesGeneralSlab(region.a.uL,region.a.uR,region.a.uD,region.a.uU,region.a.uB,region.a.uF,region,self)
 
       eqns.getRHS(self,eqns)
-      #Note we don't apply the mass matrix here as  the POD  basis is orthogonal
-  
+      #Note we don't apply the mass matrix here if the POD  basis is M orthogonal
+    self.getRHS_REGION_INNER_ROM_MORTHOGONAL = getRHS_REGION_INNER_ROM_MORTHOGONAL
+ 
 
     def getRHS_REGION_INNER_ELEMENT(self,eqns):
       for region in self.region:
@@ -276,7 +322,6 @@ class blockClass:
     self.getRHS_REGION_INNER = getRHS_REGION_INNER 
     self.getRHS_REGION_INNER_ELEMENT = getRHS_REGION_INNER_ELEMENT 
     #if (turb_str == 'ROM'):
-    self.getRHS_REGION_INNER_ROM = getRHS_REGION_INNER_ROM 
 
 
 

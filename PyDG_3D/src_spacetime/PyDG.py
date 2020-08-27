@@ -146,6 +146,8 @@ regionManager = blockClass(n_blocks,starting_rank,procx,procy,procz,et,dt,save_f
 region_counter = 0
 for i in regionManager.mpi_regions_owned:
   regionManager.region.append( variables(regionManager,region_counter,i,Nel_block[i],order,quadpoints,eqns,mu,x_block[i],y_block[i],z_block[i],turb_str,procx[i],procy[i],procz[i],starting_rank[i],BCs[i],fsource,source_mag,shock_capturing,mol_str,basis_args) )
+  #regionManager.regionSampleMesh.append( sampleMesh(regionManager.region[i]))
+
 #  regionManager.region[i].x = x_block[i]
 #  regionManager.region[i].y = y_block[i]
 #  regionManager.region[i].z = z_block[i]
