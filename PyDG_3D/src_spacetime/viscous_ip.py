@@ -10,7 +10,7 @@ from chemistry_values import *
 from smagorinsky import *
 import numexpr as ne
 import time
-
+from pylab import *
 
 def computeJump(uR,uL,uU,uD,uF,uB,uR_edge,uL_edge,uU_edge,uD_edge,uF_edge,uB_edge):
   nvars,order1,order2,order3,Npx,Npy,Npz,Npt = np.shape(uR)
@@ -33,6 +33,33 @@ def computeJump(uR,uL,uU,uD,uF,uB,uR_edge,uL_edge,uU_edge,uD_edge,uF_edge,uB_edg
   return jumpRLS,jumpUDS,jumpFBS
 
 
+def computeArtificialViscocity(region):
+    pmax = np.amax(region.order)
+    epsilon = np.zeros(np.shape(region.a.a[0]),dtype=region.a.a.dtype)
+    filtarray = np.zeros(np.shape(region.a.a))
+    filtarray[:,0:-1,0:-1,0:-1,:] = 1.
+    af = region.a.a*1.
+    af[:,-1::,-1::,-1::] = 0.
+    u = region.a.u
+    uf = region.basis.reconstructUGeneral(region,af)
+    #print('ufn',np.linalg.norm(uf))
+    Se = region.basis.volIntegrate(region.weights0,region.weights1,region.weights2,region.weights3, (u - uf)*(u - uf) )/( region.basis.volIntegrate( region.weights0,region.weights1,region.weights2,region.weights3, u*u + 1e-30) ) 
+    sensor = np.log10(Se[0] + 1e-6)
+    kappa = 2. 
+    s0  = 1./np.amax(region.order)**4 
+    tol = s0
+    eps0 = region.dx/pmax
+    epsilon[0,0,0,0,:] =  0.1*eps0/2.*np.exp(sensor)#(1. + np.sin( np.pi*(sensor - s0)/ (2.*kappa) ) )
+    #epsilon[0,0,0,0,:] =  eps0/2.*(1. + np.sin( np.pi*(sensor - s0)/ (2.*kappa) ) )
+
+    #print(np.shape(sensor))
+    #print(np.amin(sensor),np.amax(sensor))
+    #print(np.amin(epsilon),np.amax(epsilon))
+    #plot(epsilon[0,0,0,0].flatten())
+    #pause(0.0001)
+    #clf()
+    return epsilon
+
 def addViscousContribution_IP(regionManager,eqns):
   #print('IP Not up to date. Use BR1')
   #sys.exit()
@@ -51,9 +78,19 @@ def addViscousContribution_IP(regionManager,eqns):
       computeDynSmagViscosity(region,region.a.Upx,region.a.Upy,region.a.Upz,region.mu0,region.a.u)
     if (region.reacting):
       region.mu[1::] = computeDiffusionConstants(region.a.u[5::]/region.a.u[0],region.a.u,region)
-    fvGX = eqns.evalViscousFluxX(region,region.a.u,region.a.Upx,region.a.Upy,region.a.Upz,region.mus)
-    fvGY = eqns.evalViscousFluxY(region,region.a.u,region.a.Upx,region.a.Upy,region.a.Upz,region.mus)
-    fvGZ = eqns.evalViscousFluxZ(region,region.a.u,region.a.Upx,region.a.Upy,region.a.Upz,region.mus)
+
+
+    epsilon_a = computeArtificialViscocity(region)
+    epsilon_u = reconstructUGeneral_tensordot(region,epsilon_a[None])
+
+    epsR,epsL,epsU,epsD,epsF,epsB = reconstructEdgesGeneral_tensordot(epsilon_a[None],region)
+    epsRL = np.append(epsL,epsR[:,:,:,:,-1,None],axis=4)
+    epsUD = np.append(epsD,epsU[:,:,:,:,:,-1,None],axis=5)
+    epsFB = np.append(epsB,epsF[:,:,:,:,:,-1,None],axis=6)
+
+    fvGX = eqns.evalViscousFluxX(region,region.a.u,region.a.Upx,region.a.Upy,region.a.Upz,region.mus + epsilon_u[0])
+    fvGY = eqns.evalViscousFluxY(region,region.a.u,region.a.Upx,region.a.Upy,region.a.Upz,region.mus + epsilon_u[0])
+    fvGZ = eqns.evalViscousFluxZ(region,region.a.u,region.a.Upx,region.a.Upy,region.a.Upz,region.mus + epsilon_u[0])
     region.iFlux.fx -= fvGX
     region.iFlux.fy -= fvGY
     region.iFlux.fz -= fvGZ
@@ -63,14 +100,14 @@ def addViscousContribution_IP(regionManager,eqns):
     centralFluxGeneral2(region.iFlux.fRLS,region.iFlux.fUDS,region.iFlux.fFBS,region.a.uR,region.a.uL,region.a.uU,region.a.uD,region.a.uF,region.a.uB,region.a.uR_edge,region.a.uL_edge,region.a.uU_edge,region.a.uD_edge,region.a.uF_edge,region.a.uB_edge)
     tmp = region.iFlux.fRLS[:,:,:,:,1::]
 
-    fvRG11,fvRG21,fvRG31 = eqns.getGsX(region.a.uR,region,region.mus,region.a.uR - region.iFlux.fRLS[:,:,:,:,1::])
-    fvLG11,fvLG21,fvLG31 = eqns.getGsX(region.a.uL,region,region.mus,region.a.uL - region.iFlux.fRLS[:,:,:,:,0:-1])
+    fvRG11,fvRG21,fvRG31 = eqns.getGsX(region.a.uR,region,region.mus + epsR[0],region.a.uR - region.iFlux.fRLS[:,:,:,:,1::])
+    fvLG11,fvLG21,fvLG31 = eqns.getGsX(region.a.uL,region,region.mus + epsL[0],region.a.uL - region.iFlux.fRLS[:,:,:,:,0:-1])
   
-    fvUG12,fvUG22,fvUG32 = eqns.getGsY(region.a.uU,region,region.mus,region.a.uU-region.iFlux.fUDS[:,:,:,:,:,1::])
-    fvDG12,fvDG22,fvDG32 = eqns.getGsY(region.a.uD,region,region.mus,region.a.uD-region.iFlux.fUDS[:,:,:,:,:,0:-1])
+    fvUG12,fvUG22,fvUG32 = eqns.getGsY(region.a.uU,region,region.mus + epsU[0],region.a.uU-region.iFlux.fUDS[:,:,:,:,:,1::])
+    fvDG12,fvDG22,fvDG32 = eqns.getGsY(region.a.uD,region,region.mus + epsD[0],region.a.uD-region.iFlux.fUDS[:,:,:,:,:,0:-1])
   
-    fvFG13,fvFG23,fvFG33 = eqns.getGsZ(region.a.uF,region,region.mus,region.a.uF-region.iFlux.fFBS[:,:,:,:,:,:,1::])
-    fvBG13,fvBG23,fvBG33 = eqns.getGsZ(region.a.uB,region,region.mus,region.a.uB-region.iFlux.fFBS[:,:,:,:,:,:,0:-1])
+    fvFG13,fvFG23,fvFG33 = eqns.getGsZ(region.a.uF,region,region.mus + epsF[0],region.a.uF-region.iFlux.fFBS[:,:,:,:,:,:,1::])
+    fvBG13,fvBG23,fvBG33 = eqns.getGsZ(region.a.uB,region,region.mus + epsB[0],region.a.uB-region.iFlux.fFBS[:,:,:,:,:,:,0:-1])
 
     ## Integrate over the faces
     region.iFlux.fRLI[:,:,:,:,1::] = region.basis.faceIntegrateGlob(region,fvRG11*region.J_edge_det[0][None,:,:,None,1::,:,:,None],region.w1,region.w2,region.w3,region.weights1,region.weights2,region.weights3) 
@@ -135,9 +172,9 @@ def addViscousContribution_IP(regionManager,eqns):
   
     centralFluxGeneral2(region.iFlux.fRLS,region.iFlux.fUDS,region.iFlux.fFBS,region.iFlux.fR,region.iFlux.fL,region.iFlux.fU,region.iFlux.fD,region.iFlux.fF,region.iFlux.fB,fvxR_edge,fvxL_edge,fvyU_edge,fvyD_edge,fvzF_edge,fvzB_edge)
     jumpRLS,jumpUDS,jumpFBS = computeJump(region.a.uR,region.a.uL,region.a.uU,region.a.uD,region.a.uF,region.a.uB,region.a.uR_edge,region.a.uL_edge,region.a.uU_edge,region.a.uD_edge,region.a.uF_edge,region.a.uB_edge)
-    fvRL2 = region.iFlux.fRLS - region.mus*region.order[0]**2*jumpRLS/region.dx
-    fvUD2 = region.iFlux.fUDS - region.mus*region.order[1]**2*jumpUDS/region.dy
-    fvFB2 = region.iFlux.fFBS - region.mus*region.order[2]**2*jumpFBS/region.dz
+    fvRL2 = region.iFlux.fRLS - (region.mus + epsRL)*region.order[0]**2*jumpRLS/region.dx
+    fvUD2 = region.iFlux.fUDS - (region.mus + epsUD)*region.order[1]**2*jumpUDS/region.dy
+    fvFB2 = region.iFlux.fFBS - (region.mus + epsFB)*region.order[2]**2*jumpFBS/region.dz
  
  
  
