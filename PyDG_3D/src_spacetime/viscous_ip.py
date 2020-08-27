@@ -86,7 +86,7 @@ def addViscousContribution_IP(regionManager,eqns):
     epsR,epsL,epsU,epsD,epsF,epsB = reconstructEdgesGeneral_tensordot(epsilon_a[None],region)
     epsRL = np.append(epsL,epsR[:,:,:,:,-1,None],axis=4)
     epsUD = np.append(epsD,epsU[:,:,:,:,:,-1,None],axis=5)
-    epsFB = np.append(epsB,epsF[:,:,:,:,:,-1,None],axis=6)
+    epsFB = np.append(epsB,epsF[:,:,:,:,:,:,-1,None],axis=6)
 
     fvGX = eqns.evalViscousFluxX(region,region.a.u,region.a.Upx,region.a.Upy,region.a.Upz,region.mus + epsilon_u[0])
     fvGY = eqns.evalViscousFluxY(region,region.a.u,region.a.Upx,region.a.Upy,region.a.Upz,region.mus + epsilon_u[0])
