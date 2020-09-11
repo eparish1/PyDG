@@ -225,7 +225,6 @@ def truncateBasis(U,Lam,tol):
     np.savez('pod_basis_' + str(tol) ,U=UG)
     sys.stdout.write(str(100*tol) + '% of energy = ' + str(np.shape(UG)[1]) + '/' + str(np.size(Lam)) + ' basis vectors \n')
   return UG
-tol_a = np.array([0.95,0.97,0.99,0.999,0.9999])
 for tol in tol_a:
   Utmp = truncateBasis(U,Lam,tol)
 
