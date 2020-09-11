@@ -49,7 +49,8 @@ def computeArtificialViscocity(region):
     s0  = 1./np.amax(region.order)**4 
     tol = s0
     eps0 = region.dx/pmax
-    epsilon[0,0,0,0,:] =  0.1*eps0/2.*np.exp(sensor)#(1. + np.sin( np.pi*(sensor - s0)/ (2.*kappa) ) )
+    epsilon[0,0,0,0,:] =  0.05*eps0/2.*(np.exp(sensor))#(1. + np.sin( np.pi*(sensor - s0)/ (2.*kappa) ) )
+    #print(np.max(epsilon))
     #epsilon[0,0,0,0,:] =  eps0/2.*(1. + np.sin( np.pi*(sensor - s0)/ (2.*kappa) ) )
 
     #print(np.shape(sensor))

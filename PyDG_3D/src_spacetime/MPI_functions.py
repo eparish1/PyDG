@@ -48,6 +48,40 @@ def globalDot(V,r,regionManager):
   else:
       regionManager.comm.Recv(rn_glob, source=0)
   return rn_glob
+
+
+def A_transpose_dot_b(A,b,P=None):
+  '''
+  Compute A^T b when A's columns are distributed
+  '''
+  if (num_processes == 1):
+    if P is not None:
+      return np.dot(A.transpose(),P.dot(b))
+    else:
+      return np.dot(A.transpose(),b)
+  else:
+    if P is not None:
+      tmp = np.dot(A.transpose(),P.dot(b))
+    else:
+      tmp = np.dot(A.transpose(),b)
+
+    data = comm.gather(tmp.flatten(),root = 0)
+    #if mpi_rank == 0:
+    #  data = np.empty([num_processes, np.size(tmp)], dtype='i')
+    #comm.Gather(tmp.flatten(),data,root = 0)
+    ATb_glob = np.zeros(np.size(tmp))
+    if (mpi_rank == 0):
+      for j in range(0,num_processes):
+        ATb_glob[:] += data[j]
+      for j in range(1,num_processes):
+        comm.Send(ATb_glob, dest=j)
+
+    else:
+        comm.Recv(ATb_glob, source=0)
+    return np.reshape( ATb_glob , np.shape(tmp) )
+
+
+
 ##########################################################################################################################################################################################################
 ##########################################################################################################################################################################################################
 ##########################################################################################################################################################################################################

@@ -64,6 +64,14 @@ for j in  range(0,n_blocks):
  
   Mloc = np.linalg.inv(Msqrtloc)
   Msqrtloc = np.linalg.cholesky(np.linalg.inv(Msqrtloc))
+
+  #nsz = np.size(np.shape(Msqrtloc))
+  #transposeCoords = np.array(range(0,nsz))
+  #transposeCoords[0] = 1
+  #transposeCoords[1] = 0
+  #Msqrtloc = np.transpose(Msqrtloc,axes=transposeCoords)
+
+
   Msqrtlocinv = np.linalg.inv(Msqrtloc) 
 
   Mloc = np.rollaxis(np.rollaxis(Mloc,4,0),5,1)
