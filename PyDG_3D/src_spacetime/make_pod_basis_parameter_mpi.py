@@ -142,7 +142,7 @@ for j in  range(0,n_blocks):
   Msqrt.append(Msqrtloc)
   Msqrtinv.append(Msqrtlocinv)
 
-for sol_folder in sol_paths 
+for sol_folder in sol_paths:
   for i in range(0,end,skip):
     sys.stdout.write('On sol folder ' + str(sol_folder) + ' and sol number ' + str(i).zfill(5) + '\n')
     sys.stdout.flush()
