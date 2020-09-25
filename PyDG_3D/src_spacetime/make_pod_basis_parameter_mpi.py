@@ -14,7 +14,7 @@ print(num_processes)
 n_blocks = 0
 check = 0
 while (check == 0):
-  grid_str = sol_paths[0] + '/DGgrid_block' + str(n_blocks) + '.npz'
+  grid_str = grid_path  + '/DGgrid_block' + str(n_blocks) + '.npz'
   if (os.path.isfile(grid_str)):
     n_blocks += 1
   else:
@@ -95,7 +95,7 @@ M = []
 
 
 for j in  range(0,n_blocks):
-  grid = np.load('../DGgrid_block' + str(j) + '.npz')
+  grid = np.load(grid_path + '/DGgrid_block' + str(j) + '.npz')
   Nel = np.shape(grid['Minv'])[8::]
   Npx = int(float(Nel[0] / procx))
   Npy = int(float(Nel[1] / procy)) #number of points on each x plane. MUST BE UNIFORM BETWEEN PROCS
@@ -149,7 +149,7 @@ for sol_folder in sol_paths
     loc_array = np.zeros(0)
     for j in range(0,n_blocks):
       check = 0
-      sol_str = sol_folder + '/Solution/npsol_block' + str(j) + '_'  + str(i) + '.npz'
+      sol_str = sol_folder + '/npsol_block' + str(j) + '_'  + str(i) + '.npz'
       if (os.path.isfile(sol_str)):
         check = 1
         #print('found ' + sol_str)
