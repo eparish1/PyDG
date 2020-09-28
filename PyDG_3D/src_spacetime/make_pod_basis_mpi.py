@@ -177,6 +177,7 @@ U[:] = np.dot(S, 1./sigma * u)
 if (mpi_rank == 0):
   print('Done!')
 Lam = sigma 
+np.savez('singular_values',Lam=Lam)
 
 N,K = np.shape(U)
 for i in range(0,K):

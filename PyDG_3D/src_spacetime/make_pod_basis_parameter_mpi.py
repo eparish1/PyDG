@@ -25,7 +25,7 @@ while (check == 0):
 
 ndata = 0
 for j in range(0,n_blocks):
-  sol_str = 'npsol_block' + str(j) + '_'  + str(0) + '.npz'
+  sol_str = sol_paths[0] + '/npsol_block' + str(j) + '_'  + str(0) + '.npz'
   data = np.load(sol_str)['a']
   ndata += np.size(data)
 
@@ -142,10 +142,12 @@ for j in  range(0,n_blocks):
   Msqrt.append(Msqrtloc)
   Msqrtinv.append(Msqrtlocinv)
 
+counter = 0
 for sol_folder in sol_paths:
   for i in range(0,end,skip):
-    sys.stdout.write('On sol folder ' + str(sol_folder) + ' and sol number ' + str(i).zfill(5) + '\n')
-    sys.stdout.flush()
+    if (mpi_rank == 0):
+      sys.stdout.write('On sol folder ' + str(sol_folder) + ' and sol number ' + str(i).zfill(5) + '\n')
+      sys.stdout.flush()
     loc_array = np.zeros(0)
     for j in range(0,n_blocks):
       check = 0
@@ -158,11 +160,11 @@ for sol_folder in sol_paths:
         data = np.sum(Msqrt[j][None]*data[:,None,None,None,None],axis=(5,6,7,8) )
         loc_array = np.append(loc_array,data.flatten() )
     if (check == 1):
-      if (i == 0):
+      if (counter == 0):
         S = loc_array[:,None]
+        counter += 1
       else:
         S = np.append(S,loc_array[:,None],axis=1)
-
 if (mpi_rank == 0):
   print('Computing A^T A')
 Kern = A_transpose_dot_b(S,S)
@@ -179,7 +181,7 @@ U[:] = np.dot(S, 1./sigma * u)
 if (mpi_rank == 0):
   print('Done!')
 Lam = sigma 
-
+np.savez('singular_values',Lam=Lam)
 N,K = np.shape(U)
 for i in range(0,K):
   tmp = np.reshape(U[:,i],np.shape(data))
