@@ -222,7 +222,7 @@ def truncateBasis(U,Lam,tol):
     if (mpi_rank == 0):
       UG = np.append(UG,UGt[:,None],axis=1)
   if (mpi_rank == 0): 
-    np.savez('pod_basis_' + str(tol) ,U=UG)
+    np.savez('pod_basis_' + str(tol) ,V=UG)
     sys.stdout.write(str(100*tol) + '% of energy = ' + str(np.shape(UG)[1]) + '/' + str(np.size(Lam)) + ' basis vectors \n')
   return UG
 for tol in tol_a:
