@@ -65,6 +65,48 @@ def A_transpose_dot_b(A,b,P=None):
     else:
       tmp = np.dot(A.transpose(),b)
 
+    ATb_glob = np.zeros(np.size(tmp.flatten()))
+    if (mpi_rank > 0):
+      comm.Send(tmp.flatten(),dest=0)
+    
+    if (mpi_rank == 0):
+      ATb_glob[:] += tmp.flatten()[:] 
+      rec_val = np.zeros(np.size(tmp.flatten()))
+      for j in range(1,num_processes):
+        comm.Recv(rec_val, source=j)
+        ATb_glob[:] += rec_val[:]#np.reshape(rec_val,np.shape(ATb_glob)) 
+
+      for j in range(1,num_processes):
+        comm.Send(ATb_glob, dest=j)
+
+    else:
+        comm.Recv(ATb_glob, source=0)
+    return np.reshape( ATb_glob , np.shape(tmp) )
+
+
+
+
+
+
+
+
+
+
+def A_transpose_dot_b2(A,b,P=None):
+  '''
+  Compute A^T b when A's columns are distributed
+  '''
+  if (num_processes == 1):
+    if P is not None:
+      return np.dot(A.transpose(),P.dot(b))
+    else:
+      return np.dot(A.transpose(),b)
+  else:
+    if P is not None:
+      tmp = np.dot(A.transpose(),P.dot(b))
+    else:
+      tmp = np.dot(A.transpose(),b)
+
     data = comm.gather(tmp.flatten(),root = 0)
     #if mpi_rank == 0:
     #  data = np.empty([num_processes, np.size(tmp)], dtype='i')
