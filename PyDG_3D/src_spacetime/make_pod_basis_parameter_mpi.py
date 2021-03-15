@@ -144,7 +144,7 @@ for j in  range(0,n_blocks):
 
 counter = 0
 for sol_folder in sol_paths:
-  for i in range(0,end,skip):
+  for i in range(start,end,skip):
     if (mpi_rank == 0):
       sys.stdout.write('On sol folder ' + str(sol_folder) + ' and sol number ' + str(i).zfill(5) + '\n')
       sys.stdout.flush()

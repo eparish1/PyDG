@@ -12,12 +12,12 @@ from smagorinsky import *
 import numexpr as ne
 import time
 from viscous_br1 import addViscousContribution_BR1_hyper
-def addSource_SWE(main):
+def addSource_SWE(main,eqns):
     force = np.zeros(np.shape(main.iFlux.fx))
     g = 9.8/100000.
     force[0] = 0.
-    force[1] = g*(main.a.u[0] - main.a.u[3])*main.surface_height_grad_x #- 0.5*g*(ux2[0] - main.surface_height_grad_x2) 
-    force[2] = g*(main.a.u[0] - main.a.u[3])*main.surface_height_grad_y #- 0.5*g*(uy2[0] - main.surface_height_grad_y2)
+    force[1] = eqns.params[1]*main.a.u[2]/main.a.u[0]#g*(main.a.u[0] - main.a.u[3])*main.surface_height_grad_x #- 0.5*g*(ux2[0] - main.surface_height_grad_x2) 
+    force[2] = eqns.params[1]*main.a.u[1]/main.a.u[0]#g*(main.a.u[0] - main.a.u[3])*main.surface_height_grad_y #- 0.5*g*(uy2[0] - main.surface_height_grad_y2)
     main.RHS[:] += main.basis.volIntegrateGlob(main, force*main.Jdet[None,:,:,:,None,:,:,:,None] ,main.w0,main.w1,main.w2,main.w3)
 
 def addSource_kOmega(region):
@@ -127,6 +127,95 @@ def addVolume_and_Viscous_hyper(regionManager,eqns,args=[],args_phys=[]):
   #region.RHS[:,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] = region.RHS_hyper[:]
   #region.RHS = region.RHS_hyper[:]
 
+def addInviscidFluxAdjoint(regionManager,eqns,args=[],args_phys=[]):
+  for region in regionManager.region:
+    # first compute contribution from flux at faces
+    generalFluxAdjointGen(region,eqns,region.iFlux,region.a,eqns.inviscidFlux,args)
+    region.iFlux.fRI1 = region.basis.faceIntegrateGlob(region,region.iFlux.fRS1*region.J_edge_det[0][None,:,:,None,1::,:,:,None],region.w1,region.w2,region.w3,region.weights1,region.weights2,region.weights3)
+    region.iFlux.fRI2 = region.basis.faceIntegrateGlob(region,region.iFlux.fRS2*region.J_edge_det[0][None,:,:,None,1::,:,:,None],region.w1,region.w2,region.w3,region.weights1,region.weights2,region.weights3)
+    region.iFlux.fLI1 = region.basis.faceIntegrateGlob(region,region.iFlux.fLS1*region.J_edge_det[0][None,:,:,None,0:-1,:,:,None],region.w1,region.w2,region.w3,region.weights1,region.weights2,region.weights3)
+    region.iFlux.fLI2 = region.basis.faceIntegrateGlob(region,region.iFlux.fLS2*region.J_edge_det[0][None,:,:,None,0:-1,:,:,None],region.w1,region.w2,region.w3,region.weights1,region.weights2,region.weights3)
+
+    region.iFlux.fUI1 = region.basis.faceIntegrateGlob(region,region.iFlux.fUS1*region.J_edge_det[1][None,:,:,None,:,1::,:,None],region.w0,region.w2,region.w3,region.weights0,region.weights2,region.weights3)
+    region.iFlux.fUI2 = region.basis.faceIntegrateGlob(region,region.iFlux.fUS2*region.J_edge_det[1][None,:,:,None,:,1::,:,None],region.w0,region.w2,region.w3,region.weights0,region.weights2,region.weights3)
+    region.iFlux.fDI1 = region.basis.faceIntegrateGlob(region,region.iFlux.fDS1*region.J_edge_det[1][None,:,:,None,:,0:-1,:,None],region.w0,region.w2,region.w3,region.weights0,region.weights2,region.weights3)
+    region.iFlux.fDI2 = region.basis.faceIntegrateGlob(region,region.iFlux.fDS2*region.J_edge_det[1][None,:,:,None,:,0:-1,:,None],region.w0,region.w2,region.w3,region.weights0,region.weights2,region.weights3)
+
+    region.iFlux.fFI1 = region.basis.faceIntegrateGlob(region,region.iFlux.fFS1*region.J_edge_det[2][None,:,:,None,:,:,1::,None],region.w0,region.w1,region.w3,region.weights0,region.weights1,region.weights3)
+    region.iFlux.fFI2 = region.basis.faceIntegrateGlob(region,region.iFlux.fFS2*region.J_edge_det[2][None,:,:,None,:,:,1::,None],region.w0,region.w1,region.w3,region.weights0,region.weights1,region.weights3)
+    region.iFlux.fBI1 = region.basis.faceIntegrateGlob(region,region.iFlux.fBS1*region.J_edge_det[2][None,:,:,None,:,:,0:-1,None],region.w0,region.w1,region.w3,region.weights0,region.weights1,region.weights3)
+    region.iFlux.fBI2 = region.basis.faceIntegrateGlob(region,region.iFlux.fBS2*region.J_edge_det[2][None,:,:,None,:,:,0:-1,None],region.w0,region.w1,region.w3,region.weights0,region.weights1,region.weights3)
+
+    # now add inviscid flux contribution to the RHS
+    region.RHS[:] =  -region.iFlux.fRI1[:,None]      +  region.iFlux.fRI2[:,None]*region.altarray0[None,:,None,None,None,None,None,None,None]
+    region.RHS[:] += -region.iFlux.fLI1[:,None]      +  region.iFlux.fLI2[:,None]*region.altarray0[None,:,None,None,None,None,None,None,None]
+    region.RHS[:] += -region.iFlux.fUI1[:,:,None]    +  region.iFlux.fUI2[:,:,None]*region.altarray1[None,None,:,None,None,None,None,None,None]
+    region.RHS[:] += -region.iFlux.fDI1[:,:,None]    +  region.iFlux.fDI2[:,:,None]*region.altarray1[None,None,:,None,None,None,None,None,None]
+    region.RHS[:] += -region.iFlux.fFI1[:,:,:,None]  +  region.iFlux.fFI2[:,:,:,None]*region.altarray2[None,None,None,:,None,None,None,None,None]
+    region.RHS[:] += -region.iFlux.fDI1[:,:,:,None]  +  region.iFlux.fDI2[:,:,:,None]*region.altarray2[None,None,None,:,None,None,None,None,None]
+
+
+def addInviscidFluxAdjointHyper(regionManager,eqns,args=[],args_phys=[]):
+  for region in regionManager.region:
+    # first compute contribution from flux at faces
+    cell_ijk = region.cell_ijk
+    stencil_ijk = region.stencil_ijk
+    generalFluxAdjointGenHyper(region,eqns,region.iFlux,region.a,eqns.inviscidFlux,cell_ijk,args)
+    region.iFlux.fRI1 = region.basis.faceIntegrateGlob(region,region.iFlux.fRS1[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]*region.J_edge_det_hyper_x1p1[None,:,:,None],region.w1,region.w2,region.w3,region.weights1,region.weights2,region.weights3)
+    region.iFlux.fRI2 = region.basis.faceIntegrateGlob(region,region.iFlux.fRS2[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]*region.J_edge_det_hyper_x1p1[None,:,:,None],region.w1,region.w2,region.w3,region.weights1,region.weights2,region.weights3)
+    region.iFlux.fLI1 = region.basis.faceIntegrateGlob(region,region.iFlux.fLS1[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]*region.J_edge_det_hyper_x1[None,:,:,None],region.w1,region.w2,region.w3,region.weights1,region.weights2,region.weights3)
+    region.iFlux.fLI2 = region.basis.faceIntegrateGlob(region,region.iFlux.fLS2[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]*region.J_edge_det_hyper_x1[None,:,:,None],region.w1,region.w2,region.w3,region.weights1,region.weights2,region.weights3)
+
+    region.iFlux.fUI1 = region.basis.faceIntegrateGlob(region,region.iFlux.fUS1[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]*region.J_edge_det_hyper_x2p1[None,:,:,None],region.w0,region.w2,region.w3,region.weights0,region.weights2,region.weights3)
+    region.iFlux.fUI2 = region.basis.faceIntegrateGlob(region,region.iFlux.fUS2[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]*region.J_edge_det_hyper_x2p1[None,:,:,None],region.w0,region.w2,region.w3,region.weights0,region.weights2,region.weights3)
+    region.iFlux.fDI1 = region.basis.faceIntegrateGlob(region,region.iFlux.fDS1[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]*region.J_edge_det_hyper_x2[None,:,:,None],region.w0,region.w2,region.w3,region.weights0,region.weights2,region.weights3)
+    region.iFlux.fDI2 = region.basis.faceIntegrateGlob(region,region.iFlux.fDS2[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]*region.J_edge_det_hyper_x2[None,:,:,None],region.w0,region.w2,region.w3,region.weights0,region.weights2,region.weights3)
+
+#    region.iFlux.fFI1 = region.basis.faceIntegrateGlob(region,region.iFlux.fFS1[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]*region.J_edge_det_hyper_x3p1[None,:,:,None],region.w0,region.w1,region.w3,region.weights0,region.weights1,region.weights3)
+#    region.iFlux.fFI2 = region.basis.faceIntegrateGlob(region,region.iFlux.fFS2[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]*region.J_edge_det_hyper_x3p1[None,:,:,None],region.w0,region.w1,region.w3,region.weights0,region.weights1,region.weights3)
+#    region.iFlux.fBI1 = region.basis.faceIntegrateGlob(region,region.iFlux.fBS1[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]*region.J_edge_det_hyper_x3[None,:,:,None],region.w0,region.w1,region.w3,region.weights0,region.weights1,region.weights3)
+#    region.iFlux.fBI2 = region.basis.faceIntegrateGlob(region,region.iFlux.fBS2[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]*region.J_edge_det_hyper_x3[None,:,:,None],region.w0,region.w1,region.w3,region.weights0,region.weights1,region.weights3)
+    # now add inviscid flux contribution to the RHS
+#    print('1',np.linalg.norm(regionManager.RHS_hyper))
+    region.RHS_hyper[:] =  -region.iFlux.fRI1[:,None]      +  region.iFlux.fLI1[:,None]*region.altarray0[None,:,None,None,None,None]
+#    region.RHS_hyper_stencil[:] += -region.iFlux.fLI1[:,None]      #+  region.iFlux.fLI2[:,None]*region.altarray0[None,:,None,None,None,None]
+    region.RHS_hyper[:] += -region.iFlux.fUI1[:,:,None]    +  region.iFlux.fDI1[:,:,None]*region.altarray1[None,None,:,None,None,None]
+#    print('2',np.linalg.norm(regionManager.RHS_hyper))
+
+#    region.RHS_hyper_stencil[:] += -region.iFlux.fDI1[:,:,None]    #+  region.iFlux.fDI2[:,:,None]*region.altarray1[None,None,:,None,None,None]
+#    region.RHS_hyper[:] += -region.iFlux.fFI1[:,:,:,None]  +  region.iFlux.fFI2[:,:,:,None]*region.altarray2[None,None,None,:,None,None]
+#    region.RHS_hyper[:] += -region.iFlux.fDI1[:,:,:,None]  +  region.iFlux.fDI2[:,:,:,None]*region.altarray2[None,None,None,:,None,None]
+
+def addVolume_and_Viscous_AdjointHyper(regionManager,eqns,args=[],args_phys=[]):
+  for region in regionManager.region:
+    ## evaluate fluxes at indices
+    eqns.evalFluxXYZ(eqns,region,region.a.u_hyper_cell,region.iFlux.fx_hyper,region.iFlux.fy_hyper,region.iFlux.fz_hyper,args_phys)
+  for region in regionManager.region:
+    cell_ijk = region.cell_ijk
+    region.RHS_hyper[:] = applyVolIntegralAdjoint_indices(region,region.iFlux.fx_hyper,region.iFlux.fy_hyper,region.iFlux.fz_hyper,region.RHS_hyper,cell_ijk)
+
+def getRHSAdjointHyper(regionManager,eqns,args=[],args_phys=[]):
+  for region in regionManager.region:
+    stencil_list = regionManager.region[0].stencil_list
+    cell_list = regionManager.region[0].cell_list
+    stencil_ijk = regionManager.region[0].stencil_ijk
+    cell_ijk = regionManager.region[0].cell_ijk
+    region.RHS_hyper_stencil = region.RHS[:,:,:,:,:,stencil_ijk[5][0],stencil_ijk[6][0],stencil_ijk[7][0],stencil_ijk[8][0]]
+    region.RHS_hyper[:] = 0.
+
+  regionManager.RHS_hyper_stencil = regionManager.RHS[stencil_list]
+  regionManager.RHS_hyper = regionManager.RHS[cell_list]
+
+
+  t0 = time.time()
+  addInviscidFluxAdjointHyper(regionManager,eqns,args,args_phys)
+  addVolume_and_Viscous_AdjointHyper(regionManager,eqns,args,args_phys)
+  ### Get interior vol terms
+  for region in regionManager.region:
+    addSource(region)
+    #addSource_kOmega(region)
+    region.comm.Barrier()
+
 
 
 def addInviscidFlux(regionManager,eqns,args=[],args_phys=[]):
@@ -159,14 +248,42 @@ def addVolume_and_Viscous(regionManager,eqns,args=[],args_phys=[]):
   for region in regionManager.region:
     region.basis.applyVolIntegral(region,region.iFlux.fx,region.iFlux.fy,region.iFlux.fz,region.RHS)
 
+def addVolume_and_Viscous_Adjoint(regionManager,eqns,args=[],args_phys=[]):
+  for region in regionManager.region:
+    ## evaluate fluxes at indices
+    tmpfx = np.zeros(np.shape(region.iFlux.fx),dtype=region.iFlux.fx.dtype)
+    tmpfy = np.zeros(np.shape(region.iFlux.fy),dtype=region.iFlux.fy.dtype)
+    tmpfz = np.zeros(np.shape(region.iFlux.fz),dtype=region.iFlux.fz.dtype)
+    eqns.evalFluxXYZ(eqns,region,region.a.u,region.iFlux.fx,region.iFlux.fy,region.iFlux.fz,args_phys)
+
+  #eqns.addViscousContribution(regionManager,eqns) 
+  for region in regionManager.region:
+    applyVolIntegralAdjoint(region,region.iFlux.fx,region.iFlux.fy,region.iFlux.fz,region.RHS)
+
+
+
+def getRHSAdjoint(regionManager,eqns,args=[],args_phys=[]):
+  t0 = time.time()
+  regionManager.RHS[:] = 0.
+  addInviscidFluxAdjoint(regionManager,eqns,args,args_phys)
+  addVolume_and_Viscous_Adjoint(regionManager,eqns,args,args_phys)
+  ### Get interior vol terms
+  for region in regionManager.region:
+    addSource(region)
+    #addSource_kOmega(region)
+    region.comm.Barrier()
+
+
+
 
 def getRHS(regionManager,eqns,args=[],args_phys=[]):
   t0 = time.time()
+  regionManager.RHS[:] = 0.
   addInviscidFlux(regionManager,eqns,args,args_phys)
   addVolume_and_Viscous(regionManager,eqns,args,args_phys)
   ### Get interior vol terms
   for region in regionManager.region:
-    addSource(region)
+    addSource_SWE(region,eqns)
     #addSource_kOmega(region)
     region.comm.Barrier()
 
@@ -199,12 +316,16 @@ def getRHS_strong(regionManager,eqns,args=[],args_phys=[]):
 
 def getRHS_hyper(regionManager,eqns,args=[],args_phys=[]):
   t0 = time.time()
+  regionManager.RHS[:] = 0.
+  regionManager.region[0].RHS_hyper[:] = 0.
   addInviscidFlux_hyper(regionManager,eqns,args,args_phys)
   addVolume_and_Viscous_hyper(regionManager,eqns,args,args_phys)
   ### Get interior vol terms
-  for main in regionManager.region:
-    addSource(main)
-    main.comm.Barrier()
+  for region in regionManager.region:
+    addSource_SWE(region,eqns)
+    region.comm.Barrier()
+  cell_ijk = regionManager.region[0].cell_ijk
+  regionManager.region[0].RHS_hyper[:] += regionManager.region[0].RHS[:,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]
 
 def getRHS_zeta(main,MZ,eqns,args=[],args_phys=[]):
   t0 = time.time()

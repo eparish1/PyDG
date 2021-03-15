@@ -1,7 +1,7 @@
 import numpy as np
 import sys
-PyDG_DIR = '../../../src_spacetime'
-sys.path.append("../../../src_spacetime") #link the the source directory for PyDG
+PyDG_DIR = '../../src_spacetime'
+sys.path.append("../../src_spacetime") #link the the source directory for PyDG
 from ic_functions_premade import shocktubeIC  #import the IC for taylor green vortex.
 
 def savehook(regionManager):
@@ -30,8 +30,10 @@ procy = 1                          #|  same in y. Note that procx*procy needs to
 fsource = None
 source_mag = None				   #|
 #time_integration = 'crankNicolson_LSPG_windowed'   #| 
-time_integration = 'SSP_RK3_POD'   #| 
+#time_integration = 'SSP_RK3_POD'   #| 
 #time_integration = 'CrankNicolson'
+turb_str = 'ROM_M_Orthogonal'
+time_integration = 'crankNicolsonRom'
 linear_solver_str = 'GMRes'
 nonlinear_solver_str = 'Newton'
 mol_str = None
@@ -57,7 +59,7 @@ BCs = [left_bc,left_bc_args,right_bc,right_bc_args,bottom_bc,bottom_bc_args,top_
 #== function layout is my_ic_function(x,y,z), where x,y,z are the decomposed quadrature points
 IC_function = shocktubeIC                #|
 write_output = 1                                   #|
-execfile('../../../src_spacetime/PyDG.py')      #|  call the solver
+execfile('../../src_spacetime/PyDG.py')      #|  call the solver
 
 
 

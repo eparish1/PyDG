@@ -15,7 +15,7 @@ from scipy.interpolate import RegularGridInterpolator
 from basis_class import *
 from block_classes import *
 from adjoint_functions import *
-
+import copy
 
 
 
@@ -138,32 +138,42 @@ iteration = 0
 if 'params' in globals():
   pass
 else:
-  params = []
+  params = {}
 
 eqns = equations(eqn_str,schemes,turb_str,params)
-#main = variables(Nel,order,quadpoints,eqns,mu,x,y,z,t,et,dt,iteration,save_freq,turb_str,procx,procy,BCs,fsource,source_mag,shock_capturing,mol_str,basis_args)
 regionManager = blockClass(n_blocks,starting_rank,procx,procy,procz,et,dt,save_freq,turb_str,Nel_block,order,eqns)
 region_counter = 0
 for i in regionManager.mpi_regions_owned:
   regionManager.region.append( variables(regionManager,region_counter,i,Nel_block[i],order,quadpoints,eqns,mu,x_block[i],y_block[i],z_block[i],turb_str,procx[i],procy[i],procz[i],starting_rank[i],BCs[i],fsource,source_mag,shock_capturing,mol_str,basis_args) )
   #regionManager.regionSampleMesh.append( sampleMesh(regionManager.region[i]))
-
-#  regionManager.region[i].x = x_block[i]
-#  regionManager.region[i].y = y_block[i]
-#  regionManager.region[i].z = z_block[i]
-
   region_counter += 1
-regionConnector(regionManager)
 
-#print('==============')
-#print('MPI INFO',regionManager.region[0].mpi_rank,regionManager.region[0].rank_connect[3])
-#print('==============')
+regionConnector(regionManager)
+timescheme = timeschemes(regionManager,time_integration,linear_solver_str,nonlinear_solver_str)
+
+if 'ROM_MultiVector' in globals():
+  pass
+else:
+  ROM_MultiVector = False
+
+if (ROM_MultiVector == True):
+  Nel_blockForJacobian = copy.deepcopy(Nel_block)
+  for Nel in Nel_blockForJacobian:
+    Nel[-1] = np.shape(regionManager.V)[1]
+  regionManagerForJacobianMV = blockClass(n_blocks,starting_rank,procx,procy,procz,et,dt,save_freq,turb_str,Nel_blockForJacobian,order,eqns)
+  region_counter = 0
+  for i in regionManager.mpi_regions_owned:
+    regionManagerForJacobianMV.region.append( variables(regionManagerForJacobianMV,region_counter,i,Nel_blockForJacobian[i],order,quadpoints,eqns,mu,x_block[i],y_block[i],z_block[i],turb_str,procx[i],procy[i],procz[i],starting_rank[i],BCs[i],fsource,source_mag,shock_capturing,mol_str,basis_args) )
+    region_counter += 1
+  regionConnector(regionManagerForJacobianMV)
+
+
+
+
 regionManager.tau = tau
-#for i in range(0,regionManager.nblocks):
 region_counter = 0
 for i in regionManager.mpi_regions_owned:
   region = regionManager.region[region_counter]
-  region_counter += 1
   region.x,region.y,region.z = x_block[i],y_block[i],z_block[i]
   vol_min = (np.amin(region.Jdet))**(1./3.)
   CFL = ( np.amin(region.J_edge_det[0])*4. + np.amin(region.J_edge_det[1])*4 + np.amin(region.J_edge_det[2])*4. ) / (np.amin(region.Jdet)*8 )
@@ -176,15 +186,9 @@ for i in regionManager.mpi_regions_owned:
   else:
     mainEnriched = region 
   
-  
-  
   getIC(region,IC_function[i],region.xG,region.yG,region.zG,region.zeta3,region.Npt)
-  
   reconstructU(region,region.a)
   
-  timescheme = timeschemes(regionManager,time_integration,linear_solver_str,nonlinear_solver_str)
-  #main.source_hook = source_hook
-
   xG_global = gatherSolScalar(region,region.xG[:,:,:,None,:,:,:,None])
   yG_global = gatherSolScalar(region,region.yG[:,:,:,None,:,:,:,None])
   zG_global = gatherSolScalar(region,region.zG[:,:,:,None,:,:,:,None])
@@ -232,6 +236,7 @@ while (np.abs(regionManager.t) <= np.abs(regionManager.et + regionManager.dt/2))
       sys.stdout.write('wall time = ' + str(time.time() - t0) + '\n' )
       sys.stdout.write('t = ' + str(regionManager.t) +  '\n')
       sys.stdout.flush()
+  #timescheme.advanceSol(regionManager,regionManagerForJacobianMV,eqns,timescheme.args)
   timescheme.advanceSol(regionManager,eqns,timescheme.args)
 
 

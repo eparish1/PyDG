@@ -12,7 +12,7 @@ from viscous_ip import addViscousContribution_IP, addViscousContribution_IP_hype
 from viscous_inviscid import addViscousContribution_inviscid
 from shallow_water import *
 from linear_advection import *
-from DG_core import getRHS,getRHS_element,getRHS_hyper
+from DG_core import getRHS,getRHSAdjoint,getRHS_element,getRHS_hyper
 class equations:
   def __init__(self,eq_str,schemes,turb_str,params):
     self.params = params
@@ -253,6 +253,14 @@ class equations:
 
 
     if (eq_str == 'Navier-Stokes'):
+      if 'gamma' in self.params.keys():
+        if (mpi_rank == 0):
+           print('Using gamma = ' + str(self.params['gamma']) )
+      else:
+        if (mpi_rank == 0):
+          print('Using default value gamma=1.4')
+        self.params['gamma'] = 1.4 
+      print(self.params['gamma'])
       self.nmus = 1
       self.eq_str = eq_str
       check_eq = 1
@@ -262,7 +270,6 @@ class equations:
       self.evalFluxXYZLin = evalFluxXYZEulerLin 
       self.strongFormResidual = strongFormEulerXYZ
       self.basicFlux = basicFluxEuler 
-
       self.evalFluxX = evalFluxXEuler 
       self.evalFluxY = evalFluxYEuler
       self.evalFluxZ = evalFluxZEuler
@@ -374,6 +381,45 @@ class equations:
         sys.exit() 
 
 
+    if (eq_str == 'Transpose Navier-Stokes'):
+      check_eq = 1
+      self.nvars = 5
+      self.nvisc_vars = 5
+      self.viscous = False
+      ## select appopriate flux scheme
+      checki = 0
+      self.getRHS = getRHSAdjoint
+      self.evalFluxXYZ = evalFluxXYZEulerTranspose 
+      if (iflux_str == 'central'):
+        self.inviscidFlux = eulerCentralFluxTranspose
+        checki = 1
+      if (iflux_str == 'roe'):
+        self.inviscidFlux = kfid_roeflux
+        if (mpi_rank == 0): print('Error, inviscid flux scheme ' + iflux_str + ' not yet implemented for ' + eq_str + '. Options are "central". PyDG quitting')
+        sys.exit()
+        checki = 1
+      if (iflux_str == 'rusanov'):
+        self.inviscidFlux = rusanovFlux
+        self.inviscidFlux = kfid_roeflux
+        if (mpi_rank == 0): print('Error, inviscid flux scheme ' + iflux_str + ' not yet implemented for ' + eq_str + '. Options are "central". PyDG quitting')
+        sys.exit()
+        checki = 1
+      if (checki == 0):
+        if (mpi_rank == 0): print('Error, inviscid flux scheme ' + iflux_str + ' not yet implemented for ' + eq_str + '. Options are "central". PyDG quitting')
+        sys.exit()
+      checkv = 0 
+      if (vflux_str == 'BR1'):
+        print('Error, BR1 not completed for 3D. PyDG quitting')
+        sys.exit()
+      if (vflux_str == 'IP'):
+        if (mpi_rank == 0): print('Error, viscous flux scheme ' + vflux_str + ' not yet implemented for ' + eq_str + '. Options are "INVISCID". PyDG quitting')
+        sys.exit()
+      if (vflux_str == 'Inviscid'):
+        self.vflux_type = 'Inviscid'
+        checkv = 1
+      if (checkv == 0):
+        if (mpi_rank == 0): print('Error, viscous flux scheme ' + vflux_str + ' not valid. Options are, "IP", "Inviscid". PyDG quitting')
+        sys.exit() 
 
 
 
@@ -384,9 +430,10 @@ class equations:
       check_eq = 1
       self.nvars = 5
       self.nvisc_vars = 5
-      self.evalFluxX = evalFluxXEulerLin 
-      self.evalFluxY = evalFluxYEulerLin
-      self.evalFluxZ = evalFluxZEulerLin
+      self.evalFluxXYZ = evalFluxXYZEulerLin
+      #self.evalFluxX = evalFluxXEulerLin 
+      #self.evalFluxY = evalFluxYEulerLin
+      #self.evalFluxZ = evalFluxZEulerLin
       self.viscous = False
       ## select appopriate flux scheme
       checki = 0

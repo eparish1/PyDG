@@ -43,7 +43,7 @@ def newtonSolver(unsteadyResidual,MF_Jacobian,regionManager,linear_solver,sparse
     loc_tol = 0.1*Rstar_glob/Rstar_glob0
     PC_iteration = 0
     PC_args = [1,loc_tol,PC_iteration]
-    sol = linear_solver.solve(MF_Jacobian, -Rstarn.flatten(), old.flatten(),regionManager_coarse,MF_Jacobian_args,PC,PC_args,loc_tol,1,40,0)
+    sol = linear_solver.solve(MF_Jacobian, -Rstarn.flatten(), old.flatten(),regionManager_coarse,MF_Jacobian_args,PC,PC_args,loc_tol,1,60,0)
     regionManager.a[:] = an[:] + 1.0*np.reshape(sol,np.size(regionManager.a))
     an[:] = regionManager.a[:]
     Rstarn,Rn,Rstar_glob = unsteadyResidual(regionManager,regionManager.a)

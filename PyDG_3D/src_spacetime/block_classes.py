@@ -26,6 +26,7 @@ class blockClass:
     procnumber = 0
     self.n_blocks = nblocks
     self.Nel_block = Nel_block
+    self.order=order
     self.nblocks = 0
     self.mpi_regions_owned = []
     self.procx = procx
@@ -123,7 +124,7 @@ class blockClass:
       self.getRHS_REGION_OUTER = ROM_COLLOCATION_MORTHOGONAL
       check = 1
 
-    if (turb_str == 'QDEIM'):
+    if (turb_str == 'QDEIM'):# or turb_str == 'ManifoldCollocation'):
       self.getRHS_REGION_OUTER = QDEIM
       check = 1
     if (turb_str == 'tau-model'):
@@ -209,6 +210,17 @@ class blockClass:
          print('Using turb model ' + turb_str)
 
 
+    def getRHS_REGION_INNER_ROM_MORTHOGONAL(self,eqns):
+      for region in self.region:
+        region.basis.reconstructU(region,region.a)
+        region.a.uR[:],region.a.uL[:],region.a.uU[:],region.a.uD[:],region.a.uF[:],region.a.uB[:] = region.basis.reconstructEdgesGeneral(region.a.a,region)
+
+      for region in self.region:
+        region.a.uR_edge[:],region.a.uL_edge[:],region.a.uU_edge[:],region.a.uD_edge[:],region.a.uF_edge[:],region.a.uB_edge[:] = sendEdgesGeneralSlab(region.a.uL,region.a.uR,region.a.uD,region.a.uU,region.a.uB,region.a.uF,region,self)
+
+      eqns.getRHS(self,eqns)
+      #Note we don't apply the mass matrix here if the POD  basis is M orthogonal
+    self.getRHS_REGION_INNER_ROM_MORTHOGONAL = getRHS_REGION_INNER_ROM_MORTHOGONAL
 
 
     def getRHS_REGION_INNER_ROM_COLLOCATION_MORTHOGONAL(self,eqns):
@@ -233,26 +245,18 @@ class blockClass:
         region.a.uR_edge[:],region.a.uL_edge[:],region.a.uU_edge[:],region.a.uD_edge[:],region.a.uF_edge[:],region.a.uB_edge[:] = sendEdgesGeneralSlab(region.a.uL,region.a.uR,region.a.uD,region.a.uU,region.a.uB,region.a.uF,region,self)
 
       eqns.getRHS_hyper(self,eqns)
-      #for region in self.region:
-      #  region.RHS_hyper[:] = np.sum(region.Minv[None,:,:,:,:,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]*region.RHS_hyper[:,None,None,None,None],axis=(5,6,7,8) )
 
     self.getRHS_REGION_INNER_ROM_COLLOCATION_MORTHOGONAL = getRHS_REGION_INNER_ROM_COLLOCATION_MORTHOGONAL
 
 
 
     def getRHS_REGION_INNER_QDEIM(self,eqns):
-#      for region in self.region:
-#        region.basis.reconstructU(region,region.a)
-#        region.a.uR[:],region.a.uL[:],region.a.uU[:],region.a.uD[:],region.a.uF[:],region.a.uB[:] = region.basis.reconstructEdgesGeneral(region.a.a,region)
       for region in self.region:
         cell_ijk = region.cell_ijk
-        #stencil_ijk = region.stencil_ijk
         stencil_ijk = region.viscous_stencil_ijk
         stencil2_ijk = region.stencil_ijk
+        region.basis.reconstructU(region,region.a)
 
-        #region.a.u[:,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] =  reconstructUGeneral_einsum(region,region.a.a[:,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]])
-        #region.a.u[:,:,:,:,:,stencil_ijk[5][0],stencil_ijk[6][0],stencil_ijk[7][0],stencil_ijk[8][0]] =  reconstructUGeneral_einsum(region,region.a.a[:,:,:,:,:,stencil_ijk[5][0],stencil_ijk[6][0],stencil_ijk[7][0],stencil_ijk[8][0]])
-        #region.a.u[:,:,:,:,:,stencil_ijk[5][0],stencil_ijk[6][0],stencil_ijk[7][0],stencil_ijk[8][0]] =  reconstructUGeneral_tensordot(region,region.a.a[:,:,:,:,:,stencil_ijk[5][0],stencil_ijk[6][0],stencil_ijk[7][0],stencil_ijk[8][0]])
         region.a.a_hyper_stencil =  region.a.a[:,:,:,:,:,stencil2_ijk[5][0],stencil2_ijk[6][0],stencil2_ijk[7][0],stencil2_ijk[8][0]]
 
         region.a.u_hyper_stencil =  reconstructUGeneral_tensordot(region,region.a.a[:,:,:,:,:,stencil2_ijk[5][0],stencil2_ijk[6][0],stencil2_ijk[7][0],stencil2_ijk[8][0]])
@@ -272,9 +276,7 @@ class blockClass:
 
       eqns.getRHS_hyper(self,eqns)
       for region in self.region:
-        #region.RHS[:,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] = np.einsum('ijklpqrs...,zpqrs...->zijkl...',region.Minv[:,:,:,:,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]], region.RHS[:,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]])
-        #print(np.shape(region.Minv[None,:,:,:,:,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]))
-        #region.RHS[:,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] = np.sum(region.Minv[None,:,:,:,:,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]*region.RHS[:,None,None,None,None,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]],axis=(5,6,7,8) )
+        cell_t = np.zeros(np.size(cell_ijk[8][0]),dtype='int')
         region.RHS_hyper[:] = np.sum(region.Minv[None,:,:,:,:,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]*region.RHS_hyper[:,None,None,None,None],axis=(5,6,7,8) )
 
         #region.basis.applyMassMatrix(region,region.RHS)
@@ -292,18 +294,6 @@ class blockClass:
       for region in self.region:
         region.basis.applyMassMatrix(region,region.RHS)
 
-    def getRHS_REGION_INNER_ROM_MORTHOGONAL(self,eqns):
-      for region in self.region:
-        region.basis.reconstructU(region,region.a)
-        region.a.uR[:],region.a.uL[:],region.a.uU[:],region.a.uD[:],region.a.uF[:],region.a.uB[:] = region.basis.reconstructEdgesGeneral(region.a.a,region)
-
-      for region in self.region:
-        region.a.uR_edge[:],region.a.uL_edge[:],region.a.uU_edge[:],region.a.uD_edge[:],region.a.uF_edge[:],region.a.uB_edge[:] = sendEdgesGeneralSlab(region.a.uL,region.a.uR,region.a.uD,region.a.uU,region.a.uB,region.a.uF,region,self)
-
-      eqns.getRHS(self,eqns)
-      #Note we don't apply the mass matrix here if the POD  basis is M orthogonal
-    self.getRHS_REGION_INNER_ROM_MORTHOGONAL = getRHS_REGION_INNER_ROM_MORTHOGONAL
- 
 
     def getRHS_REGION_INNER_ELEMENT(self,eqns):
       for region in self.region:

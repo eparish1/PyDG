@@ -17,6 +17,7 @@ from basis_class import *
 from grid_functions import *
 from init_reacting_additions import add_reacting_to_main
 from init_qdeim import *
+from init_manifold import init_stencil_manifold
 class variable:
   def __init__(self,regionManager,region_counter,nvars,order,quadpoints,Npx,Npy,Npz,Npt):
       self.nvars = nvars
@@ -388,7 +389,8 @@ class variables:
     if (turb_str == 'ROM_COLLOCATION_MORTHOGONAL' or turb_str == 'QDEIM' or turb_str == 'orthogonal subscale QDEIM' or turb_str == 'QDEIM VALIDATE' or turb_str == 'orthogonal subscale COLLOCATE'):
       init_stencil_qdeim(self,eqns,order)
       regionManager.regionSampleMesh.append( sampleMesh(self))
-
+    if (turb_str == 'ManifoldCollocation'):
+      init_stencil_manifold(self,eqns,order)  
     ### Check turbulence models
     self.turb_str = turb_str	
     check = 0

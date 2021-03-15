@@ -28,7 +28,7 @@ def savehook(regionManager):
 L = 10.                       #|  length
 Nel = np.array([8,8,2,1])   #|  elements in x,y,z
 order =np.array([4,4,1,1])                       #|  spatial order
-quadpoints = np.array([order[0],order[1],order[2],order[3] ])  #|  number of quadrature points. 2x the order is reccomended
+quadpoints = 2*np.array([order[0],order[1],order[2],order[3] ])  #|  number of quadrature points. 2x the order is reccomended
 mu = 0.#5                       #|  viscocity
 x = np.linspace(0,L,Nel[0]+1)      #|  x, y, and z
 y = np.linspace(0,L,Nel[1]+1)      #|
@@ -41,7 +41,7 @@ save_freq = 10.                      #|  frequency to save output and print to s
 eqn_str = 'Navier-Stokes'          #|  equation set
 schemes = ('roe','Inviscid')             #|  inviscid and viscous flux schemes
 procx = 1                         #|  processor decomposition in x
-procy = 1                          #|  same in y. Note that procx*procy needs to equal total number of procs
+procy = 2                          #|  same in y. Note that procx*procy needs to equal total number of procs
 procz = 1
 
 right_bc = 'periodic'

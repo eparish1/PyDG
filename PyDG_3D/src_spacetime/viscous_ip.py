@@ -49,7 +49,7 @@ def computeArtificialViscocity(region):
     s0  = 1./np.amax(region.order)**4 
     tol = s0
     eps0 = region.dx/pmax
-    epsilon[0,0,0,0,:] =  0.05*eps0/2.*(np.exp(sensor))#(1. + np.sin( np.pi*(sensor - s0)/ (2.*kappa) ) )
+    epsilon[0,0,0,0,:] =  2.5*eps0/2.*(np.exp(sensor))#(1. + np.sin( np.pi*(sensor - s0)/ (2.*kappa) ) )
     #print(np.max(epsilon))
     #epsilon[0,0,0,0,:] =  eps0/2.*(1. + np.sin( np.pi*(sensor - s0)/ (2.*kappa) ) )
 
@@ -64,7 +64,7 @@ def computeArtificialViscocity(region):
 def addViscousContribution_IP(regionManager,eqns):
   #print('IP Not up to date. Use BR1')
   #sys.exit()
-  gamma = 1.4
+  gamma = eqns.params['gamma']
   Pr = 0.72
   for region in regionManager.region:
     a = region.a.a
@@ -89,9 +89,9 @@ def addViscousContribution_IP(regionManager,eqns):
     epsUD = np.append(epsD,epsU[:,:,:,:,:,-1,None],axis=5)
     epsFB = np.append(epsB,epsF[:,:,:,:,:,:,-1,None],axis=6)
 
-    fvGX = eqns.evalViscousFluxX(region,region.a.u,region.a.Upx,region.a.Upy,region.a.Upz,region.mus + epsilon_u[0])
-    fvGY = eqns.evalViscousFluxY(region,region.a.u,region.a.Upx,region.a.Upy,region.a.Upz,region.mus + epsilon_u[0])
-    fvGZ = eqns.evalViscousFluxZ(region,region.a.u,region.a.Upx,region.a.Upy,region.a.Upz,region.mus + epsilon_u[0])
+    fvGX = eqns.evalViscousFluxX(eqns,region,region.a.u,region.a.Upx,region.a.Upy,region.a.Upz,region.mus + epsilon_u[0])
+    fvGY = eqns.evalViscousFluxY(eqns,region,region.a.u,region.a.Upx,region.a.Upy,region.a.Upz,region.mus + epsilon_u[0])
+    fvGZ = eqns.evalViscousFluxZ(eqns,region,region.a.u,region.a.Upx,region.a.Upy,region.a.Upz,region.mus + epsilon_u[0])
     region.iFlux.fx -= fvGX
     region.iFlux.fy -= fvGY
     region.iFlux.fz -= fvGZ
@@ -101,14 +101,14 @@ def addViscousContribution_IP(regionManager,eqns):
     centralFluxGeneral2(region.iFlux.fRLS,region.iFlux.fUDS,region.iFlux.fFBS,region.a.uR,region.a.uL,region.a.uU,region.a.uD,region.a.uF,region.a.uB,region.a.uR_edge,region.a.uL_edge,region.a.uU_edge,region.a.uD_edge,region.a.uF_edge,region.a.uB_edge)
     tmp = region.iFlux.fRLS[:,:,:,:,1::]
 
-    fvRG11,fvRG21,fvRG31 = eqns.getGsX(region.a.uR,region,region.mus + epsR[0],region.a.uR - region.iFlux.fRLS[:,:,:,:,1::])
-    fvLG11,fvLG21,fvLG31 = eqns.getGsX(region.a.uL,region,region.mus + epsL[0],region.a.uL - region.iFlux.fRLS[:,:,:,:,0:-1])
+    fvRG11,fvRG21,fvRG31 = eqns.getGsX(eqns,region.a.uR,region,region.mus + epsR[0],region.a.uR - region.iFlux.fRLS[:,:,:,:,1::])
+    fvLG11,fvLG21,fvLG31 = eqns.getGsX(eqns,region.a.uL,region,region.mus + epsL[0],region.a.uL - region.iFlux.fRLS[:,:,:,:,0:-1])
   
-    fvUG12,fvUG22,fvUG32 = eqns.getGsY(region.a.uU,region,region.mus + epsU[0],region.a.uU-region.iFlux.fUDS[:,:,:,:,:,1::])
-    fvDG12,fvDG22,fvDG32 = eqns.getGsY(region.a.uD,region,region.mus + epsD[0],region.a.uD-region.iFlux.fUDS[:,:,:,:,:,0:-1])
+    fvUG12,fvUG22,fvUG32 = eqns.getGsY(eqns,region.a.uU,region,region.mus + epsU[0],region.a.uU-region.iFlux.fUDS[:,:,:,:,:,1::])
+    fvDG12,fvDG22,fvDG32 = eqns.getGsY(eqns,region.a.uD,region,region.mus + epsD[0],region.a.uD-region.iFlux.fUDS[:,:,:,:,:,0:-1])
   
-    fvFG13,fvFG23,fvFG33 = eqns.getGsZ(region.a.uF,region,region.mus + epsF[0],region.a.uF-region.iFlux.fFBS[:,:,:,:,:,:,1::])
-    fvBG13,fvBG23,fvBG33 = eqns.getGsZ(region.a.uB,region,region.mus + epsB[0],region.a.uB-region.iFlux.fFBS[:,:,:,:,:,:,0:-1])
+    fvFG13,fvFG23,fvFG33 = eqns.getGsZ(eqns,region.a.uF,region,region.mus + epsF[0],region.a.uF-region.iFlux.fFBS[:,:,:,:,:,:,1::])
+    fvBG13,fvBG23,fvBG33 = eqns.getGsZ(eqns,region.a.uB,region,region.mus + epsB[0],region.a.uB-region.iFlux.fFBS[:,:,:,:,:,:,0:-1])
 
     ## Integrate over the faces
     region.iFlux.fRLI[:,:,:,:,1::] = region.basis.faceIntegrateGlob(region,fvRG11*region.J_edge_det[0][None,:,:,None,1::,:,:,None],region.w1,region.w2,region.w3,region.weights1,region.weights2,region.weights3) 
@@ -160,14 +160,14 @@ def addViscousContribution_IP(regionManager,eqns):
     region.iFlux.fFBI[:,:,:,:,:,:,0:-1] = region.basis.faceIntegrateGlob(region,fvBG33*region.J_edge_det[2][None,:,:,None,:,:,0:-1,None],region.w0,region.w1,region.w3,region.weights0,region.weights1,region.weights3)  
     region.RHS[:] -= region.iFlux.fFBI[:,:,:,None,:,:,:,0:-1]*region.wpedge2[None,None,None,:,0,None,None,None,None,None]
  
-    region.iFlux.fR[:] = eqns.evalViscousFluxX(region,region.a.uR,region.a.UxR,region.a.UyR,region.a.UzR,region.mu)
-    region.iFlux.fL[:] = eqns.evalViscousFluxX(region,region.a.uL,region.a.UxL,region.a.UyL,region.a.UzL,region.mu)
+    region.iFlux.fR[:] = eqns.evalViscousFluxX(eqns,region,region.a.uR,region.a.UxR,region.a.UyR,region.a.UzR,region.mu)
+    region.iFlux.fL[:] = eqns.evalViscousFluxX(eqns,region,region.a.uL,region.a.UxL,region.a.UyL,region.a.UzL,region.mu)
   
-    region.iFlux.fU[:] = eqns.evalViscousFluxY(region,region.a.uU,region.a.UxU,region.a.UyU,region.a.UzU,region.mu)
-    region.iFlux.fD[:] = eqns.evalViscousFluxY(region,region.a.uD,region.a.UxD,region.a.UyD,region.a.UzD,region.mu)
+    region.iFlux.fU[:] = eqns.evalViscousFluxY(eqns,region,region.a.uU,region.a.UxU,region.a.UyU,region.a.UzU,region.mu)
+    region.iFlux.fD[:] = eqns.evalViscousFluxY(eqns,region,region.a.uD,region.a.UxD,region.a.UyD,region.a.UzD,region.mu)
   
-    region.iFlux.fF[:] = eqns.evalViscousFluxZ(region,region.a.uF,region.a.UxF,region.a.UyF,region.a.UzF,region.mu)
-    region.iFlux.fB[:] = eqns.evalViscousFluxZ(region,region.a.uB,region.a.UxB,region.a.UyB,region.a.UzB,region.mu)
+    region.iFlux.fF[:] = eqns.evalViscousFluxZ(eqns,region,region.a.uF,region.a.UxF,region.a.UyF,region.a.UzF,region.mu)
+    region.iFlux.fB[:] = eqns.evalViscousFluxZ(eqns,region,region.a.uB,region.a.UxB,region.a.UyB,region.a.UzB,region.mu)
   
     fvxR_edge,fvxL_edge,fvyU_edge,fvyD_edge,fvzF_edge,fvzB_edge = sendEdgesGeneralSlab_Derivs(region.iFlux.fL,region.iFlux.fR,region.iFlux.fD,region.iFlux.fU,region.iFlux.fB,region.iFlux.fF,region,regionManager)
   
@@ -197,14 +197,29 @@ def addViscousContribution_IP(regionManager,eqns):
 
 def computeJump_hyper(uR,uL,uU,uD,uF,uB,uR_edge,uL_edge,uU_edge,uD_edge,uF_edge,uB_edge,region):
   cell_ijk = region.cell_ijk
-  jumpR = uR[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] - uL[:,:,:,:, (cell_ijk[5][0]+1)%region.Npx,cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]
-  jumpL = uR[:,:,:,:,cell_ijk[5][0]-1,cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] - uL[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]
+  jumpR = np.zeros(np.shape(region.iFlux.fRS),dtype=region.iFlux.fRS.dtype)
+  jumpL = np.zeros(np.shape(region.iFlux.fLS),dtype=region.iFlux.fLS.dtype)
+  jumpU = np.zeros(np.shape(region.iFlux.fUS),dtype=region.iFlux.fUS.dtype)
+  jumpD = np.zeros(np.shape(region.iFlux.fDS),dtype=region.iFlux.fDS.dtype)
+  jumpF = np.zeros(np.shape(region.iFlux.fFS),dtype=region.iFlux.fFS.dtype)
+  jumpB = np.zeros(np.shape(region.iFlux.fBS),dtype=region.iFlux.fBS.dtype)
 
-  jumpU = uU[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] - uD[:,:,:,:, cell_ijk[5][0],(cell_ijk[6][0]+1)%region.Npy,cell_ijk[7][0],cell_ijk[8][0]]
-  jumpD = uU[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0]-1,cell_ijk[7][0],cell_ijk[8][0]] - uD[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]
+  jumpR[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] = uR[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] - uL[:,:,:,:, (cell_ijk[5][0]+1)%region.Npx,cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]
+  jumpL[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] = uR[:,:,:,:,cell_ijk[5][0]-1,cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] - uL[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]
+  jumpR[:,:,:,:,-1,cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] =  uR[:,:,:,:,  -1,cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] - uR_edge[:,:,:,:,cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]
+  jumpL[:,:,:,:,0 ,cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] = uL_edge[:,:,:,:,cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] - uL[:,:,:,:,0,cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]
 
-  jumpF = uF[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] - uB[:,:,:,:, cell_ijk[5][0],cell_ijk[6][0],(cell_ijk[7][0]+1)%region.Npz,cell_ijk[8][0]]
-  jumpB = uF[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0]-1,cell_ijk[8][0]] - uB[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]
+
+  jumpU[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] = uU[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] - uD[:,:,:,:, cell_ijk[5][0],(cell_ijk[6][0]+1)%region.Npy,cell_ijk[7][0],cell_ijk[8][0]]
+  jumpD[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] = uU[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0]-1,cell_ijk[7][0],cell_ijk[8][0]] - uD[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]
+  jumpU[:,:,:,:,cell_ijk[5][0],-1,cell_ijk[7][0],cell_ijk[8][0]] = uU[:,:,:,:,cell_ijk[5][0],  -1,cell_ijk[7][0],cell_ijk[8][0]] - uU_edge[:,:,:,:,cell_ijk[5][0],cell_ijk[7][0],cell_ijk[8][0]]
+  jumpD[:,:,:,:,cell_ijk[5][0],0,cell_ijk[7][0],cell_ijk[8][0]] = uD_edge[:,:,:,:,cell_ijk[5][0],cell_ijk[7][0],cell_ijk[8][0]] - uD[:,:,:,:,cell_ijk[5][0],0,cell_ijk[7][0],cell_ijk[8][0]]
+
+
+  jumpF[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] = uF[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] - uB[:,:,:,:, cell_ijk[5][0],cell_ijk[6][0],(cell_ijk[7][0]+1)%region.Npz,cell_ijk[8][0]]
+  jumpB[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] = uF[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0]-1,cell_ijk[8][0]] - uB[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]
+  jumpF[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],-1,cell_ijk[8][0]] = uF[:,:,:,:,cell_ijk[5][0], cell_ijk[6][0],-1,cell_ijk[8][0]] - uF_edge[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[8][0]]
+  jumpB[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],0,cell_ijk[8][0]] = uB_edge[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[8][0]] - uB[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],0,cell_ijk[8][0]]
 
   return jumpR,jumpL,jumpU,jumpD,jumpF,jumpB 
 
@@ -214,7 +229,7 @@ def computeJump_hyper(uR,uL,uU,uD,uF,uB,uR_edge,uL_edge,uU_edge,uD_edge,uF_edge,
 def addViscousContribution_IP_hyper(regionManager,eqns):
   #print('IP Not up to date. Use BR1')
   #sys.exit()
-  gamma = 1.4
+  gamma = eqns.params['gamma']
   Pr = 0.72
   for regionCounter in range(0,np.size(regionManager.region)):
     region = regionManager.region[regionCounter]
@@ -230,9 +245,9 @@ def addViscousContribution_IP_hyper(regionManager,eqns):
 
     region.a.UxR,region.a.UxL,region.a.UxU,region.a.UxD,region.a.UxF,region.a.UxB , region.a.UyR,region.a.UyL,region.a.UyU,region.a.UyD,region.a.UyF,region.a.UyB , region.a.UzR,region.a.UzL,region.a.UzU,region.a.UzD,region.a.UzF,region.a.UzB = diffUXYZ_edge_tensordot_hyper(region.a.a_hyper_stencil,region,regionSampleMesh.Jinv_stencil)
 
-    fvGX = eqns.evalViscousFluxX(region,region.a.u_hyper_cell,region.a.Upx_hyper_cell,region.a.Upy_hyper_cell,region.a.Upz_hyper_cell,region.mus)
-    fvGY = eqns.evalViscousFluxY(region,region.a.u_hyper_cell,region.a.Upx_hyper_cell,region.a.Upy_hyper_cell,region.a.Upz_hyper_cell,region.mus)
-    fvGZ = eqns.evalViscousFluxZ(region,region.a.u_hyper_cell,region.a.Upx_hyper_cell,region.a.Upy_hyper_cell,region.a.Upz_hyper_cell,region.mus)
+    fvGX = eqns.evalViscousFluxX(eqns,region,region.a.u_hyper_cell,region.a.Upx_hyper_cell,region.a.Upy_hyper_cell,region.a.Upz_hyper_cell,region.mus)
+    fvGY = eqns.evalViscousFluxY(eqns,region,region.a.u_hyper_cell,region.a.Upx_hyper_cell,region.a.Upy_hyper_cell,region.a.Upz_hyper_cell,region.mus)
+    fvGZ = eqns.evalViscousFluxZ(eqns,region,region.a.u_hyper_cell,region.a.Upx_hyper_cell,region.a.Upy_hyper_cell,region.a.Upz_hyper_cell,region.mus)
 
     region.iFlux.fx_hyper -= fvGX
     region.iFlux.fy_hyper -= fvGY
@@ -247,14 +262,14 @@ def addViscousContribution_IP_hyper(regionManager,eqns):
 
     generalFluxGen_hyper(region,eqns,region.iFlux,region.a,centralFlux,cell_ijk,[])
     #print(np.shape(region.a.uL_edge),np.shape(region.a.uL))
-    fvRG11,fvRG21,fvRG31 = eqns.getGsX(region.a.uR[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]],region,region.mus,region.a.uR[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] - region.iFlux.fRS[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]])
-    fvLG11,fvLG21,fvLG31 = eqns.getGsX(region.a.uL[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]],region,region.mus,region.a.uL[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] - region.iFlux.fLS[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]])
+    fvRG11,fvRG21,fvRG31 = eqns.getGsX(eqns,region.a.uR[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]],region,region.mus,region.a.uR[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] - region.iFlux.fRS[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]])
+    fvLG11,fvLG21,fvLG31 = eqns.getGsX(eqns,region.a.uL[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]],region,region.mus,region.a.uL[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] - region.iFlux.fLS[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]])
   
-    fvUG12,fvUG22,fvUG32 = eqns.getGsY(region.a.uU[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]],region,region.mus,region.a.uU[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]-region.iFlux.fUS[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]])
-    fvDG12,fvDG22,fvDG32 = eqns.getGsY(region.a.uD[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]],region,region.mus,region.a.uD[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]-region.iFlux.fDS[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]])
+    fvUG12,fvUG22,fvUG32 = eqns.getGsY(eqns,region.a.uU[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]],region,region.mus,region.a.uU[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]-region.iFlux.fUS[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]])
+    fvDG12,fvDG22,fvDG32 = eqns.getGsY(eqns,region.a.uD[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]],region,region.mus,region.a.uD[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]-region.iFlux.fDS[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]])
   
-    fvFG13,fvFG23,fvFG33 = eqns.getGsZ(region.a.uF[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]],region,region.mus,region.a.uF[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]-region.iFlux.fFS[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]])
-    fvBG13,fvBG23,fvBG33 = eqns.getGsZ(region.a.uB[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]],region,region.mus,region.a.uB[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]-region.iFlux.fBS[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]])
+    fvFG13,fvFG23,fvFG33 = eqns.getGsZ(eqns,region.a.uF[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]],region,region.mus,region.a.uF[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]-region.iFlux.fFS[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]])
+    fvBG13,fvBG23,fvBG33 = eqns.getGsZ(eqns,region.a.uB[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]],region,region.mus,region.a.uB[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]-region.iFlux.fBS[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]])
 
     ## Integrate over the faces
     region.iFlux.fRI_hyper = region.basis.faceIntegrateGlob(region,fvRG11*region.J_edge_det_hyper_x1p1[None,:,:,None],region.w1,region.w2,region.w3,region.weights1,region.weights2,region.weights3)
@@ -306,14 +321,14 @@ def addViscousContribution_IP_hyper(regionManager,eqns):
     region.iFlux.fBI_hyper[:] = region.basis.faceIntegrateGlob(region,fvBG33*region.J_edge_det_hyper_x3[None,:,:,None],region.w0,region.w1,region.w3,region.weights0,region.weights1,region.weights3)  
     region.RHS_hyper[:] -= region.iFlux.fBI_hyper[:,:,:,None]*region.wpedge2[None,None,None,:,0,None,None]
 
-    region.iFlux.fR[:,:,:,:,stencil_ijk[5][0],stencil_ijk[6][0],stencil_ijk[7][0],stencil_ijk[8][0]] = eqns.evalViscousFluxX(region,region.a.uR[:,:,:,:,stencil_ijk[5][0],stencil_ijk[6][0],stencil_ijk[7][0],stencil_ijk[8][0]],region.a.UxR,region.a.UyR,region.a.UzR,region.mu)
-    region.iFlux.fL[:,:,:,:,stencil_ijk[5][0],stencil_ijk[6][0],stencil_ijk[7][0],stencil_ijk[8][0]] = eqns.evalViscousFluxX(region,region.a.uL[:,:,:,:,stencil_ijk[5][0],stencil_ijk[6][0],stencil_ijk[7][0],stencil_ijk[8][0]],region.a.UxL,region.a.UyL,region.a.UzL,region.mu)
+    region.iFlux.fR[:,:,:,:,stencil_ijk[5][0],stencil_ijk[6][0],stencil_ijk[7][0],stencil_ijk[8][0]] = eqns.evalViscousFluxX(eqns,region,region.a.uR[:,:,:,:,stencil_ijk[5][0],stencil_ijk[6][0],stencil_ijk[7][0],stencil_ijk[8][0]],region.a.UxR,region.a.UyR,region.a.UzR,region.mu)
+    region.iFlux.fL[:,:,:,:,stencil_ijk[5][0],stencil_ijk[6][0],stencil_ijk[7][0],stencil_ijk[8][0]] = eqns.evalViscousFluxX(eqns,region,region.a.uL[:,:,:,:,stencil_ijk[5][0],stencil_ijk[6][0],stencil_ijk[7][0],stencil_ijk[8][0]],region.a.UxL,region.a.UyL,region.a.UzL,region.mu)
   
-    region.iFlux.fU[:,:,:,:,stencil_ijk[5][0],stencil_ijk[6][0],stencil_ijk[7][0],stencil_ijk[8][0]] = eqns.evalViscousFluxY(region,region.a.uU[:,:,:,:,stencil_ijk[5][0],stencil_ijk[6][0],stencil_ijk[7][0],stencil_ijk[8][0]],region.a.UxU,region.a.UyU,region.a.UzU,region.mu)
-    region.iFlux.fD[:,:,:,:,stencil_ijk[5][0],stencil_ijk[6][0],stencil_ijk[7][0],stencil_ijk[8][0]] = eqns.evalViscousFluxY(region,region.a.uD[:,:,:,:,stencil_ijk[5][0],stencil_ijk[6][0],stencil_ijk[7][0],stencil_ijk[8][0]],region.a.UxD,region.a.UyD,region.a.UzD,region.mu)
+    region.iFlux.fU[:,:,:,:,stencil_ijk[5][0],stencil_ijk[6][0],stencil_ijk[7][0],stencil_ijk[8][0]] = eqns.evalViscousFluxY(eqns,region,region.a.uU[:,:,:,:,stencil_ijk[5][0],stencil_ijk[6][0],stencil_ijk[7][0],stencil_ijk[8][0]],region.a.UxU,region.a.UyU,region.a.UzU,region.mu)
+    region.iFlux.fD[:,:,:,:,stencil_ijk[5][0],stencil_ijk[6][0],stencil_ijk[7][0],stencil_ijk[8][0]] = eqns.evalViscousFluxY(eqns,region,region.a.uD[:,:,:,:,stencil_ijk[5][0],stencil_ijk[6][0],stencil_ijk[7][0],stencil_ijk[8][0]],region.a.UxD,region.a.UyD,region.a.UzD,region.mu)
   
-    region.iFlux.fF[:,:,:,:,stencil_ijk[5][0],stencil_ijk[6][0],stencil_ijk[7][0],stencil_ijk[8][0]] = eqns.evalViscousFluxZ(region,region.a.uF[:,:,:,:,stencil_ijk[5][0],stencil_ijk[6][0],stencil_ijk[7][0],stencil_ijk[8][0]],region.a.UxF,region.a.UyF,region.a.UzF,region.mu)
-    region.iFlux.fB[:,:,:,:,stencil_ijk[5][0],stencil_ijk[6][0],stencil_ijk[7][0],stencil_ijk[8][0]] = eqns.evalViscousFluxZ(region,region.a.uB[:,:,:,:,stencil_ijk[5][0],stencil_ijk[6][0],stencil_ijk[7][0],stencil_ijk[8][0]],region.a.UxB,region.a.UyB,region.a.UzB,region.mu)
+    region.iFlux.fF[:,:,:,:,stencil_ijk[5][0],stencil_ijk[6][0],stencil_ijk[7][0],stencil_ijk[8][0]] = eqns.evalViscousFluxZ(eqns,region,region.a.uF[:,:,:,:,stencil_ijk[5][0],stencil_ijk[6][0],stencil_ijk[7][0],stencil_ijk[8][0]],region.a.UxF,region.a.UyF,region.a.UzF,region.mu)
+    region.iFlux.fB[:,:,:,:,stencil_ijk[5][0],stencil_ijk[6][0],stencil_ijk[7][0],stencil_ijk[8][0]] = eqns.evalViscousFluxZ(eqns,region,region.a.uB[:,:,:,:,stencil_ijk[5][0],stencil_ijk[6][0],stencil_ijk[7][0],stencil_ijk[8][0]],region.a.UxB,region.a.UyB,region.a.UzB,region.mu)
     
  
     fvxR_edge,fvxL_edge,fvyU_edge,fvyD_edge,fvzF_edge,fvzB_edge = sendEdgesGeneralSlab_Derivs(region.iFlux.fL,region.iFlux.fR,region.iFlux.fD,region.iFlux.fU,region.iFlux.fB,region.iFlux.fF,region,regionManager)
@@ -375,14 +390,14 @@ def addViscousContribution_IP_hyper(regionManager,eqns):
 
     jumpR,jumpL,jumpU,jumpD,jumpF,jumpB = computeJump_hyper(region.a.uR,region.a.uL,region.a.uU,region.a.uD,region.a.uF,region.a.uB,region.a.uR_edge,region.a.uL_edge,region.a.uU_edge,region.a.uD_edge,region.a.uF_edge,region.a.uB_edge,region)
 
-    fvR2 = region.iFlux.fRS[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],0,cell_ijk[8][0]] - 1.*region.mus*region.order[0]**2*jumpR/region.dx
-    fvL2 = region.iFlux.fLS[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],0,cell_ijk[8][0]] - 1.*region.mus*region.order[0]**2*jumpL/region.dx
+    fvR2 = region.iFlux.fRS[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],0,cell_ijk[8][0]] - 1.*region.mus*region.order[0]**2*jumpR[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],0,cell_ijk[8][0]]/region.dx
+    fvL2 = region.iFlux.fLS[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],0,cell_ijk[8][0]] - 1.*region.mus*region.order[0]**2*jumpL[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],0,cell_ijk[8][0]]/region.dx
 
-    fvU2 = region.iFlux.fUS[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],0,cell_ijk[8][0]] - 1.*region.mus*region.order[1]**2*jumpU/region.dy
-    fvD2 = region.iFlux.fDS[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],0,cell_ijk[8][0]] - 1.*region.mus*region.order[1]**2*jumpD/region.dy
+    fvU2 = region.iFlux.fUS[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],0,cell_ijk[8][0]] - 1.*region.mus*region.order[1]**2*jumpU[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],0,cell_ijk[8][0]]/region.dy
+    fvD2 = region.iFlux.fDS[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],0,cell_ijk[8][0]] - 1.*region.mus*region.order[1]**2*jumpD[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],0,cell_ijk[8][0]]/region.dy
 
-    fvF2 = region.iFlux.fFS[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],0,cell_ijk[8][0]] - 1.*region.mus*region.order[2]**2*jumpF/region.dz
-    fvB2 = region.iFlux.fBS[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],0,cell_ijk[8][0]] - 1.*region.mus*region.order[2]**2*jumpB/region.dz
+    fvF2 = region.iFlux.fFS[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],0,cell_ijk[8][0]] - 1.*region.mus*region.order[2]**2*jumpF[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],0,cell_ijk[8][0]]/region.dz
+    fvB2 = region.iFlux.fBS[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],0,cell_ijk[8][0]] - 1.*region.mus*region.order[2]**2*jumpB[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],0,cell_ijk[8][0]]/region.dz
 
 
  

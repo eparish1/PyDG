@@ -2,6 +2,8 @@ import numpy as np
 from MPI_functions import *
 from tensor_products import *
 from navier_stokes_reacting import *
+import copy
+from copy import deepcopy
 def centralFluxGeneral(fR,fL,fU,fD,fF,fB,fR_edge,fL_edge,fU_edge,fD_edge,fF_edge,fB_edge):
   fRS = np.zeros(np.shape(fR))
   fLS = np.zeros(np.shape(fL))
@@ -396,14 +398,13 @@ def generalFluxGen_hyper(region,eqns,fluxVar,var,fluxFunction,cell_ijk,args):
   fluxVar.fBS[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],0,cell_ijk[8][0]] = ftmp[:]*1.
 
 
-def generalFluxGen_SWE(region,eqns,fluxVar,var,fluxFunction,args):
+
+
+def generalFluxAdjointGenHyper(region,eqns,fluxVar,var,fluxFunction,cell_ijk,args):
   nargs = np.shape(args)[0]
   argsR,argsL,argsU,argsD,argsF,argsB = [],[],[],[],[],[]
   argsR_edge,argsL_edge,argsU_edge,argsD_edge,argsF_edge,argsB_edge = [],[],[],[],[],[]
   for i in range(0,nargs):
-    #main.a.uR[:],main.a.uL[:],main.a.uU[:],main.a.uD[:],main.a.uF[:],main.a.uB[:] = main.basis.reconstructEdgesGeneral(main.a.a,main)   
-    #tmpR,tmpL,tmpU,tmpD,tmpF,tmpB = main.basis.reconstructEdgesGeneral(args[i],main)
-    #tmpR_edge,tmpL_edge,tmpU_edge,tmpD_edge,tmpF_edge,tmpB_edge = sendEdgesGeneralSlab(tmpL,tmpR,tmpD,tmpU,tmpB,tmpF,main)
     argsR.append(args[i].uR)
     argsL.append(args[i].uL)
     argsU.append(args[i].uU)
@@ -418,61 +419,182 @@ def generalFluxGen_SWE(region,eqns,fluxVar,var,fluxFunction,args):
     argsB_edge.append(args[i].uB_edge)
 
   ## Get left and right fluxes
+  fluxVar.fRS1 = copy.deepcopy(fluxVar.fRS)
+  fluxVar.fRS2 = copy.deepcopy(fluxVar.fRS)
+  fluxVar.fLS1 = copy.deepcopy(fluxVar.fLS)
+  fluxVar.fLS2 = copy.deepcopy(fluxVar.fLS)
   fluxArgs = []
+  tmp = np.zeros(np.shape( fluxVar.fRS[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] ) ,dtype=fluxVar.fRS.dtype)
   for i in range(0,nargs):
-    fluxArgs.append(argsR[i][:,:,:,:,0:-1,:,:])
-    fluxArgs.append(argsL[i][:,:,:,:,1::,:,: ])
-  fluxFunction(eqns,fluxVar.fRLS[:,:,:,:,1:-1,:,:],region,var.uR[:,:,:,:,0:-1,:,:],var.uL[:,:,:,:,1::,:,:],region.normals[0][:,None,None,None,0:-1,:,:,None],[region.surface_R[:,:,:,:,0:-1,:,:],region.surface_L[:,:,:,:,1::,:,:]])
-  fluxArgs = []
-  for i in range(0,nargs):
-    fluxArgs.append(argsR[i][:,:,:,:,-1,:,:])
-    fluxArgs.append(argsR_edge[i])
-
-  fluxFunction(eqns,fluxVar.fRLS[:,:,:,:,  -1,:,:],region,var.uR[:,:,:,:,  -1,:,:],var.uR_edge,region.normals[0][:,None,None,None,-1,:,:,None],[var.surface_R[:,:,:,:,  -1,:,:],var.surface_R[:,:,:,:,  -1,:,:]])
-  fluxArgs = []
-  for i in range(0,nargs):
-    fluxArgs.append(argsL_edge[i])
-    fluxArgs.append(argsL[i][:,:,:,:,0,:,:])
-  fluxFunction(eqns,fluxVar.fRLS[:,:,:,:,0   ,:,:],region,var.uL_edge,var.uL[:,:,:,:,0,:,:],-region.normals[1][:,None,None,None,0,:,:,None],[var.surface_L[:,:,:,:,0,:,:],var.surface_L[:,:,:,:,0,:,:] ])
-
-  ## Get the up and down fluxes
-  fluxArgs = []
-  for i in range(0,nargs):
-    fluxArgs.append(argsU[i][:,:,:,:,:,0:-1,:])
-    fluxArgs.append(argsD[i][:,:,:,:,:,1::,:])
-  fluxFunction(eqns,fluxVar.fUDS[:,:,:,:,:,1:-1,:],region,var.uU[:,:,:,:,:,0:-1,:],var.uD[:,:,:,:,:,1::,:],region.normals[2][:,None,None,None,:,0:-1,:,None],[var.surface_U[:,:,:,:,:,0:-1,:],var.surface_D[:,:,:,:,:,1::,:]])
+    fluxArgs.append(argsR[i][:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]])
+  fluxFunction(eqns,tmp,region,var.uR[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]],region.normals[0][:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0] ],fluxArgs)
+  fluxVar.fRS1[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] = tmp[:]
+#  fluxArgs = []
+#  for i in range(0,nargs):
+#    fluxArgs.append(argsR[i][:,:,:,:,(cell_ijk[5][0]+1)%region.Npx,cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]])
+#  fluxFunction(eqns,tmp,region,var.uR[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]],region.normals[0][:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0] ],fluxArgs)
+#  fluxVar.fRS2[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] = tmp[:]
 
   fluxArgs = []
+  tmp = np.zeros(np.shape( fluxVar.fLS1[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] ) ,dtype=fluxVar.fRS.dtype)
   for i in range(0,nargs):
-    fluxArgs.append(argsU[i][:,:,:,:,:,  -1,:])
-    fluxArgs.append(argsU_edge[i])
-  fluxFunction(eqns,fluxVar.fUDS[:,:,:,:,:,  -1,:],region,var.uU[:,:,:,:,:,  -1,:],var.uU_edge,region.normals[2][:,None,None,None,:,-1,:,None],fluxArgs)
+    fluxArgs.append(argsL[i][:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]])
+  fluxFunction(eqns,tmp,region,var.uL[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]],-region.normals[1][:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0] ],fluxArgs)
+  fluxVar.fLS1[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] = tmp[:]
+#  fluxArgs = []
+#  tmp = np.zeros(np.shape( fluxVar.fRS2[:,:,:,:,(cell_ijk[5][0]+1)%region.Npx,cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] ) ,dtype=fluxVar.fRS.dtype)
+#  for i in range(0,nargs):
+#    fluxArgs.append(argsL[i][:,:,:,:,(cell_ijk[5][0]+1)%region.Npx,cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]])
+#  fluxFunction(eqns,tmp,region,var.uL[:,:,:,:,(cell_ijk[5][0]+1)%region.Npx,cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]],-region.normals[1][:,(cell_ijk[5][0]+1)%region.Npx,cell_ijk[6][0],cell_ijk[7][0] ],fluxArgs)
+#  fluxVar.fRS2[:,:,:,:,(cell_ijk[5][0]+1)%region.Npx,cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] = tmp[:] 
+
+  fluxVar.fUS1 = copy.deepcopy(fluxVar.fUS)
+  fluxVar.fUS2 = copy.deepcopy(fluxVar.fUS)
+  fluxVar.fDS1 = copy.deepcopy(fluxVar.fDS)
+  fluxVar.fDS2 = copy.deepcopy(fluxVar.fDS)
 
   fluxArgs = []
+  tmp = np.zeros(np.shape( fluxVar.fUS1[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] ) ,dtype=fluxVar.fRS.dtype)  
   for i in range(0,nargs):
-    fluxArgs.append(argsD_edge[i])
-    fluxArgs.append(argsD[i][:,:,:,:,:,0,:])
-  fluxFunction(eqns,fluxVar.fUDS[:,:,:,:,:,0   ,:],region,var.uD_edge,var.uD[:,:,:,:,:,0,:],-region.normals[3][:,None,None,None,:,0,:,None],fluxArgs)
+    fluxArgs.append(argsU[i][:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]])
+  fluxFunction(eqns,tmp,region,var.uU[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]],region.normals[2][:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0] ],fluxArgs)
+  fluxVar.fUS1[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]  = tmp[:]
 
-  ## Get the front and back fluxes
+#  tmp = np.zeros(np.shape( fluxVar.fUS2[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]) ,dtype=fluxVar.fRS.dtype)  
+#  fluxArgs = []
+#  for i in range(0,nargs):
+#    fluxArgs.append(argsU[i][:,:,:,:,cell_ijk[5][0],(cell_ijk[6][0]+1)%region.Npy,cell_ijk[7][0],cell_ijk[8][0]])
+#  fluxFunction(eqns,tmp,region,var.uU[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]],region.normals[2][:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0] ],fluxArgs)
+#  fluxVar.fUS2[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] = tmp[:] 
+
+  fluxArgs = []
+  tmp = np.zeros(np.shape( fluxVar.fDS1[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] ) ,dtype=fluxVar.fRS.dtype)  
+  for i in range(0,nargs):
+    fluxArgs.append(argsD[i][:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]])
+  fluxFunction(eqns,tmp,region,var.uD[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]],-region.normals[3][:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0] ],fluxArgs)
+  fluxVar.fDS1[:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]] = tmp[:]     
+
+#  fluxArgs = []
+#  tmp = np.zeros(np.shape( fluxVar.fDS2[:,:,:,:,cell_ijk[5][0],(cell_ijk[6][0]+1)%region.Npy,cell_ijk[7][0],cell_ijk[8][0]] ) ,dtype=fluxVar.fRS.dtype)  
+#  for i in range(0,nargs):
+#    fluxArgs.append(argsD[i][:,:,:,:,cell_ijk[5][0],(cell_ijk[6][0]+1)%region.Npy,cell_ijk[7][0],cell_ijk[8][0]])
+#  fluxFunction(eqns,tmp,region,var.uD[:,:,:,:,cell_ijk[5][0],(cell_ijk[6][0]+1)%region.Npy,cell_ijk[7][0],cell_ijk[8][0]],-region.normals[3][:,cell_ijk[5][0],(cell_ijk[6][0]+1)%region.Npy,cell_ijk[7][0] ],fluxArgs)
+#  fluxVar.fDS2[:,:,:,:,cell_ijk[5][0],(cell_ijk[6][0]+1)%region.Npy,cell_ijk[7][0],cell_ijk[8][0]] = tmp[:]
+  '''
+  fluxVar.fFS1 = copy.deepcopy(fluxVar.fFS)
+  fluxVar.fFS2 = copy.deepcopy(fluxVar.fFS)
+  fluxVar.fBS1 = copy.deepcopy(fluxVar.fBS)
+  fluxVar.fBS2 = copy.deepcopy(fluxVar.fBS)
+
   fluxArgs = []
   for i in range(0,nargs):
     fluxArgs.append(argsF[i][:,:,:,:,:,:,0:-1])
+  fluxFunction(eqns,fluxVar.fFS1[:,:,:,:,:,:,0:-1],region,var.uF[:,:,:,:,:,:,0:-1],region.normals[4][:,None,None,None,:,:,0:-1,None],fluxArgs)
+  fluxArgs = []
+  for i in range(0,nargs):
+    fluxArgs.append(argsF[i][:,:,:,:,:,:,1::])
+  fluxFunction(eqns,fluxVar.fFS2[:,:,:,:,:,:,0:-1],region,var.uF[:,:,:,:,:,:,0:-1],region.normals[4][:,None,None,None,:,:,0:-1,None],fluxArgs)
+  fluxArgs = []
+  for i in range(0,nargs):
+    fluxArgs.append(argsB[i][:,:,:,:,:,:,0:-1])
+  fluxFunction(eqns,fluxVar.fBS1[:,:,:,:,:,:,1::],region,var.uB[:,:,:,:,:,:,1::],-region.normals[5][:,None,None,None,:,:,1::,None],fluxArgs)
+
+  fluxArgs = []
+  for i in range(0,nargs):
     fluxArgs.append(argsB[i][:,:,:,:,:,:,1::])
-  fluxFunction(eqns,fluxVar.fFBS[:,:,:,:,:,:,1:-1],region,var.uF[:,:,:,:,:,:,0:-1],var.uB[:,:,:,:,:,:,1::],region.normals[4][:,None,None,None,:,:,0:-1,None],fluxArgs)
+  fluxFunction(eqns,fluxVar.fBS2[:,:,:,:,:,:,1::],region,var.uB[:,:,:,:,:,:,1::],-region.normals[5][:,None,None,None,:,:,1::,None],fluxArgs)
+  '''
+
+
+def generalFluxAdjointGen(region,eqns,fluxVar,var,fluxFunction,args):
+  nargs = np.shape(args)[0]
+  argsR,argsL,argsU,argsD,argsF,argsB = [],[],[],[],[],[]
+  argsR_edge,argsL_edge,argsU_edge,argsD_edge,argsF_edge,argsB_edge = [],[],[],[],[],[]
+  for i in range(0,nargs):
+    argsR.append(args[i].uR)
+    argsL.append(args[i].uL)
+    argsU.append(args[i].uU)
+    argsD.append(args[i].uD)
+    argsF.append(args[i].uF)
+    argsB.append(args[i].uB)
+    argsR_edge.append(args[i].uR_edge)
+    argsL_edge.append(args[i].uL_edge)
+    argsU_edge.append(args[i].uU_edge)
+    argsD_edge.append(args[i].uD_edge)
+    argsF_edge.append(args[i].uF_edge)
+    argsB_edge.append(args[i].uB_edge)
+
+  ## Get left and right fluxes
+  fluxVar.fRS1 = copy.deepcopy(fluxVar.fRS)
+  fluxVar.fRS2 = copy.deepcopy(fluxVar.fRS)
+  fluxVar.fLS1 = copy.deepcopy(fluxVar.fLS)
+  fluxVar.fLS2 = copy.deepcopy(fluxVar.fLS)
 
   fluxArgs = []
   for i in range(0,nargs):
-    fluxArgs.append(argsF[i][:,:,:,:,:,:,-1])
-    fluxArgs.append(argsF_edge[i])
-  fluxFunction(eqns,fluxVar.fFBS[:,:,:,:,:,:,  -1],region,var.uF[:,:,:,:,:,:,  -1],var.uF_edge,region.normals[4][:,None,None,None,:,:,-1,None],fluxArgs)
+    fluxArgs.append(argsR[i][:,:,:,:,0:-1,:,:])
+  fluxFunction(eqns,fluxVar.fRS1[:,:,:,:,0:-1,:,:],region,var.uR[:,:,:,:,0:-1,:,:],region.normals[0][:,None,None,None,0:-1,:,:,None],fluxArgs)
+  fluxArgs = []
+  for i in range(0,nargs):
+    fluxArgs.append(argsR[i][:,:,:,:,1::,:,:])
+  fluxFunction(eqns,fluxVar.fRS2[:,:,:,:,0:-1,:,:],region,var.uR[:,:,:,:,0:-1,:,:],region.normals[0][:,None,None,None,0:-1,:,:,None],fluxArgs)
+  fluxArgs = []
+
+  for i in range(0,nargs):
+    fluxArgs.append(argsL[i][:,:,:,:,0:-1,:,:])
+  fluxFunction(eqns,fluxVar.fLS1[:,:,:,:,1::,:,:],region,var.uL[:,:,:,:,1::,:,:],-region.normals[1][:,None,None,None,1::,:,:,None],fluxArgs)
 
   fluxArgs = []
   for i in range(0,nargs):
-    fluxArgs.append(argsB_edge[i])
-    fluxArgs.append(argsB[i][:,:,:,:,:,:,0])
-  fluxFunction(eqns,fluxVar.fFBS[:,:,:,:,:,:,0   ],region,var.uB_edge,var.uB[:,:,:,:,:,:,0],-region.normals[5][:,None,None,None,:,:,0,None],fluxArgs)
+    fluxArgs.append(argsL[i][:,:,:,:,1::,:,:])
+  fluxFunction(eqns,fluxVar.fLS2[:,:,:,:,1::,:,:],region,var.uL[:,:,:,:,1::,:,:],-region.normals[1][:,None,None,None,1::,:,:,None],fluxArgs)
 
+  fluxVar.fUS1 = copy.deepcopy(fluxVar.fUS)
+  fluxVar.fUS2 = copy.deepcopy(fluxVar.fUS)
+  fluxVar.fDS1 = copy.deepcopy(fluxVar.fDS)
+  fluxVar.fDS2 = copy.deepcopy(fluxVar.fDS)
+
+  fluxArgs = []
+  for i in range(0,nargs):
+    fluxArgs.append(argsU[i][:,:,:,:,:,0:-1,:])
+  fluxFunction(eqns,fluxVar.fUS1[:,:,:,:,:,0:-1,:],region,var.uU[:,:,:,:,:,0:-1,:],region.normals[2][:,None,None,None,:,0:-1,:,None],fluxArgs)
+  fluxArgs = []
+  for i in range(0,nargs):
+    fluxArgs.append(argsU[i][:,:,:,:,:,1::,:])
+  fluxFunction(eqns,fluxVar.fUS2[:,:,:,:,:,0:-1,:],region,var.uU[:,:,:,:,:,0:-1,:],region.normals[2][:,None,None,None,:,0:-1,:,None],fluxArgs)
+  fluxArgs = []
+  for i in range(0,nargs):
+    fluxArgs.append(argsD[i][:,:,:,:,:,0:-1,:])
+  fluxFunction(eqns,fluxVar.fDS1[:,:,:,:,:,1::,:],region,var.uD[:,:,:,:,:,1::,:],-region.normals[3][:,None,None,None,:,1::,:,None],fluxArgs)
+
+  fluxArgs = []
+  for i in range(0,nargs):
+    fluxArgs.append(argsD[i][:,:,:,:,:,1::,:])
+  fluxFunction(eqns,fluxVar.fDS2[:,:,:,:,:,1::,:],region,var.uD[:,:,:,:,:,1::,:],-region.normals[3][:,None,None,None,:,1::,:,None],fluxArgs)
+
+
+  fluxVar.fFS1 = copy.deepcopy(fluxVar.fFS)
+  fluxVar.fFS2 = copy.deepcopy(fluxVar.fFS)
+  fluxVar.fBS1 = copy.deepcopy(fluxVar.fBS)
+  fluxVar.fBS2 = copy.deepcopy(fluxVar.fBS)
+
+  fluxArgs = []
+  for i in range(0,nargs):
+    fluxArgs.append(argsF[i][:,:,:,:,:,:,0:-1])
+  fluxFunction(eqns,fluxVar.fFS1[:,:,:,:,:,:,0:-1],region,var.uF[:,:,:,:,:,:,0:-1],region.normals[4][:,None,None,None,:,:,0:-1,None],fluxArgs)
+  fluxArgs = []
+  for i in range(0,nargs):
+    fluxArgs.append(argsF[i][:,:,:,:,:,:,1::])
+  fluxFunction(eqns,fluxVar.fFS2[:,:,:,:,:,:,0:-1],region,var.uF[:,:,:,:,:,:,0:-1],region.normals[4][:,None,None,None,:,:,0:-1,None],fluxArgs)
+  fluxArgs = []
+  for i in range(0,nargs):
+    fluxArgs.append(argsB[i][:,:,:,:,:,:,0:-1])
+  fluxFunction(eqns,fluxVar.fBS1[:,:,:,:,:,:,1::],region,var.uB[:,:,:,:,:,:,1::],-region.normals[5][:,None,None,None,:,:,1::,None],fluxArgs)
+
+  fluxArgs = []
+  for i in range(0,nargs):
+    fluxArgs.append(argsB[i][:,:,:,:,:,:,1::])
+  fluxFunction(eqns,fluxVar.fBS2[:,:,:,:,:,:,1::],region,var.uB[:,:,:,:,:,:,1::],-region.normals[5][:,None,None,None,:,:,1::,None],fluxArgs)
 
 
 

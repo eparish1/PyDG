@@ -7,7 +7,7 @@ import numexpr as ne
 ###### ====== Inviscid Fluxes Fluxes and Eigen Values (Eigenvalues currently not in use) ==== ############
 def evalFluxXYZEuler(eqns,main,u,fx,fy,fz,args):
   es = 1.e-30
-  gamma = 1.4
+  gamma = eqns.params['gamma']
   rho = u[0]
   rhoU = u[1]
   rhoV = u[2]
@@ -25,15 +25,16 @@ def evalFluxXYZEuler(eqns,main,u,fx,fy,fz,args):
   fy[2] = rhoV*rhoV/(rho) + p 
   fy[3] = rhoV*rhoW/(rho) 
   fy[4] = (rhoE + p)*rhoV/(rho) 
-
+#
   fz[0] = u[3]
   fz[1] = rhoU*rhoW/(rho)
   fz[2] = rhoV*rhoW/(rho) 
   fz[3] = rhoW*rhoW/(rho) + p 
   fz[4] = (rhoE + p)*rhoW/(rho) 
+
 def evalFluxXYZEuler_ne(eqns,main,u,fx,fy,fz,args):
   es = 1.e-30
-  gamma = 1.4
+  gamma = eqns.params['gamma']
   rho = u[0]
   rhoU = u[1]
   rhoV = u[2]
@@ -60,7 +61,7 @@ def evalFluxXYZEuler_ne(eqns,main,u,fx,fy,fz,args):
 
 def strongFormEulerXYZ(main,a,args):
   es = 1.e-30
-  gamma = 1.4
+  gamma = eqns.params['gamma']
   U = main.basis.reconstructUGeneral(main,main.a.a)
   UR,UL,UU,UD,UF,UB = main.basis.reconstructEdgesGeneral(main.a.a,main)
   U[0] += 1e-10
@@ -121,7 +122,7 @@ def strongFormEulerXYZ(main,a,args):
 def evalFluxXEuler(main,u,f,args): 
 #  #f = np.zeros(np.shape(u))
   es = 1.e-30
-  gamma = 1.4
+  gamma = eqns.params['gamma']
 #  gammam1 = 1.4 - 1.
 #  ri = 1./u[0]
 #  p = u[1]**2
@@ -155,7 +156,7 @@ def evalFluxXEuler(main,u,f,args):
 
 def evalFluxYEuler(main,u,f,args):
   #f = np.zeros(np.shape(u))
-  gamma = 1.4
+  gamma = eqns.params['gamma']
 #  p = (gamma - 1.)*(u[4] - 0.5*u[1]**2/u[0] - 0.5*u[2]**2/u[0] - 0.5*u[3]**2/u[0])
 #  f[0] = u[2]
 #  f[1] = u[1]*u[2]/u[0]
@@ -178,7 +179,7 @@ def evalFluxYEuler(main,u,f,args):
 
 def evalFluxZEuler(main,u,f,args):
   #f = np.zeros(np.shape(u))
-  gamma = 1.4
+  gamma = eqns.params['gamma'] 
 #  p = (gamma - 1.)*(u[4] - 0.5*u[1]**2/u[0] - 0.5*u[2]**2/u[0] - 0.5*u[3]**2/u[0])
 #  f[0] = u[3]
 #  f[1] = u[1]*u[3]/u[0]
@@ -213,12 +214,54 @@ def evalFluxXYZEulerLin2(main,U0,fx,fy,fz,args):
   fy[:] = 1./eps*(fy1 - fy0) 
   fz[:] = 1./eps*(fz1 - fz0) 
  
-def evalFluxXYZEulerLin(main,U0,fx,fy,fz,args):
+
+#def evalFluxXYZEulerTranspose(main,U0,fx,fy,fz,args):
+def evalFluxXYZEulerTranspose(eqns,main,U0,fx,fy,fz,args):
+  upx = args[0]
+  upy = args[1]
+  upz = args[2]
+
+  #decompose as U = U0 + up, where up is the perturbation
+  #f = np.zeros(np.shape(u))
+  es = 1.e-30
+  gamma = eqns.params['gamma']
+  u = U0[1]/U0[0]
+  v = U0[2]/U0[0]
+  w = U0[3]/U0[0]
+  qsqr = u**2 + v**2 + w**2
+  # compute H in three steps (H = E + p/rho)
+  H = (gamma - 1.)*(U0[4] - 0.5*U0[0]*qsqr) #compute pressure
+  H += U0[4]
+  H /= U0[0]
+
+  fx[0] = ( (gamma - 1.)/2.*qsqr - u**2)*upx[1]  -u*v*upx[2]   -u*w*upx[3] + ((gamma - 1.)/2.*qsqr - H)*u*upx[4] 
+  fx[1] = upx[0] +  (3. - gamma)*u*upx[1] + v*upx[2] + w*upx[3] + (H + (1. - gamma)*u**2)*upx[4]
+  fx[2] = 0. + (1. - gamma)*v*upx[1] + u*upx[2] + 0. + (1. - gamma)*u*v*upx[4]
+  fx[3] =  (1. - gamma)*w*upx[1] + 0. + u*upx[3] + (1. - gamma)*u*w*upx[4]
+  fx[4] = 0. + (gamma - 1.)*upx[1] + gamma*u*upx[4]
+ 
+  fy[0] = 0. + -v*u*upy[1] + ( (gamma - 1.)/2.*qsqr - v**2)*upy[2] + -v*w*upy[3] +  ((gamma - 1.)/2.*qsqr - H)*v*upy[4]
+  fy[1] = 0. +  v*upy[1] +  (1. - gamma)*u*upy[2] + 0. + (1. - gamma)*u*v*upy[4]
+  fy[2] = upy[0] + u*upy[1] + (3. - gamma)*v*upy[2] + w*upy[3] +  (H + (1. - gamma)*v**2)*upy[4]
+  fy[3] = 0. + 0. + (1. - gamma)*w*upy[2]  + v*upy[3] + (1. - gamma)*v*w*upy[4] 
+  fy[4] = (gamma - 1.)*upy[2] + gamma*v*upy[4]
+#
+  fz[0] =  -u*w*upz[1] - v*w*upz[2] + ( (gamma - 1.)/2.*qsqr - w**2)*upz[3] + ((gamma - 1.)/2.*qsqr - H)*w*upz[4]
+  fz[1] =   w*upz[1] + 0. + (1. - gamma)*u*upz[3] + (1. - gamma)*u*w*upz[4]
+  fz[2] =  w*upz[2] + (1. - gamma)*v*upz[3] +  (1. - gamma)*v*w*upz[4]
+  fz[3] = upz[0] + u*upz[1] + v*upz[2] + (3. - gamma)*w*upz[3] + (H + (1. - gamma)*w**2)*upz[4]
+  fz[4] = (gamma - 1.)*upz[3] +  gamma*w*upz[4]
+
+
+
+
+
+def evalFluxXYZEulerLin(eqns,main,U0,fx,fy,fz,args):
   up = args[0]
   #decompose as U = U0 + up, where up is the perturbation
   #f = np.zeros(np.shape(u))
   es = 1.e-30
-  gamma = 1.4
+  gamma = eqns.params['gamma']
   u = U0[1]/U0[0]
   v = U0[2]/U0[0]
   w = U0[3]/U0[0]
@@ -257,7 +300,7 @@ def evalFluxXEulerLin(main,U0,f,args):
   #decompose as U = U0 + up, where up is the perturbation
   #f = np.zeros(np.shape(u))
   es = 1.e-30
-  gamma = 1.4
+  gamma = eqns.params['gamma'] 
   u = U0[1]/U0[0]
   v = U0[2]/U0[0]
   w = U0[3]/U0[0]
@@ -277,7 +320,7 @@ def evalFluxXEulerLin(main,U0,f,args):
 
 def evalFluxYEulerLin(main,U0,f,args):
   up = args[0]
-  gamma = 1.4
+  gamma = eqns.params['gamma']
   u = U0[1]/U0[0]
   v = U0[2]/U0[0]
   w = U0[3]/U0[0]
@@ -298,7 +341,7 @@ def evalFluxYEulerLin(main,U0,f,args):
 
 def evalFluxZEulerLin(main,U0,f,args):
   up = args[0]
-  gamma = 1.4
+  gamma = eqns.params['gamma']
   u = U0[1]/U0[0]
   v = U0[2]/U0[0]
   w = U0[3]/U0[0]
@@ -321,8 +364,7 @@ def evalFluxZEulerLin(main,U0,f,args):
 #== central flux
 #== rusanov flux
 #== Roe flux
-
-def eulerCentralFlux(F,main,UL,UR,n,args=None):
+def eulerCentralFlux(eqns,F,main,UL,UR,n,args=None):
 # PURPOSE: This function calculates the flux for the Euler equations
 # using the Roe flux function
 #
@@ -335,7 +377,7 @@ def eulerCentralFlux(F,main,UL,UR,n,args=None):
 #  F   : the flux out of the left cell (into the right cell)
 #  smag: the maximum propagation speed of disturbance
 #
-  gamma = 1.4
+  gamma = eqns.params['gamma']
   gmi = gamma-1.0
   #process left state
   rL = UL[0] + 1e-30
@@ -399,7 +441,7 @@ def ismailFlux(F,main,UL,UR,n,args=None):
 #  F   : the flux out of the left cell (into the right cell)
 #  smag: the maximum propagation speed of disturbance
 #
-  gamma = 1.4
+  gamma = eqns.params['gamma'] 
   gmi = gamma-1.0
   #process left state
   rL = UL[0]
@@ -477,8 +519,109 @@ def ismailFlux(F,main,UL,UR,n,args=None):
 
 
 
-def eulerCentralFluxLinearized(main,U0L,U0R,n,args):
-  gamma = 1.4
+def eulerCentralFluxTransposeBad(eqns,F,main,U0L,U0R,n,args):
+  gamma = eqns.params['gamma']
+  upL = args[0]
+  upR = args[1]
+  K = gamma - 1.
+  uL = U0L[1]/U0L[0]
+  vL = U0L[2]/U0L[0]
+  wL = U0L[3]/U0L[0]
+  uR = U0R[1]/U0R[0]
+  vR = U0R[2]/U0R[0]
+  wR = U0R[3]/U0R[0]
+
+  qnL = uL*n[0] + vL*n[1] + wL*n[2]
+  qnR = uR*n[0] + vR*n[1] + wR*n[2]
+  qsqrL = uL**2 + vL**2 + wL**2
+  qsqrR = uR**2 + vR**2 + wR**2
+
+  # compute H in three steps (H = E + p/rho)
+  HL = (gamma - 1.)*(U0L[4] - 0.5*U0L[0]*qsqrL) #compute pressure
+  HL += U0L[4]
+  HL /= U0L[0]
+  HR = (gamma - 1.)*(U0R[4] - 0.5*U0R[0]*qsqrR) #compute pressure
+  HR += U0R[4]
+  HR /= U0R[0]
+  
+  FL = np.zeros(np.shape(U0L),dtype=U0L.dtype)
+  FR = np.zeros(np.shape(U0R),dtype=U0R.dtype)
+
+  #Evaluate linearized normal flux (evaluated as dF/dU V nx + dG/dU v ny + dH/dU v nz. Jacobiam from I do like CFD, vol II) 
+  FL[0] = (K/2.*qsqrL*n[0] - uL*qnL)*upL[1] + (K/2.*qsqrL*n[1] - vL*qnL)*upL[2] + (K/2.*qsqrL*n[2] - wL*qnL)*upL[3] + (K/2.*qsqrL - HL)*qnL*upL[4] 
+  FL[1] =  n[0]*upL[0] + (uL*n[0] - K*uL*n[0] + qnL)*upL[1] +  (vL*n[0] - K*uL*n[1])*upL[2] +  (wL*n[0] - K*uL*n[2])*upL[3] + (HL*n[0] - K*uL*qnL)*upL[4] 
+  FL[2] =  n[1]*upL[0] + (uL*n[1] - K*vL*n[0])*upL[1] + (vL*n[1] - K*vL*n[1] + qnL)*upL[2] + (wL*n[1] - K*vL*n[2])*upL[3] + (HL*n[1] - K*vL*qnL)*upL[4] 
+  FL[3] = n[2]*upL[0] + (uL*n[2] - K*wL*n[0])*upL[1] + (vL*n[2] - K*wL*n[1])*upL[2] + (wL*n[2] - K*wL*n[2] + qnL)*upL[3] + (HL*n[2] - K*wL*qnL)*upL[4]  
+  FL[4] = K*n[0]*upL[1] + K*n[1]*upL[2] +  K*n[2]*upL[3] + gamma*qnL*upL[4] 
+
+  FR[0] = (K/2.*qsqrR*n[0] - uR*qnR)*upR[1] + (K/2.*qsqrR*n[1] - vR*qnR)*upR[2] + (K/2.*qsqrR*n[2] - wR*qnR)*upR[3] + (K/2.*qsqrR - HR)*qnR*upR[4] 
+  FR[1] =  n[0]*upR[0] + (uR*n[0] - K*uR*n[0] + qnR)*upR[1] +  (vR*n[0] - K*uR*n[1])*upR[2] +  (wR*n[0] - K*uR*n[2])*upR[3] + (HR*n[0] - K*uR*qnR)*upR[4]
+  FR[2] =  n[1]*upR[0] + (uR*n[1] - K*vR*n[0])*upR[1] + (vR*n[1] - K*vR*n[1] + qnR)*upR[2] + (wR*n[1] - K*vR*n[2])*upR[3] + (HR*n[1] - K*vR*qnR)*upR[4]  
+  FR[3] = n[2]*upR[0] + (uR*n[2] - K*wR*n[0])*upR[1] + (vR*n[2] - K*wR*n[1])*upR[2] + (wR*n[2] - K*wR*n[2] + qnR)*upR[3] + (HR*n[2] - K*wR*qnR)*upR[4]
+  FR[4] = K*n[0]*upR[1] + K*n[1]*upR[2] +  K*n[1]*upR[3] + gamma*qnR*upR[4]
+
+
+  F[0]    = 0.5*(FL[0]+FR[0])
+  F[1]    = 0.5*(FL[1]+FR[1])
+  F[2]    = 0.5*(FL[2]+FR[2])
+  F[3]    = 0.5*(FL[3]+FR[3])
+  F[4]    = 0.5*(FL[4]+FR[4])
+  return F
+
+
+def eulerCentralFluxTranspose(eqns,F,main,U0L,n,args):
+  gamma = eqns.params['gamma'] 
+  upL = args[0]
+  upR = upL*0.#args[1]
+  K = gamma - 1.
+  uL = U0L[1]/U0L[0]
+  vL = U0L[2]/U0L[0]
+  wL = U0L[3]/U0L[0]
+  #uR = U0R[1]/U0R[0]
+  #vR = U0R[2]/U0R[0]
+  #wR = U0R[3]/U0R[0]
+
+  qnL = uL*n[0] + vL*n[1] + wL*n[2]
+  #qnR = uR*n[0] + vR*n[1] + wR*n[2]
+  qsqrL = uL**2 + vL**2 + wL**2
+  #qsqrR = uR**2 + vR**2 + wR**2
+
+  # compute H in three steps (H = E + p/rho)
+  HL = (gamma - 1.)*(U0L[4] - 0.5*U0L[0]*qsqrL) #compute pressure
+  HL += U0L[4]
+  HL /= U0L[0]
+  #HR = (gamma - 1.)*(U0R[4] - 0.5*U0R[0]*qsqrR) #compute pressure
+  #HR += U0R[4]
+  #HR /= U0R[0]
+  
+  FL = np.zeros(np.shape(U0L),dtype=U0L.dtype)
+  FR = np.zeros(np.shape(U0L),dtype=U0L.dtype)
+
+  #Evaluate linearized normal flux (evaluated as dF/dU V nx + dG/dU v ny + dH/dU v nz. Jacobiam from I do like CFD, vol II) 
+  FL[0] = (K/2.*qsqrL*n[0] - uL*qnL)*upL[1] + (K/2.*qsqrL*n[1] - vL*qnL)*upL[2] + (K/2.*qsqrL*n[2] - wL*qnL)*upL[3] + (K/2.*qsqrL - HL)*qnL*upL[4] 
+  FL[1] = n[0]*upL[0] + (uL*n[0] - K*uL*n[0] + qnL)*upL[1] + (vL*n[0] - K*uL*n[1]      )*upL[2] + (wL*n[0] - K*uL*n[2]      )*upL[3] + (HL*n[0] - K*uL*qnL)*upL[4] 
+  FL[2] = n[1]*upL[0] + (uL*n[1] - K*vL*n[0]      )*upL[1] + (vL*n[1] - K*vL*n[1] + qnL)*upL[2] + (wL*n[1] - K*vL*n[2]      )*upL[3] + (HL*n[1] - K*vL*qnL)*upL[4] 
+  FL[3] = n[2]*upL[0] + (uL*n[2] - K*wL*n[0]      )*upL[1] + (vL*n[2] - K*wL*n[1]      )*upL[2] + (wL*n[2] - K*wL*n[2] + qnL)*upL[3] + (HL*n[2] - K*wL*qnL)*upL[4]  
+  FL[4] = K*n[0]*upL[1] + K*n[1]*upL[2] +  K*n[2]*upL[3] + gamma*qnL*upL[4] 
+
+  FR[0] = (K/2.*qsqrL*n[0] - uL*qnL)*upR[1] + (K/2.*qsqrL*n[1] - vL*qnL)*upR[2] + (K/2.*qsqrL*n[2] - wL*qnL)*upR[3] + (K/2.*qsqrL - HL)*qnL*upR[4] 
+  FR[1] = n[0]*upR[0] + (uL*n[0] - K*uL*n[0] + qnL)*upR[1] + (vL*n[0] - K*uL*n[1]      )*upR[2] + (wL*n[0] - K*uL*n[2]      )*upR[3] + (HL*n[0] - K*uL*qnL)*upR[4]
+  FR[2] = n[1]*upR[0] + (uL*n[1] - K*vL*n[0]      )*upR[1] + (vL*n[1] - K*vL*n[1] + qnL)*upR[2] + (wL*n[1] - K*vL*n[2]      )*upR[3] + (HL*n[1] - K*vL*qnL)*upR[4]  
+  FR[3] = n[2]*upR[0] + (uL*n[2] - K*wL*n[0]      )*upR[1] + (vL*n[2] - K*wL*n[1]      )*upR[2] + (wL*n[2] - K*wL*n[2] + qnL)*upR[3] + (HL*n[2] - K*wL*qnL)*upR[4]
+  FR[4] = K*n[0]*upR[1] + K*n[1]*upR[2] +  K*n[2]*upR[3] + gamma*qnL*upR[4]
+
+
+  F[0]    = 0.5*(FL[0]+FR[0])
+  F[1]    = 0.5*(FL[1]+FR[1])
+  F[2]    = 0.5*(FL[2]+FR[2])
+  F[3]    = 0.5*(FL[3]+FR[3])
+  F[4]    = 0.5*(FL[4]+FR[4])
+  return F
+
+
+
+def eulerCentralFluxLinearized(eqns,F,main,U0L,U0R,n,args):
+  gamma = eqns.params['gamma']
   upL = args[0]
   upR = args[1]
   K = gamma - 1.
@@ -541,7 +684,7 @@ def rusanovFlux(eqns,F,main,UL,UR,n,args=None):
 #  F   : the flux out of the left cell (into the right cell)
 #  smag: the maximum propagation speed of disturbance
 #
-  gamma = 1.4
+  gamma = eqns.params['gamma']
   gmi = gamma-1.0
   #process left state
   rL = UL[0] + 1e-30
@@ -624,7 +767,7 @@ def rusanovFlux(eqns,F,main,UL,UR,n,args=None):
 def basicFluxEuler(eqns,region,UL,n,args=None):
 # PURPOSE: This function calculates a basic flux.
 # used for DG strong form 
-  gamma = 1.4
+  gamma = eqns.params['gamma']
   gmi = gamma-1.0
   #process left state
   rL = UL[0] + 1.e-10
@@ -672,7 +815,7 @@ def kfid_roeflux(eqns,F,main,UL,UR,n,args=None):
 #  F   : the flux out of the left cell (into the right cell)
 #  smag: the maximum propagation speed of disturbance
 #
-  gamma = 1.4
+  gamma = eqns.params['gamma']
   gmi = gamma-1.0
   #process left state
   rL = UL[0] + 1.e-10
@@ -793,9 +936,9 @@ def kfid_roeflux(eqns,F,main,UL,UR,n,args=None):
 
 
 ###============= Diffusion Fluxes =====================
-def getGsNS(u,main):
+def getGsNS(eqns,u,main):
   nvars = np.shape(u)[0]
-  gamma = 1.4
+  gamma = eqns.params['gamma']
   Pr = 0.72
   ashape = np.array(np.shape(u[0]))
   ashape = np.insert(ashape,0,nvars)
@@ -904,9 +1047,9 @@ def getGsNS(u,main):
 
 
 
-def getGsNSX_FAST(u,main,mu,V):
+def getGsNSX_FAST(eqns,u,main,mu,V):
   nvars = np.shape(u)[0]
-  gamma = 1.4
+  gamma = eqns.params['gamma']
   Pr = 0.72
   fvG11 = np.zeros(np.shape(u),dtype=u.dtype)
   fvG21 = np.zeros(np.shape(u),dtype=u.dtype)
@@ -939,9 +1082,9 @@ def getGsNSX_FAST(u,main,mu,V):
   return fvG11,fvG21,fvG31
 
 
-def getGsNSY_FAST(u,main,mu,V):
+def getGsNSY_FAST(eqns,u,main,mu,V):
   nvars = np.shape(u)[0]
-  gamma = 1.4
+  gamma = eqns.params['gamma']
   Pr = 0.72
   fvG12 = np.zeros(np.shape(u),dtype=u.dtype)
   fvG22 = np.zeros(np.shape(u),dtype=u.dtype)
@@ -974,9 +1117,9 @@ def getGsNSY_FAST(u,main,mu,V):
 
   return fvG12,fvG22,fvG32
 
-def getGsNSZ_FAST(u,main,mu,V):
+def getGsNSZ_FAST(eqns,u,main,mu,V):
   nvars = np.shape(u)[0]
-  gamma = 1.4
+  gamma = eqns.params['gamma']
   Pr = 0.72
   fvG13 = np.zeros(np.shape(u),dtype=u.dtype)
   fvG23 = np.zeros(np.shape(u),dtype=u.dtype)
@@ -1011,9 +1154,9 @@ def getGsNSZ_FAST(u,main,mu,V):
 
 
 
-def getGsNSX(u,main,mu):
+def getGsNSX(eqns,u,main,mu):
   nvars = np.shape(u)[0]
-  gamma = 1.4
+  gamma = eqns.params['gamma']
   Pr = 0.72
   ashape = np.array(np.shape(u[0]))
   ashape = np.insert(ashape,0,nvars)
@@ -1060,9 +1203,9 @@ def getGsNSX(u,main,mu):
 
 
 
-def getGsNSY(u,main,mu):
+def getGsNSY(eqns,u,main,mu):
   nvars = np.shape(u)[0]
-  gamma = 1.4
+  gamma = eqns.params['gamma'] 
   Pr = 0.72
   ashape = np.array(np.shape(u[0]))
   ashape = np.insert(ashape,0,nvars)
@@ -1107,9 +1250,9 @@ def getGsNSY(u,main,mu):
   G32[4,3] = G12[4,1]#v2*mu_by_rho
   return G12,G22,G32
 
-def getGsNSZ(u,main,mu):
+def getGsNSZ(eqns,u,main,mu):
   nvars = np.shape(u)[0]
-  gamma = 1.4
+  gamma = eqns.params['gamma']
   Pr = 0.72
   ashape = np.array(np.shape(u[0]))
   ashape = np.insert(ashape,0,nvars)
@@ -1155,8 +1298,8 @@ def getGsNSZ(u,main,mu):
   return G13,G23,G33
 
 
-def evalViscousFluxXNS_IP(main,u,Ux,Uy,Uz,mu):
-  gamma = 1.4
+def evalViscousFluxXNS_IP(eqns,main,u,Ux,Uy,Uz,mu):
+  gamma = eqns.params['gamma']
   Pr = 0.72
   ## ->  v_x = 1/rho d/dx(rho v) - rho v /rho^2 rho_x
   ux = 1./(u[0]+1e-30)*(Ux[1] - u[1]/u[0]*Ux[0])
@@ -1185,8 +1328,8 @@ def evalViscousFluxXNS_IP(main,u,Ux,Uy,Uz,mu):
   return fx
 
 
-def evalViscousFluxYNS_IP(main,u,Ux,Uy,Uz,mu):
-  gamma = 1.4
+def evalViscousFluxYNS_IP(eqns,main,u,Ux,Uy,Uz,mu):
+  gamma = eqns.params['gamma']
   Pr = 0.72
   ## ->  v_x = 1/rho d/dx(rho v) - rho v /rho^2 rho_x
   ux = 1./u[0]*(Ux[1] - u[1]/u[0]*Ux[0])
@@ -1214,8 +1357,8 @@ def evalViscousFluxYNS_IP(main,u,Ux,Uy,Uz,mu):
   fy[4] = fy[1]*v1 + fy[2]*v2 + fy[3]*v3 + kTy
   return fy
 
-def evalViscousFluxZNS_IP(main,u,Ux,Uy,Uz,mu):
-  gamma = 1.4
+def evalViscousFluxZNS_IP(eqns,main,u,Ux,Uy,Uz,mu):
+  gamma = eqns.params['gamma']
   Pr = 0.72
   ## ->  v_x = 1/rho d/dx(rho v) - rho v /rho^2 rho_x
   ux = 1./u[0]*(Ux[1] - u[1]/u[0]*Ux[0])

@@ -1,10 +1,35 @@
 import numpy as np
 from mpi4py import MPI
 from timeSchemes import *
+from rom_time_schemes import *
 from linear_solvers import *
 from nonlinear_solvers import *
 import pickle
+#from shallow_autoencoder import * 
+import torch
+
 class timeschemes:
+  def init_pod(time_scheme,regionManager):
+    V = np.load('pod_basis.npz')['V']
+    #data_R = np.load('rhs_pod_basis.npz')
+    n_basis = np.shape(V)[1]
+    regionManager.V = np.zeros((0,n_basis) )
+    regionManager.a_pod = np.zeros(n_basis)
+    for region in regionManager.region:
+      start_indx = regionManager.global_start_indx[region.region_number]
+      end_indx = regionManager.global_end_indx[region.region_number]
+      V2 = np.zeros((region.nvars,region.order[0],region.order[1],region.order[2],region.order[3],region.Npx,region.Npy,region.Npz,region.Npt,n_basis))
+      for i in range(0,n_basis):
+        V2[:,:,:,:,:,:,:,:,:,i] = np.reshape(V[start_indx:end_indx,i],(region.nvars,region.order[0],region.order[1],region.order[2],region.order[3],region.Nel[0],region.Nel[1],region.Nel[2],region.Nel[3]))[:,:,:,:,:,region.sx,region.sy,region.sz,:] 
+      regionManager.V = np.append(regionManager.V,np.reshape(V2,(np.size(region.a.a),n_basis) ) , axis=0) 
+
+  def init_manifold(time_scheme,regionManager):
+    region = regionManager.region[0]
+    N = region.Nglobal_stencil_cells
+    depth = 3
+    regionManager.manifold_model = ShallowAutoencoder(1,N,10,depth)
+    regionManager.manifold_model.load_state_dict(torch.load('manifold_model',map_location='cpu'))
+
   def __init__(self,regionManager,time_str='ExplicitRK4',lsolver_str='GMRes',nlsolver_str='Newton'):
     comm = MPI.COMM_WORLD
     check_t = 0
@@ -33,72 +58,47 @@ class timeschemes:
       check_t = 0
       self.advanceSol = SSP_RK3_DOUBLEFLUX
       self.args = None
+    if (time_str == 'crankNicolsonRom'):
+      check_t = 0
+      self.advanceSol = crankNicolsonRom
+      self.args = ['GaussNewton']
+      self.init_pod(regionManager)
+
+    if (time_str == 'crankNicolsonManifoldRomCollocation'):
+      check_t = 0
+      self.advanceSol = crankNicolsonManifoldRomCollocation
+      self.args = ['GaussNewton']
+      self.init_manifold(regionManager)
+      N = np.size(regionManager.region[0].cell_list)
+      regionManager.numStepsInWindow = 2
+      K = 10
+      J_sparsity = np.zeros((N*regionManager.numStepsInWindow,K*regionManager.numStepsInWindow))
+      J_sparsity[0:N,0:K] = 1
+      for i in range(1,regionManager.numStepsInWindow):
+        J_sparsity[N*i:N*(i+1),K*(i-1):K*(i+1)] = 1
+      regionManager.J_sparsity = scipy.sparse.csr_matrix(J_sparsity)
+
+    if (time_str == 'crankNicolsonRomCollocation'):
+      check_t = 0
+      self.advanceSol = crankNicolsonRomCollocation
+      self.args = ['GaussNewton']
+      self.init_pod(regionManager)
     if (time_str == 'SSP_RK3_POD_QDEIM_VALIDATE'):
       check_t = 0
       self.advanceSol = SSP_RK3_POD_QDEIM_VALIDATE
       self.args = None
-      V = np.load('pod_basis.npz')['V']
-      data_R = np.load('rhs_pod_basis.npz')
-      n_basis = np.shape(V)[1]
-      regionManager.V = np.zeros((0,n_basis) )
-      regionManager.MR = data_R['M']
-      regionManager.VR = np.dot(V.transpose(),data_R['M'])
-      regionManager.a_pod = np.zeros(n_basis)
-      for region in regionManager.region:
-        start_indx = regionManager.global_start_indx[region.region_number]
-        end_indx = regionManager.global_end_indx[region.region_number]
-        V2 = np.zeros((region.nvars,region.order[0],region.order[1],region.order[2],region.order[3],region.Npx,region.Npy,region.Npz,region.Npt,n_basis))
-        for i in range(0,n_basis):
-          V2[:,:,:,:,:,:,:,:,:,i] = np.reshape(V[start_indx:end_indx,i],(region.nvars,region.order[0],region.order[1],region.order[2],region.order[3],region.Nel[0],region.Nel[1],region.Nel[2],region.Nel[3]))[:,:,:,:,:,region.sx,region.sy,region.sz,:] 
-        #regionManager.V = np.reshape(V2,(np.size(region.a.a),n_basis) ) 
-        regionManager.V = np.append(regionManager.V,np.reshape(V2,(np.size(region.a.a),n_basis) ) , axis=0) 
+      self.init_pod(regionManager)
     if (time_str == 'SSP_RK3_POD_COLLOCATE'):
       check_t = 0
       self.advanceSol = SSP_RK3_POD_COLLOCATE
       self.args = None
-      V = np.load('pod_basis.npz')['V']
-      data_R = np.load('rhs_pod_basis.npz')
-      n_basis = np.shape(V)[1]
-      regionManager.V = np.zeros((0,n_basis) )
-      regionManager.MR = data_R['M']
-      regionManager.VR = np.dot(V.transpose(),data_R['M'])
-      regionManager.a_pod = np.zeros(n_basis)
-      for region in regionManager.region:
-        start_indx = regionManager.global_start_indx[region.region_number]
-        end_indx = regionManager.global_end_indx[region.region_number]
-        V2 = np.zeros((region.nvars,region.order[0],region.order[1],region.order[2],region.order[3],region.Npx,region.Npy,region.Npz,region.Npt,n_basis))
-        for i in range(0,n_basis):
-          V2[:,:,:,:,:,:,:,:,:,i] = np.reshape(V[start_indx:end_indx,i],(region.nvars,region.order[0],region.order[1],region.order[2],region.order[3],region.Nel[0],region.Nel[1],region.Nel[2],region.Nel[3]))[:,:,:,:,:,region.sx,region.sy,region.sz,:] 
-        #regionManager.V = np.reshape(V2,(np.size(region.a.a),n_basis) ) 
-        regionManager.V = np.append(regionManager.V,np.reshape(V2,(np.size(region.a.a),n_basis) ) , axis=0) 
-
-
+      self.init_pod(regionManager)
 
     if (time_str == 'SSP_RK3_POD_QDEIM'):
       check_t = 0
       self.advanceSol = SSP_RK3_POD_QDEIM
       self.args = None
-      V = np.load('pod_basis.npz')['V']
-      data_R = np.load('rhs_pod_basis.npz')
-      #self.cell_list = data_R['index_global']# range(0,self.Npx*self.Npy*self.Npz*self.Npt,2)
-      #self.cell_ijk = np.unravel_index([self.cell_list], (regionManager.region[0].nvars,self.region[0].order[0],self.region[0].order[1],self.region[0].order[2],self.region[0].order[3],self.region[0].Npx,self.region[0].Npy,self.region[0].Npz,self.region[0].Npt))
-
-      #regionManager.testP = data_R['testP']
-
-      n_basis = np.shape(V)[1]
-      regionManager.V = np.zeros((0,n_basis) )
-      #print(np.shape(data_R['M']) , np.shape(V) )
-      regionManager.MR = data_R['M']
-      regionManager.VR = np.dot(V.transpose(),data_R['M'])
-      regionManager.a_pod = np.zeros(n_basis)
-      for region in regionManager.region:
-        start_indx = regionManager.global_start_indx[region.region_number]
-        end_indx = regionManager.global_end_indx[region.region_number]
-        V2 = np.zeros((region.nvars,region.order[0],region.order[1],region.order[2],region.order[3],region.Npx,region.Npy,region.Npz,region.Npt,n_basis))
-        for i in range(0,n_basis):
-          V2[:,:,:,:,:,:,:,:,:,i] = np.reshape(V[start_indx:end_indx,i],(region.nvars,region.order[0],region.order[1],region.order[2],region.order[3],region.Nel[0],region.Nel[1],region.Nel[2],region.Nel[3]))[:,:,:,:,:,region.sx,region.sy,region.sz,:] 
-        #regionManager.V = np.reshape(V2,(np.size(region.a.a),n_basis) ) 
-        regionManager.V = np.append(regionManager.V,np.reshape(V2,(np.size(region.a.a),n_basis) ) , axis=0) 
+      self.init_pod(regionManager)
 
     if (time_str == 'SSP_RK3_POD_unsteady'):
       check_t = 0
@@ -115,7 +115,6 @@ class timeschemes:
         V2 = np.zeros((region.nvars,region.order[0],region.order[1],region.order[2],region.order[3],region.Npx,region.Npy,region.Npz,region.Npt,n_basis))
         for i in range(0,n_basis):
           V2[:,:,:,:,:,:,:,:,:,i] = np.reshape(V[start_indx:end_indx,i],(region.nvars,region.order[0],region.order[1],region.order[2],region.order[3],region.Nel[0],region.Nel[1],region.Nel[2],region.Nel[3]))[:,:,:,:,:,region.sx,region.sy,region.sz,:] 
-        #regionManager.V = np.reshape(V2,(np.size(region.a.a),n_basis) ) 
         regionManager.V = np.append(regionManager.V,np.reshape(V2,(np.size(region.a.a),n_basis) ) , axis=0) 
     if (time_str == 'backwardEuler_LSPG'):
       check_t = 0
@@ -164,28 +163,6 @@ class timeschemes:
         for i in range(0,n_basis):
           V2[:,:,:,:,:,:,:,:,:,i] = np.reshape(V[start_indx:end_indx,i],(region.nvars,region.order[0],region.order[1],region.order[2],region.order[3],region.Nel[0],region.Nel[1],region.Nel[2],region.Nel[3]))[:,:,:,:,:,region.sx,region.sy,region.sz,:] 
         regionManager.V = np.reshape(V2,(np.size(region.a.a),n_basis) ) 
-#        regionManager.V = np.append(regionManager.V,np.reshape(V2,(np.size(region.a.a),n_basis) ) , axis=0) 
-#      try:
-#        regionManager.W = np.load('pod_basis.npz')['W']
-#        regionManager.V = np.load('pod_basis.npz')['V']
-#      except:
-#        print('Test basis not found, using W = V')
-      
-#    if (time_str == 'backwardEuler_LSPG'):
-#      check_t = 0
-#      self.advanceSol = backwardEuler_LSPG2
-#      self.linear_solver = linearSolver(lsolver_str)
-#      self.nonlinear_solver = nonlinearSolver(nlsolver_str)
-#      self.sparse_quadrature = False
-#      self.args = [self.nonlinear_solver,self.linear_solver,self.sparse_quadrature]
-#      V = np.load('pod_basis.npz')['V']
-#      n_basis = np.shape(V)[1]
-#      for region in regionManager.region:
-#        V2 = np.zeros((region.nvars,region.order[0],region.order[1],region.order[2],region.order[3],region.Npx,region.Npy,region.Npz,region.Npt,n_basis))
-#        for i in range(0,n_basis):
-#          V2[:,:,:,:,:,:,:,:,:,i] = np.reshape(V[:,i],(region.nvars,region.order[0],region.order[1],region.order[2],region.order[3],region.Nel[0],region.Nel[1],region.Nel[2],region.Nel[3]))[:,:,:,:,:,region.sx,region.sy,region.sz,:] 
-#        regionManager.V = np.reshape(V2,(np.size(region.a.a),n_basis) ) 
-
 
 
 
@@ -300,16 +277,6 @@ class timeschemes:
 
 
       regionManager.window_counter = 0
-#      V = np.load('st_pod_basis.npz')['Vs']
-#      n_basis = np.shape(V)[1]
-#      for region in regionManager.region:
-#        V2 = np.zeros((region.nvars,region.order[0],region.order[1],region.order[2],region.order[3],region.Npx,region.Npy,region.Npz,region.Npt,n_basis))
-#        for i in range(0,n_basis):
-#          V2[:,:,:,:,:,:,:,:,:,i] = np.reshape(V[:,i],(region.nvars,region.order[0],region.order[1],region.order[2],region.order[3],region.Nel[0],region.Nel[1],region.Nel[2],region.Nel[3]))[:,:,:,:,:,region.sx,region.sy,region.sz,:] 
-#        regionManager.V = np.reshape(V2,(np.size(region.a.a),n_basis) ) 
-#
-#      Vt = np.load('st_pod_basis.npz')['Vt']
-#      regionManager.Vt = Vt
 
     if (time_str == 'crankNicolson_LSPG'):
       check_t = 0

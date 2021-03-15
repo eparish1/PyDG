@@ -11,7 +11,7 @@ def savehook(regionManager):
 ## Make square grid
 L = 1.                       #|  length
 Nel = np.array([500,1,1,1])   #|  elements in x,y,z
-order =np.array([1,1,1,1])                       #|  spatial order
+order =np.array([2,1,1,1])                       #|  spatial order
 quadpoints = order*2               #|  number of quadrature points. 2x the order is reccomended
 #quadpoints[2::] = order[2::]
 x = np.linspace(0,L,Nel[0]+1)      #|  x, y, and z

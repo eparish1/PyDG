@@ -2,12 +2,12 @@ import numpy as np
 import numexpr as ne
 
 def applyMassMatrix(main,RHS):
-  #RHS[:] = np.sum(main.Minv[None]*RHS[:,None,None,None,None],axis=(5,6,7,8) )
+  RHS[:] = np.sum(main.Minv[None]*RHS[:,None,None,None,None],axis=(5,6,7,8) )
   '''
   Note that einsum doesn't work with pyadolc, the above sum does but is quite slow.
   Replace with tensordot at some time
   '''
-  RHS[:] = np.einsum('abcdpqrs...,zpqrs...->zabcd...',main.Minv,RHS)
+  #RHS[:] = np.einsum('abcdpqrs...,zpqrs...->zabcd...',main.Minv,RHS)
 
 def applyMassMatrix_orthogonal(main,RHS):
   ord_arr0= np.linspace(0,main.order[0]-1,main.order[0])
@@ -16,6 +16,18 @@ def applyMassMatrix_orthogonal(main,RHS):
   ord_arr3= np.linspace(0,main.order[3]-1,main.order[3])
   scale =  (2.*ord_arr0[:,None,None,None] + 1.)*(2.*ord_arr1[None,:,None,None] + 1.)*(2.*ord_arr2[None,None,:,None]+1.)*(2.*ord_arr3[None,None,None,:] + 1. )/16.
   RHS[:] = RHS*scale[None,:,:,:,:,None,None,None,None]/main.Jdet[None,0,0,0,None,None,None,None,:,:,:,None]
+
+
+def applyVolIntegralAdjoint(region,f1,f2,f3,RHS):
+  f = f1 + f2 + f3
+  f *= region.Jdet[None,:,:,:,None,:,:,:,None]
+  RHS[:] += region.basis.volIntegrateGlob(region,f,region.w0,region.w1,region.w2,region.w3)
+
+def applyVolIntegralAdjoint_indices(region,f1,f2,f3,RHS,cell_ijk):
+  f = f1 + f2 + f3
+  f *= region.Jdet[None,:,:,:,None,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0]]
+  RHS[:] += volIntegrateGlob_tensordot_indices(region,f,region.w0,region.w1,region.w2,region.w3)
+  return RHS
 
 def applyVolIntegral(region,f1,f2,f3,RHS):
   f = f1*region.Jinv[0,0][None,:,:,:,None,:,:,:,None]
@@ -989,8 +1001,13 @@ def diffCoeffs(a):
 
 
 def volIntegrate(weights0,weights1,weights2,weights3,f):
-  return  np.einsum('zpqrl...->z...',weights0[None,:,None,None,None,None,None,None,None]*weights1[None,None,:,None,None,None,None,None,None]*\
-          weights2[None,None,None,:,None,None,None,None,None]*weights3[None,None,None,None,:,None,None,None,None]*f)
+  return  np.sum(weights0[None,:,None,None,None,None,None,None,None]*weights1[None,None,:,None,None,None,None,None,None]*\
+          weights2[None,None,None,:,None,None,None,None,None]*weights3[None,None,None,None,:,None,None,None,None]*f,axis=(1,2,3,4))
+
+
+#def volIntegrate(weights0,weights1,weights2,weights3,f):
+#  return  np.einsum('zpqrl...->z...',weights0[None,:,None,None,None,None,None,None,None]*weights1[None,None,:,None,None,None,None,None,None]*\
+#          weights2[None,None,None,:,None,None,None,None,None]*weights3[None,None,None,None,:,None,None,None,None]*f)
 
 
 ### Volume integral for when we use specific indices.
