@@ -6,7 +6,10 @@ from linear_solvers import *
 from nonlinear_solvers import *
 import pickle
 #from shallow_autoencoder import * 
-import torch
+try:
+  import torch
+except:
+  pass
 
 class timeschemes:
   def init_pod(time_scheme,regionManager):

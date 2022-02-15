@@ -26,7 +26,10 @@ from MPI_functions import gatherSolSlab,gatherSolSpectral,gatherSolScalar,global
 from navier_stokes_entropy import entropy_to_conservative, getEntropyMassMatrix,getEntropyMassMatrix_noinvert
 import copy
 from copy import deepcopy
-import torch
+try:
+  import torch
+except:
+  pass
 def backwardEulerRom(regionManager,regionManagerForJacobianMV,eqns,args):
   nonlinear_solver = args[0]
   linear_solver = args[1]

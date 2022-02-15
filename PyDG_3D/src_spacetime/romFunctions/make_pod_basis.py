@@ -2,7 +2,11 @@ import numpy as np
 import sys
 import os
 from tqdm import tqdm
+import argparse
+
 ### script to make POD basis vectors
+
+
 
 def makePodBases(gridPath,solPath,tol,startingStep,endingStep,skipStep):
   ## determine number of blocks
@@ -96,6 +100,28 @@ def makePodBases(gridPath,solPath,tol,startingStep,endingStep,skipStep):
   K = np.size( relativeEnergy[relativeEnergy<tol] ) + 1
   np.savez('pod_basis_' + str(tol) , V=U[:,0:K],relativeEnergy=relativeEnergy)
 
+
+if __name__ == "__main__":
+  parser=argparse.ArgumentParser()
+  parser.add_argument('--start', help='Step to start post processing',default=0,type=int)
+  parser.add_argument('--end', help='Step to end post processing',type=int)
+  parser.add_argument('--skip', help='Steps to skip post processing',default=1,type=int)
+  parser.add_argument('--tolerance', help='POD tolerance',default = 0.999999,type=float)
+  parser.add_argument('--snapshotDir', help='Location of solution snapshots',default='./',type=str)
+  parser.add_argument('--gridPath', help='Location of grid snapshots',default='../',type=str)
+
+  args=parser.parse_args()
+
+  if (args.end == None):
+    snapsFilesList = [args.snapshotDir +'/'+f for f in os.listdir(args.snapshotDir) if 'npsol_block0_' in f]
+    # sort based on the ID
+    def func(elem): return int(elem.split('_')[2][:-4])
+    snapsFilesList = sorted(snapsFilesList, key=func)
+    lastSolution = int(snapsFilesList[-1].split('_')[2][:-4])
+    args.end = lastSolution
+
+  print('Making POD bases using every ' + str(args.skip) + ' snapshots starting at step ' + str(args.start) + ' and ending at step ' + str(args.end) )
+  makePodBases(args.gridPath,args.snapshotDir,args.tolerance,args.start,args.end,args.skip)
 
 '''
 Requires validation
@@ -295,3 +321,6 @@ def makePodBases_MPI(gridPath,solPath,tol,startingStep,endingStep,skipStep):
   for tol in tol_a:
     Utmp = truncateBasis(U,Lam,tol)
 '''   
+
+
+
