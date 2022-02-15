@@ -23,7 +23,6 @@ comm = MPI.COMM_WORLD
 mpi_rank = comm.Get_rank()
 num_processes = comm.Get_size()
 exec(open(PyDG_DIR + '/check_inputdeck.py').read())
-
 def getGlobU_scalar(u):
   quadpoints0,quadpoints1,quadpoints2,quadpoints3,Nelx,Nely,Nelz,Nelt = np.shape(u)
   uG = np.zeros((quadpoints0*Nelx,quadpoints1*Nely,quadpoints2*Nelz))
@@ -98,9 +97,7 @@ else:
 if 'enriched_ratio' in globals():
   pass
 else:
-  #enriched_ratio = np.array([2,2,2,1])
   enriched_add = np.array([1,1,1,0])
-#  enriched_ratio = np.array([(order[0]+1.)/order[0],(order[1]+1.)/order[1],(order[2]+1.)/order[2],1])
 if 'enriched' in globals():
   pass
 else:
@@ -151,70 +148,57 @@ for i in regionManager.mpi_regions_owned:
 regionConnector(regionManager)
 timescheme = timeschemes(regionManager,time_integration,linear_solver_str,nonlinear_solver_str)
 
-if 'ROM_MultiVector' in globals():
-  pass
-else:
-  ROM_MultiVector = False
-
-if (ROM_MultiVector == True):
-  Nel_blockForJacobian = copy.deepcopy(Nel_block)
-  for Nel in Nel_blockForJacobian:
-    Nel[-1] = np.shape(regionManager.V)[1]
-  regionManagerForJacobianMV = blockClass(n_blocks,starting_rank,procx,procy,procz,et,dt,save_freq,turb_str,Nel_blockForJacobian,order,eqns)
-  region_counter = 0
-  for i in regionManager.mpi_regions_owned:
-    regionManagerForJacobianMV.region.append( variables(regionManagerForJacobianMV,region_counter,i,Nel_blockForJacobian[i],order,quadpoints,eqns,mu,x_block[i],y_block[i],z_block[i],turb_str,procx[i],procy[i],procz[i],starting_rank[i],BCs[i],fsource,source_mag,shock_capturing,mol_str,basis_args) )
-    region_counter += 1
-  regionConnector(regionManagerForJacobianMV)
-
-
 
 
 regionManager.tau = tau
 region_counter = 0
 for i in regionManager.mpi_regions_owned:
-  region = regionManager.region[region_counter]
-  region.x,region.y,region.z = x_block[i],y_block[i],z_block[i]
+  Nel = Nel_block[i]
+  region = regionManager.region[i]
+  #region.x,region.y,region.z = x_block[i],y_block[i],z_block[i]
   vol_min = (np.amin(region.Jdet))**(1./3.)
   CFL = ( np.amin(region.J_edge_det[0])*4. + np.amin(region.J_edge_det[1])*4 + np.amin(region.J_edge_det[2])*4. ) / (np.amin(region.Jdet)*8 )
-#  if (mpi_rank == starting_rank[i]):
-#    print('dt*p/(Nt*dx) = ' + str(1.*dt*order[0]*CFL/order[-1] ))
-#    print('dt*(p/dx)**2*mu = ' + str(dt*order[0]**2*CFL**2*mu/order[-1] ))
+  ''' Depracated
   if (enriched):
     eqnsEnriched = eqns#equations(enriched_eqn_str,enriched_schemes,turb_str)
     mainEnriched = variables(Nel,np.int64(order + enriched_add),quadpoints,eqnsEnriched,mu,x,y,z,turb_str,procx,procy,procz,BCs,fsource,source_mag,shock_capturing,mol_str,basis_args)
   else:
     mainEnriched = region 
-  
+  '''
+
   getIC(region,IC_function[i],region.xG,region.yG,region.zG,region.zeta3,region.Npt)
   reconstructU(region,region.a)
   
   xG_global = gatherSolScalar(region,region.xG[:,:,:,None,:,:,:,None])
   yG_global = gatherSolScalar(region,region.yG[:,:,:,None,:,:,:,None])
   zG_global = gatherSolScalar(region,region.zG[:,:,:,None,:,:,:,None])
-
-  Nel = Nel_block[i]
+  print(np.shape(region.xG),i,np.shape(region.x))
   MinvG = gatherMassMatrix(region,region.Minv)
+
   if (region.mpi_rank == starting_rank[i]):
     xG_global = np.reshape( np.rollaxis(np.rollaxis(np.rollaxis(xG_global[:,:,:,0,:,:,:,0],3,0),4,2),5,4), (Nel[0]*quadpoints[0],Nel[1]*quadpoints[1],Nel[2]*quadpoints[2]) )
     yG_global = np.reshape( np.rollaxis(np.rollaxis(np.rollaxis(yG_global[:,:,:,0,:,:,:,0],3,0),4,2),5,4), (Nel[0]*quadpoints[0],Nel[1]*quadpoints[1],Nel[2]*quadpoints[2]) )
     zG_global = np.reshape( np.rollaxis(np.rollaxis(np.rollaxis(zG_global[:,:,:,0,:,:,:,0],3,0),4,2),5,4), (Nel[0]*quadpoints[0],Nel[1]*quadpoints[1],Nel[2]*quadpoints[2]) )
     if not os.path.exists('Solution'):
        os.makedirs('Solution')
+
     np.savez('DGgrid_block' + str(i),x=xG_global,y=yG_global,z=zG_global,Minv=MinvG)
   
   
   t0 = time.time()
- 
+
   ord_arrx= np.linspace(0,order[0]-1,order[0])
   ord_arry= np.linspace(0,order[1]-1,order[1])
   ord_arrz= np.linspace(0,order[2]-1,order[2])
   ord_arrt= np.linspace(0,order[3]-1,order[3])
- 
+
   scale =  (2.*ord_arrx[:,None,None,None] + 1.)*(2.*ord_arry[None,:,None,None] + 1.)*(2.*ord_arrz[None,None,:,None] + 1.)*(2.*ord_arrt[None,None,None,:] + 1.)/16.
+
 
 if (turb_str == 'adjoint'):
   adjoint_init(regionManager,eqns,turb_str_adjoint)
+
+
 while (np.abs(regionManager.t) <= np.abs(regionManager.et + regionManager.dt/2)):
   if (regionManager.iteration%regionManager.save_freq == 0):
     #for z in range(0,regionManager.nblocks):

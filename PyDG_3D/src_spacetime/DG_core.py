@@ -83,7 +83,7 @@ def addSource(main):
 #    sources2 = main.cgas_field.net_production_rates[:,:]*main.cgas_field.molecular_weights[None,:]
 #    #main.source_hook(main,force)
     for i in range(0,main.nvars):
-      force[i] = main.source_mag[i]#*main.a.u[i]
+      force[i] = 1.#main.source_mag[i]#*main.a.u[i]
 #    for i in range(5,main.nvars):
 #      force[i] = sources[i-5]#np.reshape(rates[:,i-5],np.shape(main.a.u[0]))
 #      force[4] -= force[i]*main.delta_h0[i-5]
@@ -224,7 +224,7 @@ def addInviscidFlux(regionManager,eqns,args=[],args_phys=[]):
     generalFluxGen(region,eqns,region.iFlux,region.a,eqns.inviscidFlux,args)
     region.iFlux.fRLI = region.basis.faceIntegrateGlob(region,region.iFlux.fRLS*region.J_edge_det[0][None,:,:,None,:,:,:,None],region.w1,region.w2,region.w3,region.weights1,region.weights2,region.weights3)
     region.iFlux.fUDI = region.basis.faceIntegrateGlob(region,region.iFlux.fUDS*region.J_edge_det[1][None,:,:,None,:,:,:,None],region.w0,region.w2,region.w3,region.weights0,region.weights2,region.weights3)
-    region.iFlux.fFBI = region.basis.faceIntegrateGlob(region,region.iFlux.fFBS*region.J_edge_det[2][None,:,:,None,:,:,:,None],region.w0,region.w1,region.w3,region.weights0,region.weights1,region.weights3)
+#    region.iFlux.fFBI = region.basis.faceIntegrateGlob(region,region.iFlux.fFBS*region.J_edge_det[2][None,:,:,None,:,:,:,None],region.w0,region.w1,region.w3,region.weights0,region.weights1,region.weights3)
     # now add inviscid flux contribution to the RHS
     region.RHS[:] =  -region.iFlux.fRLI[:,None,:,:,:,1::] 
     region.RHS[:] += region.iFlux.fRLI[:,None,:,:,:,0:-1]*region.altarray0[None,:,None,None,None,None,None,None,None]
@@ -273,7 +273,12 @@ def getRHSAdjoint(regionManager,eqns,args=[],args_phys=[]):
     #addSource_kOmega(region)
     region.comm.Barrier()
 
+def addSource(region,eqns):
+  if (eqns.hasSource):
+    source = eqns.addSource(eqns,region)
+    region.RHS[:] += region.basis.volIntegrateGlob(region, source*region.Jdet[None,:,:,:,None,:,:,:,None] ,region.w0,region.w1,region.w2,region.w3)  
 
+    
 
 
 def getRHS(regionManager,eqns,args=[],args_phys=[]):
@@ -283,8 +288,11 @@ def getRHS(regionManager,eqns,args=[],args_phys=[]):
   addVolume_and_Viscous(regionManager,eqns,args,args_phys)
   ### Get interior vol terms
   for region in regionManager.region:
-    addSource_SWE(region,eqns)
+    #region.RHS *= region.vol_over_area[None,None,None,None,:,:,:,None]
+    #addSource_SWE(region,eqns)
     #addSource_kOmega(region)
+    addSource(region,eqns)
+
     region.comm.Barrier()
 
 
@@ -322,7 +330,7 @@ def getRHS_hyper(regionManager,eqns,args=[],args_phys=[]):
   addVolume_and_Viscous_hyper(regionManager,eqns,args,args_phys)
   ### Get interior vol terms
   for region in regionManager.region:
-    addSource_SWE(region,eqns)
+    #addSource_SWE(region,eqns)
     region.comm.Barrier()
   cell_ijk = regionManager.region[0].cell_ijk
   regionManager.region[0].RHS_hyper[:] += regionManager.region[0].RHS[:,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]

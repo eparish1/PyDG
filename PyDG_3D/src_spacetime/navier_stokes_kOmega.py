@@ -1,11 +1,68 @@
 import numpy as np
 import numexpr as ne 
 
+### 
+def source_kOmega(eqns,region):
+  betaStar = 0.09
+  beta = 3./40.
+  gammaTurb = 13./25.
+  sigma_d = 0.
+  Ux,Uy,Uz = region.basis.diffU(region.a.a,region)
+  U = region.a.u
+  # Compute turbulent stress tensor, tau_{ij}
+  force = np.zeros(np.shape(region.iFlux.fx))
+  ux = 1./U[0]*(Ux[1] - U[1]/U[0]*Ux[0])
+  vx = 1./U[0]*(Ux[2] - U[2]/U[0]*Ux[0])
+  wx = 1./U[0]*(Ux[3] - U[3]/U[0]*Ux[0])
+  uy = 1./U[0]*(Uy[1] - U[1]/U[0]*Uy[0])
+  vy = 1./U[0]*(Uy[2] - U[2]/U[0]*Uy[0])
+  wy = 1./U[0]*(Uy[3] - U[3]/U[0]*Uy[0])
+  uz = 1./U[0]*(Uz[1] - U[1]/U[0]*Uz[0])
+  vz = 1./U[0]*(Uz[2] - U[2]/U[0]*Uz[0])
+  wz = 1./U[0]*(Uz[3] - U[3]/U[0]*Uz[0]) 
+  u_div = ux + vy + wz
+  kx =     1./U[0]*(Ux[5] - U[5]/U[0]*Ux[0])
+  omegax = 1./U[0]*(Ux[6] - U[6]/U[0]*Ux[0])
+  ky =     1./U[0]*(Uy[5] - U[5]/U[0]*Uy[0])
+  omegay = 1./U[0]*(Uy[6] - U[6]/U[0]*Uy[0])
+  kz =     1./U[0]*(Uz[5] - U[5]/U[0]*Uz[0])
+  omegaz = 1./U[0]*(Uz[6] - U[6]/U[0]*Uz[0])
+  shp = np.shape(ux)
+  shp = np.append( np.array([3,3]),shp)
+  S = np.zeros(shp)
+  tau = np.zeros(shp)
+  mut = U[5]/U[6]*U[0]
+  S[0,0] = ux 
+  S[0,1] = 0.5*( uy + vx )
+  S[0,2] = 0.5*( uz + wx )
+  S[1,0] = 0.5*( vx + uy )
+  S[1,1] = 0.5*( vy + vy )
+  S[1,2] = 0.5*( vz + wy )
+  S[2,0] = 0.5*( wx + uz )
+  S[2,1] = 0.5*( wy + vz )
+  S[2,2] = 0.5*( wz + wz )
+  tau[0,0] = mut*(2.*S[0,0] - 2./3.*u_div ) - 2./3.*U[-2]
+  tau[0,1] = mut*(2.*S[0,1]               )
+  tau[0,2] = mut*(2.*S[0,2]               )
+  tau[1,0] = mut*(2.*S[1,0]               )
+  tau[1,1] = mut*(2.*S[1,1] - 2./3.*u_div ) - 2./3.*U[-2]
+  tau[1,2] = mut*(2.*S[1,2]               )
+  tau[2,0] = mut*(2.*S[2,0]               )
+  tau[2,1] = mut*(2.*S[1,1]               )
+  tau[2,2] = mut*(2.*S[2,2] - 2./3.*u_div ) - 2./3.*U[-2]
+  P = tau[0,0]*ux + tau[0,1]*uy + tau[0,2]*uz + tau[1,0]*vx + tau[1,1]*vy + tau[1,2]*vz + tau[2,0]*wx + tau[2,1]*wy + tau[2,2]*wz
+  force[-2] = P - betaStar*U[5]*U[6]/U[0]**2
+  force[-1] = gammaTurb * U[-1]/U[-2] * P  - beta*U[-1]**2/U[0]
+  final_term = U[0]**2 * sigma_d / U[6] * (kx*omegax + ky*omegay + kz*omegaz) 
+  force[-1] += final_term
+  return force
+
+
 ##### =========== Contains all the fluxes and physics neccesary to solve the Navier-Stokes equations within a DG framework #### ============
 
 
 ###### ====== Inviscid Fluxes Fluxes and Eigen Values (Eigenvalues currently not in use) ==== ############
-def evalFluxXYZ_kOmega(eqns,main,u,fx,fy,fz,args):
+def evalFluxXYZ_kOmega(eqns,region,u,fx,fy,fz,args):
   es = 1.e-30
   gamma = 1.4
   rho = u[0]
@@ -41,69 +98,6 @@ def evalFluxXYZ_kOmega(eqns,main,u,fx,fy,fz,args):
   fz[6] = rhoW*rhoOmega/(rho)
 
 
-def centralFlux_kOmega(F,main,UL,UR,n,args=None):
-  print('not yet implemented for kOmega')
-  sys.exit()
-# PURPOSE: This function calculates the flux for the Euler equations
-# using the Roe flux function
-#
-# INPUTS:
-#    UL: conservative state vector in left cell
-#    UR: conservative state vector in right cell
-#    n: normal pointing from the left cell to the right cell
-#
-# OUTPUTS:
-#  F   : the flux out of the left cell (into the right cell)
-#  smag: the maximum propagation speed of disturbance
-#
-  gamma = 1.4
-  gmi = gamma-1.0
-  #process left state
-  rL = UL[0] + 1e-30
-  uL = UL[1]/rL
-  vL = UL[2]/rL
-  wL = UL[3]/rL
-
-  unL = uL*n[0] + vL*n[1] + wL*n[2]
-
-  qL = (UL[1]*UL[1] + UL[2]*UL[2] + UL[3]*UL[3])**0.5/rL
-  pL = (gamma-1)*(UL[4] - 0.5*rL*qL**2.)
-  rHL = UL[4] + pL
-  HL = rHL/rL
-  cL = (gamma*pL/rL)**0.5
-  # left flux
-  FL = np.zeros(np.shape(UL),dtype=UL.dtype)
-  FL[0] = rL*unL
-  FL[1] = UL[1]*unL + pL*n[0]
-  FL[2] = UL[2]*unL + pL*n[1]
-  FL[3] = UL[3]*unL + pL*n[2]
-  FL[4] = rHL*unL
-
-  # process right state
-  rR = UR[0] + 1e-30
-  uR = UR[1]/rR
-  vR = UR[2]/rR
-  wR = UR[3]/rR
-  unR = uR*n[0] + vR*n[1] + wR*n[2]
-  qR = (UR[1]*UR[1] + UR[2]*UR[2] + UR[3]*UR[3])**0.5/rR
-  pR = (gamma-1)*(UR[4] - 0.5*rR*qR**2.)
-  rHR = UR[4] + pR
-  HR = rHR/rR
-  cR = np.sqrt(gamma*pR/rR)
-  # right flux
-  FR = np.zeros(np.shape(UR),dtype=UR.dtype)
-  FR[0] = rR*unR
-  FR[1] = UR[1]*unR + pR*n[0]
-  FR[2] = UR[2]*unR + pR*n[1]
-  FR[3] = UR[3]*unR + pR*n[2]
-  FR[4] = rHR*unR
-  F[:] = 0.
-  F[0]    = 0.5*(FL[0]+FR[0])#-0.5*smax*(UR[0] - UL[0])
-  F[1]    = 0.5*(FL[1]+FR[1])#-0.5*smax*(UR[1] - UL[1])
-  F[2]    = 0.5*(FL[2]+FR[2])#-0.5*smax*(UR[2] - UL[2])
-  F[3]    = 0.5*(FL[3]+FR[3])#-0.5*smax*(UR[3] - UL[3])
-  F[4]    = 0.5*(FL[4]+FR[4])#-0.5*smax*(UR[4] - UL[4])
-  return F
 
 
 def rusanovFlux_kOmega(eqns,F,main,UL,UR,n,args=None):

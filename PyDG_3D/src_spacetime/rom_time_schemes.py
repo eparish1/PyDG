@@ -1103,3 +1103,161 @@ def crankNicolsonManifoldRomCollocation2(regionManager,eqns,args):
   regionManager.t += regionManager.dt
   regionManager.iteration += 1
 
+
+
+
+
+
+
+
+
+
+
+
+## Collocated LSPG with Crank Nicolson 
+def parametricSpaceTimeCrankNicolson(regionManager,eqns,args):
+  if (regionManager.iteration == 0):
+    print('Starting Simulation')
+    a0 = regionManager.a[:]*1.
+    for region in regionManager.region:
+      region.a.a[:] = np.sum(region.M[None]*region.a.a[:,None,None,None,None],axis=(5,6,7,8) )
+    regionManager.a0[:] = regionManager.a[:]
+    a0_pod = globalDot(regionManager.V.transpose(),regionManager.a0,regionManager)
+    regionManager.a[:] = np.dot(regionManager.V,a0_pod)
+    regionManager.a0[:] = np.dot(regionManager.V,a0_pod) 
+  else:
+    a0_pod = regionManager.a_pod*1.
+  cell_list = regionManager.region[0].cell_list
+  rec_stencil_list = regionManager.region[0].rec_stencil_list
+
+  
+  def windowedResidualPod(v):
+    v = np.reshape(v,(numStepsInWindow,np.size(regionManager.a_pod)))
+    a_old = regionManager.a0[cell_list]*1.
+    Rold = R0*1.
+    Rg = np.zeros((nparams,numStepsInWindow,np.size(regionManager.region[0].cell_list)),dtype=regionManager.a.dtype)
+    cell_ijk = regionManager.region[0].cell_ijk 
+    for i in range(0,numStepsInWindow):
+      for j in range(0,nparams):
+        regionManager.region[0].RHS_hyper[:] = 0.
+        regionManager.a[rec_stencil_list] = np.dot(regionManager.V[rec_stencil_list] , v[i,:])
+        regionManager.getRHS_REGION_OUTER(regionManager,eqns)
+        ## Construct the unsteady residual for Crank Nicolson in a few steps
+        #R1 = 1.*regionManager.region[0].RHS_hyper[:].flatten()
+        ## compute the residual at the sample points
+        Rstar = ( regionManager.a[cell_list]*1. - a_old) 
+        Rstar = np.reshape(Rstar,np.shape(regionManager.region[0].a.a[:,None,None,None,None,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]) ) 
+        Rstar = np.sum(regionManager.region[0].M[None,:,:,:,:,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]*Rstar,axis=(5,6,7,8)).flatten()
+        Rstar -= 0.5*regionManager.dt*(regionManager.region[0].RHS_hyper[:].flatten() + Rold)
+        Rg[i,:] = Rstar*1.
+        Rold = regionManager.region[0].RHS_hyper[:].flatten()*1.
+        a_old =  np.dot(regionManager.V[cell_list] , v[i,:])
+    return Rg.flatten()
+      
+
+  def computeResidualPOD(v):
+    return unsteadyResidual(np.dot(regionManager.V[rec_stencil_list],v[:]) )
+
+  def unsteadyResidual(v):
+    regionManager.a[rec_stencil_list] = v[:]
+    regionManager.getRHS_REGION_OUTER(regionManager,eqns)
+    cell_ijk = regionManager.region[0].cell_ijk 
+    ## Construct the unsteady residual for Crank Nicolson in a few steps
+    R1 = np.zeros(np.size(R0))
+    R1[:] = regionManager.region[0].RHS_hyper[:].flatten()
+    ## compute the residual at the sample points
+    Rstar = ( regionManager.a[cell_list]*1. - regionManager.a0[cell_list] ) 
+    regionManager.a[cell_list] = Rstar[:]*1.
+    Rstar = np.sum(regionManager.region[0].M[None,:,:,:,:,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]]*regionManager.region[0].a.a[:,None,None,None,None,:,:,:,:,cell_ijk[5][0],cell_ijk[6][0],cell_ijk[7][0],cell_ijk[8][0]],axis=(5,6,7,8)).flatten()
+    Rstar -= 0.5*regionManager.dt*(R1 + R0)
+    regionManager.a[rec_stencil_list] = v[:]
+    return Rstar.flatten()
+
+  def initEuler(a_pod):
+    a_pod_w = np.zeros((numStepsInWindow,np.size(regionManager.a_pod)))
+    for i in range(0,numStepsInWindow):
+      regionManager.a[rec_stencil_list] = np.dot(regionManager.V[rec_stencil_list],a_pod)
+      regionManager.getRHS_REGION_OUTER(regionManager,eqns)
+      a_pod = a_pod + regionManager.dt*globalDot(regionManager.V[cell_list].transpose(),regionManager.region[0].RHS_hyper.flatten(),regionManager)
+      a_pod_w[i,:] = a_pod
+    return a_pod_w
+
+  N = np.size(regionManager.a)
+  nx,nbasis = np.shape(regionManager.V[cell_list])
+  JV = np.zeros((nx,nbasis) )
+  regionManager.an = regionManager.a[rec_stencil_list]*1.
+  method = 'SD'
+  numStepsInWindow = 2
+  if method == 'SD':
+    #a0_pod = np.repeat(regionManager.a_pod[None,:],numStepsInWindow,axis=0)
+    a0_pod = initEuler(regionManager.a_pod)
+    a_pod = steepestDecentMomentum(regionManager,windowedResidualPod,applyWindowedJT,a0_pod.flatten())
+    a_pod = np.reshape(a_pod,(numStepsInWindow,np.size(regionManager.a_pod)))
+    regionManager.a_pod = a_pod[-1,:]
+    regionManager.a[rec_stencil_list] = np.dot(regionManager.V[rec_stencil_list],regionManager.a_pod[:])
+  if method == 'GN':
+    if (regionManager.mpi_rank == 0):
+      print('Initial Residual = ' + str(r_norm) )
+    while (r_norm > 1e-4 and da_norm >= 5e-4):
+     if (ls_iteration >= 20 or alpha <= 0.01):
+       print('Didnt converge, alpha = ' + str(alpha) ,'  iteration count = ' + str(ls_iteration) )
+       da_norm = 0.
+     else:
+      
+      eps = 1e-5
+      an = regionManager.a[rec_stencil_list]*1.
+      if (ls_iteration%jacobian_update_freq == 0 and regionManager.iteration%1 == 0):
+       for i in range(0,nbasis):
+        regionManager.a[rec_stencil_list] = an[:] + eps*regionManager.V[rec_stencil_list,i]
+        Jv_column = unsteadyResidual(regionManager.a[rec_stencil_list])
+        JV[:,i] = (Jv_column - r[:]) / eps
+       regionManager.JV = JV
+      JV = regionManager.JV 
+      ## compute QR of JV
+      Q,R = np.linalg.qr(JV)
+      #now solve the problem R y = -Q^T JVr 
+      da_pod = np.linalg.solve(R,-np.dot(Q.transpose(),r) )
+  #    JSQ = np.dot(JV.transpose(),JV)
+      ## do global sum to get the dot product
+  #    data = regionManager.comm.gather(JSQ,root = 0)
+  #    JSQ_glob = np.zeros(np.shape(JSQ) )
+  #    if (regionManager.mpi_rank == 0):
+  #      for j in range(0,regionManager.num_processes):
+  #        JSQ_glob[:] += data[j]
+  #      for j in range(1,regionManager.num_processes):
+  #        comm.Send(JSQ_glob, dest=j)
+  #    else:
+  #      comm.Recv(JSQ_glob,source=0)
+  #    da_pod = np.linalg.solve(JSQ_glob,-JVr)
+  #    JTr =  applyJT(r)
+  #    regionManager.JTr = JTr
+  #    regionManager.JTr2 = JTr2
+  #    print(np.linalg.norm(JTr2),np.linalg.norm(JTr),np.linalg.norm(JTr2 - JTr))
+  #    da_pod = -250.*JTr
+      da_norm = np.linalg.norm(da_pod)
+      regionManager.a_pod[:] += da_pod[:]
+      regionManager.a[rec_stencil_list] = np.dot(regionManager.V[rec_stencil_list],regionManager.a_pod[:])
+      r = unsteadyResidual(regionManager.a[rec_stencil_list])
+      r_norm = globalNorm(r,regionManager)
+      ls_iteration += 1
+      if (regionManager.mpi_rank == 0):
+        print('Residual = ' + str(r_norm), ' Change to solution is ' + str(da_norm))
+  regionManager.t += regionManager.dt*numStepsInWindow
+  regionManager.iteration += 1*numStepsInWindow
+
+  ### Update the global state for saving
+  if (regionManager.iteration%regionManager.save_freq == 0):
+    #regionManager.a_pod[:] = np.dot(regionManager.V[cell_list].transpose(),regionManager.a[cell_list] )
+    regionManager.a[:] = np.dot(regionManager.V,regionManager.a_pod)
+
+
+
+
+
+
+
+
+
+
+
+

@@ -17,7 +17,7 @@ from basis_class import *
 from grid_functions import *
 from init_reacting_additions import add_reacting_to_main
 from init_qdeim import *
-from init_manifold import init_stencil_manifold
+#from init_manifold import init_stencil_manifold
 class variable:
   def __init__(self,regionManager,region_counter,nvars,order,quadpoints,Npx,Npy,Npz,Npt):
       self.nvars = nvars
@@ -219,8 +219,45 @@ class boundaryConditions:
       sys.exit()
 
     
-    
-
+def computeVolumeAndArea(x,y,z):
+  Nelx,Nely,Nelz = np.shape(x)
+  Nelx -= 1
+  Nely -= 1
+  Nelz -= 1 
+  points = np.zeros((8,3))
+  vol = np.zeros((Nelx,Nely,Nelz))
+  area = np.zeros((Nelx,Nely,Nelz))
+  for i in range(0,Nelx):
+    for j in range(0,Nely):
+      for k in range(0,Nelz): 
+        points[0,0] = x[i,j,k]
+        points[1,0] = x[i+1,j,k]
+        points[2,0] = x[i,j+1,k]
+        points[3,0] = x[i+1,j+1,k]
+        points[4,0] = x[i,j,k+1]
+        points[5,0] = x[i+1,j,k+1]
+        points[6,0] = x[i,j+1,k+1]
+        points[7,0] = x[i+1,j+1,k+1]
+        points[0,1] = y[i,j,k]
+        points[1,1] = y[i+1,j,k]
+        points[2,1] = y[i,j+1,k]
+        points[3,1] = y[i+1,j+1,k]
+        points[4,1] = y[i,j,k+1]
+        points[5,1] = y[i+1,j,k+1]
+        points[6,1] = y[i,j+1,k+1]
+        points[7,1] = y[i+1,j+1,k+1]
+        points[0,2] = z[i,j,k]
+        points[1,2] = z[i+1,j,k]
+        points[2,2] = z[i,j+1,k]
+        points[3,2] = z[i+1,j+1,k]
+        points[4,2] = z[i,j,k+1]
+        points[5,2] = z[i+1,j,k+1]
+        points[6,2] = z[i,j+1,k+1]
+        points[7,2] = z[i+1,j+1,k+1]
+        hull = scipy.spatial.ConvexHull(points)
+        vol[i,j,k] = hull.volume
+        area[i,j,k] = hull.area
+  return vol,area
 class variables:
   def __init__(self,regionManager,region_counter,region_number,Nel,order,quadpoints,eqns,mu,x,y,z,turb_str,procx,procy,procz,starting_rank,BCs,source,source_mag,shock_capturing,mol_str,basis_args):
     ## DG scheme information
@@ -250,7 +287,7 @@ class variables:
     self.Npx = int(float(Nel[0] / procx))
     self.Npz = int(float(Nel[2] / procz))
     self.Npt = Nel[-1]
-
+     
     self.sx = slice(int(((int(self.mpi_rank - starting_rank) % int(self.procx * self.procy)) % int(self.procx))     *self.Npx), \
                     int(((int(self.mpi_rank - starting_rank) % int(self.procx * self.procy)) % int(self.procx) + 1) *self.Npx))
     
@@ -287,11 +324,17 @@ class variables:
 
     #xtmp,ytmp,ztmp = np.meshgrid(xG,yG,zG,indexing='ij')
     self.x,self.y,self.z = x,y,z
-
+    self.vol,self.area = computeVolumeAndArea(x,y,z)
+    self.vol_over_area = self.vol / self.area
+    print('Max dt = ' + str(np.amin(self.vol_over_area)))
     Xtmp = np.zeros((3,Nel[0]+1,Nel[1]+1,Nel[2]+1))
     Xtmp[0],Xtmp[1],Xtmp[2] = x,y,z
     X_el = get_Xel(Xtmp,self.sx,self.sy,self.sz)
     self.J,self.Jinv,self.Jdet,self.J_edge_det,self.J_edge_inv,self.normals = computeJacobian(X_el,self.zeta0,self.zeta1,self.zeta2)
+    if (np.amin(self.Jdet) < 0):
+      if (self.mpi_rank == 0):
+        print('Error, found a negative determinant, check grid')
+      sys.exit()
     self.xG,self.yG,self.zG = getGlobGrid(self,x,y,z,self.zeta0,self.zeta1,self.zeta2)
     self.Minv,self.M = getMassMatrix(self)
     self.gas = gasClass() 

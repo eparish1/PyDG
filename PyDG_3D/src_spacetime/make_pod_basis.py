@@ -3,6 +3,7 @@ import sys
 import os
 ### script to make POD basis vectors
 
+tol = float(sys.argv[1])
 ## determine number of blocks
 n_blocks = 0
 check = 0
@@ -101,6 +102,7 @@ for i in range(0,end,skip):
   if (check == 1):
     S = np.append(S,loc_array[:,None],axis=1)
 
+S = S[:,:] #- base[:,None]
 U,Lam,Z = np.linalg.svd(S,full_matrices=False)
 
 ### Compute t
@@ -109,24 +111,26 @@ for i in range(0,K):
   tmp = np.reshape(U[:,i],np.shape(data))
   tmp = np.sum(Msqrtinv[0][None]*tmp[:,None,None,None,None],axis=(5,6,7,8) )
   U[:,i] = tmp.flatten()
-#Utmp = np.reshape(U,(np.append(np.shape(a))
 
-#print( np.dot(U.transpose(),U) )
 
-np.savez('pod_basis_full',V=U,Lam=Lam)
+#np.savez('pod_basis_full',V=U,Lam=Lam)
 
 
 
 ## create truncated basis corresponding to 99%, 99.9%, and 99.99%
 sol_str = 'npsol_block' + str(j) + '_'  + str(0) + '.npz'
-data = np.load(sol_str)
-energy = np.sum(Lam)
+totalEnergy = np.sum(Lam**2)
+relativeEnergy = np.cumsum(Lam**2) / totalEnergy
+K = np.size( relativeEnergy[relativeEnergy<tol] ) + 1
+np.savez('pod_basis_' + str(tol) , V=U[:,0:K],relativeEnergy=relativeEnergy)
+
+'''
 nvec = np.size(Lam)
 indx = 1
 check = 0
 while (check == 0):
-  rel_energy = np.sum(Lam[0:indx] )
-  if (rel_energy/energy >= 0.95 ):
+  rel_energy = np.sum(Lam[0:indx]**2 )
+  if (rel_energy/energy >= tolerance ):
     check = 1
     np.savez('pod_basis_95',V=U[:,0:indx])
     sys.stdout.write('95% of energy = ' + str(indx) + '/' + str(nvec) + ' basis vectors \n')
@@ -138,12 +142,12 @@ while (check == 0):
 ## create truncated basis corresponding to 99%, 99.9%, and 99.99%
 sol_str = 'npsol_block' + str(j) + '_'  + str(0) + '.npz'
 data = np.load(sol_str)
-energy = np.sum(Lam)
+energy = np.sum(Lam**2)
 nvec = np.size(Lam)
 indx = 1
 check = 0
 while (check == 0):
-  rel_energy = np.sum(Lam[0:indx] )
+  rel_energy = np.sum(Lam[0:indx]**2)
   if (rel_energy/energy >= 0.97 ):
     check = 1
     np.savez('pod_basis_97',V=U[:,0:indx])
@@ -155,12 +159,12 @@ while (check == 0):
 
 sol_str = 'npsol_block' + str(j) + '_'  + str(0) + '.npz'
 data = np.load(sol_str)
-energy = np.sum(Lam)
+energy = np.sum(Lam**2)
 nvec = np.size(Lam)
 indx = 1
 check = 0
 while (check == 0):
-  rel_energy = np.sum(Lam[0:indx] )
+  rel_energy = np.sum(Lam[0:indx]**2 )
   if (rel_energy/energy >= 0.99 ):
     check = 1
     np.savez('pod_basis_99',V=U[:,0:indx])
@@ -172,7 +176,7 @@ while (check == 0):
 indx = 1
 check = 0
 while (check == 0):
-  rel_energy = np.sum(Lam[0:indx] )
+  rel_energy = np.sum(Lam[0:indx]**2)
   if (rel_energy/energy >= 0.999 ):
     check = 1
     np.savez('pod_basis_999',V=U[:,0:indx])
@@ -184,11 +188,11 @@ while (check == 0):
 indx = 1
 check = 0
 while (check == 0):
-  rel_energy = np.sum(Lam[0:indx] )
+  rel_energy = np.sum(Lam[0:indx]**2)
   if (rel_energy/energy >= 0.9999 ):
     check = 1
     np.savez('pod_basis_9999',V=U[:,0:indx])
     sys.stdout.write('99.99% of energy = ' + str(indx) + '/' + str(nvec) + ' basis vectors \n')
   else:
     indx += 1
-
+'''

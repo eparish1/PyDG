@@ -5,9 +5,12 @@ import numexpr as ne
 
 
 ###### ====== Inviscid Fluxes Fluxes and Eigen Values (Eigenvalues currently not in use) ==== ############
+
 def evalFluxXYZEuler(eqns,main,u,fx,fy,fz,args):
-  es = 1.e-30
   gamma = eqns.params['gamma']
+  evalFluxXYZKernelEuler(u,fx,fy,fz,gamma)
+
+def evalFluxXYZKernelEuler(u,fx,fy,fz,gamma):
   rho = u[0]
   rhoU = u[1]
   rhoV = u[2]
@@ -32,32 +35,119 @@ def evalFluxXYZEuler(eqns,main,u,fx,fy,fz,args):
   fz[3] = rhoW*rhoW/(rho) + p 
   fz[4] = (rhoE + p)*rhoW/(rho) 
 
-def evalFluxXYZEuler_ne(eqns,main,u,fx,fy,fz,args):
-  es = 1.e-30
+def evalFluxJacXYZEuler(eqns,main,u,Jx,Jy,Jz,args):
   gamma = eqns.params['gamma']
+  evalFluxJacXYZKernelEuler(u,Jx,Jy,Jz,gamma)
+
+def evalFluxJacXYZKernelEuler(u,Jx,Jy,Jz,gamma):
+  es = 1.e-30
+  gamma = 1.4
+  #gamma = eqns.params['gamma']
   rho = u[0]
   rhoU = u[1]
   rhoV = u[2]
   rhoW = u[3]
   rhoE = u[4]
-  p = ne.evaluate("(gamma - 1.)*(rhoE - 0.5*rhoU**2/rho - 0.5*rhoV**2/rho - 0.5*rhoW**2/rho)")
-  fx[0] = u[1]
-  fx[1] = ne.evaluate("rhoU*rhoU/(rho) + p")
-  fx[2] = ne.evaluate("rhoU*rhoV/(rho) ")
-  fx[3] = ne.evaluate("rhoU*rhoW/(rho) ")
-  fx[4] = ne.evaluate("(rhoE + p)*rhoU/(rho) ")
+  u = rhoU/rho
+  v = rhoV/rho
+  w = rhoW/rho
+  q = np.sqrt(u**2 + v**2 + w**2)
+  p = (gamma - 1.)*(rhoE - 0.5*rhoU**2/rho - 0.5*rhoV**2/rho - 0.5*rhoW**2/rho)
+  H = ( rhoE + p ) / rho
+  ### X direction
+  Jx[0,0] = 0.
+  Jx[0,1] = 1.
+  Jx[0,2] = 0.
+  Jx[0,3] = 0.
+  Jx[0,4] = 0.
 
-  fy[0] = u[2]
-  fy[1] = ne.evaluate("rhoU*rhoV/(rho)")
-  fy[2] = ne.evaluate("rhoV*rhoV/(rho) + p ")
-  fy[3] = ne.evaluate("rhoV*rhoW/(rho) ")
-  fy[4] = ne.evaluate("(rhoE + p)*rhoV/(rho) ")
+  Jx[1,0] = 0.5*(gamma - 1.)*q**2 - u**2
+  Jx[1,1] = (3. - gamma)*u
+  Jx[1,2] = (1. - gamma)*v
+  Jx[1,3] = (1. - gamma)*w
+  Jx[1,4] = gamma - 1.
 
-  fz[0] = u[3]
-  fz[1] = ne.evaluate("rhoU*rhoW/(rho)")
-  fz[2] = ne.evaluate("rhoV*rhoW/(rho) ")
-  fz[3] = ne.evaluate("rhoW*rhoW/(rho) + p ")
-  fz[4] = ne.evaluate("(rhoE + p)*rhoW/(rho) ")
+  Jx[2,0] = -u*v 
+  Jx[2,1] = v  
+  Jx[2,2] = u 
+  Jx[2,3] = 0. 
+  Jx[2,4] = 0. 
+
+  Jx[3,0] = -u*w 
+  Jx[3,1] = w  
+  Jx[3,2] = 0 
+  Jx[3,3] = u 
+  Jx[3,4] = 0. 
+
+  Jx[4,0] = ( (gamma - 1.)/2.*q**2 - H)*u 
+  Jx[4,1] = H + (1. - gamma)*u**2
+  Jx[4,2] = (1. - gamma)*u*v
+  Jx[4,3] = (1. - gamma)*u*w
+  Jx[4,4] = gamma*u
+
+  ### Y direction
+  Jy[0,0] = 0.
+  Jy[0,1] = 0.
+  Jy[0,2] = 1.
+  Jy[0,3] = 0.
+  Jy[0,4] = 0.
+
+  Jy[1,0] = -v*u 
+  Jy[1,1] = v 
+  Jy[1,2] = u 
+  Jy[1,3] = 0. 
+  Jy[1,4] = 0. 
+
+  Jy[2,0] = 0.5*(gamma - 1.)*q**2 - v**2 
+  Jy[2,1] = (1. - gamma)*u 
+  Jy[2,2] = (3. - gamma)*v
+  Jy[2,3] = (1. - gamma)*w 
+  Jy[2,4] = (gamma - 1.)
+
+  Jy[3,0] = -v*w 
+  Jy[3,1] = 0.
+  Jy[3,2] = w
+  Jy[3,3] = v 
+  Jy[3,4] = 0. 
+
+  Jy[4,0] = ( (gamma - 1.)/2.*q**2 - H)*v
+  Jy[4,1] = (1. - gamma)*u*v
+  Jy[4,2] = H + (1. - gamma)*v*v
+  Jy[4,3] = (1. - gamma)*v*w
+  Jy[4,4] = gamma*v
+
+
+  ### Z direction
+  Jz[0,0] = 0.
+  Jz[0,1] = 0.
+  Jz[0,2] = 0.
+  Jz[0,3] = 1.
+  Jz[0,4] = 0.
+
+  Jz[1,0] = -u*w 
+  Jz[1,1] = w
+  Jz[1,2] = 0. 
+  Jz[1,3] = u 
+  Jz[1,4] = 0. 
+
+  Jz[2,0] =  -v*w 
+  Jz[2,1] = 0. 
+  Jz[2,2] = w 
+  Jz[2,3] = v 
+  Jz[2,4] = 0. 
+
+  Jz[3,0] =  (gamma - 1.)/2.*q**2 - w**2 
+  Jz[3,1] =  (1. - gamma)*u
+  Jz[3,2] =  (1. - gamma)*v
+  Jz[3,3] =  (3. - gamma)*w
+  Jz[3,4] =  gamma - 1.
+
+  Jz[4,0] = ( (gamma - 1.)/2.*q**2 - H)*w
+  Jz[4,1] = (1. - gamma)*u*w
+  Jz[4,2] = (1. - gamma)*v*w
+  Jz[4,3] = H + (1. - gamma)*w*w
+  Jz[4,4] = gamma*w
+
 
 def strongFormEulerXYZ(main,a,args):
   es = 1.e-30
@@ -118,85 +208,6 @@ def strongFormEulerXYZ(main,a,args):
 
   return resid_vol#,resid_R,resid_L,resid_U,resid_D,resid_F,resid_B
 
-
-def evalFluxXEuler(main,u,f,args): 
-#  #f = np.zeros(np.shape(u))
-  es = 1.e-30
-  gamma = eqns.params['gamma']
-#  gammam1 = 1.4 - 1.
-#  ri = 1./u[0]
-#  p = u[1]**2
-#  p += u[2]**2
-#  p += u[3]**2
-#  p *= ri
-#  p *= -0.5
-#  p += u[4] 
-#  p *= gammam1
-#  #p = (gamma - 1.)*(u[4] - 0.5*u[1]**2/u[0] - 0.5*u[2]**2/u[0] - 0.5*u[3]**2/u[0])
-#  f[0] = u[1]
-#  #t1 = u[1]**2
-#  #t1 *= ri
-#  #t1 += p
-#  #f[1] = t1
-#  f[1] = u[1]**2*ri + p
-#  f[2] = u[1]*u[2]*ri
-#  f[3] = u[1]*u[3]*ri
-#  f[4] = (u[4] + p)*u[1]*ri
-  rho = u[0]
-  rhoU = u[1]
-  rhoV = u[2]
-  rhoW = u[3]
-  rhoE = u[4]
-  p = ne.evaluate("(gamma - 1.)*(rhoE - 0.5*rhoU**2/rho - 0.5*rhoV**2/rho - 0.5*rhoW**2/rho)")
-  f[0] = u[1]
-  f[1] = ne.evaluate("rhoU*rhoU/(rho) + p")
-  f[2] = ne.evaluate("rhoU*rhoV/(rho) ")
-  f[3] = ne.evaluate("rhoU*rhoW/(rho) ")
-  f[4] = ne.evaluate("(rhoE + p)*rhoU/(rho) ")
-
-def evalFluxYEuler(main,u,f,args):
-  #f = np.zeros(np.shape(u))
-  gamma = eqns.params['gamma']
-#  p = (gamma - 1.)*(u[4] - 0.5*u[1]**2/u[0] - 0.5*u[2]**2/u[0] - 0.5*u[3]**2/u[0])
-#  f[0] = u[2]
-#  f[1] = u[1]*u[2]/u[0]
-#  f[2] = u[2]*u[2]/u[0] + p
-#  f[3] = u[2]*u[3]/u[0] 
-#  f[4] = (u[4] + p)*u[2]/u[0]
-  rho = u[0]
-  rhoU = u[1]
-  rhoV = u[2]
-  rhoW = u[3]
-  rhoE = u[4]
-  p = ne.evaluate("(gamma - 1.)*(rhoE - 0.5*rhoU**2/rho - 0.5*rhoV**2/rho - 0.5*rhoW**2/rho)")
-  f[0] = u[2]
-  f[1] = ne.evaluate("rhoU*rhoV/(rho)")
-  f[2] = ne.evaluate("rhoV*rhoV/(rho) + p ")
-  f[3] = ne.evaluate("rhoV*rhoW/(rho) ")
-  f[4] = ne.evaluate("(rhoE + p)*rhoV/(rho) ")
-
-
-
-def evalFluxZEuler(main,u,f,args):
-  #f = np.zeros(np.shape(u))
-  gamma = eqns.params['gamma'] 
-#  p = (gamma - 1.)*(u[4] - 0.5*u[1]**2/u[0] - 0.5*u[2]**2/u[0] - 0.5*u[3]**2/u[0])
-#  f[0] = u[3]
-#  f[1] = u[1]*u[3]/u[0]
-#  f[2] = u[2]*u[3]/u[0] 
-#  f[3] = u[3]*u[3]/u[0] + p 
-#  f[4] = (u[4] + p)*u[3]/u[0]
-  rho = u[0]
-  rhoU = u[1]
-  rhoV = u[2]
-  rhoW = u[3]
-  rhoE = u[4]
-  p = ne.evaluate("(gamma - 1.)*(rhoE - 0.5*rhoU**2/rho - 0.5*rhoV**2/rho - 0.5*rhoW**2/rho)")
-  f[0] = u[3]
-  f[1] = ne.evaluate("rhoU*rhoW/(rho)")
-  f[2] = ne.evaluate("rhoV*rhoW/(rho) ")
-  f[3] = ne.evaluate("rhoW*rhoW/(rho) + p ")
-  f[4] = ne.evaluate("(rhoE + p)*rhoW/(rho) ")
 
 def evalFluxXYZEulerLin2(main,U0,fx,fy,fz,args):
   up = args[0]
@@ -670,8 +681,7 @@ def eulerCentralFluxLinearized(eqns,F,main,U0L,U0R,n,args):
   return F
 
 
-def rusanovFlux(eqns,F,main,UL,UR,n,args=None):
-
+def rusanovFluxKernel(F,UL,UR,n,gamma):
 # PURPOSE: This function calculates the flux for the Euler equations
 # using the Roe flux function
 #
@@ -684,10 +694,9 @@ def rusanovFlux(eqns,F,main,UL,UR,n,args=None):
 #  F   : the flux out of the left cell (into the right cell)
 #  smag: the maximum propagation speed of disturbance
 #
-  gamma = eqns.params['gamma']
   gmi = gamma-1.0
   #process left state
-  rL = UL[0] + 1e-30
+  rL = UL[0] 
   uL = UL[1]/rL
   vL = UL[2]/rL
   wL = UL[3]/rL
@@ -708,7 +717,7 @@ def rusanovFlux(eqns,F,main,UL,UR,n,args=None):
   FL[4] = rHL*unL
 
   # process right state
-  rR = UR[0] + 1e-30
+  rR = UR[0]
   uR = UR[1]/rR
   vR = UR[2]/rR
   wR = UR[3]/rR
@@ -739,29 +748,202 @@ def rusanovFlux(eqns,F,main,UL,UR,n,args=None):
   Hi     = (di*HR + HL)*d1
 
   af     = 0.5*(ui*ui+vi*vi+wi*wi)
-  ucp    = ui*n[0] + vi*n[1] + wi*n[2]
   c2     = gmi*(Hi - af)
-  ci     = (c2)**0.5
+  ci     = c2**0.5
   ci1    = 1.0/(ci + 1.e-30)
 
-  #% eigenvalues
-
-  sh = np.shape(ucp)
-  lsh = np.append(3,sh)
-#  l = np.zeros(lsh,dtype=lsh.dtype)
-#  l[0] = ucp+ci
-#  l[1] = ucp-ci
-#  l[2] = ucp
-  #print(np.shape(l))
-  smax = np.abs(ucp) + np.abs(ci)
-  #smax = np.maximum(np.abs(l[0]),np.abs(l[1]))
-  # flux assembly
-  #F = np.zeros(np.shape(FL))  # for allocation
+  smax = np.sqrt( ui*ui + vi*vi + wi*wi ) + ci 
   F[0]    = 0.5*(FL[0]+FR[0])-0.5*smax*(UR[0] - UL[0])
   F[1]    = 0.5*(FL[1]+FR[1])-0.5*smax*(UR[1] - UL[1])
   F[2]    = 0.5*(FL[2]+FR[2])-0.5*smax*(UR[2] - UL[2])
   F[3]    = 0.5*(FL[3]+FR[3])-0.5*smax*(UR[3] - UL[3])
   F[4]    = 0.5*(FL[4]+FR[4])-0.5*smax*(UR[4] - UL[4])
+
+def rusanovFlux(eqns,F,main,UL,UR,n,args=None):
+  gamma = eqns.params['gamma']
+  rusanovFluxKernel(F,UL,UR,n,gamma)
+
+
+def rusanovFluxJacKernel(JL,JR,UL,UR,n,gamma):
+# PURPOSE: This function calculates the flux Jacobian for the Euler equations
+# using the Roe flux function
+#
+# INPUTS:
+#    UL: conservative state vector in left cell
+#    UR: conservative state vector in right cell
+#    n: normal pointing from the left cell to the right cell
+#
+# OUTPUTS:
+#  F   : the flux out of the left cell (into the right cell)
+#  smag: the maximum propagation speed of disturbance
+#
+  gmi = gamma-1.0
+  #process left state
+  rL = UL[0] 
+  uL = UL[1]/rL
+  vL = UL[2]/rL
+  wL = UL[3]/rL
+
+  unL = uL*n[0] + vL*n[1] + wL*n[2]
+
+  qL = (UL[1]*UL[1] + UL[2]*UL[2] + UL[3]*UL[3])**0.5/rL
+  pL = (gamma-1)*(UL[4] - 0.5*rL*qL**2.)
+  rHL = UL[4] + pL
+  HL = rHL/rL
+  cL =(gamma*pL/rL)**0.5
+  # left flux
+  FL = np.zeros(np.shape(UL),dtype=UL.dtype)
+  FL[0] = rL*unL
+  FL[1] = UL[1]*unL + pL*n[0]
+  FL[2] = UL[2]*unL + pL*n[1]
+  FL[3] = UL[3]*unL + pL*n[2]
+  FL[4] = rHL*unL
+
+  # process right state
+  rR = UR[0]
+  uR = UR[1]/rR
+  vR = UR[2]/rR
+  wR = UR[3]/rR
+  unR = uR*n[0] + vR*n[1] + wR*n[2]
+  qR = (UR[1]*UR[1] + UR[2]*UR[2] + UR[3]*UR[3])**0.5/rR
+  pR = (gamma-1)*(UR[4] - 0.5*rR*qR**2.)
+  rHR = UR[4] + pR
+  HR = rHR/rR
+  cR = (gamma*pR/rR)**0.5
+
+  # right flux
+  FR = np.zeros(np.shape(UR),dtype=UR.dtype)
+  FR[0] = rR*unR
+  FR[1] = UR[1]*unR + pR*n[0]
+  FR[2] = UR[2]*unR + pR*n[1]
+  FR[3] = UR[3]*unR + pR*n[2]
+  FR[4] = rHR*unR
+
+  # difference in states
+  du = UR - UL
+
+  # Roe average
+  ri =    np.sqrt(rL*rR)
+  di     = (rR/rL)**0.5
+  d1     = 1.0/(1.0+di)
+
+  ui     = (di*uR + uL)*d1
+
+  vi     = (di*vR + vL)*d1
+  wi     = (di*wR + wL)*d1
+  Hi     = (di*HR + HL)*d1
+
+  af     = 0.5*(ui*ui+vi*vi+wi*wi)
+  c2     = gmi*(Hi - af)
+  ci     = (c2)**0.5
+  ci1    = 1.0/(ci + 1.e-30)
+
+  #% eigenvalues
+  smax = np.sqrt( ui*ui + vi*vi + wi*wi ) + ci 
+
+  VMagSqrRoe = ui*ui + vi*vi + wi*wi
+  VMagSqrL = uL*uL + vL*vL + wL*wL
+  VVRoeL = uL*ui + vL*vi + wL*wi
+  VMagSqrR = uR*uR + vR*vR + wR*wR
+  VVRoeR = uR*ui + vR*vi + wR*wi
+
+  uRelRoe = ui / VMagSqrRoe
+  vRelRoe = vi / VMagSqrRoe
+  wRelRoe = wi / VMagSqrRoe
+
+  gradL = np.zeros(np.shape(UL),dtype=UL.dtype)
+  gradR = np.zeros(np.shape(UR),dtype=UR.dtype)
+
+  #compute gradient of max eigenvalue
+  half = 0.5
+  gradL[0] = 1./(rL + ri)*(-half*(uL + ui)*uRelRoe - half*(vL + vi)*vRelRoe - half*(wL + wi)*wRelRoe +  half*gmi/ci * ( half*( VMagSqrRoe + VVRoeL) + half*(HL - Hi) - cL*cL / gmi + half*(gamma - 2.)*VMagSqrL) );
+  gradL[1] = 1./(rL + ri)*(uRelRoe - half*(gmi * (ui + gmi*uL) )/ (ci));
+  gradL[2] = 1./(rL + ri)*(vRelRoe - half*(gmi * (vi + gmi*vL) )/ (ci));
+  gradL[3] = 1./(rL + ri)*(wRelRoe - half*(gmi * (wi + gmi*wL) )/ (ci));
+  gradL[4] = half/(rL + ri)*gamma*gmi / (ci);
+
+
+  gradR[0] = 1./(rR + ri)*(-half*(uR + ui)*uRelRoe - half*(vR + vi)*vRelRoe - half*(wR + wi)*wRelRoe +  half*gmi/ci * ( half*( VMagSqrRoe + VVRoeR) + half*(HR - Hi) - cR*cR / gmi + half*(gamma - 2.)*VMagSqrR) );
+  gradR[1] = 1./(rR + ri)*(uRelRoe - half*(gmi * (ui + gmi*uR) )/ (ci));
+  gradR[2] = 1./(rR + ri)*(vRelRoe - half*(gmi * (vi + gmi*vR) )/ (ci));
+  gradR[3] = 1./(rR + ri)*(wRelRoe - half*(gmi * (wi + gmi*wR) )/ (ci));
+  gradR[4] = half/(rR + ri)*gamma*gmi / (ci);
+
+
+
+  JL[0,0] = 0;
+  JL[0,1] = half*n[0];
+  JL[0,2] = half*n[1];
+  JL[0,3] = half*n[2];
+  JL[0,4] = 0;
+
+  JL[1,0] = half*( half*gmi*VMagSqrL*n[0] - uL*unL );
+  JL[1,1] = half*( uL*n[0] - gmi*uL*n[0] + unL);
+  JL[1,2] = half*( uL*n[1] - gmi*vL*n[0]);
+  JL[1,3] = half*( uL*n[2] - gmi*wL*n[0]);
+  JL[1,4] = half*gmi*n[0];
+
+  JL[2,0] = half*( half*gmi*VMagSqrL*n[1] - vL*unL );
+  JL[2,1] = half*( vL*n[0] - gmi*uL*n[1]);
+  JL[2,2] = half*( vL*n[1] - gmi*vL*n[1] + unL);
+  JL[2,3] = half*( vL*n[2] - gmi*wL*n[1]);
+  JL[2,4] = half*gmi*n[1];
+
+
+  JL[3,0] = half*( half*gmi*VMagSqrL*n[2] - wL*unL );
+  JL[3,1] = half*( wL*n[0] - gmi*uL*n[2]);
+  JL[3,2] = half*( wL*n[1] - gmi*vL*n[2]);
+  JL[3,3] = half*( wL*n[2] - gmi*wL*n[2] + unL);
+  JL[3,4] = half*gmi*n[2];
+
+
+  JL[4,0] = half*( ( half*gmi*VMagSqrL - HL)*unL );
+  JL[4,1] = half*( HL*n[0] -  gmi*uL*unL );
+  JL[4,2] = half*( HL*n[1] -  gmi*vL*unL );
+  JL[4,3] = half*( HL*n[2] -  gmi*wL*unL );
+  JL[4,4] = half*gamma*unL;
+
+  for i in range(0,5): 
+    JL[i,i] += half*smax;
+    for j in range(0,5): 
+      JL[i,j] += half*gradL[j]*(UL[i] - UR[i]);
+
+  JR[0,0] = 0;
+  JR[0,1] = half*n[0];
+  JR[0,2] = half*n[1];
+  JR[0,3] = half*n[2];
+  JR[0,4] = 0;
+
+  JR[1,0] = half*( half*gmi*VMagSqrR*n[0] - uR*unR );
+  JR[1,1] = half*( uR*n[0] - gmi*uR*n[0] + unR);
+  JR[1,2] = half*( uR*n[1] - gmi*vR*n[0]);
+  JR[1,3] = half*( uR*n[2] - gmi*wR*n[0]);
+  JR[1,4] = half*gmi*n[0];
+
+  JR[2,0] = half*( half*gmi*VMagSqrR*n[1] - vR*unR );
+  JR[2,1] = half*( vR*n[0] - gmi*uR*n[1]);
+  JR[2,2] = half*( vR*n[1] - gmi*vR*n[1] + unR);
+  JR[2,3] = half*( vR*n[2] - gmi*wR*n[1]);
+  JR[2,4] = half*gmi*n[1];
+
+
+  JR[3,0] = half*( half*gmi*VMagSqrR*n[2] - wR*unR );
+  JR[3,1] = half*( wR*n[0] - gmi*uR*n[2]);
+  JR[3,2] = half*( wR*n[1] - gmi*vR*n[2]);
+  JR[3,3] = half*( wR*n[2] - gmi*wR*n[2] + unR);
+  JR[3,4] = half*gmi*n[2];
+
+
+  JR[4,0] = half*( ( half*gmi*VMagSqrR - HR)*unR );
+  JR[4,1] = half*( HR*n[0] -  gmi*uR*unR );
+  JR[4,2] = half*( HR*n[1] -  gmi*vR*unR );
+  JR[4,3] = half*( HR*n[2] -  gmi*wR*unR );
+  JR[4,4] = half*gamma*unR;
+
+  for i in range(0,5): 
+    JR[i,i] -= half*smax
+    for j in range(0,5): 
+      JR[i,j] += half*gradR[j]*(UL[i] - UR[i]);
 
 
 def basicFluxEuler(eqns,region,UL,n,args=None):
@@ -1837,4 +2019,90 @@ def evalTauFluxZNS_BR1(main,tau,u,fvZ,mu,cgas):
   fvZ[2] = mu*tau[5] #tau32
   fvZ[3] = mu*tau[2] #tau33
   fvZ[4] = mu*(tau[4]*u[1]/u[0] + tau[5]*u[2]/u[0] + tau[2]*u[3]/u[0] + gamma/Pr*tau[8])
+
+
+
+
+'''
+Depracated 
+'''
+
+def evalFluxXEuler(main,u,f,args): 
+#  #f = np.zeros(np.shape(u))
+  es = 1.e-30
+  gamma = eqns.params['gamma']
+#  gammam1 = 1.4 - 1.
+#  ri = 1./u[0]
+#  p = u[1]**2
+#  p += u[2]**2
+#  p += u[3]**2
+#  p *= ri
+#  p *= -0.5
+#  p += u[4] 
+#  p *= gammam1
+#  #p = (gamma - 1.)*(u[4] - 0.5*u[1]**2/u[0] - 0.5*u[2]**2/u[0] - 0.5*u[3]**2/u[0])
+#  f[0] = u[1]
+#  #t1 = u[1]**2
+#  #t1 *= ri
+#  #t1 += p
+#  #f[1] = t1
+#  f[1] = u[1]**2*ri + p
+#  f[2] = u[1]*u[2]*ri
+#  f[3] = u[1]*u[3]*ri
+#  f[4] = (u[4] + p)*u[1]*ri
+  rho = u[0]
+  rhoU = u[1]
+  rhoV = u[2]
+  rhoW = u[3]
+  rhoE = u[4]
+  p = ne.evaluate("(gamma - 1.)*(rhoE - 0.5*rhoU**2/rho - 0.5*rhoV**2/rho - 0.5*rhoW**2/rho)")
+  f[0] = u[1]
+  f[1] = ne.evaluate("rhoU*rhoU/(rho) + p")
+  f[2] = ne.evaluate("rhoU*rhoV/(rho) ")
+  f[3] = ne.evaluate("rhoU*rhoW/(rho) ")
+  f[4] = ne.evaluate("(rhoE + p)*rhoU/(rho) ")
+
+def evalFluxYEuler(main,u,f,args):
+  #f = np.zeros(np.shape(u))
+  gamma = eqns.params['gamma']
+#  p = (gamma - 1.)*(u[4] - 0.5*u[1]**2/u[0] - 0.5*u[2]**2/u[0] - 0.5*u[3]**2/u[0])
+#  f[0] = u[2]
+#  f[1] = u[1]*u[2]/u[0]
+#  f[2] = u[2]*u[2]/u[0] + p
+#  f[3] = u[2]*u[3]/u[0] 
+#  f[4] = (u[4] + p)*u[2]/u[0]
+  rho = u[0]
+  rhoU = u[1]
+  rhoV = u[2]
+  rhoW = u[3]
+  rhoE = u[4]
+  p = ne.evaluate("(gamma - 1.)*(rhoE - 0.5*rhoU**2/rho - 0.5*rhoV**2/rho - 0.5*rhoW**2/rho)")
+  f[0] = u[2]
+  f[1] = ne.evaluate("rhoU*rhoV/(rho)")
+  f[2] = ne.evaluate("rhoV*rhoV/(rho) + p ")
+  f[3] = ne.evaluate("rhoV*rhoW/(rho) ")
+  f[4] = ne.evaluate("(rhoE + p)*rhoV/(rho) ")
+
+
+
+def evalFluxZEuler(main,u,f,args):
+  #f = np.zeros(np.shape(u))
+  gamma = eqns.params['gamma'] 
+#  p = (gamma - 1.)*(u[4] - 0.5*u[1]**2/u[0] - 0.5*u[2]**2/u[0] - 0.5*u[3]**2/u[0])
+#  f[0] = u[3]
+#  f[1] = u[1]*u[3]/u[0]
+#  f[2] = u[2]*u[3]/u[0] 
+#  f[3] = u[3]*u[3]/u[0] + p 
+#  f[4] = (u[4] + p)*u[3]/u[0]
+  rho = u[0]
+  rhoU = u[1]
+  rhoV = u[2]
+  rhoW = u[3]
+  rhoE = u[4]
+  p = ne.evaluate("(gamma - 1.)*(rhoE - 0.5*rhoU**2/rho - 0.5*rhoV**2/rho - 0.5*rhoW**2/rho)")
+  f[0] = u[3]
+  f[1] = ne.evaluate("rhoU*rhoW/(rho)")
+  f[2] = ne.evaluate("rhoV*rhoW/(rho) ")
+  f[3] = ne.evaluate("rhoW*rhoW/(rho) + p ")
+  f[4] = ne.evaluate("(rhoE + p)*rhoW/(rho) ")
 

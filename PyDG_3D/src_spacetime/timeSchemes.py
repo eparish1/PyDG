@@ -811,6 +811,25 @@ def SSP_RK3_POD(regionManager,eqns,args=None):
   regionManager.iteration += 1
 
 
+def Rk4POD(regionManager,eqns,args=None):
+  region_counter = 0
+  regionManager.a0[:] = regionManager.a*1.
+  for region in regionManager.region:
+    region.a.a[:] = np.sum(region.M[None]*region.a.a[:,None,None,None,None],axis=(5,6,7,8) )
+  regionManager.a0[:] = regionManager.a[:]
+  a0_pod = globalDot(regionManager.V.transpose(),regionManager.a0,regionManager)
+  rk4const = np.array([1./4,1./3,1./2,1.])
+  for i in range(0,4):
+    region_counter = 0
+    regionManager.getRHS_REGION_OUTER(regionManager,eqns)
+    a_pod = a0_pod + regionManager.dt*rk4const[i]*globalDot(regionManager.V.transpose(), regionManager.RHS[:],regionManager) 
+    regionManager.a[:] = np.dot(regionManager.V,a_pod)
+
+  regionManager.t += regionManager.dt
+  regionManager.iteration += 1
+
+
+
 def SSP_RK3_POD_unsteady(regionManager,eqns,args=None):
   regionManager.rk_stage = 0
   regionManager.a0[:] = regionManager.a[:]
@@ -1128,71 +1147,6 @@ def CrankNicolsonEntropyMZ(main,MZ,eqns,args):
 
 
 
-def backwardEuler_DLS(regionManager,eqns,args=None):
-  for region in regionManager.region:
-    region.basis.reconstructU(region,region.a)
-
-  u0 = []
-  for region  in regionManager.region:
-    u0.append(region.a.u*1.)
-
-  ## Function to evaluate the unsteady residual
-  def unsteadyResidual(v):
-    regionManager.a[:] = v[:] #set current state to be the solution iterate of the Newton Krylov solver
-    vol_resid,flux_resid = getRHS_strong(regionManager,eqns) #
-    ## Construct the unsteady residual for Crank Nicolson in a few steps
-    resid = 1./regionManager.dt*(regionManager.region[0].a.u - u0[0]) + vol_resid[0] 
-    resid = resid.flatten()
-    resid = np.append(resid,100.*flux_resid)
-    #print(np.shape(resid))
-    #print(np.linalg.norm(flux_resid))
-    return resid
-  r0 = unsteadyResidual(regionManager.a)
-  Nr = np.size(r0)
-  ## Function to to a Matrix free approximation to the mat-vec product [dR/du][v]
-  def create_mv(v):
-    def Jv(v):
-      vr = np.reshape(v,np.shape(regionManager.a))
-      eps = 5.e-2
-      a0 = regionManager.a[:]*1.
-      resid0 = unsteadyResidual(a0)
-      a1 = a0 + eps*vr
-      resid1 = unsteadyResidual(a1)
-      Jv = (resid1 - resid0)/eps
-      regionManager.a[:] = a0[:] 
-      return Jv.flatten() 
-    def vTJ(v):
-      return v[0:np.size(regionManager.a)]#regionManager.a0.flatten()
-    mdim = Nr
-    ndim = np.size(regionManager.a)
-    print(mdim,ndim)
-    return LinearOperator((mdim,ndim),matvec=Jv,rmatvec=vTJ)
-
-  def Jacobian(v):
-    J = np.zeros((Nr,np.size(regionManager.a)))
-    eps = 1.#e-3
-    r0 = unsteadyResidual(v)
-    for i in range(0,np.size(v)):
-      v[i] += eps
-      rtmp = unsteadyResidual(v)
-      J[:,i] = (rtmp - r0)/eps
-      v[i] -= eps
-    return J
-  if (regionManager.iteration == 0):
-    J0 = Jacobian(regionManager.a*1.)
-    print('Computed Jac!')
-    regionManager.jac_pattern = np.ones( (Nr, np.size(regionManager.a))) 
-    regionManager.jac_pattern[np.abs(J0) <= 1e-9] = 0.
-  sol = scipy.optimize.least_squares(unsteadyResidual,x0=regionManager.a*1.,verbose=2,ftol=1e-10,xtol=1e-10,gtol=1e-10,jac_sparsity=regionManager.jac_pattern,method='trf').x
- 
-  regionManager.a[:] = sol[:]
-  regionManager.t += regionManager.dt
-  regionManager.iteration += 1
-
-
-
-
-
 
 
 
@@ -1209,8 +1163,7 @@ def backwardEuler(regionManager,eqns,args=None):
   ## Function to evaluate the unsteady residual
   def unsteadyResidual_element(regionManager,v):
     regionManager.a[:] = v[:] #set current state to be the solution iterate of the Newton Krylov solver
-    regionManager.getRHS_REGION_INNER_ELEMENT(regionManager,eqns) # evaluate the RHS includes loop over all regions
-#    regionManager.getRHS_REGION_OUTER(regionManager,eqns) # evaluate the RHS includes loop over all regions
+    regionManager.getRHS_REGION_OUTER(regionManager,eqns) # evaluate the RHS includes loop over all regions
     ## Construct the unsteady residual for Backward Euler in a few steps
     RHS_BE = np.zeros(np.size(regionManager.RHS))
     R1 = np.zeros(np.size(regionManager.RHS))
@@ -1265,7 +1218,7 @@ def backwardEuler(regionManager,eqns,args=None):
   def create_MF_Jacobian(v,args,regionManager):
     an = args[0]
     Rn = args[1]
-    eps = 1.e-5
+    eps = 1.e-4
 #    regionManager.a[:] = an[:]
 #    R0,dum,dum = unsteadyResidual(regionManager,regionManager.a) #includes loop over all regions
     regionManager.a[:] = an + eps*v

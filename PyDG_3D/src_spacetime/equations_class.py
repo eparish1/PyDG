@@ -27,7 +27,7 @@ class equations:
     self.getRHS = getRHS
     self.getRHS_hyper = getRHS_hyper
     self.getRHS_element = getRHS_element
-
+    #self.computeMaxEigenValue = computeMaxEigenValue
     if (vflux_str == 'BR1'):
       self.addViscousContribution = addViscousContribution_BR1
       self.addViscousContribution_hyper = addViscousContribution_BR1_hyper
@@ -253,6 +253,7 @@ class equations:
 
 
     if (eq_str == 'Navier-Stokes'):
+      self.hasSource = False
       if 'gamma' in self.params.keys():
         if (mpi_rank == 0):
            print('Using gamma = ' + str(self.params['gamma']) )
@@ -330,6 +331,8 @@ class equations:
 
 
     if (eq_str == 'Navier-Stokes--kOmega'):
+      self.hasSource = True
+      self.addSource = source_kOmega 
       self.nmus = 1
       self.eq_str = eq_str
       check_eq = 1

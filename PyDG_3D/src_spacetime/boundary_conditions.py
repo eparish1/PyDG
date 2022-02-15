@@ -60,8 +60,6 @@ def inviscidwall_swe_bc(Ue,UBC,args,main,normals):
 
 
 def inviscidwall_bc(Ue,UBC,args,main,normals):
-  cut = 30
-#  cut = 35
   gamma = 1.4
   #uw = args[0]
   #vw = args[1]

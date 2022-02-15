@@ -23,12 +23,12 @@ class timeschemes:
         V2[:,:,:,:,:,:,:,:,:,i] = np.reshape(V[start_indx:end_indx,i],(region.nvars,region.order[0],region.order[1],region.order[2],region.order[3],region.Nel[0],region.Nel[1],region.Nel[2],region.Nel[3]))[:,:,:,:,:,region.sx,region.sy,region.sz,:] 
       regionManager.V = np.append(regionManager.V,np.reshape(V2,(np.size(region.a.a),n_basis) ) , axis=0) 
 
-  def init_manifold(time_scheme,regionManager):
-    region = regionManager.region[0]
-    N = region.Nglobal_stencil_cells
-    depth = 3
-    regionManager.manifold_model = ShallowAutoencoder(1,N,10,depth)
-    regionManager.manifold_model.load_state_dict(torch.load('manifold_model',map_location='cpu'))
+#  def init_manifold(time_scheme,regionManager):
+#    region = regionManager.region[0]
+#    N = region.Nglobal_stencil_cells
+#    depth = 3
+#    regionManager.manifold_model = ShallowAutoencoder(1,N,10,depth)
+#    regionManager.manifold_model.load_state_dict(torch.load('manifold_model',map_location='cpu'))
 
   def __init__(self,regionManager,time_str='ExplicitRK4',lsolver_str='GMRes',nlsolver_str='Newton'):
     comm = MPI.COMM_WORLD
@@ -54,46 +54,42 @@ class timeschemes:
       check_t = 0
       self.advanceSol = SSP_RK3_Entropy
       self.args = None
-    if (time_str == 'SSP_RK3_DOUBLEFLUX'):
-      check_t = 0
-      self.advanceSol = SSP_RK3_DOUBLEFLUX
-      self.args = None
     if (time_str == 'crankNicolsonRom'):
       check_t = 0
       self.advanceSol = crankNicolsonRom
       self.args = ['GaussNewton']
       self.init_pod(regionManager)
 
-    if (time_str == 'crankNicolsonManifoldRomCollocation'):
-      check_t = 0
-      self.advanceSol = crankNicolsonManifoldRomCollocation
-      self.args = ['GaussNewton']
-      self.init_manifold(regionManager)
-      N = np.size(regionManager.region[0].cell_list)
-      regionManager.numStepsInWindow = 2
-      K = 10
-      J_sparsity = np.zeros((N*regionManager.numStepsInWindow,K*regionManager.numStepsInWindow))
-      J_sparsity[0:N,0:K] = 1
-      for i in range(1,regionManager.numStepsInWindow):
-        J_sparsity[N*i:N*(i+1),K*(i-1):K*(i+1)] = 1
-      regionManager.J_sparsity = scipy.sparse.csr_matrix(J_sparsity)
+    if (time_str == 'parametricSpaceTimeCrankNicolson'):
+      depth = 1
+      nbasis = 1
+      BoxInit = False
+      model = DeepNN(depth,nbasis,3,BoxInit)
 
-    if (time_str == 'crankNicolsonRomCollocation'):
-      check_t = 0
-      self.advanceSol = crankNicolsonRomCollocation
-      self.args = ['GaussNewton']
-      self.init_pod(regionManager)
-    if (time_str == 'SSP_RK3_POD_QDEIM_VALIDATE'):
-      check_t = 0
-      self.advanceSol = SSP_RK3_POD_QDEIM_VALIDATE
-      self.args = None
-      self.init_pod(regionManager)
-    if (time_str == 'SSP_RK3_POD_COLLOCATE'):
-      check_t = 0
-      self.advanceSol = SSP_RK3_POD_COLLOCATE
-      self.args = None
-      self.init_pod(regionManager)
+    '''
+    tvl,xvl,yvl = np.meshgrid(t,x,y,indexing='ij')
+    xvl = xvl.flatten()
+    yvl = yvl.flatten()
+    tvl = tvl.flatten()
+    nl = np.size(xvl)
+    xv = np.zeros(nl*nparams)
+    yv = np.zeros(nl*nparams)
+    tv = np.zeros(nl*nparams)
+    mu1v = np.zeros(nl*nparams)
+    mu2v = np.zeros(nl*nparams)
+    for i in range(0,nparams):
+      xv[i*nl:(i+1)*nl] = xvl
+      yv[i*nl:(i+1)*nl] = yvl
+      tv[i*nl:(i+1)*nl] = tvl
+      mu1v[i*nl:(i+1)*nl] = mu1[i]
+      mu2v[i*nl:(i+1)*nl] = mu2[i]
 
+
+      input_features = np.append(tv[:,None],xv[:,None],axis=1)
+      input_features = np.append(input_features,yv[:,None],axis=1)
+      input_features = np.append(input_features,mu1v[:,None],axis=1)
+      input_features = np.append(input_features,mu2v[:,None],axis=1)
+    ''' 
     if (time_str == 'SSP_RK3_POD_QDEIM'):
       check_t = 0
       self.advanceSol = SSP_RK3_POD_QDEIM
